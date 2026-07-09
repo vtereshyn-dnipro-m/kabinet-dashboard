@@ -6,23 +6,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown(
-    """
-    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 20px;">
-        <img src="https://dnipro-m.ua/img/svgo/dnipro-M-logo.svg" width="150">
-        <span style="
-            background-color: #1a1a1a;
-            color: white;
-            font-weight: 700;
-            font-size: 18px;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-family: sans-serif;
-        ">M</span>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+st.image("Dnipro-M_logo.svg.webp", width=200)
 
 st.title("Кабинет управления")
 st.caption("Консолидация остатков, продаж, товаров в пути · контроль инцидентов · ИИ-агенты")
