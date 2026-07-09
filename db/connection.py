@@ -38,4 +38,4 @@ def execute(query: str, params: tuple = None):
     cur = conn.cursor()
     cur.execute(query, params)
     conn.commit()
-    cur.close()
+    cur.close() 
