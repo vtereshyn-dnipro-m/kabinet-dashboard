@@ -1,21 +1,26 @@
-import streamlit as st
+from databricks.sdk import WorkspaceClient
 import psycopg2
-import pandas as pd
-
+import streamlit as st
 
 @st.cache_resource
+def get_workspace_client():
+    return WorkspaceClient(
+        host=st.secrets["databricks"]["host"],
+        client_id=st.secrets["databricks"]["client_id"],
+        client_secret=st.secrets["databricks"]["client_secret"],
+    )
+
 def get_connection():
-    return psycopg2.connect(st.secrets["connections"]["lakebase"]["url"])
-
-
-def run_query(query: str, params: tuple = None) -> pd.DataFrame:
-    conn = get_connection()
-    return pd.read_sql_query(query, conn, params=params)
-
-
-def execute(query: str, params: tuple = None):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(query, params)
-    conn.commit()
-    cur.close()
+    w = get_workspace_client()
+    cred = w.database.generate_database_credential(
+        request_id="kabinet-dashboard",
+        instance_names=["kabinet-dashboard"]
+    )
+    return psycopg2.connect(
+        host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com",
+        port=5432,
+        dbname="databricks_postgres",
+        user=st.secrets["databricks"]["client_id"],
+        password=cred.token,
+        sslmode="require"
+    )
