@@ -98,6 +98,20 @@ k5.metric("SKU с остатком ≤ 3", int(low_stock),
 
 st.divider()
 
+# ---------- 🔥 Минимальные остатки ----------
+burn = (f.groupby(["sku", "asin", "product_name"], as_index=False)["quantity"].sum()
+          .sort_values("quantity").head(5))
+if not burn.empty and burn["quantity"].min() <= 3:
+    st.markdown("#### 🔥 Минимальные остатки — кандидаты на пополнение")
+    bcols = st.columns(len(burn))
+    for col, (_, row) in zip(bcols, burn.iterrows()):
+        col.metric(
+            label=str(row["sku"])[:18],
+            value=f"{int(row['quantity'])} шт",
+            help=f"{row['product_name'][:80]}",
+        )
+    st.divider()
+
 tab_overview, tab_abc, tab_cat, tab_table = st.tabs(
     ["📊 Обзор", "🅰️ ABC-анализ", "🧰 Категории", "📋 Таблица"]
 )
@@ -209,14 +223,24 @@ with tab_cat:
 
 # ---------- Таблица ----------
 with tab_table:
+    tbl = f.sort_values("quantity", ascending=False).copy()
+    tbl["amazon_url"] = "https://www.amazon.es/dp/" + tbl["asin"].astype(str)
     st.dataframe(
-        f.sort_values("quantity", ascending=False),
-        use_container_width=True, height=560,
+        tbl[["sku", "product_name", "warehouse_name", "quantity",
+             "availability_status", "category", "amazon_url", "snapshot_date"]],
+        use_container_width=True, height=560, hide_index=True,
         column_config={
             "quantity": st.column_config.ProgressColumn(
-                "quantity", format="%d",
-                min_value=0, max_value=int(f["quantity"].max()),
+                "Остаток", format="%d",
+                min_value=0, max_value=int(tbl["quantity"].max()),
             ),
+            "product_name": st.column_config.TextColumn("Товар", width="large"),
+            "amazon_url": st.column_config.LinkColumn(
+                "Листинг", display_text="Открыть ↗",
+                help="Открыть товар на Amazon"),
+            "availability_status": st.column_config.TextColumn("Статус"),
+            "category": st.column_config.TextColumn("Категория"),
+            "snapshot_date": st.column_config.TextColumn("Снапшот", width="small"),
         },
     )
     st.download_button(
