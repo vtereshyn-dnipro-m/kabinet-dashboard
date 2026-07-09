@@ -49,9 +49,16 @@ def sev_rank(s: str) -> int:
 def load_incidents() -> pd.DataFrame:
     conn = get_connection()
     df = pd.read_sql("""
-        SELECT id, created_at, incident_type, sku, warehouse_name,
-               severity, message, status
-        FROM kabinet_data.incidents
+        SELECT i.id, i.created_at, i.incident_type, i.sku, i.warehouse_name,
+               i.severity, i.message, i.status,
+               s.qty AS current_qty
+        FROM kabinet_data.incidents i
+        LEFT JOIN (
+            SELECT sku, warehouse_name, SUM(quantity) AS qty
+            FROM kabinet_data.stock_local
+            WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM kabinet_data.stock_local)
+            GROUP BY sku, warehouse_name
+        ) s ON s.sku = i.sku AND s.warehouse_name = i.warehouse_name
     """, conn)
     conn.close()
     return df
@@ -99,13 +106,30 @@ open_df = df[df["status"] == "open"]
 sev_counts = open_df["severity"].value_counts()
 top_sevs = sorted(sev_counts.index.tolist(), key=sev_rank)[:2]
 
+SEV_HELP = {
+    "critical": "Продажи уже остановлены: остаток = 0. Реагировать немедленно.",
+    "high": "Высокий риск, требует реакции в ближайшие дни.",
+    "warning": "Запас на исходе: остаток ≤ 3 шт. Спланировать пополнение.",
+    "low": "Запас на исходе: остаток ≤ 3 шт. Спланировать пополнение.",
+    "info": "Информационное уведомление, действия по ситуации.",
+}
+
 cols = st.columns(4)
-cols[0].metric("Открытых", len(open_df))
+cols[0].metric(
+    "Открытых", len(open_df),
+    help="Инциденты со статусом open — требуют действия. "
+         "Закрываются автоматически, когда проблема исчезает из данных.",
+)
 for i, s in enumerate(top_sevs, start=1):
-    cols[i].metric(f"{SEV_ICON.get(s, '⚪')} {s.capitalize()}", int(sev_counts[s]))
+    cols[i].metric(f"{SEV_ICON.get(s, '⚪')} {s.capitalize()}", int(sev_counts[s]),
+                   help=SEV_HELP.get(s, ""))
 for i in range(1 + len(top_sevs), 3):
-    cols[i].metric("—", 0)
-cols[3].metric("Закрыто (всего)", int((df["status"] == "resolved").sum()))
+    cols[i].metric("—", 0, help="Инцидентов других уровней сейчас нет.")
+cols[3].metric(
+    "Закрыто (всего)", int((df["status"] == "resolved").sum()),
+    help="Автозакрытые: сток пополнился — система сама перевела инцидент в resolved. "
+         "Показатель того, что проблемы реально решаются.",
+)
 
 st.divider()
 
@@ -161,12 +185,14 @@ show["created_at"] = show["created_at"].dt.strftime("%d.%m.%Y %H:%M")
 
 st.dataframe(
     show[["created_at", "severity", "incident_type", "sku",
-          "warehouse_name", "message", "age_days", "status"]],
+          "warehouse_name", "current_qty", "message", "age_days", "status"]],
     use_container_width=True, height=480, hide_index=True,
     column_config={
         "created_at": st.column_config.TextColumn("Создан", width="small"),
         "severity": st.column_config.TextColumn("Уровень", width="small"),
         "incident_type": st.column_config.TextColumn("Тип", width="small"),
+        "current_qty": st.column_config.NumberColumn("Остаток", width="small",
+                                                     help="Актуальный остаток по последнему снапшоту"),
         "message": st.column_config.TextColumn("Описание", width="large"),
         "age_days": st.column_config.NumberColumn("Дней", width="small",
                                                   help="Сколько дней инцидент открыт"),
