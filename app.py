@@ -8,15 +8,16 @@ st.set_page_config(
 
 st.markdown(
     """
-    <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 20px;">
-        <img src="https://dnipro-m.ua/img/svgo/dnipro-M-logo.svg" width="160">
+    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 20px;">
+        <img src="https://dnipro-m.ua/img/svgo/dnipro-M-logo.svg" width="150">
         <span style="
             background-color: #1a1a1a;
             color: white;
-            font-weight: bold;
-            font-size: 20px;
-            padding: 2px 8px;
+            font-weight: 700;
+            font-size: 18px;
+            padding: 4px 10px;
             border-radius: 4px;
+            font-family: sans-serif;
         ">M</span>
     </div>
     """,
