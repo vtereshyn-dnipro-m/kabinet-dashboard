@@ -69,13 +69,15 @@ if df.empty:
     st.info("Инцидентов пока нет. Либо всё хорошо, либо генератор ещё не запускался 🙂")
     st.stop()
 
+STATUS_ORDER = {"open": 0, "acknowledged": 1, "resolved": 2}
+
 df["severity"] = df["severity"].fillna("info").str.lower()
 df["created_at"] = pd.to_datetime(df["created_at"])
 df["age_days"] = (pd.Timestamp.now(tz=df["created_at"].dt.tz) - df["created_at"]).dt.days
 df = df.sort_values(
     by=["status", "severity", "created_at"],
     key=lambda col: col.map(sev_rank) if col.name == "severity"
-    else (col != "open").astype(int) if col.name == "status" else col,
+    else col.map(lambda s: STATUS_ORDER.get(s, 9)) if col.name == "status" else col,
     ascending=[True, True, False],
 )
 
@@ -86,8 +88,8 @@ with c1:
                          sorted(df["severity"].unique(), key=sev_rank),
                          default=sorted(df["severity"].unique(), key=sev_rank))
 with c2:
-    statuses = sorted(df["status"].unique())
-    default_status = ["open"] if "open" in statuses else statuses
+    statuses = sorted(df["status"].unique(), key=lambda s: STATUS_ORDER.get(s, 9))
+    default_status = [s for s in ("open", "acknowledged") if s in statuses] or statuses
     stat = st.multiselect("Статус", statuses, default=default_status)
 with c3:
     itype = st.multiselect("Тип", sorted(df["incident_type"].unique()),
@@ -132,6 +134,25 @@ cols[3].metric(
 )
 
 st.divider()
+
+# ---------- 🔥 Топ горящих ----------
+burning = (df[df["status"].isin(["open", "acknowledged"])]
+           .dropna(subset=["current_qty"])
+           .sort_values(["current_qty", "age_days"], ascending=[True, False])
+           .head(5))
+if not burning.empty:
+    st.markdown("#### 🔥 Требуют внимания первыми")
+    bcols = st.columns(len(burning))
+    for col, (_, row) in zip(bcols, burning.iterrows()):
+        product = str(row["message"]).split(":")[0][:40]
+        col.metric(
+            label=f"{SEV_ICON.get(row['severity'], '⚪')} {row['sku'][:18]}",
+            value=f"{int(row['current_qty'])} шт",
+            delta=f"-{int(row['age_days'])} дн. открыт" if row["age_days"] else "новый",
+            delta_color="inverse" if row["age_days"] else "off",
+            help=f"{product} · {row['warehouse_name']} · статус: {row['status']}",
+        )
+    st.divider()
 
 # ---------- графики ----------
 left, mid, right = st.columns(3)
@@ -178,18 +199,30 @@ with right:
         st.caption("📈 Появится, когда накопится история за несколько дней. "
                    "Включи расписание лоадера — и через неделю здесь будет тренд.")
 
-# ---------- таблица ----------
-show = f.copy()
-show["severity"] = show["severity"].map(lambda s: f"{SEV_ICON.get(s, '⚪')} {s}")
-show["created_at"] = show["created_at"].dt.strftime("%d.%m.%Y %H:%M")
+# ---------- таблица с выбором ----------
+def update_status(ids: list, new_status: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE kabinet_data.incidents SET status = %s WHERE id = ANY(%s)",
+        (new_status, list(map(int, ids))),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
 
-st.dataframe(
-    show[["created_at", "severity", "incident_type", "sku",
+show = f.reset_index(drop=True).copy()
+show["severity_icon"] = show["severity"].map(lambda s: f"{SEV_ICON.get(s, '⚪')} {s}")
+show["created_str"] = show["created_at"].dt.strftime("%d.%m.%Y %H:%M")
+
+event = st.dataframe(
+    show[["created_str", "severity_icon", "incident_type", "sku",
           "warehouse_name", "current_qty", "message", "age_days", "status"]],
     use_container_width=True, height=480, hide_index=True,
+    on_select="rerun", selection_mode="multi-row",
     column_config={
-        "created_at": st.column_config.TextColumn("Создан", width="small"),
-        "severity": st.column_config.TextColumn("Уровень", width="small"),
+        "created_str": st.column_config.TextColumn("Создан", width="small"),
+        "severity_icon": st.column_config.TextColumn("Уровень", width="small"),
         "incident_type": st.column_config.TextColumn("Тип", width="small"),
         "current_qty": st.column_config.NumberColumn("Остаток", width="small",
                                                      help="Актуальный остаток по последнему снапшоту"),
@@ -199,6 +232,26 @@ st.dataframe(
         "status": st.column_config.TextColumn("Статус", width="small"),
     },
 )
+
+selected_rows = event.selection.rows if event and event.selection else []
+b1, b2, b3 = st.columns([1.2, 1.2, 3])
+with b1:
+    if st.button(f"🎯 Взять в работу ({len(selected_rows)})",
+                 disabled=not selected_rows, use_container_width=True):
+        ids = show.loc[selected_rows, "id"].tolist()
+        update_status(ids, "acknowledged")
+        st.cache_data.clear()
+        st.rerun()
+with b2:
+    if st.button(f"✅ Закрыть вручную ({len(selected_rows)})",
+                 disabled=not selected_rows, use_container_width=True):
+        ids = show.loc[selected_rows, "id"].tolist()
+        update_status(ids, "resolved")
+        st.cache_data.clear()
+        st.rerun()
+with b3:
+    st.caption("Выбери строки галочками слева → «Взять в работу» пометит их как acknowledged, "
+               "чтобы команда видела: кто-то уже занимается.")
 
 st.download_button(
     "⬇️ Скачать CSV",
