@@ -1,4 +1,4 @@
-# app.py — роутер + лого
+# app.py — роутер
 import streamlit as st
 
 st.set_page_config(
@@ -6,15 +6,6 @@ st.set_page_config(
     page_icon="📦",
     layout="wide",
 )
-
-# Лого в сайдбаре: белая "M" для тёмной темы, чёрная для светлой
-try:
-    theme = st.context.theme.type  # "light" | "dark"
-except Exception:
-    theme = "light"
-
-logo_file = "logo_dark.webp" if theme == "dark" else "Dnipro-M_logo.svg.webp"
-st.logo(logo_file, size="large")
 
 pages = st.navigation({
     "Кабинет Demand & Supply": [
