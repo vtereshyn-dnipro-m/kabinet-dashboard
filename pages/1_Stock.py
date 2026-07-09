@@ -227,4 +227,4 @@ with tab_table:
         f.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"stock_{f['snapshot_date'].max()}.csv",
         mime="text/csv",
-    )
+    ) 
