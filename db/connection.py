@@ -15,9 +15,8 @@ def get_workspace_client():
 
 def get_connection():
     w = get_workspace_client()
-    cred = w.database.generate_database_credential(
-        request_id="kabinet-dashboard",
-        instance_names=["projects/kabinet-dashboard/branches/production/endpoints/primary"]
+    cred = w.postgres.generate_database_credential(
+        endpoint=st.secrets["databricks"]["endpoint_name"]
     )
     return psycopg2.connect(
         host=st.secrets["databricks"]["pg_host"],
