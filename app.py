@@ -6,6 +6,7 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
 st.image("Dnipro-M_logo.svg.webp", width=200)
 
 st.title("Кабинет управления")
