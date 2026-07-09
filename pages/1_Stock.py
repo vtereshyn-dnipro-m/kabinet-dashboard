@@ -12,8 +12,7 @@ from db.connection import get_connection
 st.markdown("""
 <style>
 [data-testid="stMetric"] {
-    background: var(--secondary-background-color);
-    border: 1px solid rgba(128, 128, 128, 0.25);
+    border: 1px solid rgba(128, 128, 128, 0.35);
     border-radius: 12px;
     padding: 14px 18px;
 }
@@ -225,4 +224,4 @@ with tab_table:
         f.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"stock_{f['snapshot_date'].max()}.csv",
         mime="text/csv",
-    )
+    ) 
