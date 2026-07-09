@@ -1,8 +1,6 @@
-# home.py — главная страница (бывший контент app.py)
+# home.py — главная страница
 import streamlit as st
 
-st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
-st.image("Dnipro-M_logo.svg.webp", width=140)
 st.title("Кабинет Demand & Supply")
 st.caption("Управление запасами и спросом: остатки · инциденты · прогноз · ИИ-агенты")
 st.markdown(
