@@ -7,7 +7,7 @@ st.set_page_config(
 )
 
 st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
-st.image("Dnipro-M_logo.svg.webp", width=200)
+st.image("Dnipro-M_logo.svg.webp", width=140)
 
 st.title("Кабинет управления")
 st.caption("Консолидация остатков, продаж, товаров в пути · контроль инцидентов · ИИ-агенты")
