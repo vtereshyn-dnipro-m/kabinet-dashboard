@@ -6,16 +6,14 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 
-from db.connection import get_connection  # поправь импорт под свой db/connection.py
-
-st.set_page_config(page_title="Остатки — Кабинет управления", layout="wide")
+from db.connection import get_connection
 
 # ---------- стили ----------
 st.markdown("""
 <style>
 [data-testid="stMetric"] {
-    background: #f8f9fb;
-    border: 1px solid #e6e8ee;
+    background: var(--secondary-background-color);
+    border: 1px solid rgba(128, 128, 128, 0.25);
     border-radius: 12px;
     padding: 14px 18px;
 }
@@ -227,4 +225,4 @@ with tab_table:
         f.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"stock_{f['snapshot_date'].max()}.csv",
         mime="text/csv",
-    ) 
+    )
