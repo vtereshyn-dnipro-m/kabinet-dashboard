@@ -1,4 +1,4 @@
-# app.py — роутер
+# app.py — роутер + лого
 import streamlit as st
 
 st.set_page_config(
@@ -6,6 +6,13 @@ st.set_page_config(
     page_icon="📦",
     layout="wide",
 )
+
+try:
+    _theme = st.context.theme.type  # "light" | "dark"
+except Exception:
+    _theme = "light"
+
+st.logo("logo_dark.png" if _theme == "dark" else "logo_light.png", size="large")
 
 pages = st.navigation({
     "Кабинет Demand & Supply": [
