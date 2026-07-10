@@ -10,7 +10,7 @@ st.set_page_config(
 try:
     _dark = st.context.theme.type == "dark"
 except Exception:
-    _dark = True  # по умолчанию тёмная — основная тема команды
+    _dark = True  # если тему определить не удалось — тёмная (основная у команды)
 
 st.logo("logo_dark.png" if _dark else "logo_light.png", size="large")
 
