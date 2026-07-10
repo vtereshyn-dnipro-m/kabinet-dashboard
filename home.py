@@ -17,11 +17,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
-try:
-    _logo = "logo_dark.png" if st.context.theme.type == "dark" else "logo_light.png"
-except Exception:
-    _logo = "logo_light.png"
-st.image(_logo, width=140)
+st.image("logo_dark.png", width=140)
 st.title("Кабинет Demand & Supply")
 st.caption("Система сама находит проблемы и приносит их вам")
 
