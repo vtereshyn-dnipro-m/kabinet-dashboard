@@ -7,7 +7,12 @@ st.set_page_config(
     layout="wide",
 )
 
-st.logo("logo_dark.png", size="large")
+try:
+    _dark = st.context.theme.type == "dark"
+except Exception:
+    _dark = True  # по умолчанию тёмная — основная тема команды
+
+st.logo("logo_dark.png" if _dark else "logo_light.png", size="large")
 
 pages = st.navigation({
     "Кабинет Demand & Supply": [
