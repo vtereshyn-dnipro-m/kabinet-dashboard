@@ -119,11 +119,19 @@ if not burn.empty and burn["quantity"].min() <= 3:
     st.markdown("#### 🔥 Минимальные остатки — кандидаты на пополнение")
     bcols = st.columns(len(burn))
     for col, (_, row) in zip(bcols, burn.iterrows()):
-        col.metric(
-            label=str(row["sku"])[:18],
-            value=f"{int(row['quantity'])} шт",
-            help=f"{row['product_name'][:80]}",
-        )
+        # разбивка по странам для этого SKU — где именно лежит остаток
+        by_country = (f[f["sku"] == row["sku"]]
+                        .groupby("location")["quantity"].sum())
+        by_country = by_country[by_country > 0].sort_values(ascending=False)
+        country_str = " · ".join(f"{c}: {int(q)}" for c, q in by_country.items())
+
+        with col:
+            st.metric(
+                label=str(row["sku"])[:18],
+                value=f"{int(row['quantity'])} шт",
+                help=f"{row['product_name'][:80]}",
+            )
+            st.caption(f"📍 {country_str}" if country_str else "нет в наличии")
     st.divider()
 
 tab_overview, tab_abc, tab_cat, tab_countries, tab_table = st.tabs(
