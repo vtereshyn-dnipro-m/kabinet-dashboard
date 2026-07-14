@@ -345,33 +345,50 @@ with tab_countries:
     else:
         st.caption("💡 Кликни по ячейке — увидишь товар целиком и остаток по всем странам")
 
-    st.caption("Пусто/светлое = товара нет или мало в этой стране. Полезно, чтобы увидеть перекос "
-               "остатков между рынками (например, всё лежит в DE, а в ES ничего).")
+    st.caption("Пусто/светлое = товара нет или мало в этой стране. Топ-20 — для наглядности карты. "
+               "Полная таблица со всеми SKU — ниже.")
 
-    # ---------- та же матрица, но как точная таблица ----------
-    with st.expander("📋 Та же матрица — точные цифры (сортировка, экспорт)"):
-        table_view = pivot.copy()
-        table_view.insert(0, "Товар", [name_map.get(sku, "") for sku in table_view.index])
-        table_view.insert(0, "SKU", table_view.index)
-        table_view = table_view.reset_index(drop=True)
-        table_view["Всего"] = pivot.sum(axis=1).values
+    st.divider()
 
-        st.dataframe(
-            table_view, use_container_width=True, height=460, hide_index=True,
-            column_config={
-                "SKU": st.column_config.TextColumn("SKU", width="small"),
-                "Товар": st.column_config.TextColumn("Товар", width="large"),
-                "Всего": st.column_config.NumberColumn("Всего", width="small"),
-                **{col: st.column_config.NumberColumn(col, width="small")
-                   for col in pivot.columns},
-            },
-        )
-        st.download_button(
-            "⬇️ Скачать матрицу CSV",
-            table_view.to_csv(index=False).encode("utf-8-sig"),
-            file_name="stock_by_country_matrix.csv",
-            mime="text/csv",
-        )
+    # ---------- полная таблица по ВСЕМ SKU (не только топ-20) ----------
+    st.markdown("##### Полная таблица: все SKU × страны")
+
+    full_pivot = (f.pivot_table(index="sku", columns="location",
+                                values="quantity", aggfunc="sum", fill_value=0))
+    full_pivot["Всего"] = full_pivot.sum(axis=1)
+    full_pivot = full_pivot.sort_values("Всего", ascending=False)
+
+    full_name_map = f.drop_duplicates("sku").set_index("sku")["product_name"]
+
+    table_view = full_pivot.reset_index()
+    table_view.insert(1, "Товар", table_view["sku"].map(full_name_map))
+
+    country_cols = [c for c in full_pivot.columns if c != "Всего"]
+
+    st.dataframe(
+        table_view, use_container_width=True, height=520, hide_index=True,
+        column_config={
+            "sku": st.column_config.TextColumn("SKU", width="small"),
+            "Товар": st.column_config.TextColumn("Товар", width="large"),
+            "Всего": st.column_config.NumberColumn("Всего", width="small"),
+            **{col: st.column_config.NumberColumn(col, width="small")
+               for col in country_cols},
+        },
+    )
+
+    # ---------- строка ИТОГО ----------
+    totals = {c: int(full_pivot[c].sum()) for c in full_pivot.columns}
+    tcols = st.columns(len(totals) + 1)
+    tcols[0].markdown("**ИТОГО**")
+    for i, (country, val) in enumerate(totals.items(), start=1):
+        tcols[i].metric(country, f"{val}")
+
+    st.download_button(
+        "⬇️ Скачать полную матрицу CSV",
+        table_view.to_csv(index=False).encode("utf-8-sig"),
+        file_name="stock_by_country_full.csv",
+        mime="text/csv",
+    )
 
 # ---------- Таблица ----------
 with tab_table:
