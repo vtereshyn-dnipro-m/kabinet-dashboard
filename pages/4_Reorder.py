@@ -73,68 +73,65 @@ if not crit.empty:
             )
     st.divider()
 
-# ---------- график: скорость vs запас ----------
-left, right = st.columns([3, 2])
-with left:
-    st.markdown("##### Топ по срочности")
-    plot = df[df["urgency"] != "ok"].sort_values("days_of_cover").head(15)
-    if not plot.empty:
-        plot["label"] = plot["product_name"].str.slice(0, 35) + "…"
-        fig = px.bar(plot.sort_values("days_of_cover", ascending=False),
-                     x="days_of_cover", y="label", orientation="h",
-                     color="urgency",
-                     color_discrete_map={"critical": "#e24b4a", "warning": "#f2b134"},
-                     labels={"days_of_cover": "дней хватит", "label": ""},
-                     text="suggested_qty")
-        fig.update_traces(texttemplate="заказать %{text}", textposition="outside")
-        fig.update_layout(height=480, showlegend=False,
-                          margin=dict(l=10, r=60, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+# ---------- фильтр ----------
+f1, f2 = st.columns([1, 2])
+with f1:
+    urg_filter = st.multiselect(
+        "Срочность",
+        ["critical", "warning", "ok"],
+        default=["critical", "warning"],
+        format_func=lambda x: f"{URG_ICON[x]} {URG_LABEL[x]}",
+    )
+with f2:
+    search = st.text_input("Поиск по SKU / названию", placeholder="напр. Amoladora")
 
-with right:
-    st.markdown("##### Распределение")
-    dist = df.groupby("urgency").size().reset_index(name="count")
-    dist["label"] = dist["urgency"].map(URG_LABEL)
-    fig = px.pie(dist, names="label", values="count", hole=0.55,
-                 color="urgency",
-                 color_discrete_map={"critical": "#e24b4a",
-                                     "warning": "#f2b134", "ok": "#3aa"})
-    fig.update_layout(height=260, showlegend=True,
-                      legend=dict(orientation="h", y=-0.1),
-                      margin=dict(l=0, r=0, t=10, b=0))
-    st.plotly_chart(fig, use_container_width=True)
+f = df[df["urgency"].isin(urg_filter)]
+if search:
+    mask = (f["sku"].str.contains(search, case=False, na=False)
+            | f["product_name"].str.contains(search, case=False, na=False))
+    f = f[mask]
 
-st.divider()
-
-# ---------- таблица + выбор для заказа ----------
-st.markdown("##### Все рекомендации")
-show = df.sort_values(["urg_rank", "days_of_cover"]).copy()
-show["urgency_disp"] = show["urgency"].map(lambda u: f"{URG_ICON.get(u,'')} {URG_LABEL.get(u,u)}")
+# ---------- таблица рекомендаций ----------
+show = f.sort_values(["urg_rank", "days_of_cover"]).copy()
+show["Срочность"] = show["urgency"].map(lambda u: f"{URG_ICON.get(u, '')} {URG_LABEL.get(u, u)}")
+show["Продаётся/день"] = show["daily_velocity"].round(1)
+show["Хватит, дней"] = show["days_of_cover"].round(0)
 
 st.dataframe(
-    show[["urgency_disp", "sku", "product_name", "current_stock",
-          "daily_velocity", "days_of_cover", "suggested_qty"]],
-    use_container_width=True, height=440, hide_index=True,
+    show[["Срочность", "sku", "product_name", "current_stock",
+          "Продаётся/день", "Хватит, дней", "suggested_qty"]],
+    use_container_width=True, height=460, hide_index=True,
     column_config={
-        "urgency_disp": st.column_config.TextColumn("Срочность", width="small"),
         "sku": st.column_config.TextColumn("SKU", width="small"),
         "product_name": st.column_config.TextColumn("Товар", width="large"),
         "current_stock": st.column_config.NumberColumn("Остаток", width="small"),
-        "daily_velocity": st.column_config.NumberColumn("Продаж/день", format="%.1f", width="small"),
-        "days_of_cover": st.column_config.NumberColumn("Хватит, дней", format="%.0f", width="small"),
-        "suggested_qty": st.column_config.NumberColumn("Заказать, шт", width="small"),
+        "Хватит, дней": st.column_config.NumberColumn("Хватит, дней", width="small",
+                                                      help="На сколько дней хватит при текущей скорости продаж"),
+        "suggested_qty": st.column_config.NumberColumn("Заказать, шт", width="small",
+                                                       help="Рекомендуемое количество к заказу"),
     },
 )
 
+# ---------- выгрузка заказа ----------
+order = f[f["urgency"] != "ok"][["sku", "product_name", "current_stock",
+                                  "daily_velocity", "days_of_cover", "suggested_qty"]]
 st.download_button(
-    "⬇️ Скачать список заказа (CSV)",
-    df[df["urgency"] != "ok"][["sku", "product_name", "current_stock",
-                               "daily_velocity", "days_of_cover", "suggested_qty", "urgency"]]
-      .to_csv(index=False).encode("utf-8-sig"),
-    file_name="reorder_list.csv",
+    f"⬇️ Скачать заказ ({len(order)} SKU, {int(order['suggested_qty'].sum())} шт)",
+    order.to_csv(index=False).encode("utf-8-sig"),
+    file_name="reorder.csv",
     mime="text/csv",
+    disabled=order.empty,
 )
 
-st.caption("Параметры расчёта (срок поставки, страховой запас, горизонт) пока фиксированы. "
-           "Дальше вынесем в настройки — сможешь крутить сам. Товары в пути учтём, "
-           "когда подключим раздел «Товары в пути».")
+# ---------- как считается ----------
+with st.expander("ℹ️ Как считается автозаказ"):
+    st.markdown("""
+    - **Скорость продаж** — среднее за последние 30 дней (из истории заказов)
+    - **Хватит дней** = остаток / скорость продаж
+    - **🔴 Заказать срочно** — хватит меньше, чем срок поставки (не успеваем)
+    - **🟡 Пора заказывать** — остаток ниже точки заказа (срок поставки + страховой запас)
+    - **Заказать, шт** — сколько нужно, чтобы покрыть спрос на 60 дней вперёд
+
+    Параметры (срок поставки, страховой запас) пока общие — скоро вынесем в настройки,
+    и посчитаем реальный срок поставки по каждому складу из истории поставок.
+    """)
