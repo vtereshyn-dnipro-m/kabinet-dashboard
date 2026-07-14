@@ -348,6 +348,31 @@ with tab_countries:
     st.caption("Пусто/светлое = товара нет или мало в этой стране. Полезно, чтобы увидеть перекос "
                "остатков между рынками (например, всё лежит в DE, а в ES ничего).")
 
+    # ---------- та же матрица, но как точная таблица ----------
+    with st.expander("📋 Та же матрица — точные цифры (сортировка, экспорт)"):
+        table_view = pivot.copy()
+        table_view.insert(0, "Товар", [name_map.get(sku, "") for sku in table_view.index])
+        table_view.insert(0, "SKU", table_view.index)
+        table_view = table_view.reset_index(drop=True)
+        table_view["Всего"] = pivot.sum(axis=1).values
+
+        st.dataframe(
+            table_view, use_container_width=True, height=460, hide_index=True,
+            column_config={
+                "SKU": st.column_config.TextColumn("SKU", width="small"),
+                "Товар": st.column_config.TextColumn("Товар", width="large"),
+                "Всего": st.column_config.NumberColumn("Всего", width="small"),
+                **{col: st.column_config.NumberColumn(col, width="small")
+                   for col in pivot.columns},
+            },
+        )
+        st.download_button(
+            "⬇️ Скачать матрицу CSV",
+            table_view.to_csv(index=False).encode("utf-8-sig"),
+            file_name="stock_by_country_matrix.csv",
+            mime="text/csv",
+        )
+
 # ---------- Таблица ----------
 with tab_table:
     view_mode = st.radio(
