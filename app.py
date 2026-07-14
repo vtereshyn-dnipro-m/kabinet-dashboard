@@ -19,6 +19,7 @@ pages = st.navigation({
         st.Page("home.py", title="Обзор", icon="🏠", default=True),
         st.Page("pages/1_Stock.py", title="Остатки", icon="📦"),
         st.Page("pages/2_Incidents.py", title="Инциденты", icon="🚨"),
+        st.Page("pages/4_Reorder.py", title="Автозаказ", icon="🛒"),
         st.Page("pages/3_Forecast.py", title="Прогноз", icon="📈"),
     ],
 })
