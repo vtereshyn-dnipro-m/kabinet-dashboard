@@ -14,6 +14,7 @@ except Exception:
 
 st.logo("logo_dark.png" if _dark else "logo_light.png", size="large")
 
+
 pages = st.navigation({
     "Кабинет Demand & Supply": [
         st.Page("home.py", title="Обзор", icon="🏠", default=True),
@@ -23,4 +24,6 @@ pages = st.navigation({
         st.Page("pages/3_Forecast.py", title="Прогноз", icon="📈"),
     ],
 })
+
+
 pages.run()
