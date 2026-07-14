@@ -283,13 +283,69 @@ with tab_countries:
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("##### Матрица SKU × страна (топ-20 по остатку)")
-    top_skus = (f.groupby("sku")["quantity"].sum()
-                  .nlargest(20).index.tolist())
-    pivot = (f[f["sku"].isin(top_skus)]
-               .pivot_table(index="sku", columns="location", values="quantity",
-                            aggfunc="sum", fill_value=0))
-    st.dataframe(pivot, use_container_width=True, height=460)
-    st.caption("Пусто = товара нет в этой стране. Полезно, чтобы увидеть перекос "
+    top_skus_df = (f.groupby(["sku", "product_name"], as_index=False)["quantity"]
+                     .sum().nlargest(20, "quantity"))
+    top_skus = top_skus_df["sku"].tolist()
+    name_map = dict(zip(top_skus_df["sku"], top_skus_df["product_name"]))
+
+    matrix_src = f[f["sku"].isin(top_skus)]
+    pivot = (matrix_src.pivot_table(index="sku", columns="location",
+                                    values="quantity", aggfunc="sum", fill_value=0)
+                        .reindex(top_skus))  # сохраняем порядок по убыванию остатка
+
+    # короткая подпись для оси Y: SKU + начало названия
+    y_labels = [f"{sku} · {name_map.get(sku, '')[:28]}" for sku in pivot.index]
+
+    fig = px.imshow(
+        pivot.values,
+        x=pivot.columns.tolist(),
+        y=y_labels,
+        color_continuous_scale="Blues",
+        aspect="auto",
+        labels=dict(x="Страна", y="", color="Остаток"),
+    )
+    fig.update_traces(
+        hovertemplate="<b>%{y}</b><br>Страна: %{x}<br>Остаток: %{z} шт<extra></extra>"
+    )
+    fig.update_layout(
+        height=44 * len(pivot) + 100,
+        margin=dict(l=10, r=10, t=20, b=10),
+        coloraxis_showscale=False,
+    )
+    event = st.plotly_chart(fig, use_container_width=True,
+                            on_select="rerun", key="stock_matrix")
+
+    # клик по ячейке -> карточка товара с деталями по всем странам
+    pts = event.selection.points if event and event.selection else []
+    if pts:
+        y_clicked = pts[0].get("y")
+        sku_clicked = None
+        for sku, lbl in zip(pivot.index, y_labels):
+            if lbl == y_clicked:
+                sku_clicked = sku
+                break
+        if sku_clicked:
+            row_info = df[df["sku"] == sku_clicked].iloc[0]
+            by_country = (f[f["sku"] == sku_clicked]
+                            .groupby("location", as_index=False)["quantity"].sum()
+                            .sort_values("quantity", ascending=False))
+            total_qty = int(by_country["quantity"].sum())
+
+            cc1, cc2, cc3 = st.columns([2.5, 1, 1.2])
+            cc1.markdown(f"**{row_info['product_name']}**  \n`{sku_clicked}`")
+            cc2.metric("Остаток (всего)", f"{total_qty} шт")
+            cc3.link_button("Открыть на Amazon ↗",
+                            f"https://www.amazon.es/dp/{row_info['asin']}",
+                            use_container_width=True)
+
+            bc = st.columns(min(len(by_country), 6) or 1)
+            for i, (_, r) in enumerate(by_country.iterrows()):
+                with bc[i % len(bc)]:
+                    st.metric(r["location"], f"{int(r['quantity'])} шт")
+    else:
+        st.caption("💡 Кликни по ячейке — увидишь товар целиком и остаток по всем странам")
+
+    st.caption("Пусто/светлое = товара нет или мало в этой стране. Полезно, чтобы увидеть перекос "
                "остатков между рынками (например, всё лежит в DE, а в ES ничего).")
 
 # ---------- Таблица ----------
