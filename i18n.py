@@ -37,6 +37,7 @@ TRANSLATIONS = {
     "common.status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "common.confirm": {"ru": "Подтвердить", "uk": "Підтвердити", "en": "Confirm"},
     "common.cancel": {"ru": "Отмена", "uk": "Скасувати", "en": "Cancel"},
+    "common.language_label": {"ru": "Смена языка", "uk": "Зміна мови", "en": "Change language"},
 
     # --- 1_Stock.py ---
     "stock.title": {"ru": "Остатки", "uk": "Залишки", "en": "Stock"},
@@ -175,14 +176,28 @@ def language_toggle(location=None):
     loc = location or st.sidebar
     order = ["ru", "uk", "en"]
     current = st.session_state.lang
-    choice = loc.radio(
-        "🌐",
-        options=[LANG_LABELS[l] for l in order],
-        index=order.index(current),
-        horizontal=True,
-        label_visibility="collapsed",
-        key="lang_toggle_widget",
-    )
+
+    loc.caption(t("common.language_label"))
+
+    if hasattr(loc, "segmented_control"):
+        choice = loc.segmented_control(
+            "Язык",
+            options=[LANG_LABELS[l] for l in order],
+            default=LANG_LABELS[current],
+            label_visibility="collapsed",
+            key="lang_toggle_widget",
+        )
+        choice = choice or LANG_LABELS[current]
+    else:
+        choice = loc.radio(
+            "Язык",
+            options=[LANG_LABELS[l] for l in order],
+            index=order.index(current),
+            horizontal=True,
+            label_visibility="collapsed",
+            key="lang_toggle_widget",
+        )
+
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
