@@ -7,6 +7,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from db.connection import get_connection
+from i18n import init_lang, t
+
+init_lang()
 
 # ---------- стили ----------
 st.markdown("""
@@ -21,8 +24,8 @@ h1 { margin-bottom: 0.2rem; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Остатки")
-st.caption("Консолидация по складам: Amazon FBA (по странам) + собственные/3PL")
+st.title(t("stock.title"))
+st.caption(t("stock.caption"))
 
 # ---------- данные ----------
 @st.cache_data(ttl=600)
@@ -38,34 +41,37 @@ def load_stock() -> pd.DataFrame:
     conn.close()
     return df
 
-CATEGORY_MAP = {
-    "amoladora": "Amoladoras (болгарки)",
-    "martillo": "Martillos (перфораторы)",
-    "taladro": "Taladros (дрели/шуруповёрты)",
-    "destornillador": "Destornilladores (отвёртки)",
-    "motosierra": "Motosierras (пилы)",
-    "sierra": "Sierras (пилы)",
-    "soldador": "Soldadores (сварка)",
-    "compresor": "Compresores",
-    "bateria": "Baterías / зарядки",
-    "cargador": "Baterías / зарядки",
-}
+
+def get_category_map():
+    return {
+        "amoladora": t("stock.cat.amoladora"),
+        "martillo": t("stock.cat.martillo"),
+        "taladro": t("stock.cat.taladro"),
+        "destornillador": t("stock.cat.destornillador"),
+        "motosierra": t("stock.cat.motosierra"),
+        "sierra": t("stock.cat.sierra"),
+        "soldador": t("stock.cat.soldador"),
+        "compresor": t("stock.cat.compresor"),
+        "bateria": t("stock.cat.bateria"),
+        "cargador": t("stock.cat.bateria"),
+    }
+
 
 def detect_category(name: str) -> str:
     n = (name or "").lower()
-    for key, cat in CATEGORY_MAP.items():
+    for key, cat in get_category_map().items():
         if key in n:
             return cat
-    return "Прочее"
+    return t("stock.other")
+
 
 df = load_stock()
 if df.empty:
-    st.warning("Нет данных в kabinet_data.stock_local")
+    st.warning(t("stock.no_data_warning"))
     st.stop()
 
 df["category"] = df["product_name"].apply(detect_category)
 df["power_w"] = df["product_name"].str.extract(r"(\d{3,4})\s*W", flags=re.I)[0].astype(float)
-# location может быть NULL для не-FBA источников — подстрахуемся
 if "location" not in df.columns:
     df["location"] = None
 df["location"] = df["location"].fillna("—")
@@ -73,19 +79,19 @@ df["location"] = df["location"].fillna("—")
 # ---------- фильтры ----------
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    wh_filter = st.text_input("Склад (часть названия)")
+    wh_filter = st.text_input(t("stock.filter.warehouse"))
 with c2:
-    sku_filter = st.text_input("SKU / артикул")
+    sku_filter = st.text_input(t("stock.filter.sku"))
 with c3:
     status_filter = st.selectbox(
-        "Статус доступности",
-        ["Все"] + sorted(df["availability_status"].dropna().unique().tolist()),
+        t("stock.filter.avail_status"),
+        [t("stock.filter.all")] + sorted(df["availability_status"].dropna().unique().tolist()),
     )
 with c4:
     country_filter = st.multiselect(
-        "Страна (FBA)",
+        t("stock.filter.country"),
         sorted(df["location"].unique().tolist()),
-        placeholder="Все страны",
+        placeholder=t("stock.filter.country_placeholder"),
     )
 
 f = df.copy()
@@ -93,22 +99,22 @@ if wh_filter:
     f = f[f["warehouse_name"].str.contains(wh_filter, case=False, na=False)]
 if sku_filter:
     f = f[f["sku"].str.contains(sku_filter, case=False, na=False)]
-if status_filter != "Все":
+if status_filter != t("stock.filter.all"):
     f = f[f["availability_status"] == status_filter]
 if country_filter:
     f = f[f["location"].isin(country_filter)]
 
 # ---------- KPI ----------
 k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric("Всего SKU", f["sku"].nunique())
-k2.metric("Стран (FBA)", f["location"].nunique(),
-          help="Количество стран, где лежит товар на Amazon FBA")
-k3.metric("Суммарный остаток", int(f["quantity"].sum()))
-k4.metric("Медиана на SKU",
+k1.metric(t("stock.kpi.total_sku"), f["sku"].nunique())
+k2.metric(t("stock.kpi.countries"), f["location"].nunique(),
+          help=t("stock.kpi.countries_help"))
+k3.metric(t("stock.kpi.total_qty"), int(f["quantity"].sum()))
+k4.metric(t("stock.kpi.median"),
           int(f.groupby("sku")["quantity"].sum().median()) if len(f) else 0)
 low_stock = (f.groupby("sku")["quantity"].sum() <= 3).sum()
-k5.metric("SKU с остатком ≤ 3", int(low_stock),
-          delta=None, help="Кандидаты на пополнение (сумма по всем странам)")
+k5.metric(t("stock.kpi.low_stock"), int(low_stock),
+          delta=None, help=t("stock.kpi.low_stock_help"))
 
 st.divider()
 
@@ -116,10 +122,10 @@ st.divider()
 burn = (f.groupby(["sku", "asin", "product_name"], as_index=False)["quantity"].sum()
           .sort_values("quantity").head(5))
 if not burn.empty and burn["quantity"].min() <= 3:
-    st.markdown("#### 🔥 Минимальные остатки — кандидаты на пополнение")
+    st.markdown(f"#### {t('stock.burn_title')}")
     bcols = st.columns(len(burn))
+    unit = t("stock.ov.unit_short")
     for col, (_, row) in zip(bcols, burn.iterrows()):
-        # разбивка по странам для этого SKU — где именно лежит остаток
         by_country = (f[f["sku"] == row["sku"]]
                         .groupby("location")["quantity"].sum())
         by_country = by_country[by_country > 0].sort_values(ascending=False)
@@ -128,14 +134,15 @@ if not burn.empty and burn["quantity"].min() <= 3:
         with col:
             st.metric(
                 label=str(row["sku"])[:18],
-                value=f"{int(row['quantity'])} шт",
+                value=f"{int(row['quantity'])} {unit}",
                 help=f"{row['product_name'][:80]}",
             )
-            st.caption(f"📍 {country_str}" if country_str else "нет в наличии")
+            st.caption(f"📍 {country_str}" if country_str else t("stock.burn_none"))
     st.divider()
 
 tab_overview, tab_abc, tab_cat, tab_countries, tab_table = st.tabs(
-    ["📊 Обзор", "🅰️ ABC-анализ", "🧰 Категории", "🌍 По странам", "📋 Таблица"]
+    [t("stock.tab.overview"), t("stock.tab.abc"), t("stock.tab.categories"),
+     t("stock.tab.countries"), t("stock.tab.table")]
 )
 
 BLUE = "#1f77b4"
@@ -152,18 +159,18 @@ with tab_overview:
         fig = px.bar(
             top.sort_values("quantity"),
             x="quantity", y="label", orientation="h",
-            text="quantity", title="Топ-15 SKU по остатку (сумма по всем странам)",
+            text="quantity", title=t("stock.ov.top15_title"),
             color_discrete_sequence=[BLUE],
             hover_data={"sku": True, "label": False},
         )
-        fig.update_layout(height=520, yaxis_title=None, xaxis_title="шт",
+        fig.update_layout(height=520, yaxis_title=None, xaxis_title=t("stock.ov.unit_short"),
                           margin=dict(l=10, r=10, t=50, b=10))
         st.plotly_chart(fig, use_container_width=True)
 
     with right:
         by_status = f.groupby("availability_status", as_index=False)["quantity"].sum()
         fig = px.pie(by_status, names="availability_status", values="quantity",
-                     hole=0.55, title="Остаток по статусу доступности",
+                     hole=0.55, title=t("stock.ov.by_status_title"),
                      color_discrete_sequence=[BLUE, ACCENT, "#9aa4b2", "#f2b134"])
         fig.update_layout(height=250, margin=dict(l=10, r=10, t=50, b=10))
         st.plotly_chart(fig, use_container_width=True)
@@ -171,11 +178,11 @@ with tab_overview:
         hist = px.histogram(
             f.groupby("sku", as_index=False)["quantity"].sum(),
             x="quantity", nbins=20,
-            title="Распределение остатка по SKU",
+            title=t("stock.ov.dist_title"),
             color_discrete_sequence=[BLUE],
         )
-        hist.update_layout(height=250, xaxis_title="шт на SKU",
-                           yaxis_title="SKU", margin=dict(l=10, r=10, t=50, b=10))
+        hist.update_layout(height=250, xaxis_title=t("stock.ov.dist_xaxis"),
+                           yaxis_title=t("stock.cat.sku_word"), margin=dict(l=10, r=10, t=50, b=10))
         st.plotly_chart(hist, use_container_width=True)
 
 # ---------- ABC ----------
@@ -191,30 +198,30 @@ with tab_abc:
     a1, a2, a3 = st.columns(3)
     for col, cls in zip((a1, a2, a3), ("A", "B", "C")):
         sub = abc[abc["class"] == cls]
-        col.metric(f"Класс {cls}",
-                   f"{len(sub)} SKU",
-                   f"{sub['quantity'].sum() / total * 100:.0f}% остатка")
+        col.metric(t("stock.abc.class_label").format(cls=cls),
+                   t("stock.abc.sku_count").format(n=len(sub)),
+                   t("stock.abc.pct_of_stock").format(pct=sub['quantity'].sum() / total * 100))
 
     fig = go.Figure()
     colors = abc["class"].map({"A": ACCENT, "B": "#f2b134", "C": "#9aa4b2"})
     fig.add_bar(x=abc.index, y=abc["quantity"], marker_color=colors,
-                name="Остаток, шт",
+                name=t("stock.abc.qty_legend"),
                 customdata=abc[["sku", "product_name", "class"]],
-                hovertemplate="<b>%{customdata[0]}</b> (класс %{customdata[2]})"
-                              "<br>%{customdata[1]}<br>Остаток: %{y}"
-                              "<br><i>Кликни — карточка товара со ссылкой</i><extra></extra>")
+                hovertemplate="<b>%{customdata[0]}</b> (" + t("stock.abc.class_word") + " %{customdata[2]})"
+                              "<br>%{customdata[1]}<br>" + t("stock.abc.stock_word") + ": %{y}"
+                              "<br><i>" + t("stock.abc.hover_click_hint") + "</i><extra></extra>")
     fig.add_scatter(x=abc.index, y=abc["cum_pct"], yaxis="y2",
-                    name="Накопленный %", line=dict(color=BLUE, width=2),
+                    name=t("stock.abc.cum_pct_legend"), line=dict(color=BLUE, width=2),
                     hoverinfo="skip")
     fig.add_hline(y=80, yref="y2", line_dash="dot", line_color="#666",
                   annotation_text="80%")
     fig.update_layout(
-        title="Парето: вклад SKU в суммарный остаток",
+        title=t("stock.abc.pareto_title"),
         height=480,
-        yaxis=dict(title="шт"),
-        yaxis2=dict(title="накопленный %", overlaying="y", side="right",
+        yaxis=dict(title=t("stock.ov.unit_short")),
+        yaxis2=dict(title=t("stock.abc.yaxis_pct"), overlaying="y", side="right",
                     range=[0, 105]),
-        xaxis=dict(title="SKU (по убыванию остатка)", showticklabels=False),
+        xaxis=dict(title=t("stock.abc.xaxis"), showticklabels=False),
         legend=dict(orientation="h", y=1.1),
         margin=dict(l=10, r=10, t=80, b=10),
     )
@@ -227,37 +234,35 @@ with tab_abc:
         idx = pts[0].get("point_index")
         if idx is not None and idx < len(abc):
             row = abc.iloc[idx]
-            # разбивка выбранного SKU по странам
             by_country = (f[f["sku"] == row["sku"]]
                             .groupby("location", as_index=False)["quantity"].sum()
                             .sort_values("quantity", ascending=False))
             cc1, cc2, cc3, cc4 = st.columns([2.5, 1, 1, 1.2])
             cc1.markdown(f"**{row['product_name']}**")
-            cc2.metric("Остаток (всего)", f"{int(row['quantity'])} шт")
-            cc3.metric("Класс", row["class"])
-            cc4.link_button("Открыть на Amazon ↗",
+            cc2.metric(t("stock.abc.total_stock"), f"{int(row['quantity'])} {t('stock.ov.unit_short')}")
+            cc3.metric(t("stock.abc.class_word"), row["class"])
+            cc4.link_button(t("stock.abc.open_amazon"),
                             f"https://www.amazon.es/dp/{row['asin']}",
                             use_container_width=True)
             if len(by_country) > 1:
-                st.caption("По странам: " + " · ".join(
+                st.caption(f"{t('stock.abc.by_country_prefix')} " + " · ".join(
                     f"{r['location']}: {int(r['quantity'])}" for _, r in by_country.iterrows()
                 ))
     else:
-        st.caption("💡 Кликни по столбику — появится карточка товара со ссылкой на листинг")
+        st.caption(t("stock.abc.click_hint"))
 
-    st.caption("A — SKU, дающие 80% остатка; B — следующие 15%; C — хвост. "
-               "Когда подключим продажи, пересчитаем ABC по velocity — это будет честнее.")
+    st.caption(t("stock.abc.footer_note"))
 
 # ---------- Категории ----------
 with tab_cat:
     by_cat = (f.groupby("category", as_index=False)
                 .agg(quantity=("quantity", "sum"), skus=("sku", "nunique")))
     fig = px.treemap(by_cat, path=["category"], values="quantity",
-                     title="Остаток по категориям инструмента",
+                     title=t("stock.cat.treemap_title"),
                      color="quantity", color_continuous_scale="Blues",
                      custom_data=["skus"])
-    fig.update_traces(hovertemplate="<b>%{label}</b><br>Остаток: %{value} шт"
-                                    "<br>SKU: %{customdata[0]}<extra></extra>")
+    fig.update_traces(hovertemplate="<b>%{label}</b><br>" + t("stock.abc.stock_word") + ": %{value} " + t("stock.ov.unit_short")
+                                    + "<br>" + t("stock.cat.sku_word") + ": %{customdata[0]}<extra></extra>")
     fig.update_layout(height=450, margin=dict(l=10, r=10, t=50, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
@@ -265,32 +270,33 @@ with tab_cat:
     if not pw.empty:
         fig = px.scatter(pw, x="power_w", y="quantity", color="category",
                          hover_data=["sku", "product_name"],
-                         title="Мощность (W) vs остаток — где сидит сток")
-        fig.update_layout(height=400, xaxis_title="Мощность, W",
-                          yaxis_title="Остаток, шт",
+                         title=t("stock.cat.power_scatter_title"))
+        fig.update_layout(height=400, xaxis_title=t("stock.cat.power_xaxis"),
+                          yaxis_title=t("stock.cat.qty_yaxis"),
                           margin=dict(l=10, r=10, t=50, b=10))
         st.plotly_chart(fig, use_container_width=True)
 
-# ---------- По странам (НОВОЕ) ----------
+# ---------- По странам ----------
 with tab_countries:
-    st.markdown("##### Остаток по странам FBA")
+    st.markdown(f"##### {t('stock.ctr.by_country_title')}")
     by_country = (f.groupby("location", as_index=False)
                     .agg(quantity=("quantity", "sum"), skus=("sku", "nunique"))
                     .sort_values("quantity", ascending=False))
 
     cc = st.columns(min(len(by_country), 6) or 1)
+    unit = t("stock.ov.unit_short")
     for i, (_, row) in enumerate(by_country.iterrows()):
         with cc[i % len(cc)]:
-            st.metric(row["location"], f"{int(row['quantity'])} шт",
-                     help=f"{int(row['skus'])} SKU")
+            st.metric(row["location"], f"{int(row['quantity'])} {unit}",
+                     help=t("stock.ctr.metric_help").format(n=int(row['skus'])))
 
     fig = px.bar(by_country, x="location", y="quantity", text="quantity",
-                 title="Остаток по странам", color_discrete_sequence=[BLUE])
-    fig.update_layout(height=380, xaxis_title="Страна", yaxis_title="Остаток, шт",
+                 title=t("stock.ctr.bar_title"), color_discrete_sequence=[BLUE])
+    fig.update_layout(height=380, xaxis_title=t("stock.ctr.country_axis"), yaxis_title=t("stock.cat.qty_yaxis"),
                       margin=dict(l=10, r=10, t=50, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("##### Матрица SKU × страна (топ-20 по остатку)")
+    st.markdown(f"##### {t('stock.ctr.matrix_title')}")
     top_skus_df = (f.groupby(["sku", "product_name"], as_index=False)["quantity"]
                      .sum().nlargest(20, "quantity"))
     top_skus = top_skus_df["sku"].tolist()
@@ -299,9 +305,8 @@ with tab_countries:
     matrix_src = f[f["sku"].isin(top_skus)]
     pivot = (matrix_src.pivot_table(index="sku", columns="location",
                                     values="quantity", aggfunc="sum", fill_value=0)
-                        .reindex(top_skus))  # сохраняем порядок по убыванию остатка
+                        .reindex(top_skus))
 
-    # короткая подпись для оси Y: SKU + начало названия
     y_labels = [f"{sku} · {name_map.get(sku, '')[:28]}" for sku in pivot.index]
 
     fig = px.imshow(
@@ -310,10 +315,10 @@ with tab_countries:
         y=y_labels,
         color_continuous_scale="Blues",
         aspect="auto",
-        labels=dict(x="Страна", y="", color="Остаток"),
+        labels=dict(x=t("stock.ctr.country_axis"), y="", color=t("stock.abc.stock_word")),
     )
     fig.update_traces(
-        hovertemplate="<b>%{y}</b><br>Страна: %{x}<br>Остаток: %{z} шт<extra></extra>"
+        hovertemplate="<b>%{y}</b><br>" + t("stock.ctr.country_axis") + ": %{x}<br>" + t("stock.abc.stock_word") + ": %{z} " + t("stock.ov.unit_short") + "<extra></extra>"
     )
     fig.update_layout(
         height=44 * len(pivot) + 100,
@@ -323,7 +328,6 @@ with tab_countries:
     event = st.plotly_chart(fig, use_container_width=True,
                             on_select="rerun", key="stock_matrix")
 
-    # клик по ячейке -> карточка товара с деталями по всем странам
     pts = event.selection.points if event and event.selection else []
     if pts:
         y_clicked = pts[0].get("y")
@@ -341,44 +345,44 @@ with tab_countries:
 
             cc1, cc2, cc3 = st.columns([2.5, 1, 1.2])
             cc1.markdown(f"**{row_info['product_name']}**  \n`{sku_clicked}`")
-            cc2.metric("Остаток (всего)", f"{total_qty} шт")
-            cc3.link_button("Открыть на Amazon ↗",
+            cc2.metric(t("stock.abc.total_stock"), f"{total_qty} {unit}")
+            cc3.link_button(t("stock.abc.open_amazon"),
                             f"https://www.amazon.es/dp/{row_info['asin']}",
                             use_container_width=True)
 
             bc = st.columns(min(len(by_country), 6) or 1)
             for i, (_, r) in enumerate(by_country.iterrows()):
                 with bc[i % len(bc)]:
-                    st.metric(r["location"], f"{int(r['quantity'])} шт")
+                    st.metric(r["location"], f"{int(r['quantity'])} {unit}")
     else:
-        st.caption("💡 Кликни по ячейке — увидишь товар целиком и остаток по всем странам")
+        st.caption(t("stock.ctr.click_hint"))
 
-    st.caption("Пусто/светлое = товара нет или мало в этой стране. Топ-20 — для наглядности карты. "
-               "Полная таблица со всеми SKU — ниже.")
+    st.caption(t("stock.ctr.map_note"))
 
     st.divider()
 
-    # ---------- полная таблица по ВСЕМ SKU (не только топ-20) ----------
-    st.markdown("##### Полная таблица: все SKU × страны")
+    # ---------- полная таблица по ВСЕМ SKU ----------
+    st.markdown(f"##### {t('stock.ctr.full_table_title')}")
 
     full_pivot = (f.pivot_table(index="sku", columns="location",
                                 values="quantity", aggfunc="sum", fill_value=0))
-    full_pivot["Всего"] = full_pivot.sum(axis=1)
-    full_pivot = full_pivot.sort_values("Всего", ascending=False)
+    total_col = t("stock.ctr.col_total")
+    full_pivot[total_col] = full_pivot.sum(axis=1)
+    full_pivot = full_pivot.sort_values(total_col, ascending=False)
 
     full_name_map = f.drop_duplicates("sku").set_index("sku")["product_name"]
 
     table_view = full_pivot.reset_index()
-    table_view.insert(1, "Товар", table_view["sku"].map(full_name_map))
+    table_view.insert(1, t("stock.ctr.col_product"), table_view["sku"].map(full_name_map))
 
-    country_cols = [c for c in full_pivot.columns if c != "Всего"]
+    country_cols = [c for c in full_pivot.columns if c != total_col]
 
     st.dataframe(
         table_view, use_container_width=True, height=520, hide_index=True,
         column_config={
-            "sku": st.column_config.TextColumn("SKU", width="small"),
-            "Товар": st.column_config.TextColumn("Товар", width="large"),
-            "Всего": st.column_config.NumberColumn("Всего", width="small"),
+            "sku": st.column_config.TextColumn(t("stock.ctr.col_sku"), width="small"),
+            t("stock.ctr.col_product"): st.column_config.TextColumn(t("stock.ctr.col_product"), width="large"),
+            total_col: st.column_config.NumberColumn(total_col, width="small"),
             **{col: st.column_config.NumberColumn(col, width="small")
                for col in country_cols},
         },
@@ -387,12 +391,12 @@ with tab_countries:
     # ---------- строка ИТОГО ----------
     totals = {c: int(full_pivot[c].sum()) for c in full_pivot.columns}
     tcols = st.columns(len(totals) + 1)
-    tcols[0].markdown("**ИТОГО**")
+    tcols[0].markdown(f"**{t('stock.ctr.total_row')}**")
     for i, (country, val) in enumerate(totals.items(), start=1):
         tcols[i].metric(country, f"{val}")
 
     st.download_button(
-        "⬇️ Скачать полную матрицу CSV",
+        t("stock.ctr.download_matrix"),
         table_view.to_csv(index=False).encode("utf-8-sig"),
         file_name="stock_by_country_full.csv",
         mime="text/csv",
@@ -400,13 +404,15 @@ with tab_countries:
 
 # ---------- Таблица ----------
 with tab_table:
+    view_by_product = t("stock.tbl.view_by_product")
+    view_by_product_country = t("stock.tbl.view_by_product_country")
     view_mode = st.radio(
-        "Вид таблицы",
-        ["По товару (сумма по странам)", "По товару и стране (детально)"],
+        t("stock.tbl.view_mode"),
+        [view_by_product, view_by_product_country],
         horizontal=True,
     )
 
-    if view_mode == "По товару (сумма по странам)":
+    if view_mode == view_by_product:
         tbl = (f.groupby(["sku", "asin", "product_name", "category"], as_index=False)
                  .agg(quantity=("quantity", "sum"),
                       countries=("location", "nunique")))
@@ -418,16 +424,16 @@ with tab_table:
             use_container_width=True, height=560, hide_index=True,
             column_config={
                 "quantity": st.column_config.ProgressColumn(
-                    "Остаток (всего)", format="%d",
+                    t("stock.tbl.col_total_stock"), format="%d",
                     min_value=0, max_value=int(tbl["quantity"].max()) if len(tbl) else 1,
                 ),
                 "countries": st.column_config.NumberColumn(
-                    "Стран", width="small",
-                    help="В скольких странах FBA лежит товар"),
-                "product_name": st.column_config.TextColumn("Товар", width="large"),
+                    t("stock.tbl.col_countries"), width="small",
+                    help=t("stock.tbl.col_countries_help")),
+                "product_name": st.column_config.TextColumn(t("stock.ctr.col_product"), width="large"),
                 "amazon_url": st.column_config.LinkColumn(
-                    "Листинг", display_text="Открыть ↗"),
-                "category": st.column_config.TextColumn("Категория"),
+                    t("stock.tbl.col_listing"), display_text=t("stock.tbl.col_listing_text")),
+                "category": st.column_config.TextColumn(t("stock.tbl.col_category")),
             },
         )
     else:
@@ -439,21 +445,21 @@ with tab_table:
             use_container_width=True, height=560, hide_index=True,
             column_config={
                 "quantity": st.column_config.ProgressColumn(
-                    "Остаток", format="%d",
+                    t("stock.tbl.col_stock"), format="%d",
                     min_value=0, max_value=int(tbl["quantity"].max()) if len(tbl) else 1,
                 ),
-                "location": st.column_config.TextColumn("Страна", width="small"),
-                "product_name": st.column_config.TextColumn("Товар", width="large"),
+                "location": st.column_config.TextColumn(t("stock.tbl.col_country"), width="small"),
+                "product_name": st.column_config.TextColumn(t("stock.ctr.col_product"), width="large"),
                 "amazon_url": st.column_config.LinkColumn(
-                    "Листинг", display_text="Открыть ↗"),
-                "availability_status": st.column_config.TextColumn("Статус"),
-                "category": st.column_config.TextColumn("Категория"),
-                "snapshot_date": st.column_config.TextColumn("Снапшот", width="small"),
+                    t("stock.tbl.col_listing"), display_text=t("stock.tbl.col_listing_text")),
+                "availability_status": st.column_config.TextColumn(t("stock.tbl.col_status")),
+                "category": st.column_config.TextColumn(t("stock.tbl.col_category")),
+                "snapshot_date": st.column_config.TextColumn(t("stock.tbl.col_snapshot"), width="small"),
             },
         )
 
     st.download_button(
-        "⬇️ Скачать CSV (детально, по странам)",
+        t("stock.tbl.download_detail"),
         f.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"stock_{f['snapshot_date'].max()}.csv",
         mime="text/csv",
