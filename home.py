@@ -1,173 +1,189 @@
-# home.py — Обзор: executive-сводка
-import pandas as pd
+# i18n.py — переводы RU/UK/EN + переключатель языка
 import streamlit as st
-import plotly.express as px
-from db.connection import get_connection
-from i18n import init_lang, t
 
-init_lang()
+DEFAULT_LANG = "ru"
+LANG_LABELS = {"ru": "РУ", "uk": "УКР", "en": "EN"}
 
-st.markdown("""
-<style>
-[data-testid="stMetric"] {
-    border: 1px solid rgba(128, 128, 128, 0.35);
-    border-radius: 12px;
-    padding: 14px 18px;
+# Ключ: {"ru": "...", "uk": "...", "en": "..."}
+TRANSLATIONS = {
+    # --- навигация / app.py ---
+    "app.page_title": {
+        "ru": "Кабинет Demand & Supply — Dnipro-M",
+        "uk": "Кабінет Demand & Supply — Dnipro-M",
+        "en": "Demand & Supply Cabinet — Dnipro-M",
+    },
+    "nav.section": {
+        "ru": "Кабинет Demand & Supply",
+        "uk": "Кабінет Demand & Supply",
+        "en": "Demand & Supply Cabinet",
+    },
+    "nav.home": {"ru": "Обзор", "uk": "Огляд", "en": "Overview"},
+    "nav.stock": {"ru": "Остатки", "uk": "Залишки", "en": "Stock"},
+    "nav.incidents": {"ru": "Инциденты", "uk": "Інциденти", "en": "Incidents"},
+    "nav.reorder": {"ru": "Автозаказ", "uk": "Автозамовлення", "en": "Reorder"},
+    "nav.forecast": {"ru": "Прогноз", "uk": "Прогноз", "en": "Forecast"},
+
+    # --- общие элементы ---
+    "common.loading": {"ru": "Загрузка данных...", "uk": "Завантаження даних...", "en": "Loading data..."},
+    "common.no_data": {"ru": "Нет данных", "uk": "Немає даних", "en": "No data"},
+    "common.refresh": {"ru": "Обновить", "uk": "Оновити", "en": "Refresh"},
+    "common.filter": {"ru": "Фильтр", "uk": "Фільтр", "en": "Filter"},
+    "common.all": {"ru": "Все", "uk": "Всі", "en": "All"},
+    "common.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "common.warehouse": {"ru": "Склад", "uk": "Склад", "en": "Warehouse"},
+    "common.sku": {"ru": "Артикул", "uk": "Артикул", "en": "SKU"},
+    "common.quantity": {"ru": "Количество", "uk": "Кількість", "en": "Quantity"},
+    "common.date": {"ru": "Дата", "uk": "Дата", "en": "Date"},
+    "common.status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "common.confirm": {"ru": "Подтвердить", "uk": "Підтвердити", "en": "Confirm"},
+    "common.cancel": {"ru": "Отмена", "uk": "Скасувати", "en": "Cancel"},
+
+    # --- 1_Stock.py ---
+    "stock.title": {"ru": "Остатки", "uk": "Залишки", "en": "Stock"},
+    "stock.caption": {
+        "ru": "Консолидация по складам: Amazon FBA (по странам) + собственные/3PL",
+        "uk": "Консолідація по складах: Amazon FBA (по країнах) + власні/3PL",
+        "en": "Consolidated by warehouse: Amazon FBA (by country) + own/3PL",
+    },
+
+    # --- home.py ---
+    "home.title": {"ru": "Кабинет Demand & Supply", "uk": "Кабінет Demand & Supply", "en": "Demand & Supply Cabinet"},
+    "home.subtitle": {
+        "ru": "Система сама находит проблемы и приносит их вам",
+        "uk": "Система сама знаходить проблеми і приносить їх вам",
+        "en": "The system finds problems and brings them to you",
+    },
+    "home.db_error": {"ru": "Нет подключения к базе", "uk": "Немає підключення до бази", "en": "No database connection"},
+    "home.metric.health": {"ru": "💚 Здоровье каталога", "uk": "💚 Здоров'я каталогу", "en": "💚 Catalog health"},
+    "home.metric.health_help": {
+        "ru": "Доля SKU с достаточным запасом (остаток > 3). Данные на {snap}",
+        "uk": "Частка SKU з достатнім запасом (залишок > 3). Дані на {snap}",
+        "en": "Share of SKUs with sufficient stock (qty > 3). Data as of {snap}",
+    },
+    "home.metric.sku_controlled": {"ru": "SKU под контролем", "uk": "SKU під контролем", "en": "SKUs monitored"},
+    "home.metric.total_stock": {"ru": "Суммарный остаток", "uk": "Сумарний залишок", "en": "Total stock"},
+    "home.metric.open_incidents": {"ru": "Открытых инцидентов", "uk": "Відкритих інцидентів", "en": "Open incidents"},
+    "home.metric.resolved_auto": {"ru": "Решено автоматически", "uk": "Вирішено автоматично", "en": "Auto-resolved"},
+    "home.metric.resolved_auto_help": {
+        "ru": "Система сама закрыла после пополнения стока",
+        "uk": "Система сама закрила після поповнення стоку",
+        "en": "Auto-closed by the system after stock replenishment",
+    },
+    "home.critical_suffix": {"ru": "critical", "uk": "critical", "en": "critical"},
+    "home.attention_title": {"ru": "🔥 Требуют внимания первыми", "uk": "🔥 Потребують уваги першими", "en": "🔥 Needs attention first"},
+    "home.unit_pcs": {"ru": "шт", "uk": "шт", "en": "pcs"},
+    "home.link.full_journal": {"ru": "Весь журнал →", "uk": "Весь журнал →", "en": "Full log →"},
+    "home.dist_title": {"ru": "Распределение запаса", "uk": "Розподіл запасу", "en": "Stock distribution"},
+    "home.dist.critical": {"ru": "критично (≤3)", "uk": "критично (≤3)", "en": "critical (≤3)"},
+    "home.dist.low": {"ru": "мало (4–10)", "uk": "мало (4–10)", "en": "low (4–10)"},
+    "home.dist.normal": {"ru": "норма (>10)", "uk": "норма (>10)", "en": "normal (>10)"},
+    "home.top_title": {"ru": "Топ запаса (куда вложены деньги)", "uk": "Топ запасу (куди вкладено гроші)", "en": "Top stock (where money is tied up)"},
+    "home.link.full_analytics": {"ru": "Полная аналитика →", "uk": "Повна аналітика →", "en": "Full analytics →"},
+    "home.how_title": {"ru": "⚙️ Как устроена система", "uk": "⚙️ Як влаштована система", "en": "⚙️ How the system works"},
+    "home.how_body": {
+        "ru": (
+            "```\nDatabricks (данные)  →  Loader (правила)  →  Lakebase (состояние)  →  этот дашборд\n```\n"
+            "Каждый день система автоматически: обновляет остатки → проверяет правила "
+            "(остаток = 0, остаток ≤ 3) → открывает инциденты по новым проблемам → "
+            "закрывает инциденты по решённым. Человек нужен там, где нужно решение, "
+            "а не там, где нужно смотреть в таблицы."
+        ),
+        "uk": (
+            "```\nDatabricks (дані)  →  Loader (правила)  →  Lakebase (стан)  →  цей дашборд\n```\n"
+            "Щодня система автоматично: оновлює залишки → перевіряє правила "
+            "(залишок = 0, залишок ≤ 3) → відкриває інциденти за новими проблемами → "
+            "закриває інциденти за вирішеними. Людина потрібна там, де потрібне рішення, "
+            "а не там, де потрібно дивитись у таблиці."
+        ),
+        "en": (
+            "```\nDatabricks (data)  →  Loader (rules)  →  Lakebase (state)  →  this dashboard\n```\n"
+            "Every day the system automatically: updates stock → checks rules "
+            "(qty = 0, qty ≤ 3) → opens incidents for new problems → "
+            "closes incidents for resolved ones. A human is only needed where a decision "
+            "is required, not to stare at tables."
+        ),
+    },
+    "home.roadmap_title": {"ru": "🗺️ Что дальше (roadmap)", "uk": "🗺️ Що далі (roadmap)", "en": "🗺️ What's next (roadmap)"},
+    "home.roadmap_table": {
+        "ru": (
+            "| Этап | Что даёт | Статус |\n|---|---|---|\n"
+            "| Правила по остаткам | инциденты low stock / out of stock | ✅ в проде |\n"
+            "| История снапшотов | тренды остатков, динамика инцидентов | 🔄 копится |\n"
+            "| Данные продаж | умные пороги (days of cover), прогноз спроса | 🔜 следующий шаг |\n"
+            "| Поставки в пути | инциденты «зависшая поставка», точный дозаказ | 🔜 |\n"
+            "| Новые каналы | Shopify, Leroy Merlin (Mirakl) в тот же контур | 🔜 |\n"
+            "| ИИ-агент | триаж инцидентов, черновики заказов, алерты в Telegram | 🔜 |"
+        ),
+        "uk": (
+            "| Етап | Що дає | Статус |\n|---|---|---|\n"
+            "| Правила по залишках | інциденти low stock / out of stock | ✅ в проді |\n"
+            "| Історія знімків | тренди залишків, динаміка інцидентів | 🔄 накопичується |\n"
+            "| Дані продажів | розумні пороги (days of cover), прогноз попиту | 🔜 наступний крок |\n"
+            "| Поставки в дорозі | інциденти «зависла поставка», точне дозамовлення | 🔜 |\n"
+            "| Нові канали | Shopify, Leroy Merlin (Mirakl) у тому ж контурі | 🔜 |\n"
+            "| ШІ-агент | тріаж інцидентів, чернетки замовлень, алерти в Telegram | 🔜 |"
+        ),
+        "en": (
+            "| Stage | What it gives | Status |\n|---|---|---|\n"
+            "| Stock rules | low stock / out of stock incidents | ✅ in prod |\n"
+            "| Snapshot history | stock trends, incident dynamics | 🔄 accumulating |\n"
+            "| Sales data | smart thresholds (days of cover), demand forecast | 🔜 next step |\n"
+            "| Shipments in transit | \"stuck shipment\" incidents, precise reorder | 🔜 |\n"
+            "| New channels | Shopify, Leroy Merlin (Mirakl) in the same pipeline | 🔜 |\n"
+            "| AI agent | incident triage, order drafts, Telegram alerts | 🔜 |"
+        ),
+    },
+    "home.diag_title": {"ru": "🔧 Диагностика", "uk": "🔧 Діагностика", "en": "🔧 Diagnostics"},
+    "home.diag_ok": {"ru": "✅ Lakebase доступен", "uk": "✅ Lakebase доступний", "en": "✅ Lakebase reachable"},
+    "home.diag_error": {"ru": "❌ Ошибка подключения", "uk": "❌ Помилка підключення", "en": "❌ Connection error"},
+    "home.diag_stock_line": {
+        "ru": "stock_local: {rows} строк, последний снапшот {date}",
+        "uk": "stock_local: {rows} рядків, останній знімок {date}",
+        "en": "stock_local: {rows} rows, latest snapshot {date}",
+    },
+    "home.diag_incidents_line": {
+        "ru": "incidents: последняя запись {date}",
+        "uk": "incidents: останній запис {date}",
+        "en": "incidents: latest record {date}",
+    },
 }
-[data-testid="stMetricValue"] { font-size: 2rem; }
-</style>
-""", unsafe_allow_html=True)
-st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
-
-try:
-    _dark = st.context.theme.type == "dark"
-except Exception:
-    _dark = True  # по умолчанию тёмная — основная тема команды
-
-st.image("logo_dark.png" if _dark else "logo_light.png", width=140)
-st.title(t("home.title"))
-st.caption(t("home.subtitle"))
-
-ACCENT = "#e8484d"
-BLUE = "#1f77b4"
-AMBER = "#f2b134"
 
 
-# ---------- данные ----------
-@st.cache_data(ttl=300)
-def load_overview():
-    conn = get_connection()
-    stock = pd.read_sql("""
-        SELECT sku, product_name, SUM(quantity) AS qty
-        FROM kabinet_data.stock_local
-        WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM kabinet_data.stock_local)
-        GROUP BY sku, product_name
-    """, conn)
-    snap = pd.read_sql(
-        "SELECT MAX(snapshot_date) AS d FROM kabinet_data.stock_local", conn
-    )["d"].iloc[0]
-    inc = pd.read_sql("""
-        SELECT severity, status, incident_type
-        FROM kabinet_data.incidents
-    """, conn)
-    conn.close()
-    return stock, snap, inc
+def init_lang():
+    """Инициализация языка в session_state (вызывать в начале каждой страницы)."""
+    if "lang" not in st.session_state:
+        st.session_state.lang = DEFAULT_LANG
 
 
-db_ok = True
-try:
-    stock, snap, inc = load_overview()
-except Exception as e:
-    db_ok = False
-    st.error(f"❌ {t('home.db_error')}: {e}")
+def get_lang() -> str:
+    init_lang()
+    return st.session_state.lang
 
-if db_ok:
-    open_inc = inc[inc["status"].isin(["open", "acknowledged"])]
-    critical = int((open_inc["severity"] == "critical").sum())
-    low_stock_cnt = int((stock["qty"] <= 3).sum())
-    health = max(0, 100 - round(100 * low_stock_cnt / max(len(stock), 1)))
 
-    # ---------- KPI ----------
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric(t("home.metric.health"), f"{health}%",
-              help=t("home.metric.health_help").format(snap=snap))
-    c2.metric(t("home.metric.sku_controlled"), len(stock))
-    c3.metric(t("home.metric.total_stock"), int(stock["qty"].sum()))
-    c4.metric(t("home.metric.open_incidents"), len(open_inc),
-              delta=f"{critical} {t('home.critical_suffix')}" if critical else None,
-              delta_color="inverse" if critical else "off")
-    c5.metric(t("home.metric.resolved_auto"),
-              int((inc["status"] == "resolved").sum()),
-              help=t("home.metric.resolved_auto_help"))
+def t(key: str) -> str:
+    """Возвращает перевод по ключу для текущего языка. Если ключа нет — возвращает сам key."""
+    init_lang()
+    entry = TRANSLATIONS.get(key)
+    if not entry:
+        return key
+    return entry.get(st.session_state.lang, entry.get(DEFAULT_LANG, key))
 
-    st.divider()
 
-    # ---------- визуальная сводка ----------
-    left, mid, right = st.columns([1.2, 1, 1.2])
-
-    with left:
-        st.markdown(f"##### {t('home.attention_title')}")
-        burn = stock.nsmallest(5, "qty")
-        unit = t("home.unit_pcs")
-        for _, row in burn.iterrows():
-            pct = min(row["qty"] / 10 * 100, 100)
-            st.markdown(
-                f"<div style='margin-bottom:10px'>"
-                f"<div style='display:flex;justify-content:space-between;font-size:0.85rem'>"
-                f"<span>{row['product_name'][:38]}…</span>"
-                f"<b style='color:{ACCENT}'>{int(row['qty'])} {unit}</b></div>"
-                f"<div style='height:6px;border-radius:3px;background:rgba(128,128,128,0.2)'>"
-                f"<div style='height:6px;border-radius:3px;width:{pct}%;background:{ACCENT}'></div>"
-                f"</div></div>",
-                unsafe_allow_html=True,
-            )
-        st.page_link("pages/2_Incidents.py", label=t("home.link.full_journal"), icon="🚨")
-
-    with mid:
-        st.markdown(f"##### {t('home.dist_title')}")
-        crit_label = t("home.dist.critical")
-        low_label = t("home.dist.low")
-        norm_label = t("home.dist.normal")
-        dist = pd.DataFrame({
-            "bucket": [crit_label, low_label, norm_label],
-            "skus": [
-                int((stock["qty"] <= 3).sum()),
-                int(((stock["qty"] > 3) & (stock["qty"] <= 10)).sum()),
-                int((stock["qty"] > 10).sum()),
-            ],
-        })
-        fig = px.pie(dist, names="bucket", values="skus", hole=0.6,
-                     color="bucket",
-                     color_discrete_map={crit_label: ACCENT,
-                                         low_label: AMBER,
-                                         norm_label: BLUE})
-        fig.update_layout(height=260, showlegend=True,
-                          legend=dict(orientation="h", y=-0.15),
-                          margin=dict(l=0, r=0, t=10, b=0))
-        st.plotly_chart(fig, use_container_width=True)
-
-    with right:
-        st.markdown(f"##### {t('home.top_title')}")
-        top = stock.nlargest(5, "qty").sort_values("qty")
-        fig = px.bar(top, x="qty", y="product_name", orientation="h",
-                     text="qty", color_discrete_sequence=[BLUE])
-        fig.update_traces(textposition="outside")
-        fig.update_layout(height=260, yaxis_title=None, xaxis_title=None,
-                          yaxis=dict(tickfont=dict(size=10)),
-                          margin=dict(l=0, r=10, t=10, b=0))
-        fig.update_yaxes(ticktext=[n[:28] + "…" for n in top["product_name"]],
-                         tickvals=top["product_name"])
-        st.plotly_chart(fig, use_container_width=True)
-        st.page_link("pages/1_Stock.py", label=t("home.link.full_analytics"), icon="📦")
-
-    st.divider()
-
-# ---------- как это работает / roadmap ----------
-with st.expander(t("home.how_title")):
-    st.markdown(t("home.how_body"))
-
-with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table"))
-
-# ---------- служебное ----------
-with st.expander(t("home.diag_title"), expanded=False):
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT version();")
-        version = cur.fetchone()[0]
-        cur.execute("SELECT MAX(snapshot_date), COUNT(*) FROM kabinet_data.stock_local;")
-        snap_date, snap_rows = cur.fetchone()
-        cur.execute("SELECT MAX(created_at) FROM kabinet_data.incidents;")
-        last_inc = cur.fetchone()[0]
-        cur.close()
-        conn.close()
-        st.success(t("home.diag_ok"))
-        st.code(
-            f"{version}\n"
-            f"{t('home.diag_stock_line').format(rows=snap_rows, date=snap_date)}\n"
-            f"{t('home.diag_incidents_line').format(date=last_inc)}",
-            language="text",
-        )
-    except Exception as e:
-        st.error(f"{t('home.diag_error')}: {e}")
+def language_toggle(location=None):
+    """Переключатель РУ/УКР/EN, рендерится в сайдбаре по умолчанию."""
+    init_lang()
+    loc = location or st.sidebar
+    order = ["ru", "uk", "en"]
+    current = st.session_state.lang
+    choice = loc.radio(
+        "🌐",
+        options=[LANG_LABELS[l] for l in order],
+        index=order.index(current),
+        horizontal=True,
+        label_visibility="collapsed",
+        key="lang_toggle_widget",
+    )
+    new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
+    if new_lang != st.session_state.lang:
+        st.session_state.lang = new_lang
+        st.rerun()
