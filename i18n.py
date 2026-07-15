@@ -521,6 +521,34 @@ TRANSLATIONS = {
             "and we'll compute the real lead time per warehouse from shipment history."
         ),
     },
+
+    # --- 4_Reorder.py: переброска между странами ---
+    "reorder.transfer.section_title": {"ru": "🔄 Сначала — переброска между странами", "uk": "🔄 Спочатку — переброс між країнами", "en": "🔄 First — transfer between countries"},
+    "reorder.transfer.section_caption": {
+        "ru": "Товар горит в одной стране, но есть излишек в другой — дешевле и быстрее перебросить, чем заказывать у поставщика.",
+        "uk": "Товар горить в одній країні, але є надлишок в іншій — дешевше і швидше перекинути, ніж замовляти у постачальника.",
+        "en": "Stock is critical in one country but there's surplus in another — cheaper and faster to transfer than to order from the supplier.",
+    },
+    "reorder.transfer.col_confirm": {"ru": "Перебросить?", "uk": "Перекинути?", "en": "Transfer?"},
+    "reorder.transfer.col_sku": {"ru": "SKU", "uk": "SKU", "en": "SKU"},
+    "reorder.transfer.col_product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
+    "reorder.transfer.col_route": {"ru": "Маршрут", "uk": "Маршрут", "en": "Route"},
+    "reorder.transfer.col_qty": {"ru": "Перебросить, шт", "uk": "Перекинути, шт", "en": "Transfer, pcs"},
+    "reorder.transfer.col_from_stock": {"ru": "Донор: остаток", "uk": "Донор: залишок", "en": "Donor: stock"},
+    "reorder.transfer.col_to_cover": {"ru": "Получатель: хватит, дн", "uk": "Отримувач: вистачить, дн", "en": "Recipient: covers, days"},
+    "reorder.transfer.col_to_cover_help": {
+        "ru": "На сколько дней хватит в стране-получателе сейчас",
+        "uk": "На скільки днів вистачить у країні-отримувачі зараз",
+        "en": "How many days of cover the recipient country has now",
+    },
+    "reorder.transfer.unit_pcs": {"ru": "шт", "uk": "шт", "en": "pcs"},
+    "reorder.transfer.confirm_button": {"ru": "🔄 Подтвердить переброску ({n})", "uk": "🔄 Підтвердити переброс ({n})", "en": "🔄 Confirm transfer ({n})"},
+    "reorder.transfer.confirm_success": {
+        "ru": "Переброска подтверждена: {n} позиций. Дальше — оформление перемещения (ТТН) на вашей стороне.",
+        "uk": "Переброс підтверджено: {n} позицій. Далі — оформлення переміщення (ТТН) на вашій стороні.",
+        "en": "Transfer confirmed: {n} items. Next — arrange the shipment (waybill) on your side.",
+    },
+    "reorder.transfer.export_button": {"ru": "⬇️ Экспорт переброски CSV", "uk": "⬇️ Експорт переброса CSV", "en": "⬇️ Export transfer CSV"},
 }
 
 
@@ -575,4 +603,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
