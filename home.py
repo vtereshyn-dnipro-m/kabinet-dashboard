@@ -2,8 +2,10 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-
 from db.connection import get_connection
+from i18n import init_lang, t
+
+init_lang()
 
 st.markdown("""
 <style>
@@ -15,19 +17,21 @@ st.markdown("""
 [data-testid="stMetricValue"] { font-size: 2rem; }
 </style>
 """, unsafe_allow_html=True)
-
 st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+
 try:
     _dark = st.context.theme.type == "dark"
 except Exception:
     _dark = True  # по умолчанию тёмная — основная тема команды
+
 st.image("logo_dark.png" if _dark else "logo_light.png", width=140)
-st.title("Кабинет Demand & Supply")
-st.caption("Система сама находит проблемы и приносит их вам")
+st.title(t("home.title"))
+st.caption(t("home.subtitle"))
 
 ACCENT = "#e8484d"
 BLUE = "#1f77b4"
 AMBER = "#f2b134"
+
 
 # ---------- данные ----------
 @st.cache_data(ttl=300)
@@ -49,12 +53,13 @@ def load_overview():
     conn.close()
     return stock, snap, inc
 
+
 db_ok = True
 try:
     stock, snap, inc = load_overview()
 except Exception as e:
     db_ok = False
-    st.error(f"❌ Нет подключения к базе: {e}")
+    st.error(f"❌ {t('home.db_error')}: {e}")
 
 if db_ok:
     open_inc = inc[inc["status"].isin(["open", "acknowledged"])]
@@ -64,17 +69,16 @@ if db_ok:
 
     # ---------- KPI ----------
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("💚 Здоровье каталога", f"{health}%",
-              help="Доля SKU с достаточным запасом (остаток > 3). "
-                   f"Данные на {snap}")
-    c2.metric("SKU под контролем", len(stock))
-    c3.metric("Суммарный остаток", int(stock["qty"].sum()))
-    c4.metric("Открытых инцидентов", len(open_inc),
-              delta=f"{critical} critical" if critical else None,
+    c1.metric(t("home.metric.health"), f"{health}%",
+              help=t("home.metric.health_help").format(snap=snap))
+    c2.metric(t("home.metric.sku_controlled"), len(stock))
+    c3.metric(t("home.metric.total_stock"), int(stock["qty"].sum()))
+    c4.metric(t("home.metric.open_incidents"), len(open_inc),
+              delta=f"{critical} {t('home.critical_suffix')}" if critical else None,
               delta_color="inverse" if critical else "off")
-    c5.metric("Решено автоматически",
+    c5.metric(t("home.metric.resolved_auto"),
               int((inc["status"] == "resolved").sum()),
-              help="Система сама закрыла после пополнения стока")
+              help=t("home.metric.resolved_auto_help"))
 
     st.divider()
 
@@ -82,26 +86,30 @@ if db_ok:
     left, mid, right = st.columns([1.2, 1, 1.2])
 
     with left:
-        st.markdown("##### 🔥 Требуют внимания первыми")
+        st.markdown(f"##### {t('home.attention_title')}")
         burn = stock.nsmallest(5, "qty")
+        unit = t("home.unit_pcs")
         for _, row in burn.iterrows():
             pct = min(row["qty"] / 10 * 100, 100)
             st.markdown(
                 f"<div style='margin-bottom:10px'>"
                 f"<div style='display:flex;justify-content:space-between;font-size:0.85rem'>"
                 f"<span>{row['product_name'][:38]}…</span>"
-                f"<b style='color:{ACCENT}'>{int(row['qty'])} шт</b></div>"
+                f"<b style='color:{ACCENT}'>{int(row['qty'])} {unit}</b></div>"
                 f"<div style='height:6px;border-radius:3px;background:rgba(128,128,128,0.2)'>"
                 f"<div style='height:6px;border-radius:3px;width:{pct}%;background:{ACCENT}'></div>"
                 f"</div></div>",
                 unsafe_allow_html=True,
             )
-        st.page_link("pages/2_Incidents.py", label="Весь журнал →", icon="🚨")
+        st.page_link("pages/2_Incidents.py", label=t("home.link.full_journal"), icon="🚨")
 
     with mid:
-        st.markdown("##### Распределение запаса")
+        st.markdown(f"##### {t('home.dist_title')}")
+        crit_label = t("home.dist.critical")
+        low_label = t("home.dist.low")
+        norm_label = t("home.dist.normal")
         dist = pd.DataFrame({
-            "bucket": ["критично (≤3)", "мало (4–10)", "норма (>10)"],
+            "bucket": [crit_label, low_label, norm_label],
             "skus": [
                 int((stock["qty"] <= 3).sum()),
                 int(((stock["qty"] > 3) & (stock["qty"] <= 10)).sum()),
@@ -110,16 +118,16 @@ if db_ok:
         })
         fig = px.pie(dist, names="bucket", values="skus", hole=0.6,
                      color="bucket",
-                     color_discrete_map={"критично (≤3)": ACCENT,
-                                         "мало (4–10)": AMBER,
-                                         "норма (>10)": BLUE})
+                     color_discrete_map={crit_label: ACCENT,
+                                         low_label: AMBER,
+                                         norm_label: BLUE})
         fig.update_layout(height=260, showlegend=True,
                           legend=dict(orientation="h", y=-0.15),
                           margin=dict(l=0, r=0, t=10, b=0))
         st.plotly_chart(fig, use_container_width=True)
 
     with right:
-        st.markdown("##### Топ запаса (куда вложены деньги)")
+        st.markdown(f"##### {t('home.top_title')}")
         top = stock.nlargest(5, "qty").sort_values("qty")
         fig = px.bar(top, x="qty", y="product_name", orientation="h",
                      text="qty", color_discrete_sequence=[BLUE])
@@ -130,37 +138,19 @@ if db_ok:
         fig.update_yaxes(ticktext=[n[:28] + "…" for n in top["product_name"]],
                          tickvals=top["product_name"])
         st.plotly_chart(fig, use_container_width=True)
-        st.page_link("pages/1_Stock.py", label="Полная аналитика →", icon="📦")
+        st.page_link("pages/1_Stock.py", label=t("home.link.full_analytics"), icon="📦")
 
     st.divider()
 
 # ---------- как это работает / roadmap ----------
-with st.expander("⚙️ Как устроена система"):
-    st.markdown("""
-    ```
-    Databricks (данные)  →  Loader (правила)  →  Lakebase (состояние)  →  этот дашборд
-    ```
+with st.expander(t("home.how_title")):
+    st.markdown(t("home.how_body"))
 
-    Каждый день система автоматически: обновляет остатки → проверяет правила
-    (остаток = 0, остаток ≤ 3) → открывает инциденты по новым проблемам →
-    закрывает инциденты по решённым. Человек нужен там, где нужно решение,
-    а не там, где нужно смотреть в таблицы.
-    """)
-
-with st.expander("🗺️ Что дальше (roadmap)"):
-    st.markdown("""
-    | Этап | Что даёт | Статус |
-    |---|---|---|
-    | Правила по остаткам | инциденты low stock / out of stock | ✅ в проде |
-    | История снапшотов | тренды остатков, динамика инцидентов | 🔄 копится |
-    | Данные продаж | умные пороги (days of cover), прогноз спроса | 🔜 следующий шаг |
-    | Поставки в пути | инциденты «зависшая поставка», точный дозаказ | 🔜 |
-    | Новые каналы | Shopify, Leroy Merlin (Mirakl) в тот же контур | 🔜 |
-    | ИИ-агент | триаж инцидентов, черновики заказов, алерты в Telegram | 🔜 |
-    """)
+with st.expander(t("home.roadmap_title")):
+    st.markdown(t("home.roadmap_table"))
 
 # ---------- служебное ----------
-with st.expander("🔧 Диагностика", expanded=False):
+with st.expander(t("home.diag_title"), expanded=False):
     try:
         conn = get_connection()
         cur = conn.cursor()
@@ -172,12 +162,12 @@ with st.expander("🔧 Диагностика", expanded=False):
         last_inc = cur.fetchone()[0]
         cur.close()
         conn.close()
-        st.success("✅ Lakebase доступен")
+        st.success(t("home.diag_ok"))
         st.code(
             f"{version}\n"
-            f"stock_local: {snap_rows} строк, последний снапшот {snap_date}\n"
-            f"incidents: последняя запись {last_inc}",
+            f"{t('home.diag_stock_line').format(rows=snap_rows, date=snap_date)}\n"
+            f"{t('home.diag_incidents_line').format(date=last_inc)}",
             language="text",
         )
     except Exception as e:
-        st.error(f"❌ Ошибка подключения: {e}")
+        st.error(f"{t('home.diag_error')}: {e}")
