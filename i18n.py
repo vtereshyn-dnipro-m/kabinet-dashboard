@@ -250,6 +250,277 @@ TRANSLATIONS = {
         "uk": "incidents: останній запис {date}",
         "en": "incidents: latest record {date}",
     },
+
+    # --- 2_Incidents.py ---
+    "inc.title": {"ru": "Инциденты", "uk": "Інциденти", "en": "Incidents"},
+    "inc.caption": {
+        "ru": "Единый журнал проблем со всех разделов системы: что требует действия прямо сейчас. Источники: остатки (активно) · поставки и продажи (скоро)",
+        "uk": "Єдиний журнал проблем з усіх розділів системи: що потребує дії прямо зараз. Джерела: залишки (активно) · поставки та продажі (скоро)",
+        "en": "A unified log of problems from all sections of the system: what needs action right now. Sources: stock (active) · shipments and sales (soon)",
+    },
+    "inc.how_title": {"ru": "ℹ️ Как это работает", "uk": "ℹ️ Як це працює", "en": "ℹ️ How this works"},
+    "inc.how_body": {
+        "ru": (
+            "Инциденты создаются **автоматически** при каждом обновлении данных:\n\n"
+            "| Тип | Правило | Источник | Статус |\n|---|---|---|---|\n"
+            "| 🔴 out_of_stock | остаток = 0 | Остатки | ✅ активно |\n"
+            "| 🟡 low_stock | остаток ≤ 3 шт | Остатки | ✅ активно |\n"
+            "| 🟠 stuck_shipment | поставка без движения | Поставки | 🔜 скоро |\n"
+            "| 🟣 sales_anomaly | резкий рост/падение продаж | Продажи | 🔜 скоро |\n\n"
+            "Когда проблема исчезает (например, сток пополнен) — инцидент закрывается сам."
+        ),
+        "uk": (
+            "Інциденти створюються **автоматично** під час кожного оновлення даних:\n\n"
+            "| Тип | Правило | Джерело | Статус |\n|---|---|---|---|\n"
+            "| 🔴 out_of_stock | залишок = 0 | Залишки | ✅ активно |\n"
+            "| 🟡 low_stock | залишок ≤ 3 шт | Залишки | ✅ активно |\n"
+            "| 🟠 stuck_shipment | поставка без руху | Поставки | 🔜 скоро |\n"
+            "| 🟣 sales_anomaly | різке зростання/падіння продажів | Продажі | 🔜 скоро |\n\n"
+            "Коли проблема зникає (наприклад, сток поповнено) — інцидент закривається сам."
+        ),
+        "en": (
+            "Incidents are created **automatically** on every data update:\n\n"
+            "| Type | Rule | Source | Status |\n|---|---|---|---|\n"
+            "| 🔴 out_of_stock | qty = 0 | Stock | ✅ active |\n"
+            "| 🟡 low_stock | qty ≤ 3 pcs | Stock | ✅ active |\n"
+            "| 🟠 stuck_shipment | shipment not moving | Shipments | 🔜 soon |\n"
+            "| 🟣 sales_anomaly | sharp sales rise/drop | Sales | 🔜 soon |\n\n"
+            "When the problem disappears (e.g. stock replenished) — the incident closes itself."
+        ),
+    },
+    "inc.empty": {
+        "ru": "Инцидентов пока нет. Либо всё хорошо, либо генератор ещё не запускался 🙂",
+        "uk": "Інцидентів поки немає. Або все добре, або генератор ще не запускався 🙂",
+        "en": "No incidents yet. Either everything's fine, or the generator hasn't run yet 🙂",
+    },
+    "inc.filter.severity": {"ru": "Уровень серьёзности", "uk": "Рівень серйозності", "en": "Severity level"},
+    "inc.filter.status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "inc.filter.type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
+    "inc.filter.search": {"ru": "Поиск (SKU / текст)", "uk": "Пошук (SKU / текст)", "en": "Search (SKU / text)"},
+    "inc.filter.search_placeholder": {"ru": "например 22635000", "uk": "наприклад 22635000", "en": "e.g. 22635000"},
+
+    "inc.sev.critical": {"ru": "Critical", "uk": "Critical", "en": "Critical"},
+    "inc.sev.high": {"ru": "High", "uk": "High", "en": "High"},
+    "inc.sev.warning": {"ru": "Warning", "uk": "Warning", "en": "Warning"},
+    "inc.sev.low": {"ru": "Low", "uk": "Low", "en": "Low"},
+    "inc.sev.info": {"ru": "Info", "uk": "Info", "en": "Info"},
+
+    "inc.sev_help.critical": {
+        "ru": "Продажи уже остановлены: остаток = 0. Реагировать немедленно.",
+        "uk": "Продажі вже зупинені: залишок = 0. Реагувати негайно.",
+        "en": "Sales already stopped: stock = 0. React immediately.",
+    },
+    "inc.sev_help.high": {
+        "ru": "Высокий риск, требует реакции в ближайшие дни.",
+        "uk": "Високий ризик, потребує реакції найближчими днями.",
+        "en": "High risk, needs a response within the next few days.",
+    },
+    "inc.sev_help.warning": {
+        "ru": "Запас на исходе: остаток ≤ 3 шт. Спланировать пополнение.",
+        "uk": "Запас на завершенні: залишок ≤ 3 шт. Спланувати поповнення.",
+        "en": "Stock running low: qty ≤ 3 pcs. Plan a replenishment.",
+    },
+    "inc.sev_help.low": {
+        "ru": "Запас на исходе: остаток ≤ 3 шт. Спланировать пополнение.",
+        "uk": "Запас на завершенні: залишок ≤ 3 шт. Спланувати поповнення.",
+        "en": "Stock running low: qty ≤ 3 pcs. Plan a replenishment.",
+    },
+    "inc.sev_help.info": {
+        "ru": "Информационное уведомление, действия по ситуации.",
+        "uk": "Інформаційне повідомлення, дії за ситуацією.",
+        "en": "Informational notice, act as needed.",
+    },
+
+    "inc.kpi.open": {"ru": "Открытых", "uk": "Відкритих", "en": "Open"},
+    "inc.kpi.open_help": {
+        "ru": "Инциденты со статусом open — требуют действия. Закрываются автоматически, когда проблема исчезает из данных.",
+        "uk": "Інциденти зі статусом open — потребують дії. Закриваються автоматично, коли проблема зникає з даних.",
+        "en": "Incidents with status open — need action. Auto-close when the problem disappears from the data.",
+    },
+    "inc.kpi.none_help": {
+        "ru": "Инцидентов других уровней сейчас нет.",
+        "uk": "Інцидентів інших рівнів зараз немає.",
+        "en": "No incidents of other levels right now.",
+    },
+    "inc.kpi.resolved": {"ru": "Закрыто (всего)", "uk": "Закрито (всього)", "en": "Resolved (total)"},
+    "inc.kpi.resolved_help": {
+        "ru": "Автозакрытые: сток пополнился — система сама перевела инцидент в resolved. Показатель того, что проблемы реально решаются.",
+        "uk": "Автозакриті: сток поповнився — система сама перевела інцидент у resolved. Показник того, що проблеми реально вирішуються.",
+        "en": "Auto-resolved: stock was replenished — the system moved the incident to resolved itself. A sign problems are actually getting fixed.",
+    },
+
+    "inc.burning_title": {"ru": "🔥 Требуют внимания первыми", "uk": "🔥 Потребують уваги першими", "en": "🔥 Needs attention first"},
+    "inc.age_delta_open": {"ru": "-{n} дн. открыт", "uk": "-{n} дн. відкрито", "en": "-{n}d open"},
+    "inc.age_new": {"ru": "новый", "uk": "новий", "en": "new"},
+    "inc.status_word": {"ru": "статус", "uk": "статус", "en": "status"},
+
+    "inc.chart.by_type_title": {"ru": "Открытые по типу", "uk": "Відкриті за типом", "en": "Open by type"},
+    "inc.age.today": {"ru": "сегодня", "uk": "сьогодні", "en": "today"},
+    "inc.age.1_2d": {"ru": "1–2 дня", "uk": "1–2 дні", "en": "1–2 days"},
+    "inc.age.3_6d": {"ru": "3–6 дней", "uk": "3–6 днів", "en": "3–6 days"},
+    "inc.age.1_2w": {"ru": "1–2 недели", "uk": "1–2 тижні", "en": "1–2 weeks"},
+    "inc.age.gt2w": {"ru": "> 2 недель", "uk": "> 2 тижнів", "en": "> 2 weeks"},
+    "inc.chart.age_title": {"ru": "Возраст открытых (дней без реакции)", "uk": "Вік відкритих (днів без реакції)", "en": "Age of open incidents (days without response)"},
+    "inc.chart.daily_title": {"ru": "Новые инциденты по дням", "uk": "Нові інциденти за днями", "en": "New incidents by day"},
+    "inc.chart.dynamics_title": {"ru": "Динамика по дням", "uk": "Динаміка за днями", "en": "Daily dynamics"},
+    "inc.chart.dynamics_caption": {
+        "ru": "📈 Появится, когда накопится история за несколько дней. Включи расписание лоадера — и через неделю здесь будет тренд.",
+        "uk": "📈 З'явиться, коли накопичиться історія за декілька днів. Увімкни розклад лоадера — і за тиждень тут буде тренд.",
+        "en": "📈 Will appear once a few days of history accumulate. Turn on the loader schedule and there'll be a trend here within a week.",
+    },
+
+    "inc.tbl.col_created": {"ru": "Создан", "uk": "Створено", "en": "Created"},
+    "inc.tbl.col_level": {"ru": "Уровень", "uk": "Рівень", "en": "Level"},
+    "inc.tbl.col_type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
+    "inc.tbl.col_qty": {"ru": "Остаток", "uk": "Залишок", "en": "Stock"},
+    "inc.tbl.col_qty_help": {"ru": "Актуальный остаток по последнему снапшоту", "uk": "Актуальний залишок за останнім знімком", "en": "Current stock as of the latest snapshot"},
+    "inc.tbl.col_desc": {"ru": "Описание", "uk": "Опис", "en": "Description"},
+    "inc.tbl.col_age": {"ru": "Дней", "uk": "Днів", "en": "Days"},
+    "inc.tbl.col_age_help": {"ru": "Сколько дней инцидент открыт", "uk": "Скільки днів інцидент відкрито", "en": "How many days the incident has been open"},
+    "inc.tbl.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+
+    "inc.btn.acknowledge": {"ru": "🎯 Взять в работу ({n})", "uk": "🎯 Взяти в роботу ({n})", "en": "🎯 Acknowledge ({n})"},
+    "inc.btn.resolve": {"ru": "✅ Закрыть вручную ({n})", "uk": "✅ Закрити вручну ({n})", "en": "✅ Resolve manually ({n})"},
+    "inc.hint.select_rows": {
+        "ru": "Выбери строки галочками слева → «Взять в работу» пометит их как acknowledged, чтобы команда видела: кто-то уже занимается.",
+        "uk": "Вибери рядки галочками зліва → «Взяти в роботу» позначить їх як acknowledged, щоб команда бачила: хтось вже займається.",
+        "en": "Select rows with the checkboxes on the left → \"Acknowledge\" marks them as acknowledged, so the team can see someone's already on it.",
+    },
+    "inc.btn.download": {"ru": "⬇️ Скачать CSV", "uk": "⬇️ Завантажити CSV", "en": "⬇️ Download CSV"},
+
+    # --- 3_Forecast.py ---
+    "fc.title": {"ru": "Прогноз", "uk": "Прогноз", "en": "Forecast"},
+    "fc.caption": {
+        "ru": "Прогноз спроса и рекомендации по дозаказу",
+        "uk": "Прогноз попиту та рекомендації щодо дозамовлення",
+        "en": "Demand forecast and reorder recommendations",
+    },
+    "fc.kpi.at_risk": {"ru": "Товаров в зоне риска", "uk": "Товарів у зоні ризику", "en": "Products at risk"},
+    "fc.kpi.at_risk_help": {
+        "ru": "Запаса меньше, чем время поставки — успеть дозаказать",
+        "uk": "Запасу менше, ніж час поставки — встигнути дозамовити",
+        "en": "Less stock than lead time — reorder in time",
+    },
+    "fc.empty_title": {"ru": "🔜 Раздел готовится: ждёт подключения данных продаж.", "uk": "🔜 Розділ готується: чекає підключення даних продажів.", "en": "🔜 Section in progress: waiting for sales data connection."},
+    "fc.empty_body": {
+        "ru": (
+            "**Как это будет работать:**\n\n"
+            "| Что | Откуда |\n|---|---|\n"
+            "| Скорость продаж (шт/день) | продажи Amazon из `dnipro_m` |\n"
+            "| Days of cover | остаток ÷ скорость продаж |\n"
+            "| Зона риска | запаса меньше, чем срок поставки |\n"
+            "| Рекомендация дозаказа | суммой на N дней вперёд с учётом поставок в пути |\n\n"
+            "Остатки уже собираются ежедневно — как только подключим продажи, "
+            "прогноз включится автоматически."
+        ),
+        "uk": (
+            "**Як це працюватиме:**\n\n"
+            "| Що | Звідки |\n|---|---|\n"
+            "| Швидкість продажів (шт/день) | продажі Amazon з `dnipro_m` |\n"
+            "| Days of cover | залишок ÷ швидкість продажів |\n"
+            "| Зона ризику | запасу менше, ніж термін поставки |\n"
+            "| Рекомендація дозамовлення | сумою на N днів наперед з урахуванням поставок у дорозі |\n\n"
+            "Залишки вже збираються щодня — щойно підключимо продажі, "
+            "прогноз увімкнеться автоматично."
+        ),
+        "en": (
+            "**How this will work:**\n\n"
+            "| What | Source |\n|---|---|\n"
+            "| Sales velocity (units/day) | Amazon sales from `dnipro_m` |\n"
+            "| Days of cover | stock ÷ sales velocity |\n"
+            "| Risk zone | less stock than lead time |\n"
+            "| Reorder recommendation | a quantity for N days ahead, accounting for shipments in transit |\n\n"
+            "Stock is already collected daily — once sales data is connected, "
+            "the forecast will turn on automatically."
+        ),
+    },
+    "fc.load_error": {"ru": "Не удалось загрузить прогноз: {e}", "uk": "Не вдалося завантажити прогноз: {e}", "en": "Failed to load forecast: {e}"},
+
+    # --- 4_Reorder.py ---
+    "ro.title": {"ru": "Автозаказ", "uk": "Автозамовлення", "en": "Reorder"},
+    "ro.caption": {
+        "ru": "Что и сколько заказать: скорость продаж × остаток × срок поставки. Система считает точку заказа сама.",
+        "uk": "Що і скільки замовити: швидкість продажів × залишок × термін поставки. Система рахує точку замовлення сама.",
+        "en": "What and how much to order: sales velocity × stock × lead time. The system calculates the reorder point itself.",
+    },
+    "ro.empty": {
+        "ru": "Рекомендации ещё не рассчитаны. Запусти ячейку автозаказа в пайплайне.",
+        "uk": "Рекомендації ще не розраховані. Запусти комірку автозамовлення в пайплайні.",
+        "en": "Recommendations haven't been calculated yet. Run the reorder cell in the pipeline.",
+    },
+    "ro.urg.critical": {"ru": "Заказать срочно", "uk": "Замовити терміново", "en": "Order urgently"},
+    "ro.urg.warning": {"ru": "Пора заказывать", "uk": "Час замовляти", "en": "Time to order"},
+    "ro.urg.ok": {"ru": "В норме", "uk": "В нормі", "en": "OK"},
+
+    "ro.kpi.critical": {"ru": "🔴 Заказать срочно", "uk": "🔴 Замовити терміново", "en": "🔴 Order urgently"},
+    "ro.kpi.critical_help": {
+        "ru": "Кончатся раньше, чем приедет поставка",
+        "uk": "Закінчаться раніше, ніж приїде поставка",
+        "en": "Will run out before the shipment arrives",
+    },
+    "ro.kpi.warning": {"ru": "🟡 Пора заказывать", "uk": "🟡 Час замовляти", "en": "🟡 Time to order"},
+    "ro.kpi.total_qty": {"ru": "Всего к заказу, шт", "uk": "Всього до замовлення, шт", "en": "Total to order, pcs"},
+    "ro.kpi.sku_controlled": {"ru": "SKU под контролем", "uk": "SKU під контролем", "en": "SKUs monitored"},
+
+    "ro.priority_title": {"ru": "🔴 Требуют заказа в первую очередь", "uk": "🔴 Потребують замовлення в першу чергу", "en": "🔴 Needs ordering first"},
+    "ro.priority.value": {"ru": "заказать {n}", "uk": "замовити {n}", "en": "order {n}"},
+    "ro.priority.delta": {"ru": "хватит на {n:.0f} дн", "uk": "вистачить на {n:.0f} дн", "en": "lasts {n:.0f}d"},
+    "ro.priority.help": {"ru": "{name} · продаётся {v:.1f}/день", "uk": "{name} · продається {v:.1f}/день", "en": "{name} · sells {v:.1f}/day"},
+
+    "ro.filter.urgency": {"ru": "Срочность", "uk": "Терміновість", "en": "Urgency"},
+    "ro.filter.search": {"ru": "Поиск по SKU / названию", "uk": "Пошук за SKU / назвою", "en": "Search by SKU / name"},
+    "ro.filter.search_placeholder": {"ru": "напр. Amoladora", "uk": "напр. Amoladora", "en": "e.g. Amoladora"},
+
+    "ro.tbl.col_urgency": {"ru": "Срочность", "uk": "Терміновість", "en": "Urgency"},
+    "ro.tbl.col_sku": {"ru": "SKU", "uk": "SKU", "en": "SKU"},
+    "ro.tbl.col_product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
+    "ro.tbl.col_stock": {"ru": "Остаток", "uk": "Залишок", "en": "Stock"},
+    "ro.tbl.col_velocity": {"ru": "Продаётся/день", "uk": "Продається/день", "en": "Sold/day"},
+    "ro.tbl.col_days_left": {"ru": "Хватит, дней", "uk": "Вистачить, днів", "en": "Lasts, days"},
+    "ro.tbl.col_days_left_help": {
+        "ru": "На сколько дней хватит при текущей скорости продаж",
+        "uk": "На скільки днів вистачить за поточної швидкості продажів",
+        "en": "How many days it will last at the current sales velocity",
+    },
+    "ro.tbl.col_suggested": {"ru": "Заказать, шт", "uk": "Замовити, шт", "en": "Order, pcs"},
+    "ro.tbl.col_suggested_help": {
+        "ru": "Рекомендуемое количество к заказу",
+        "uk": "Рекомендована кількість до замовлення",
+        "en": "Recommended order quantity",
+    },
+
+    "ro.download_btn": {"ru": "⬇️ Скачать заказ ({n} SKU, {qty} шт)", "uk": "⬇️ Завантажити замовлення ({n} SKU, {qty} шт)", "en": "⬇️ Download order ({n} SKUs, {qty} pcs)"},
+
+    "ro.how_title": {"ru": "ℹ️ Как считается автозаказ", "uk": "ℹ️ Як рахується автозамовлення", "en": "ℹ️ How the reorder is calculated"},
+    "ro.how_body": {
+        "ru": (
+            "- **Скорость продаж** — среднее за последние 30 дней (из истории заказов)\n"
+            "- **Хватит дней** = остаток / скорость продаж\n"
+            "- **🔴 Заказать срочно** — хватит меньше, чем срок поставки (не успеваем)\n"
+            "- **🟡 Пора заказывать** — остаток ниже точки заказа (срок поставки + страховой запас)\n"
+            "- **Заказать, шт** — сколько нужно, чтобы покрыть спрос на 60 дней вперёд\n\n"
+            "Параметры (срок поставки, страховой запас) пока общие — скоро вынесем в настройки, "
+            "и посчитаем реальный срок поставки по каждому складу из истории поставок."
+        ),
+        "uk": (
+            "- **Швидкість продажів** — середнє за останні 30 днів (з історії замовлень)\n"
+            "- **Вистачить днів** = залишок / швидкість продажів\n"
+            "- **🔴 Замовити терміново** — вистачить менше, ніж термін поставки (не встигаємо)\n"
+            "- **🟡 Час замовляти** — залишок нижче точки замовлення (термін поставки + страховий запас)\n"
+            "- **Замовити, шт** — скільки потрібно, щоб покрити попит на 60 днів наперед\n\n"
+            "Параметри (термін поставки, страховий запас) поки загальні — скоро винесемо в налаштування, "
+            "і порахуємо реальний термін поставки по кожному складу з історії поставок."
+        ),
+        "en": (
+            "- **Sales velocity** — average over the last 30 days (from order history)\n"
+            "- **Days left** = stock / sales velocity\n"
+            "- **🔴 Order urgently** — will last less than the lead time (won't make it in time)\n"
+            "- **🟡 Time to order** — stock below the reorder point (lead time + safety stock)\n"
+            "- **Order, pcs** — how much is needed to cover demand for the next 60 days\n\n"
+            "Parameters (lead time, safety stock) are still shared across all — soon they'll move into settings, "
+            "and we'll compute the real lead time per warehouse from shipment history."
+        ),
+    },
 }
 
 
