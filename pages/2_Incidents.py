@@ -4,6 +4,9 @@ import streamlit as st
 import plotly.express as px
 
 from db.connection import get_connection
+from i18n import init_lang, t
+
+init_lang()
 
 # ---------- стили (темонезависимые) ----------
 st.markdown("""
@@ -17,25 +20,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Инциденты")
-st.caption(
-    "Единый журнал проблем со всех разделов системы: что требует действия прямо сейчас. "
-    "Источники: остатки (активно) · поставки и продажи (скоро)"
-)
+st.title(t("inc.title"))
+st.caption(t("inc.caption"))
 
-with st.expander("ℹ️ Как это работает"):
-    st.markdown("""
-    Инциденты создаются **автоматически** при каждом обновлении данных:
-
-    | Тип | Правило | Источник | Статус |
-    |---|---|---|---|
-    | 🔴 out_of_stock | остаток = 0 | Остатки | ✅ активно |
-    | 🟡 low_stock | остаток ≤ 3 шт | Остатки | ✅ активно |
-    | 🟠 stuck_shipment | поставка без движения | Поставки | 🔜 скоро |
-    | 🟣 sales_anomaly | резкий рост/падение продаж | Продажи | 🔜 скоро |
-
-    Когда проблема исчезает (например, сток пополнен) — инцидент закрывается сам.
-    """)
+with st.expander(t("inc.how_title")):
+    st.markdown(t("inc.how_body"))
 
 SEV_ORDER = ["critical", "high", "warning", "low", "info"]  # от худшего к лучшему
 SEV_ICON = {"critical": "🔴", "high": "🟠", "warning": "🟡", "low": "🟡", "info": "🔵"}
@@ -44,6 +33,9 @@ SEV_COLOR = {"critical": "#e24b4a", "high": "#ef9f27", "warning": "#f2b134",
 
 def sev_rank(s: str) -> int:
     return SEV_ORDER.index(s) if s in SEV_ORDER else len(SEV_ORDER)
+
+def sev_label(s: str) -> str:
+    return t(f"inc.sev.{s}") if f"inc.sev.{s}" in t.__globals__.get("TRANSLATIONS", {}) else s.capitalize()
 
 @st.cache_data(ttl=300)
 def load_incidents() -> pd.DataFrame:
@@ -66,7 +58,7 @@ def load_incidents() -> pd.DataFrame:
 df = load_incidents()
 
 if df.empty:
-    st.info("Инцидентов пока нет. Либо всё хорошо, либо генератор ещё не запускался 🙂")
+    st.info(t("inc.empty"))
     st.stop()
 
 STATUS_ORDER = {"open": 0, "acknowledged": 1, "resolved": 2}
@@ -84,18 +76,19 @@ df = df.sort_values(
 # ---------- фильтры ----------
 c1, c2, c3, c4 = st.columns([1, 1, 1, 1.4])
 with c1:
-    sev = st.multiselect("Уровень серьёзности",
+    sev = st.multiselect(t("inc.filter.severity"),
                          sorted(df["severity"].unique(), key=sev_rank),
-                         default=sorted(df["severity"].unique(), key=sev_rank))
+                         default=sorted(df["severity"].unique(), key=sev_rank),
+                         format_func=sev_label)
 with c2:
     statuses = sorted(df["status"].unique(), key=lambda s: STATUS_ORDER.get(s, 9))
     default_status = [s for s in ("open", "acknowledged") if s in statuses] or statuses
-    stat = st.multiselect("Статус", statuses, default=default_status)
+    stat = st.multiselect(t("inc.filter.status"), statuses, default=default_status)
 with c3:
-    itype = st.multiselect("Тип", sorted(df["incident_type"].unique()),
+    itype = st.multiselect(t("inc.filter.type"), sorted(df["incident_type"].unique()),
                            default=sorted(df["incident_type"].unique()))
 with c4:
-    search = st.text_input("Поиск (SKU / текст)", placeholder="например 22635000")
+    search = st.text_input(t("inc.filter.search"), placeholder=t("inc.filter.search_placeholder"))
 
 f = df[df["severity"].isin(sev) & df["status"].isin(stat) & df["incident_type"].isin(itype)]
 if search:
@@ -109,28 +102,26 @@ sev_counts = open_df["severity"].value_counts()
 top_sevs = sorted(sev_counts.index.tolist(), key=sev_rank)[:2]
 
 SEV_HELP = {
-    "critical": "Продажи уже остановлены: остаток = 0. Реагировать немедленно.",
-    "high": "Высокий риск, требует реакции в ближайшие дни.",
-    "warning": "Запас на исходе: остаток ≤ 3 шт. Спланировать пополнение.",
-    "low": "Запас на исходе: остаток ≤ 3 шт. Спланировать пополнение.",
-    "info": "Информационное уведомление, действия по ситуации.",
+    "critical": t("inc.sev_help.critical"),
+    "high": t("inc.sev_help.high"),
+    "warning": t("inc.sev_help.warning"),
+    "low": t("inc.sev_help.low"),
+    "info": t("inc.sev_help.info"),
 }
 
 cols = st.columns(4)
 cols[0].metric(
-    "Открытых", len(open_df),
-    help="Инциденты со статусом open — требуют действия. "
-         "Закрываются автоматически, когда проблема исчезает из данных.",
+    t("inc.kpi.open"), len(open_df),
+    help=t("inc.kpi.open_help"),
 )
 for i, s in enumerate(top_sevs, start=1):
-    cols[i].metric(f"{SEV_ICON.get(s, '⚪')} {s.capitalize()}", int(sev_counts[s]),
+    cols[i].metric(f"{SEV_ICON.get(s, '⚪')} {sev_label(s)}", int(sev_counts[s]),
                    help=SEV_HELP.get(s, ""))
 for i in range(1 + len(top_sevs), 3):
-    cols[i].metric("—", 0, help="Инцидентов других уровней сейчас нет.")
+    cols[i].metric("—", 0, help=t("inc.kpi.none_help"))
 cols[3].metric(
-    "Закрыто (всего)", int((df["status"] == "resolved").sum()),
-    help="Автозакрытые: сток пополнился — система сама перевела инцидент в resolved. "
-         "Показатель того, что проблемы реально решаются.",
+    t("inc.kpi.resolved"), int((df["status"] == "resolved").sum()),
+    help=t("inc.kpi.resolved_help"),
 )
 
 st.divider()
@@ -141,16 +132,17 @@ burning = (df[df["status"].isin(["open", "acknowledged"])]
            .sort_values(["current_qty", "age_days"], ascending=[True, False])
            .head(5))
 if not burning.empty:
-    st.markdown("#### 🔥 Требуют внимания первыми")
+    st.markdown(f"#### {t('inc.burning_title')}")
     bcols = st.columns(len(burning))
+    unit = t("stock.ov.unit_short")
     for col, (_, row) in zip(bcols, burning.iterrows()):
         product = str(row["message"]).split(":")[0][:40]
         col.metric(
             label=f"{SEV_ICON.get(row['severity'], '⚪')} {row['sku'][:18]}",
-            value=f"{int(row['current_qty'])} шт",
-            delta=f"-{int(row['age_days'])} дн. открыт" if row["age_days"] else "новый",
+            value=f"{int(row['current_qty'])} {unit}",
+            delta=t("inc.age_delta_open").format(n=int(row["age_days"])) if row["age_days"] else t("inc.age_new"),
             delta_color="inverse" if row["age_days"] else "off",
-            help=f"{product} · {row['warehouse_name']} · статус: {row['status']}",
+            help=f"{product} · {row['warehouse_name']} · {t('inc.status_word')}: {row['status']}",
         )
     st.divider()
 
@@ -161,7 +153,7 @@ with left:
     by_type = open_df.groupby("incident_type").size().reset_index(name="count")
     if not by_type.empty:
         fig = px.pie(by_type, names="incident_type", values="count",
-                     hole=0.55, title="Открытые по типу",
+                     hole=0.55, title=t("inc.chart.by_type_title"),
                      color="incident_type",
                      color_discrete_map={"out_of_stock": "#e24b4a",
                                          "low_stock": "#f2b134",
@@ -174,11 +166,11 @@ with mid:
     # Возраст открытых инцидентов: сколько дней висят без реакции
     age = open_df.copy()
     age["bucket"] = pd.cut(age["age_days"], bins=[-1, 0, 2, 6, 13, 9999],
-                           labels=["сегодня", "1–2 дня", "3–6 дней",
-                                   "1–2 недели", "> 2 недель"])
+                           labels=[t("inc.age.today"), t("inc.age.1_2d"), t("inc.age.3_6d"),
+                                   t("inc.age.1_2w"), t("inc.age.gt2w")])
     by_age = age.groupby("bucket", observed=True).size().reset_index(name="count")
     fig = px.bar(by_age, x="bucket", y="count", text="count",
-                 title="Возраст открытых (дней без реакции)",
+                 title=t("inc.chart.age_title"),
                  color_discrete_sequence=["#1f77b4"])
     fig.update_layout(height=300, xaxis_title=None, yaxis_title=None,
                       margin=dict(l=10, r=10, t=50, b=10))
@@ -189,15 +181,14 @@ with right:
              .groupby(["day", "severity"]).size().reset_index(name="count"))
     if dyn["day"].nunique() > 1:
         fig = px.bar(dyn, x="day", y="count", color="severity",
-                     title="Новые инциденты по дням",
+                     title=t("inc.chart.daily_title"),
                      color_discrete_map=SEV_COLOR)
         fig.update_layout(height=300, xaxis_title=None, yaxis_title=None,
                           margin=dict(l=10, r=10, t=50, b=10))
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.markdown("**Динамика по дням**")
-        st.caption("📈 Появится, когда накопится история за несколько дней. "
-                   "Включи расписание лоадера — и через неделю здесь будет тренд.")
+        st.markdown(f"**{t('inc.chart.dynamics_title')}**")
+        st.caption(t("inc.chart.dynamics_caption"))
 
 # ---------- таблица с выбором ----------
 def update_status(ids: list, new_status: str):
@@ -212,7 +203,7 @@ def update_status(ids: list, new_status: str):
     conn.close()
 
 show = f.reset_index(drop=True).copy()
-show["severity_icon"] = show["severity"].map(lambda s: f"{SEV_ICON.get(s, '⚪')} {s}")
+show["severity_icon"] = show["severity"].map(lambda s: f"{SEV_ICON.get(s, '⚪')} {sev_label(s)}")
 show["created_str"] = show["created_at"].dt.strftime("%d.%m.%Y %H:%M")
 
 event = st.dataframe(
@@ -221,40 +212,39 @@ event = st.dataframe(
     use_container_width=True, height=480, hide_index=True,
     on_select="rerun", selection_mode="multi-row",
     column_config={
-        "created_str": st.column_config.TextColumn("Создан", width="small"),
-        "severity_icon": st.column_config.TextColumn("Уровень", width="small"),
-        "incident_type": st.column_config.TextColumn("Тип", width="small"),
-        "current_qty": st.column_config.NumberColumn("Остаток", width="small",
-                                                     help="Актуальный остаток по последнему снапшоту"),
-        "message": st.column_config.TextColumn("Описание", width="large"),
-        "age_days": st.column_config.NumberColumn("Дней", width="small",
-                                                  help="Сколько дней инцидент открыт"),
-        "status": st.column_config.TextColumn("Статус", width="small"),
+        "created_str": st.column_config.TextColumn(t("inc.tbl.col_created"), width="small"),
+        "severity_icon": st.column_config.TextColumn(t("inc.tbl.col_level"), width="small"),
+        "incident_type": st.column_config.TextColumn(t("inc.tbl.col_type"), width="small"),
+        "current_qty": st.column_config.NumberColumn(t("inc.tbl.col_qty"), width="small",
+                                                     help=t("inc.tbl.col_qty_help")),
+        "message": st.column_config.TextColumn(t("inc.tbl.col_desc"), width="large"),
+        "age_days": st.column_config.NumberColumn(t("inc.tbl.col_age"), width="small",
+                                                  help=t("inc.tbl.col_age_help")),
+        "status": st.column_config.TextColumn(t("inc.tbl.col_status"), width="small"),
     },
 )
 
 selected_rows = event.selection.rows if event and event.selection else []
 b1, b2, b3 = st.columns([1.2, 1.2, 3])
 with b1:
-    if st.button(f"🎯 Взять в работу ({len(selected_rows)})",
+    if st.button(t("inc.btn.acknowledge").format(n=len(selected_rows)),
                  disabled=not selected_rows, use_container_width=True):
         ids = show.loc[selected_rows, "id"].tolist()
         update_status(ids, "acknowledged")
         st.cache_data.clear()
         st.rerun()
 with b2:
-    if st.button(f"✅ Закрыть вручную ({len(selected_rows)})",
+    if st.button(t("inc.btn.resolve").format(n=len(selected_rows)),
                  disabled=not selected_rows, use_container_width=True):
         ids = show.loc[selected_rows, "id"].tolist()
         update_status(ids, "resolved")
         st.cache_data.clear()
         st.rerun()
 with b3:
-    st.caption("Выбери строки галочками слева → «Взять в работу» пометит их как acknowledged, "
-               "чтобы команда видела: кто-то уже занимается.")
+    st.caption(t("inc.hint.select_rows"))
 
 st.download_button(
-    "⬇️ Скачать CSV",
+    t("inc.btn.download"),
     f.to_csv(index=False).encode("utf-8-sig"),
     file_name="incidents.csv",
     mime="text/csv",
