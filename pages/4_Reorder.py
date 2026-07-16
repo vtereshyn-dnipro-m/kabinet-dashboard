@@ -83,6 +83,23 @@ HAS_ORDER_STATUS = has_order_status()
 df = load_reorder(HAS_ORDER_STATUS)
 # дефекты/возвраты (amzn.gr.) не заказываем — убираем из рекомендаций
 df = df[~df["sku"].apply(is_defect_sku)].copy()
+
+# SKU, у которых есть активная переброска (чтобы не заказать лишнее)
+@st.cache_data(ttl=120)
+def skus_in_transfer():
+    conn = get_connection()
+    tdf = pd.read_sql("""
+        SELECT DISTINCT sku, SUM(transfer_qty) AS transfer_in
+        FROM kabinet_data.transfer_recommendations
+        WHERE calc_date=(SELECT MAX(calc_date) FROM kabinet_data.transfer_recommendations)
+          AND status='new'
+        GROUP BY sku
+    """, conn)
+    conn.close()
+    return dict(zip(tdf["sku"], tdf["transfer_in"]))
+
+transfer_map = skus_in_transfer()
+df["has_transfer"] = df["sku"].map(lambda s: transfer_map.get(s, 0))
 if df.empty:
     st.info(t("ro.empty"))
     st.stop()
@@ -232,15 +249,17 @@ if search:
 fdf = fdf.sort_values(["urg_rank", "days_of_cover"])
 
 edit = fdf[["sku_display", "product_name", "current_stock", "daily_velocity",
-            "days_of_cover", "suggested_qty", "urgency"]].copy()
+            "days_of_cover", "suggested_qty", "urgency", "has_transfer"]].copy()
 edit.insert(0, "✓", edit["urgency"] == "critical")
 edit["Срочность"] = edit["urgency"].map(lambda u: f"{URG_ICON[u]} {urg_label(u)}")
 edit["daily_velocity"] = edit["daily_velocity"].round(1)
 edit["days_of_cover"] = edit["days_of_cover"].round(0)
+edit["Переброска"] = edit["has_transfer"].map(
+    lambda x: f"🔄 идёт {int(x)} шт" if x > 0 else "")
 
 edited = st.data_editor(
     edit[["✓", "Срочность", "sku_display", "product_name", "current_stock",
-          "daily_velocity", "days_of_cover", "suggested_qty"]],
+          "daily_velocity", "days_of_cover", "suggested_qty", "Переброска"]],
     use_container_width=True, height=440, hide_index=True,
     column_config={
         "✓": st.column_config.CheckboxColumn(t("ro.order.col_do"), width="small"),
@@ -253,6 +272,9 @@ edited = st.data_editor(
             t("ro.order.col_cover"), width="small", min_value=0, max_value=60, format="%d"),
         "suggested_qty": st.column_config.NumberColumn(
             t("ro.order.col_qty"), width="small", min_value=0, step=1),
+        "Переброска": st.column_config.TextColumn(
+            "Переброска", width="small", disabled=True,
+            help="Если по этому SKU уже идёт переброска — учти при заказе, чтобы не купить лишнее"),
     },
     key="reorder_editor",
 )
