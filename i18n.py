@@ -120,7 +120,7 @@ TRANSLATIONS = {
     "stock.ctr.bar_title": {"ru": "Остаток по странам", "uk": "Залишок по країнах", "en": "Stock by country"},
     "stock.ctr.country_axis": {"ru": "Страна", "uk": "Країна", "en": "Country"},
     "stock.ctr.matrix_title": {"ru": "Матрица SKU × страна (топ-20 по остатку)", "uk": "Матриця SKU × країна (топ-20 за залишком)", "en": "SKU × country matrix (top 20 by stock)"},
-    "stock.ctr.click_hint": {"ru": "💡 Кликни по ячейке — увидишь товар целиком и остаток по всем странам", "uk": "💡 Клікни по комірці — побачиш товар цілком і залишок по всіх країнах", "en": "💡 Click a cell — see the full product and stock across all countries"},
+    "stock.ctr.click_hint": {"ru": "💡 Кликни по ячейке — увидишь товар целиком и остаток по всем странам", "uk": "💡 Клікні по комірці — побачиш товар цілком і залишок по всіх країнах", "en": "💡 Click a cell — see the full product and stock across all countries"},
     "stock.ctr.map_note": {
         "ru": "Пусто/светлое = товара нет или мало в этой стране. Топ-20 — для наглядности карты. Полная таблица со всеми SKU — ниже.",
         "uk": "Порожньо/світле = товару немає або мало в цій країні. Топ-20 — для наочності карти. Повна таблиця з усіма SKU — нижче.",
@@ -132,6 +132,15 @@ TRANSLATIONS = {
     "stock.ctr.col_total": {"ru": "Всего", "uk": "Всього", "en": "Total"},
     "stock.ctr.total_row": {"ru": "ИТОГО", "uk": "РАЗОМ", "en": "TOTAL"},
     "stock.ctr.download_matrix": {"ru": "⬇️ Скачать полную матрицу CSV", "uk": "⬇️ Завантажити повну матрицю CSV", "en": "⬇️ Download full matrix CSV"},
+
+    # --- дефекты / возвраты ---
+    "stock.ctr.defects_title": {"ru": "⚠️ Дефекты / возвраты", "uk": "⚠️ Дефекти / повернення", "en": "⚠️ Defects / returns"},
+    "stock.ctr.defects_caption": {
+        "ru": "Позиции с браком или возвратом (Amazon removal/grade). Не в остатках и не в автозаказе.",
+        "uk": "Позиції з браком або поверненням (Amazon removal/grade). Не в залишках і не в автозамовленні.",
+        "en": "Damaged or returned items (Amazon removal/grade). Excluded from stock and reorder.",
+    },
+    "stock.ctr.defects_download": {"ru": "⬇️ Скачать дефекты CSV", "uk": "⬇️ Завантажити дефекти CSV", "en": "⬇️ Download defects CSV"},
 
     "stock.tbl.view_mode": {"ru": "Вид таблицы", "uk": "Вигляд таблиці", "en": "Table view"},
     "stock.tbl.view_by_product": {"ru": "По товару (сумма по странам)", "uk": "За товаром (сума по країнах)", "en": "By product (summed across countries)"},
