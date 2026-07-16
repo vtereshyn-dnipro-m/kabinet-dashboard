@@ -1,4 +1,5 @@
 # pages/4_Reorder.py — Автозаказ: рекомендации по пополнению
+import re
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timezone
@@ -22,7 +23,16 @@ st.title(t("ro.title"))
 st.caption(t("ro.caption"))
 
 def clean_sku(sku: str) -> str:
-    return str(sku or "").replace("-FBA", "").strip()
+    """Чистый базовый SKU: режет amzn.gr., -FBA/-FBM, хвост-хеш, вариант -A/-B."""
+    s = str(sku or "").strip()
+    s = re.sub(r"^amzn\.gr\.", "", s)
+    s = s.replace("-FBA", "").replace("-FBM", "")
+    s = re.sub(r"-[A-Za-z0-9]{8,}$", "", s)
+    s = re.sub(r"-[A-Za-z]$", "", s)
+    return s.strip(" -")
+
+def is_defect_sku(sku: str) -> bool:
+    return str(sku or "").lower().startswith("amzn.gr.")
 
 # ---------- автозаказ ----------
 @st.cache_data(ttl=300)
@@ -71,6 +81,8 @@ def has_order_status() -> bool:
 
 HAS_ORDER_STATUS = has_order_status()
 df = load_reorder(HAS_ORDER_STATUS)
+# дефекты/возвраты (amzn.gr.) не заказываем — убираем из рекомендаций
+df = df[~df["sku"].apply(is_defect_sku)].copy()
 if df.empty:
     st.info(t("ro.empty"))
     st.stop()
