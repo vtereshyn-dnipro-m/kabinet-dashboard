@@ -1,8 +1,7 @@
 # pages/4_Reorder.py — Автозаказ: рекомендации по пополнению
 import pandas as pd
 import streamlit as st
-import plotly.express as px
-
+from datetime import datetime, timezone
 from db.connection import get_connection
 from i18n import init_lang, t
 
@@ -22,214 +21,259 @@ st.markdown("""
 st.title(t("ro.title"))
 st.caption(t("ro.caption"))
 
+def clean_sku(sku: str) -> str:
+    return str(sku or "").replace("-FBA", "").strip()
+
+# ---------- автозаказ ----------
 @st.cache_data(ttl=300)
 def load_reorder():
     conn = get_connection()
     df = pd.read_sql("""
         SELECT sku, product_name, current_stock, daily_velocity,
-               days_of_cover, reorder_point, suggested_qty, urgency
+               days_of_cover, reorder_point, suggested_qty, urgency,
+               COALESCE(order_status,'new') AS order_status
         FROM kabinet_data.reorder_recommendations
         WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.reorder_recommendations)
     """, conn)
     conn.close()
     return df
 
-df = load_reorder()
+def mark_ordered(skus, qtys):
+    conn = get_connection(); cur = conn.cursor()
+    cur.execute("SELECT MAX(calc_date) FROM kabinet_data.reorder_recommendations")
+    d = cur.fetchone()[0]
+    for sku, qty in zip(skus, qtys):
+        cur.execute("""
+            UPDATE kabinet_data.reorder_recommendations
+            SET order_status='ordered', suggested_qty=%s
+            WHERE calc_date=%s AND sku=%s
+        """, (int(qty), d, sku))
+    conn.commit(); cur.close(); conn.close()
 
+def ensure_order_status():
+    conn = get_connection(); cur = conn.cursor()
+    cur.execute("""
+        ALTER TABLE kabinet_data.reorder_recommendations
+        ADD COLUMN IF NOT EXISTS order_status TEXT DEFAULT 'new'
+    """)
+    conn.commit(); cur.close(); conn.close()
+
+ensure_order_status()
+df = load_reorder()
 if df.empty:
     st.info(t("ro.empty"))
     st.stop()
 
+df["sku_display"] = df["sku"].apply(clean_sku)
 URG_ORDER = {"critical": 0, "warning": 1, "ok": 2}
 URG_ICON = {"critical": "🔴", "warning": "🟡", "ok": "🟢"}
-
-def urg_label(u: str) -> str:
-    return t(f"ro.urg.{u}")
-
+def urg_label(u): return t(f"ro.urg.{u}")
 df["urg_rank"] = df["urgency"].map(URG_ORDER)
+
+active = df[df["order_status"] != "ordered"]
+ordered = df[df["order_status"] == "ordered"]
 
 # ---------- KPI ----------
 c1, c2, c3, c4 = st.columns(4)
-crit = df[df["urgency"] == "critical"]
-warn = df[df["urgency"] == "warning"]
-c1.metric(t("ro.kpi.critical"), len(crit),
-          help=t("ro.kpi.critical_help"))
+crit = active[active["urgency"] == "critical"]
+warn = active[active["urgency"] == "warning"]
+c1.metric(t("ro.kpi.critical"), len(crit), help=t("ro.kpi.critical_help"))
 c2.metric(t("ro.kpi.warning"), len(warn))
 c3.metric(t("ro.kpi.total_qty"),
-          int(df.loc[df["urgency"] != "ok", "suggested_qty"].sum()))
+          int(active.loc[active["urgency"] != "ok", "suggested_qty"].sum()))
 c4.metric(t("ro.kpi.sku_controlled"), len(df))
 
 st.divider()
 
 # ═════════════════════════════════════════════════════════════
-# СЕКЦИЯ «ПЕРЕБРОСКА МЕЖДУ СТРАНАМИ»
-# Логика: сначала переброска со своих складов, потом заказ у поставщика.
+# ПЕРЕБРОСКА: свои склады (ERP) + между странами FBA
 # ═════════════════════════════════════════════════════════════
-
 @st.cache_data(ttl=120)
 def load_transfers():
     conn = get_connection()
     tdf = pd.read_sql("""
         SELECT sku, product_name, from_location, to_location, transfer_qty,
                from_stock, from_cover_days, to_stock, to_cover_days,
-               COALESCE(status, 'new') AS status
+               COALESCE(from_type,'fba') AS from_type,
+               COALESCE(status,'new') AS status
         FROM kabinet_data.transfer_recommendations
-        WHERE calc_date = (SELECT MAX(calc_date)
-                           FROM kabinet_data.transfer_recommendations)
+        WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.transfer_recommendations)
     """, conn)
     conn.close()
     return tdf
 
 def set_transfer_status(keys, new_status):
-    """keys: list of (sku, from_location, to_location)"""
-    conn = get_connection()
-    cur = conn.cursor()
+    conn = get_connection(); cur = conn.cursor()
     cur.execute("SELECT MAX(calc_date) FROM kabinet_data.transfer_recommendations")
     d = cur.fetchone()[0]
     for sku, fl, tl in keys:
         cur.execute("""
             UPDATE kabinet_data.transfer_recommendations
-            SET status = %s
-            WHERE calc_date = %s AND sku = %s
-              AND from_location = %s AND to_location = %s
+            SET status=%s
+            WHERE calc_date=%s AND sku=%s AND from_location=%s AND to_location=%s
         """, (new_status, d, sku, fl, tl))
-    conn.commit()
-    cur.close()
-    conn.close()
+    conn.commit(); cur.close(); conn.close()
 
 transfers = load_transfers()
-active_tr = transfers[transfers["status"] == "new"] if not transfers.empty else transfers
+active_tr = transfers[transfers["status"] == "new"]
 
 if not active_tr.empty:
-    col_confirm = t("reorder.transfer.col_confirm")
-    col_sku = t("reorder.transfer.col_sku")
-    col_product = t("reorder.transfer.col_product")
-    col_route = t("reorder.transfer.col_route")
-    col_qty = t("reorder.transfer.col_qty")
-    col_from_stock = t("reorder.transfer.col_from_stock")
-    col_to_cover = t("reorder.transfer.col_to_cover")
-    unit = t("reorder.transfer.unit_pcs")
+    n_erp = int((active_tr["from_type"] == "erp").sum())
+    n_fba = int((active_tr["from_type"] == "fba").sum())
+    st.markdown(f"#### {t('ro.tr.title')}")
+    st.caption(t("ro.tr.caption"))
 
-    st.markdown(f"#### {t('reorder.transfer.section_title')}")
-    st.caption(t("reorder.transfer.section_caption"))
+    # мини-сводка по типу источника
+    s1, s2, s3 = st.columns(3)
+    s1.metric(t("ro.tr.from_own"), n_erp, help=t("ro.tr.from_own_help"))
+    s2.metric(t("ro.tr.from_fba"), n_fba)
+    s3.metric(t("ro.tr.total_qty"), int(active_tr["transfer_qty"].sum()))
 
     tr = active_tr.copy()
-    tr.insert(0, col_confirm, True)
-    tr[col_route] = tr["from_location"] + " → " + tr["to_location"]
-    tr[col_from_stock] = tr["from_stock"].astype(int).astype(str) + f" {unit}"
-    tr[col_to_cover] = tr["to_cover_days"].round(0).astype(int)
+    tr["sku_display"] = tr["sku"].apply(clean_sku)
+    tr.insert(0, "✓", True)
+    # источник с иконкой
+    tr["Источник"] = tr.apply(
+        lambda r: ("📦 " if r["from_type"] == "erp" else "✈️ ") + str(r["from_location"]),
+        axis=1)
+    tr["Куда"] = tr["to_location"]
+    tr["Хватит(получатель)"] = tr["to_cover_days"].round(0).astype(int)
 
+    tr_sorted = tr.sort_values(["from_type", "to_cover_days"])  # erp сверху
     tr_edited = st.data_editor(
-        tr[[col_confirm, "sku", "product_name", col_route, "transfer_qty",
-            col_from_stock, col_to_cover]],
-        use_container_width=True, hide_index=True,
+        tr_sorted[["✓", "sku_display", "product_name", "Источник", "Куда",
+                   "transfer_qty", "Хватит(получатель)"]],
+        use_container_width=True, hide_index=True, height=400,
         column_config={
-            col_confirm: st.column_config.CheckboxColumn(col_confirm, width="small"),
-            "sku": st.column_config.TextColumn(col_sku, width="small", disabled=True),
-            "product_name": st.column_config.TextColumn(col_product, width="large", disabled=True),
-            col_route: st.column_config.TextColumn(col_route, width="small", disabled=True),
-            "transfer_qty": st.column_config.NumberColumn(
-                col_qty, width="small", min_value=0, step=1),
-            col_from_stock: st.column_config.TextColumn(
-                col_from_stock, width="small", disabled=True),
-            col_to_cover: st.column_config.NumberColumn(
-                col_to_cover, width="small", disabled=True,
-                help=t("reorder.transfer.col_to_cover_help")),
+            "✓": st.column_config.CheckboxColumn(t("ro.tr.col_do"), width="small"),
+            "sku_display": st.column_config.TextColumn("SKU", width="small", disabled=True),
+            "product_name": st.column_config.TextColumn(t("ro.tr.col_product"), width="large", disabled=True),
+            "Источник": st.column_config.TextColumn(t("ro.tr.col_source"), width="medium", disabled=True),
+            "Куда": st.column_config.TextColumn(t("ro.tr.col_to"), width="small", disabled=True),
+            "transfer_qty": st.column_config.NumberColumn(t("ro.tr.col_qty"), width="small", min_value=0, step=1),
+            "Хватит(получатель)": st.column_config.NumberColumn(t("ro.tr.col_cover"), width="small", disabled=True),
         },
         key="transfer_editor",
     )
 
-    chosen_tr = tr_edited[tr_edited[col_confirm]]
+    chosen_tr = tr_edited[tr_edited["✓"]]
     tc1, tc2 = st.columns([1, 1])
     with tc1:
-        if st.button(t("reorder.transfer.confirm_button").format(n=len(chosen_tr)),
+        if st.button(t("ro.tr.confirm").format(n=len(chosen_tr)),
                      use_container_width=True, disabled=chosen_tr.empty):
-            keys = [(r["sku"],) + tuple(r[col_route].split(" → "))
-                    for _, r in chosen_tr.iterrows()]
+            # восстановим ключи (from_location из "Источник" без иконки)
+            keys = []
+            for _, r in chosen_tr.iterrows():
+                src = r["Источник"].replace("📦 ", "").replace("✈️ ", "")
+                # найдём оригинальный sku по sku_display
+                orig = active_tr[active_tr["sku"].apply(clean_sku) == r["sku_display"]]
+                orig = orig[(orig["from_location"] == src) & (orig["to_location"] == r["Куда"])]
+                if not orig.empty:
+                    keys.append((orig.iloc[0]["sku"], src, r["Куда"]))
             set_transfer_status(keys, "confirmed")
             st.cache_data.clear()
-            st.success(t("reorder.transfer.confirm_success").format(n=len(chosen_tr)))
+            st.success(t("ro.tr.confirmed").format(n=len(keys)))
             st.rerun()
     with tc2:
         st.download_button(
-            t("reorder.transfer.export_button"),
-            chosen_tr.to_csv(index=False).encode("utf-8-sig")
-            if not chosen_tr.empty else b"",
+            t("ro.tr.export").format(n=len(chosen_tr)),
+            chosen_tr.to_csv(index=False).encode("utf-8-sig") if not chosen_tr.empty else b"",
             file_name="transfers.csv", mime="text/csv",
             use_container_width=True, disabled=chosen_tr.empty,
         )
     st.divider()
 
-# ---------- срочные — крупно ----------
-if not crit.empty:
-    st.markdown(f"#### {t('ro.priority_title')}")
-    top = crit.sort_values("days_of_cover").head(6)
-    cols = st.columns(min(len(top), 3))
-    for i, (_, r) in enumerate(top.iterrows()):
-        with cols[i % 3]:
-            st.metric(
-                label=f"{str(r['sku'])[:16]}",
-                value=t("ro.priority.value").format(n=int(r['suggested_qty'])),
-                delta=t("ro.priority.delta").format(n=r['days_of_cover']),
-                delta_color="inverse",
-                help=t("ro.priority.help").format(name=r['product_name'][:70], v=r['daily_velocity']),
-            )
-    st.divider()
+# ═════════════════════════════════════════════════════════════
+# ЗАКАЗ У ПОСТАВЩИКА (если переброска не покрывает)
+# ═════════════════════════════════════════════════════════════
+st.markdown(f"#### {t('ro.order.title')}")
 
-# ---------- фильтр ----------
 f1, f2 = st.columns([1, 2])
 with f1:
     urg_filter = st.multiselect(
-        t("ro.filter.urgency"),
-        ["critical", "warning", "ok"],
+        t("ro.filter.urgency"), ["critical", "warning", "ok"],
         default=["critical", "warning"],
         format_func=lambda x: f"{URG_ICON[x]} {urg_label(x)}",
     )
 with f2:
-    search = st.text_input(t("ro.filter.search"), placeholder=t("ro.filter.search_placeholder"))
+    search = st.text_input(t("ro.filter.search"), placeholder=t("ro.filter.search_ph"))
 
-f = df[df["urgency"].isin(urg_filter)]
+fdf = active[active["urgency"].isin(urg_filter)].copy()
 if search:
-    mask = (f["sku"].str.contains(search, case=False, na=False)
-            | f["product_name"].str.contains(search, case=False, na=False))
-    f = f[mask]
+    m = (fdf["sku_display"].str.contains(search, case=False, na=False)
+         | fdf["product_name"].str.contains(search, case=False, na=False))
+    fdf = fdf[m]
+fdf = fdf.sort_values(["urg_rank", "days_of_cover"])
 
-# ---------- таблица рекомендаций ----------
-col_urgency = t("ro.tbl.col_urgency")
-col_velocity = t("ro.tbl.col_velocity")
-col_days_left = t("ro.tbl.col_days_left")
+edit = fdf[["sku_display", "product_name", "current_stock", "daily_velocity",
+            "days_of_cover", "suggested_qty", "urgency"]].copy()
+edit.insert(0, "✓", edit["urgency"] == "critical")
+edit["Срочность"] = edit["urgency"].map(lambda u: f"{URG_ICON[u]} {urg_label(u)}")
+edit["daily_velocity"] = edit["daily_velocity"].round(1)
+edit["days_of_cover"] = edit["days_of_cover"].round(0)
 
-show = f.sort_values(["urg_rank", "days_of_cover"]).copy()
-show[col_urgency] = show["urgency"].map(lambda u: f"{URG_ICON.get(u, '')} {urg_label(u)}")
-show[col_velocity] = show["daily_velocity"].round(1)
-show[col_days_left] = show["days_of_cover"].round(0)
-
-st.dataframe(
-    show[[col_urgency, "sku", "product_name", "current_stock",
-          col_velocity, col_days_left, "suggested_qty"]],
-    use_container_width=True, height=460, hide_index=True,
+edited = st.data_editor(
+    edit[["✓", "Срочность", "sku_display", "product_name", "current_stock",
+          "daily_velocity", "days_of_cover", "suggested_qty"]],
+    use_container_width=True, height=440, hide_index=True,
     column_config={
-        "sku": st.column_config.TextColumn(t("ro.tbl.col_sku"), width="small"),
-        "product_name": st.column_config.TextColumn(t("ro.tbl.col_product"), width="large"),
-        "current_stock": st.column_config.NumberColumn(t("ro.tbl.col_stock"), width="small"),
-        col_days_left: st.column_config.NumberColumn(col_days_left, width="small",
-                                                      help=t("ro.tbl.col_days_left_help")),
-        "suggested_qty": st.column_config.NumberColumn(t("ro.tbl.col_suggested"), width="small",
-                                                       help=t("ro.tbl.col_suggested_help")),
+        "✓": st.column_config.CheckboxColumn(t("ro.order.col_do"), width="small"),
+        "Срочность": st.column_config.TextColumn(t("ro.order.col_urgency"), width="small", disabled=True),
+        "sku_display": st.column_config.TextColumn("SKU", width="small", disabled=True),
+        "product_name": st.column_config.TextColumn(t("ro.tr.col_product"), width="large", disabled=True),
+        "current_stock": st.column_config.NumberColumn(t("ro.order.col_stock"), width="small", disabled=True),
+        "daily_velocity": st.column_config.NumberColumn(t("ro.order.col_velocity"), width="small", disabled=True),
+        "days_of_cover": st.column_config.ProgressColumn(
+            t("ro.order.col_cover"), width="small", min_value=0, max_value=60, format="%d"),
+        "suggested_qty": st.column_config.NumberColumn(
+            t("ro.order.col_qty"), width="small", min_value=0, step=1),
     },
+    key="reorder_editor",
 )
 
-# ---------- выгрузка заказа ----------
-order = f[f["urgency"] != "ok"][["sku", "product_name", "current_stock",
-                                  "daily_velocity", "days_of_cover", "suggested_qty"]]
-st.download_button(
-    t("ro.download_btn").format(n=len(order), qty=int(order['suggested_qty'].sum())),
-    order.to_csv(index=False).encode("utf-8-sig"),
-    file_name="reorder.csv",
-    mime="text/csv",
-    disabled=order.empty,
-)
+chosen = edited[edited["✓"]]
+t1, t2, t3 = st.columns(3)
+t1.metric(t("ro.order.chosen"), len(chosen))
+t2.metric(t("ro.order.total"), int(chosen["suggested_qty"].sum()))
+t3.metric(t("ro.order.avg_velocity"),
+          f"{chosen['daily_velocity'].mean():.1f}" if len(chosen) else "—")
 
-# ---------- как считается ----------
-with st.expander(t("ro.how_title")):
-    st.markdown(t("ro.how_body"))
+a1, a2 = st.columns([1, 1])
+with a1:
+    if st.button(t("ro.order.form").format(n=len(chosen)),
+                 type="primary", use_container_width=True, disabled=chosen.empty):
+        skus_orig = [active[active["sku"].apply(clean_sku) == sd].iloc[0]["sku"]
+                     for sd in chosen["sku_display"]]
+        mark_ordered(skus_orig, chosen["suggested_qty"].tolist())
+        st.cache_data.clear()
+        st.success(t("ro.order.formed").format(
+            n=len(chosen), qty=int(chosen["suggested_qty"].sum())))
+        st.rerun()
+with a2:
+    exp = chosen if not chosen.empty else fdf[fdf["urgency"] != "ok"]
+    st.download_button(
+        t("ro.order.export").format(n=len(exp)),
+        exp.to_csv(index=False).encode("utf-8-sig"),
+        file_name="reorder.csv", mime="text/csv",
+        use_container_width=True, disabled=exp.empty,
+    )
+
+if not ordered.empty:
+    st.divider()
+    with st.expander(t("ro.ordered.title").format(
+            n=len(ordered), qty=int(ordered["suggested_qty"].sum()))):
+        od = ordered.copy()
+        od["sku_display"] = od["sku"].apply(clean_sku)
+        st.dataframe(
+            od[["sku_display", "product_name", "current_stock", "suggested_qty"]],
+            use_container_width=True, hide_index=True,
+            column_config={
+                "sku_display": "SKU",
+                "product_name": t("ro.tr.col_product"),
+                "current_stock": t("ro.order.col_stock"),
+                "suggested_qty": t("ro.ordered.col_qty"),
+            },
+        )
+
+with st.expander(t("ro.how.title")):
+    st.markdown(t("ro.how.body"))
