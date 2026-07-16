@@ -142,6 +142,9 @@ if not active_tr.empty:
 
     tr = active_tr.copy()
     tr["sku_display"] = tr["sku"].apply(clean_sku)
+    # фолбэк если пайплайн не подтянул имя
+    tr["product_name"] = tr["product_name"].fillna("").astype(str).replace("None", "")
+    tr.loc[tr["product_name"] == "", "product_name"] = "— " + tr["sku_display"]
     tr.insert(0, "✓", True)
     # источник с иконкой
     tr["Источник"] = tr.apply(
