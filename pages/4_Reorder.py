@@ -26,12 +26,14 @@ def clean_sku(sku: str) -> str:
 
 # ---------- автозаказ ----------
 @st.cache_data(ttl=300)
-def load_reorder():
+def load_reorder(has_status: bool):
     conn = get_connection()
-    df = pd.read_sql("""
+    status_col = "COALESCE(order_status,'new') AS order_status" if has_status \
+                 else "'new' AS order_status"
+    df = pd.read_sql(f"""
         SELECT sku, product_name, current_stock, daily_velocity,
                days_of_cover, reorder_point, suggested_qty, urgency,
-               COALESCE(order_status,'new') AS order_status
+               {status_col}
         FROM kabinet_data.reorder_recommendations
         WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.reorder_recommendations)
     """, conn)
@@ -50,16 +52,25 @@ def mark_ordered(skus, qtys):
         """, (int(qty), d, sku))
     conn.commit(); cur.close(); conn.close()
 
-def ensure_order_status():
-    conn = get_connection(); cur = conn.cursor()
-    cur.execute("""
-        ALTER TABLE kabinet_data.reorder_recommendations
-        ADD COLUMN IF NOT EXISTS order_status TEXT DEFAULT 'new'
-    """)
-    conn.commit(); cur.close(); conn.close()
+@st.cache_data(ttl=600)
+def has_order_status() -> bool:
+    """Проверка наличия колонки без DDL (дашборд не владеет таблицей)."""
+    try:
+        conn = get_connection(); cur = conn.cursor()
+        cur.execute("""
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema='kabinet_data'
+              AND table_name='reorder_recommendations'
+              AND column_name='order_status'
+        """)
+        ok = cur.fetchone() is not None
+        cur.close(); conn.close()
+        return ok
+    except Exception:
+        return False
 
-ensure_order_status()
-df = load_reorder()
+HAS_ORDER_STATUS = has_order_status()
+df = load_reorder(HAS_ORDER_STATUS)
 if df.empty:
     st.info(t("ro.empty"))
     st.stop()
@@ -241,7 +252,8 @@ t3.metric(t("ro.order.avg_velocity"),
 a1, a2 = st.columns([1, 1])
 with a1:
     if st.button(t("ro.order.form").format(n=len(chosen)),
-                 type="primary", use_container_width=True, disabled=chosen.empty):
+                 type="primary", use_container_width=True,
+                 disabled=chosen.empty or not HAS_ORDER_STATUS):
         skus_orig = [active[active["sku"].apply(clean_sku) == sd].iloc[0]["sku"]
                      for sd in chosen["sku_display"]]
         mark_ordered(skus_orig, chosen["suggested_qty"].tolist())
