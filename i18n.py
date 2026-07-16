@@ -477,7 +477,8 @@ TRANSLATIONS = {
     "ro.priority.help": {"ru": "{name} · продаётся {v:.1f}/день", "uk": "{name} · продається {v:.1f}/день", "en": "{name} · sells {v:.1f}/day"},
 
     "ro.filter.urgency": {"ru": "Срочность", "uk": "Терміновість", "en": "Urgency"},
-    "ro.filter.search": {"ru": "Поиск по SKU / названию", "uk": "Пошук за SKU / назвою", "en": "Search by SKU / name"},
+    "ro.filter.search": {"ru": "Поиск SKU / товар", "uk": "Пошук SKU / товар", "en": "Search SKU / product"},
+    "ro.filter.search_ph": {"ru": "напр. Amoladora", "uk": "напр. Amoladora", "en": "e.g. Amoladora"},
     "ro.filter.search_placeholder": {"ru": "напр. Amoladora", "uk": "напр. Amoladora", "en": "e.g. Amoladora"},
 
     "ro.tbl.col_urgency": {"ru": "Срочность", "uk": "Терміновість", "en": "Urgency"},
@@ -528,6 +529,77 @@ TRANSLATIONS = {
             "- **Order, pcs** — how much is needed to cover demand for the next 60 days\n\n"
             "Parameters (lead time, safety stock) are still shared across all — soon they'll move into settings, "
             "and we'll compute the real lead time per warehouse from shipment history."
+        ),
+    },
+
+    # --- 4_Reorder.py: переброска (новый flow) ---
+    "ro.tr.title": {"ru": "🔄 Сначала — переброска", "uk": "🔄 Спочатку — переброс", "en": "🔄 First — transfer"},
+    "ro.tr.caption": {
+        "ru": "Товар горит на Amazon, но есть на своих складах или в других странах — перебросить дешевле, чем заказывать.",
+        "uk": "Товар горить на Amazon, але є на власних складах або в інших країнах — перекинути дешевше, ніж замовляти.",
+        "en": "Stock is critical on Amazon, but it's available in own warehouses or other countries — transferring is cheaper than ordering.",
+    },
+    "ro.tr.from_own": {"ru": "📦 Со своих складов", "uk": "📦 З власних складів", "en": "📦 From own warehouses"},
+    "ro.tr.from_own_help": {"ru": "Переброска со складов Польши (ERP)", "uk": "Переброс зі складів Польщі (ERP)", "en": "Transfer from Poland warehouses (ERP)"},
+    "ro.tr.from_fba": {"ru": "✈️ Между странами FBA", "uk": "✈️ Між країнами FBA", "en": "✈️ Between FBA countries"},
+    "ro.tr.total_qty": {"ru": "Всего к переброске, шт", "uk": "Всього до перебросу, шт", "en": "Total to transfer, pcs"},
+    "ro.tr.col_do": {"ru": "Перебросить?", "uk": "Перекинути?", "en": "Transfer?"},
+    "ro.tr.col_product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
+    "ro.tr.col_source": {"ru": "Откуда (источник)", "uk": "Звідки (джерело)", "en": "From (source)"},
+    "ro.tr.col_to": {"ru": "Куда", "uk": "Куди", "en": "To"},
+    "ro.tr.col_qty": {"ru": "Перебросить, шт", "uk": "Перекинути, шт", "en": "Transfer, pcs"},
+    "ro.tr.col_cover": {"ru": "Хватит получателю, дн", "uk": "Вистачить отримувачу, дн", "en": "Recipient cover, days"},
+    "ro.tr.confirm": {"ru": "🔄 Подтвердить переброску ({n})", "uk": "🔄 Підтвердити переброс ({n})", "en": "🔄 Confirm transfer ({n})"},
+    "ro.tr.confirmed": {
+        "ru": "Переброска подтверждена: {n} позиций. Дальше — оформление перемещения на вашей стороне.",
+        "uk": "Переброс підтверджено: {n} позицій. Далі — оформлення переміщення на вашій стороні.",
+        "en": "Transfer confirmed: {n} items. Next — arrange the movement on your side.",
+    },
+    "ro.tr.export": {"ru": "⬇️ Экспорт CSV ({n})", "uk": "⬇️ Експорт CSV ({n})", "en": "⬇️ Export CSV ({n})"},
+
+    # --- 4_Reorder.py: заказ у поставщика ---
+    "ro.order.title": {"ru": "🛒 Заказ у поставщика", "uk": "🛒 Замовлення у постачальника", "en": "🛒 Supplier order"},
+    "ro.order.col_do": {"ru": "Заказать?", "uk": "Замовити?", "en": "Order?"},
+    "ro.order.col_urgency": {"ru": "Срочность", "uk": "Терміновість", "en": "Urgency"},
+    "ro.order.col_stock": {"ru": "Остаток", "uk": "Залишок", "en": "Stock"},
+    "ro.order.col_velocity": {"ru": "Прод./день", "uk": "Прод./день", "en": "Sold/day"},
+    "ro.order.col_cover": {"ru": "Хватит, дней", "uk": "Вистачить, днів", "en": "Lasts, days"},
+    "ro.order.col_qty": {"ru": "Заказать, шт", "uk": "Замовити, шт", "en": "Order, pcs"},
+    "ro.order.chosen": {"ru": "Выбрано SKU", "uk": "Вибрано SKU", "en": "SKUs selected"},
+    "ro.order.total": {"ru": "Итого к заказу, шт", "uk": "Разом до замовлення, шт", "en": "Total to order, pcs"},
+    "ro.order.avg_velocity": {"ru": "Средняя скорость", "uk": "Середня швидкість", "en": "Average velocity"},
+    "ro.order.form": {"ru": "✅ Сформировать заказ ({n})", "uk": "✅ Сформувати замовлення ({n})", "en": "✅ Create order ({n})"},
+    "ro.order.formed": {"ru": "Заказ сформирован: {n} SKU, {qty} шт.", "uk": "Замовлення сформовано: {n} SKU, {qty} шт.", "en": "Order created: {n} SKUs, {qty} pcs."},
+    "ro.order.export": {"ru": "⬇️ Экспорт CSV ({n})", "uk": "⬇️ Експорт CSV ({n})", "en": "⬇️ Export CSV ({n})"},
+
+    "ro.ordered.title": {"ru": "✅ Уже заказано ({n} SKU, {qty} шт)", "uk": "✅ Вже замовлено ({n} SKU, {qty} шт)", "en": "✅ Already ordered ({n} SKUs, {qty} pcs)"},
+    "ro.ordered.col_qty": {"ru": "Заказано, шт", "uk": "Замовлено, шт", "en": "Ordered, pcs"},
+
+    "ro.how.title": {"ru": "ℹ️ Как считается", "uk": "ℹ️ Як рахується", "en": "ℹ️ How it's calculated"},
+    "ro.how.body": {
+        "ru": (
+            "- **Скорость продаж** — среднее за 30 дней\n"
+            "- **Хватит дней** = остаток / скорость\n"
+            "- **🔴 Срочно** — хватит меньше срока поставки\n"
+            "- **Заказать** — покрыть спрос на 60 дней\n\n"
+            "Сначала система предлагает переброску (свои склады → FBA), "
+            "потом заказ у поставщика на то, что переброской не закрыть."
+        ),
+        "uk": (
+            "- **Швидкість продажів** — середнє за 30 днів\n"
+            "- **Вистачить днів** = залишок / швидкість\n"
+            "- **🔴 Терміново** — вистачить менше терміну поставки\n"
+            "- **Замовити** — покрити попит на 60 днів\n\n"
+            "Спочатку система пропонує переброс (власні склади → FBA), "
+            "потім замовлення у постачальника на те, що перебросом не закрити."
+        ),
+        "en": (
+            "- **Sales velocity** — 30-day average\n"
+            "- **Days left** = stock / velocity\n"
+            "- **🔴 Urgent** — will last less than the lead time\n"
+            "- **Order** — cover 60 days of demand\n\n"
+            "First the system suggests transfers (own warehouses → FBA), "
+            "then a supplier order for what transfers can't cover."
         ),
     },
 
@@ -587,6 +659,9 @@ def language_toggle(location=None):
     loc = location or st.sidebar
     order = ["ru", "uk", "en"]
     current = st.session_state.lang
+    if current not in LANG_LABELS:  # защита от мусора в session_state
+        current = DEFAULT_LANG
+        st.session_state.lang = current
 
     loc.caption(t("common.language_label"))
 
