@@ -22,6 +22,7 @@ TRANSLATIONS = {
     "nav.incidents": {"ru": "Инциденты", "uk": "Інциденти", "en": "Incidents"},
     "nav.reorder": {"ru": "Автозаказ", "uk": "Автозамовлення", "en": "Reorder"},
     "nav.forecast": {"ru": "Прогноз", "uk": "Прогноз", "en": "Forecast"},
+    "nav.money": {"ru": "Деньги", "uk": "Гроші", "en": "Money"},
 
     # --- общие элементы ---
     "common.loading": {"ru": "Загрузка данных...", "uk": "Завантаження даних...", "en": "Loading data..."},
@@ -630,6 +631,83 @@ TRANSLATIONS = {
         "en": "Transfer confirmed: {n} items. Next — arrange the shipment (waybill) on your side.",
     },
     "reorder.transfer.export_button": {"ru": "⬇️ Экспорт переброски CSV", "uk": "⬇️ Експорт переброса CSV", "en": "⬇️ Export transfer CSV"},
+
+    # --- 5_Money.py: юнит-экономика ---
+    "money.title": {"ru": "Деньги", "uk": "Гроші", "en": "Money"},
+    "money.caption": {
+        "ru": "Юнит-экономика: сколько зарабатываем, что съедают комиссии",
+        "uk": "Юніт-економіка: скільки заробляємо, що з'їдають комісії",
+        "en": "Unit economics: what we earn and what fees eat",
+    },
+    "money.empty": {
+        "ru": "Данные экономики ещё не рассчитаны. Запусти агрегатор в пайплайне.",
+        "uk": "Дані економіки ще не розраховані. Запусти агрегатор.",
+        "en": "Economics not calculated yet. Run the aggregator.",
+    },
+    "money.filter.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "money.filter.country_ph": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
+    "money.filter.search": {"ru": "Поиск по SKU", "uk": "Пошук за SKU", "en": "Search SKU"},
+    "money.filter.search_ph": {"ru": "напр. 41324000", "uk": "напр. 41324000", "en": "e.g. 41324000"},
+    "money.kpi.revenue": {"ru": "Выручка ({d} дн)", "uk": "Виручка ({d} дн)", "en": "Revenue ({d}d)"},
+    "money.kpi.net": {"ru": "Чистыми", "uk": "Чистими", "en": "Net proceeds"},
+    "money.kpi.net_help": {
+        "ru": "После вычета всех комиссий Amazon",
+        "uk": "Після вирахування всіх комісій Amazon",
+        "en": "After all Amazon fees",
+    },
+    "money.kpi.margin": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
+    "money.kpi.fees": {"ru": "Комиссии", "uk": "Комісії", "en": "Fees"},
+    "money.kpi.fees_help": {
+        "ru": "Сколько всего забрал Amazon",
+        "uk": "Скільки всього забрав Amazon",
+        "en": "Total Amazon took",
+    },
+    "money.tab.by_sku": {"ru": "📦 По товарам", "uk": "📦 За товарами", "en": "📦 By product"},
+    "money.tab.by_country": {"ru": "🌍 По странам", "uk": "🌍 За країнами", "en": "🌍 By country"},
+    "money.tab.fees": {"ru": "💸 Комиссии", "uk": "💸 Комісії", "en": "💸 Fees"},
+    "money.top_profit": {
+        "ru": "Топ прибыльных (чистыми, €)",
+        "uk": "Топ прибуткових (чистими, €)",
+        "en": "Top profitable (net, €)",
+    },
+    "money.low_margin": {"ru": "Низкая маржа (%)", "uk": "Низька маржа (%)", "en": "Low margin (%)"},
+    "money.table_title": {"ru": "Все товары", "uk": "Всі товари", "en": "All products"},
+    "money.col.units": {"ru": "Продано, шт", "uk": "Продано, шт", "en": "Units"},
+    "money.col.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
+    "money.col.fees": {"ru": "Комиссии", "uk": "Комісії", "en": "Fees"},
+    "money.col.net": {"ru": "Чистыми", "uk": "Чистими", "en": "Net"},
+    "money.col.ppu": {"ru": "Прибыль/шт", "uk": "Прибуток/шт", "en": "Profit/unit"},
+    "money.col.margin": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
+    "money.col.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "money.download": {"ru": "⬇️ Скачать CSV", "uk": "⬇️ Завантажити CSV", "en": "⬇️ Download CSV"},
+    "money.country_chart": {
+        "ru": "Чистая прибыль и комиссии по странам",
+        "uk": "Чистий прибуток і комісії за країнами",
+        "en": "Net proceeds & fees by country",
+    },
+    "money.fees_title": {
+        "ru": "Какую долю выручки забирают комиссии",
+        "uk": "Яку частку виручки забирають комісії",
+        "en": "What share of revenue fees take",
+    },
+    "money.fees_by_country": {
+        "ru": "Доля комиссий от выручки по странам (%)",
+        "uk": "Частка комісій від виручки за країнами (%)",
+        "en": "Fees as % of revenue by country",
+    },
+    "money.fees_axis": {"ru": "% от выручки", "uk": "% від виручки", "en": "% of revenue"},
+    "money.struct_title": {"ru": "Куда уходит выручка", "uk": "Куди йде виручка", "en": "Where revenue goes"},
+    "money.struct.net": {"ru": "Чистыми нам", "uk": "Чистими нам", "en": "Net to us"},
+    "money.struct.fees": {"ru": "Комиссии Amazon", "uk": "Комісії Amazon", "en": "Amazon fees"},
+    "money.struct.other": {"ru": "Прочее", "uk": "Інше", "en": "Other"},
+    "money.fees_note": {
+        "ru": "Комиссии включают FBA-фи, реферальные и прочие сборы Amazon. "
+              "Себестоимость товара (COGS) сюда не входит — это отдельный слой.",
+        "uk": "Комісії включають FBA-фі, реферальні та інші збори Amazon. "
+              "Собівартість (COGS) сюди не входить — окремий шар.",
+        "en": "Fees include FBA, referral and other Amazon charges. "
+              "COGS is not included — separate layer.",
+    },
 }
 
 
