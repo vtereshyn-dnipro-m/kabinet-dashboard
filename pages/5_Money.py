@@ -32,11 +32,13 @@ def clean_sku(sku: str) -> str:
 @st.cache_data(ttl=600)
 def load_econ():
     conn = get_connection()
+    # реальная структура: daily-строки (sales_date × marketplace × norm_sku)
     df = pd.read_sql("""
-        SELECT sku, asin, marketplace, units, revenue, fees, net_proceeds,
-               profit_per_unit, margin_pct, fees_pct, window_days
+        SELECT norm_sku, product_name, marketplace, sales_date,
+               units_ordered, net_product_sales, total_fees, net_proceeds_total
         FROM kabinet_data.economics_summary
-        WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.economics_summary)
+        WHERE sales_date >= (SELECT MAX(sales_date) - INTERVAL '45 days'
+                             FROM kabinet_data.economics_summary)
     """, conn)
     conn.close()
     return df
@@ -46,8 +48,16 @@ if df.empty:
     st.info(t("money.empty"))
     st.stop()
 
-df["sku_display"] = df["sku"].apply(clean_sku)
-window = int(df["window_days"].iloc[0]) if len(df) else 45
+# базовые поля -> удобные имена
+df = df.rename(columns={
+    "net_product_sales": "revenue",
+    "total_fees": "fees",
+    "net_proceeds_total": "net_proceeds",
+    "units_ordered": "units",
+})
+df["sku_display"] = df["norm_sku"].apply(clean_sku)
+for c in ["units", "revenue", "fees", "net_proceeds"]:
+    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
 
 # ---------- фильтры ----------
 c1, c2 = st.columns([1, 2])
@@ -72,42 +82,37 @@ tot_rev = f["revenue"].sum()
 tot_net = f["net_proceeds"].sum()
 tot_fees = f["fees"].sum()
 avg_margin = (tot_net / tot_rev * 100) if tot_rev > 0 else 0
-k1.metric(t("money.kpi.revenue").format(d=window), f"{tot_rev:,.0f} €")
-k2.metric(t("money.kpi.net"), f"{tot_net:,.0f} €",
-          help=t("money.kpi.net_help"))
+k1.metric(t("money.kpi.revenue").format(d=45), f"{tot_rev:,.0f} €")
+k2.metric(t("money.kpi.net"), f"{tot_net:,.0f} €", help=t("money.kpi.net_help"))
 k3.metric(t("money.kpi.margin"), f"{avg_margin:.1f}%")
-k4.metric(t("money.kpi.fees"), f"{tot_fees:,.0f} €",
-          help=t("money.kpi.fees_help"))
+k4.metric(t("money.kpi.fees"), f"{tot_fees:,.0f} €", help=t("money.kpi.fees_help"))
 
 st.divider()
 
 tab_sku, tab_country, tab_fees = st.tabs(
     [t("money.tab.by_sku"), t("money.tab.by_country"), t("money.tab.fees")]
 )
-
 BLUE = "#1f77b4"
 ACCENT = "#e8484d"
 
 # ---------- по SKU ----------
 with tab_sku:
-    by_sku = (f.groupby(["sku_display", "asin"], as_index=False)
+    by_sku = (f.groupby(["sku_display", "norm_sku"], as_index=False)
                 .agg(units=("units", "sum"), revenue=("revenue", "sum"),
-                     fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum")))
+                     fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum"),
+                     product_name=("product_name", "first")))
     by_sku["profit_per_unit"] = (by_sku["net_proceeds"] /
                                  by_sku["units"].replace(0, pd.NA)).round(2)
     by_sku["margin_pct"] = (by_sku["net_proceeds"] /
                             by_sku["revenue"].replace(0, pd.NA) * 100).round(1)
-    by_sku["amazon_url"] = "https://www.amazon.es/dp/" + by_sku["asin"].astype(str)
     by_sku = by_sku.sort_values("net_proceeds", ascending=False)
 
-    # топ прибыльных / убыточных
     cprof1, cprof2 = st.columns(2)
     with cprof1:
         st.markdown(f"**{t('money.top_profit')}**")
         top = by_sku.nlargest(10, "net_proceeds")
         fig = px.bar(top.sort_values("net_proceeds"), x="net_proceeds", y="sku_display",
-                     orientation="h", text="net_proceeds",
-                     color_discrete_sequence=[BLUE])
+                     orientation="h", text="net_proceeds", color_discrete_sequence=[BLUE])
         fig.update_traces(texttemplate="%{text:.0f}€")
         fig.update_layout(height=340, yaxis_title=None, xaxis_title="€",
                           margin=dict(l=10, r=10, t=10, b=10))
@@ -125,18 +130,18 @@ with tab_sku:
 
     st.markdown(f"**{t('money.table_title')}**")
     st.dataframe(
-        by_sku[["sku_display", "units", "revenue", "fees", "net_proceeds",
-                "profit_per_unit", "margin_pct", "amazon_url"]],
+        by_sku[["sku_display", "product_name", "units", "revenue", "fees",
+                "net_proceeds", "profit_per_unit", "margin_pct"]],
         use_container_width=True, height=460, hide_index=True,
         column_config={
             "sku_display": st.column_config.TextColumn("SKU", width="small"),
+            "product_name": st.column_config.TextColumn(t("money.col.product"), width="large"),
             "units": st.column_config.NumberColumn(t("money.col.units"), width="small"),
             "revenue": st.column_config.NumberColumn(t("money.col.revenue"), format="%.0f €"),
             "fees": st.column_config.NumberColumn(t("money.col.fees"), format="%.0f €"),
             "net_proceeds": st.column_config.NumberColumn(t("money.col.net"), format="%.0f €"),
             "profit_per_unit": st.column_config.NumberColumn(t("money.col.ppu"), format="%.2f €"),
             "margin_pct": st.column_config.NumberColumn(t("money.col.margin"), format="%.1f%%"),
-            "amazon_url": st.column_config.LinkColumn("ASIN", display_text="↗", width="small"),
         },
     )
     st.download_button(
@@ -180,26 +185,21 @@ with tab_country:
         },
     )
 
-# ---------- что съедают fees ----------
+# ---------- комиссии ----------
 with tab_fees:
     st.markdown(f"**{t('money.fees_title')}**")
     fee_share = (f.groupby("marketplace", as_index=False)
-                   .agg(revenue=("revenue", "sum"), fees=("fees", "sum"),
-                        net=("net_proceeds", "sum")))
+                   .agg(revenue=("revenue", "sum"), fees=("fees", "sum")))
     fee_share["fees_pct"] = (fee_share["fees"] /
                              fee_share["revenue"].replace(0, pd.NA) * 100).round(1)
-
     fig = px.bar(fee_share.sort_values("fees_pct", ascending=False),
                  x="marketplace", y="fees_pct", text="fees_pct",
-                 title=t("money.fees_by_country"),
-                 color_discrete_sequence=[ACCENT])
+                 title=t("money.fees_by_country"), color_discrete_sequence=[ACCENT])
     fig.update_traces(texttemplate="%{text:.0f}%")
-    fig.update_layout(height=360, xaxis_title=None,
-                      yaxis_title=t("money.fees_axis"),
+    fig.update_layout(height=360, xaxis_title=None, yaxis_title=t("money.fees_axis"),
                       margin=dict(l=10, r=10, t=50, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
-    # структура выручки: чистыми vs комиссии
     total_rev = f["revenue"].sum()
     total_fees = f["fees"].sum()
     total_net = f["net_proceeds"].sum()
