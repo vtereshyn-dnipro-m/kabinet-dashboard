@@ -8,7 +8,6 @@ st.set_page_config(
     page_icon="📦",
     layout="wide",
 )
-
 init_lang()
 
 try:
@@ -17,7 +16,6 @@ except Exception:
     _dark = True
 
 st.logo("logo_dark.png" if _dark else "logo_light.png", size="large")
-
 language_toggle()
 
 pages = st.navigation({
@@ -26,29 +24,32 @@ pages = st.navigation({
         st.Page("pages/1_Stock.py", title=t("nav.stock"), icon=":material/inventory_2:"),
         st.Page("pages/2_Incidents.py", title=t("nav.incidents"), icon=":material/warning:"),
         st.Page("pages/4_Reorder.py", title=t("nav.reorder"), icon=":material/shopping_cart:"),
+        st.Page("pages/5_Money.py", title=t("nav.money"), icon=":material/payments:"),
         st.Page("pages/3_Forecast.py", title=t("nav.forecast"), icon=":material/show_chart:"),
     ],
 })
 
-
 # ---------- бейджи-счётчики в сайдбаре ----------
 @st.cache_data(ttl=60)
 def get_nav_badge_counts():
-    """Открытых инцидентов и SKU в автозаказе — для бейджей рядом с пунктами меню.
-    ПОДСТАВЬ свои реальные таблицы/условия ниже."""
+    """Открытых инцидентов и SKU к заказу (critical+warning) — для бейджей."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT count(*) FROM kabinet_data.incidents WHERE status = 'open'")
             incidents = cur.fetchone()[0]
-            cur.execute("SELECT count(*) FROM kabinet_data.reorder_recommendations WHERE status = 'pending'")
+            cur.execute("""
+                SELECT count(*) FROM kabinet_data.reorder_recommendations
+                WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.reorder_recommendations)
+                  AND urgency IN ('critical','warning')
+                  AND COALESCE(order_status,'new') != 'ordered'
+            """)
             reorder = cur.fetchone()[0]
         return {"incidents": incidents, "reorder": reorder}
     except Exception:
         return {"incidents": 0, "reorder": 0}
     finally:
         conn.close()
-
 
 def inject_nav_badges(counts: dict):
     """Streamlit не поддерживает бейджи в st.Page нативно — добавляем через JS.
@@ -91,7 +92,5 @@ def inject_nav_badges(counts: dict):
     </script>
     """, unsafe_allow_html=True)
 
-
 inject_nav_badges(get_nav_badge_counts())
-
 pages.run()
