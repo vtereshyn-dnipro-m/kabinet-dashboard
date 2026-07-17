@@ -1,6 +1,7 @@
 # pages/5_Money.py — Деньги: юнит-экономика и прибыльность
 import re
 import pandas as pd
+import numpy as np
 import streamlit as st
 import plotly.express as px
 from db.connection import get_connection
@@ -101,10 +102,14 @@ with tab_sku:
                 .agg(units=("units", "sum"), revenue=("revenue", "sum"),
                      fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum"),
                      product_name=("product_name", "first")))
-    by_sku["profit_per_unit"] = (by_sku["net_proceeds"] /
-                                 by_sku["units"].replace(0, pd.NA)).round(2)
-    by_sku["margin_pct"] = (by_sku["net_proceeds"] /
-                            by_sku["revenue"].replace(0, pd.NA) * 100).round(1)
+    by_sku["profit_per_unit"] = np.where(
+        by_sku["units"] > 0,
+        (by_sku["net_proceeds"] / by_sku["units"].where(by_sku["units"] > 0, 1)).round(2),
+        0.0)
+    by_sku["margin_pct"] = np.where(
+        by_sku["revenue"] > 0,
+        (by_sku["net_proceeds"] / by_sku["revenue"].where(by_sku["revenue"] > 0, 1) * 100).round(1),
+        0.0)
     by_sku = by_sku.sort_values("net_proceeds", ascending=False)
 
     cprof1, cprof2 = st.columns(2)
@@ -155,8 +160,10 @@ with tab_country:
     by_c = (f.groupby("marketplace", as_index=False)
               .agg(units=("units", "sum"), revenue=("revenue", "sum"),
                    fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum")))
-    by_c["margin_pct"] = (by_c["net_proceeds"] /
-                          by_c["revenue"].replace(0, pd.NA) * 100).round(1)
+    by_c["margin_pct"] = np.where(
+        by_c["revenue"] > 0,
+        (by_c["net_proceeds"] / by_c["revenue"].where(by_c["revenue"] > 0, 1) * 100).round(1),
+        0.0)
     by_c = by_c.sort_values("net_proceeds", ascending=False)
 
     cc = st.columns(min(len(by_c), 5) or 1)
@@ -190,8 +197,10 @@ with tab_fees:
     st.markdown(f"**{t('money.fees_title')}**")
     fee_share = (f.groupby("marketplace", as_index=False)
                    .agg(revenue=("revenue", "sum"), fees=("fees", "sum")))
-    fee_share["fees_pct"] = (fee_share["fees"] /
-                             fee_share["revenue"].replace(0, pd.NA) * 100).round(1)
+    fee_share["fees_pct"] = np.where(
+        fee_share["revenue"] > 0,
+        (fee_share["fees"] / fee_share["revenue"].where(fee_share["revenue"] > 0, 1) * 100).round(1),
+        0.0)
     fig = px.bar(fee_share.sort_values("fees_pct", ascending=False),
                  x="marketplace", y="fees_pct", text="fees_pct",
                  title=t("money.fees_by_country"), color_discrete_sequence=[ACCENT])
