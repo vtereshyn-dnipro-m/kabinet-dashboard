@@ -708,6 +708,71 @@ TRANSLATIONS = {
         "en": "Fees include FBA, referral and other Amazon charges. "
               "COGS is not included — separate layer.",
     },
+
+    # --- 5_Money.py: P&L (COGS + реклама + CM) ---
+    "money.kpi.cogs": {"ru": "Себестоимость", "uk": "Собівартість", "en": "COGS"},
+    "money.kpi.cogs_help": {
+        "ru": "Закупочная стоимость проданного (COGS × шт)",
+        "uk": "Закупівельна вартість проданого",
+        "en": "Cost of goods sold",
+    },
+    "money.kpi.ads": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
+    "money.kpi.ads_help": {
+        "ru": "Расходы Amazon Ads (SP + SD)",
+        "uk": "Витрати Amazon Ads (SP + SD)",
+        "en": "Amazon Ads spend (SP + SD)",
+    },
+    "money.kpi.cm": {"ru": "Прибыль (CM)", "uk": "Прибуток (CM)", "en": "Profit (CM)"},
+    "money.kpi.cm_help": {
+        "ru": "Contribution Margin = выручка − комиссии − себестоимость − реклама. Без логистики.",
+        "uk": "Contribution Margin = виручка − комісії − собівартість − реклама. Без логістики.",
+        "en": "Contribution Margin = revenue − fees − COGS − ads. Logistics not included.",
+    },
+    "money.tab.pnl": {"ru": "💰 P&L по товарам", "uk": "💰 P&L за товарами", "en": "💰 P&L by product"},
+    "money.top_cm": {"ru": "Топ по прибыли (CM, €)", "uk": "Топ за прибутком (CM, €)", "en": "Top by profit (CM, €)"},
+    "money.worst_cm": {"ru": "Худшие по прибыли (€)", "uk": "Найгірші за прибутком (€)", "en": "Worst by profit (€)"},
+    "money.pnl_table": {"ru": "Полный P&L по товарам", "uk": "Повний P&L за товарами", "en": "Full P&L by product"},
+    "money.col.ads": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
+    "money.col.cm": {"ru": "Прибыль", "uk": "Прибуток", "en": "Profit"},
+    "money.col.cm_pct": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
+    "money.col.cm_help": {"ru": "Чистыми − COGS − реклама", "uk": "Чистими − COGS − реклама", "en": "Net − COGS − ads"},
+    "money.col.net_help": {
+        "ru": "Выручка минус все комиссии Amazon (Data Kiosk)",
+        "uk": "Виручка мінус всі комісії Amazon",
+        "en": "Revenue minus all Amazon fees",
+    },
+    "money.col.cogs_help": {
+        "ru": "Себестоимость проданного за период",
+        "uk": "Собівартість проданого за період",
+        "en": "COGS for period",
+    },
+    "money.col.acos_help": {"ru": "Реклама / выручка", "uk": "Реклама / виручка", "en": "Ads / revenue"},
+    "money.alert.losers": {
+        "ru": "🔴 В убытке: {n} SKU ({skus}) — реклама/себестоимость съедают всё",
+        "uk": "🔴 У збитку: {n} SKU ({skus})",
+        "en": "🔴 Loss-making: {n} SKU ({skus})",
+    },
+    "money.alert.thin": {
+        "ru": "🟠 Маржа <5%: {n} SKU ({skus}) — продаются почти в ноль",
+        "uk": "🟠 Маржа <5%: {n} SKU ({skus})",
+        "en": "🟠 Margin <5%: {n} SKU ({skus})",
+    },
+    "money.pnl_note": {
+        "ru": "P&L = выручка − комиссии Amazon (Data Kiosk) − себестоимость (ERP) − реклама (Ads). "
+              "Логистика не учтена — добавим, когда появится стоимость доставки.",
+        "uk": "P&L = виручка − комісії Amazon − собівартість − реклама. Логістика не врахована.",
+        "en": "P&L = revenue − Amazon fees − COGS − ads. Logistics not included yet.",
+    },
+    "money.struct_pie_title": {
+        "ru": "Куда уходит выручка (после комиссий)",
+        "uk": "Куди йде виручка",
+        "en": "Where revenue goes",
+    },
+    "money.country_metric_help": {
+        "ru": "Прибыль (CM) и маржа за период",
+        "uk": "Прибуток (CM) і маржа",
+        "en": "Profit (CM) and margin",
+    },
 }
 
 
