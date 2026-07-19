@@ -773,6 +773,23 @@ TRANSLATIONS = {
         "uk": "Прибуток (CM) і маржа",
         "en": "Profit (CM) and margin",
     },
+
+    # --- 5_Money.py: водопад выручка → прибыль ---
+    "money.waterfall_title": {
+        "ru": "Как выручка превращается в прибыль",
+        "uk": "Як виручка перетворюється на прибуток",
+        "en": "How revenue turns into profit",
+    },
+    "money.wf.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
+    "money.wf.fees": {"ru": "Комиссии Amazon", "uk": "Комісії Amazon", "en": "Amazon fees"},
+    "money.wf.cogs": {"ru": "Себестоимость", "uk": "Собівартість", "en": "COGS"},
+    "money.wf.ads": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
+    "money.wf.cm": {"ru": "Прибыль (CM)", "uk": "Прибуток (CM)", "en": "Profit (CM)"},
+    "money.waterfall_caption": {
+        "ru": "Водопад за 30 дней: из выручки по шагам вычитаются комиссии, себестоимость и реклама.",
+        "uk": "Водоспад за 30 днів: з виручки по кроках віднімаються комісії, собівартість і реклама.",
+        "en": "30-day waterfall: fees, COGS and ads are deducted from revenue step by step.",
+    },
 }
 
 
@@ -830,4 +847,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
