@@ -51,9 +51,15 @@ def load_pnl():
          AND a.marketplace = e.marketplace
          AND a.norm_sku = e.norm_sku
         LEFT JOIN (
-            SELECT DISTINCT ON (REGEXP_REPLACE(sku,'-FBA.*$',''))
-                   REGEXP_REPLACE(sku,'-FBA.*$','') AS norm_sku, asin
-            FROM kabinet_data.stock_local
+            SELECT norm_sku, MAX(asin) AS asin FROM (
+                SELECT REGEXP_REPLACE(sku,'-FBA.*$','') AS norm_sku, asin
+                FROM kabinet_data.stock_local
+                WHERE asin IS NOT NULL
+                UNION ALL
+                SELECT REGEXP_REPLACE(sku,'-FBA.*$','') AS norm_sku, asin
+                FROM kabinet_data.orders_history
+                WHERE asin IS NOT NULL
+            ) u GROUP BY norm_sku
         ) s ON s.norm_sku = e.norm_sku
         WHERE e.sales_date >= (SELECT MAX(sales_date) - INTERVAL '{WINDOW} days'
                                FROM kabinet_data.economics_summary)
@@ -127,7 +133,10 @@ with tab_pnl:
     by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
     by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
-    by_sku["amazon_url"] = "https://www.amazon.es/dp/" + by_sku["asin"].astype(str)
+    by_sku["amazon_url"] = np.where(
+        by_sku["asin"].notna() & (by_sku["asin"].astype(str) != "None"),
+        "https://www.amazon.es/dp/" + by_sku["asin"].astype(str),
+        None)
 
     def flag(row):
         if row["cm"] < 0:
