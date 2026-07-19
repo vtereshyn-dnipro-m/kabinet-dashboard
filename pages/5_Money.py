@@ -112,8 +112,9 @@ k5.metric(t("money.kpi.cm"), f"{cm:,.0f} €", delta=f"{cm_pct:.1f}%",
 
 st.divider()
 
-tab_pnl, tab_country, tab_fees = st.tabs(
-    [t("money.tab.pnl"), t("money.tab.by_country"), t("money.tab.fees")]
+tab_pnl, tab_country, tab_fees, tab_alerts = st.tabs(
+    [t("money.tab.pnl"), t("money.tab.by_country"), t("money.tab.fees"),
+     t("money.tab.alerts")]
 )
 BLUE = "#1f77b4"
 ACCENT = "#e8484d"
@@ -291,3 +292,59 @@ with tab_fees:
                       margin=dict(l=10, r=10, t=50, b=10))
     st.plotly_chart(fig, use_container_width=True)
     st.caption(t("money.pnl_note"))
+
+# ---------- рекламные алерты ----------
+with tab_alerts:
+    @st.cache_data(ttl=600)
+    def load_ads_alerts():
+        conn = get_connection()
+        adf = pd.read_sql("""
+            SELECT sku, alert_type, units, ads_spend, cm, details
+            FROM kabinet_data.ads_alerts
+            WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.ads_alerts)
+            ORDER BY CASE alert_type
+                WHEN 'zero_sales' THEN 0
+                WHEN 'negative_cm' THEN 1
+                ELSE 2 END,
+                ads_spend DESC NULLS LAST
+        """, conn)
+        conn.close()
+        return adf
+
+    alerts = load_ads_alerts()
+    if alerts.empty:
+        st.success(t("money.alerts.none"))
+    else:
+        alerts["sku_display"] = alerts["sku"].apply(clean_sku)
+        TYPE_LABEL = {
+            "zero_sales": t("money.alerts.zero"),
+            "negative_cm": t("money.alerts.negcm"),
+            "wasted_days": t("money.alerts.wasted"),
+        }
+        alerts["type_label"] = alerts["alert_type"].map(TYPE_LABEL)
+
+        z = alerts[alerts["alert_type"] == "zero_sales"]
+        n = alerts[alerts["alert_type"] == "negative_cm"]
+        w = alerts[alerts["alert_type"] == "wasted_days"]
+        a1, a2, a3 = st.columns(3)
+        a1.metric(t("money.alerts.zero"), len(z),
+                  delta=f"−{z['ads_spend'].sum():,.0f} €" if len(z) else None,
+                  delta_color="inverse", help=t("money.alerts.zero_help"))
+        a2.metric(t("money.alerts.negcm"), len(n),
+                  delta=f"{n['cm'].sum():,.0f} €" if len(n) else None,
+                  delta_color="inverse")
+        a3.metric(t("money.alerts.wasted"), len(w))
+
+        st.dataframe(
+            alerts[["type_label", "sku_display", "units", "ads_spend", "cm", "details"]],
+            use_container_width=True, height=480, hide_index=True,
+            column_config={
+                "type_label": st.column_config.TextColumn(t("money.alerts.col_type"), width="small"),
+                "sku_display": st.column_config.TextColumn("SKU", width="small"),
+                "units": st.column_config.NumberColumn(t("money.col.units"), width="small"),
+                "ads_spend": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €"),
+                "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €"),
+                "details": st.column_config.TextColumn(t("money.alerts.col_details"), width="large"),
+            },
+        )
+        st.caption(t("money.alerts.note"))
