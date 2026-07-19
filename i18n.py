@@ -790,6 +790,29 @@ TRANSLATIONS = {
         "uk": "Водоспад за 30 днів: з виручки по кроках віднімаються комісії, собівартість і реклама.",
         "en": "30-day waterfall: fees, COGS and ads are deducted from revenue step by step.",
     },
+
+    # --- 5_Money.py: алерты по рекламе ---
+    "money.tab.alerts": {"ru": "⚠️ Реклама: проблемы", "uk": "⚠️ Реклама: проблеми", "en": "⚠️ Ads issues"},
+    "money.alerts.none": {
+        "ru": "Рекламных проблем не найдено 🎉",
+        "uk": "Рекламних проблем не знайдено 🎉",
+        "en": "No ads issues found 🎉",
+    },
+    "money.alerts.zero": {"ru": "🔴 Реклама без продаж", "uk": "🔴 Реклама без продажів", "en": "🔴 Ads, no sales"},
+    "money.alerts.zero_help": {
+        "ru": "Кампании крутятся, продаж 0 — бюджет впустую",
+        "uk": "Кампанії крутяться, продажів 0 — бюджет марно",
+        "en": "Campaigns running, 0 sales — wasted budget",
+    },
+    "money.alerts.negcm": {"ru": "🔴 Убыточные (CM<0)", "uk": "🔴 Збиткові (CM<0)", "en": "🔴 Loss-making (CM<0)"},
+    "money.alerts.wasted": {"ru": "🟡 Холостые дни", "uk": "🟡 Холості дні", "en": "🟡 Wasted days"},
+    "money.alerts.col_type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
+    "money.alerts.col_details": {"ru": "Детали", "uk": "Деталі", "en": "Details"},
+    "money.alerts.note": {
+        "ru": "Алерты пересчитываются ежедневно в 12:30 по данным рекламы (SP+SD) и P&L за 30 дней.",
+        "uk": "Алерти перераховуються щодня о 12:30 за даними реклами та P&L за 30 днів.",
+        "en": "Alerts recalculated daily at 12:30 from ads (SP+SD) and 30-day P&L.",
+    },
 }
 
 
