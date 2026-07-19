@@ -43,12 +43,18 @@ def load_pnl():
                e.total_fees         AS fees,
                e.net_proceeds_total AS net_proceeds,
                COALESCE(e.cogs, 0)  AS cogs_unit,
-               COALESCE(a.total_spend, 0) AS ads
+               COALESCE(a.total_spend, 0) AS ads,
+               s.asin
         FROM kabinet_data.economics_summary e
         LEFT JOIN kabinet_data.ads_spend a
           ON a.date = e.sales_date
          AND a.marketplace = e.marketplace
          AND a.norm_sku = e.norm_sku
+        LEFT JOIN (
+            SELECT DISTINCT ON (REGEXP_REPLACE(sku,'-FBA.*$',''))
+                   REGEXP_REPLACE(sku,'-FBA.*$','') AS norm_sku, asin
+            FROM kabinet_data.stock_local
+        ) s ON s.norm_sku = e.norm_sku
         WHERE e.sales_date >= (SELECT MAX(sales_date) - INTERVAL '{WINDOW} days'
                                FROM kabinet_data.economics_summary)
     """, conn)
@@ -114,12 +120,14 @@ def safe_div(a, b):
 with tab_pnl:
     by_sku = (f.groupby(["sku_display", "norm_sku"], as_index=False)
                 .agg(product_name=("product_name", "first"),
+                     asin=("asin", "first"),
                      units=("units", "sum"), revenue=("revenue", "sum"),
                      fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum"),
                      cogs=("cogs_total", "sum"), ads=("ads", "sum")))
     by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
     by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
+    by_sku["amazon_url"] = "https://www.amazon.es/dp/" + by_sku["asin"].astype(str)
 
     def flag(row):
         if row["cm"] < 0:
@@ -132,9 +140,12 @@ with tab_pnl:
     by_sku["⚑"] = by_sku.apply(flag, axis=1)
     by_sku = by_sku.sort_values("cm", ascending=False)
 
-    # алерты: убыточные и почти нулевые
-    losers = by_sku[by_sku["cm"] < 0]
-    thin = by_sku[(by_sku["cm"] >= 0) & (by_sku["cm_pct"] < 5) & (by_sku["revenue"] > 500)]
+    # алерты: только РЕАЛЬНЫЕ проблемы (есть продажи и заметная выручка)
+    MIN_REV_ALERT = 100   # € за период — ниже это хвост, не сигнал
+    losers = by_sku[(by_sku["cm"] < 0) & (by_sku["units"] > 0)
+                    & (by_sku["revenue"] >= MIN_REV_ALERT)]
+    thin = by_sku[(by_sku["cm"] >= 0) & (by_sku["cm_pct"] < 5)
+                  & (by_sku["revenue"] >= MIN_REV_ALERT * 5)]
     if not losers.empty or not thin.empty:
         alert_parts = []
         if not losers.empty:
@@ -145,31 +156,34 @@ with tab_pnl:
                 n=len(thin), skus=", ".join(thin["sku_display"].head(5))))
         st.warning("  \n".join(alert_parts))
 
-    cprof1, cprof2 = st.columns(2)
-    with cprof1:
-        st.markdown(f"**{t('money.top_cm')}**")
-        top = by_sku.nlargest(10, "cm")
-        fig = px.bar(top.sort_values("cm"), x="cm", y="sku_display",
-                     orientation="h", text="cm", color_discrete_sequence=[GREEN])
-        fig.update_traces(texttemplate="%{text:.0f}€")
-        fig.update_layout(height=340, yaxis_title=None, xaxis_title="€",
-                          margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
-    with cprof2:
-        st.markdown(f"**{t('money.worst_cm')}**")
-        worst = by_sku[by_sku["units"] > 0].nsmallest(10, "cm")
-        fig = px.bar(worst.sort_values("cm", ascending=False),
-                     x="cm", y="sku_display", orientation="h",
-                     text="cm", color_discrete_sequence=[ACCENT])
-        fig.update_traces(texttemplate="%{text:.0f}€")
-        fig.update_layout(height=340, yaxis_title=None, xaxis_title="€",
-                          margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+    # ---------- Waterfall: как выручка превращается в прибыль ----------
+    st.markdown(f"**{t('money.waterfall_title')}**")
+    import plotly.graph_objects as go
+    wf = go.Figure(go.Waterfall(
+        orientation="v",
+        measure=["absolute", "relative", "relative", "relative", "total"],
+        x=[t("money.wf.revenue"), t("money.wf.fees"), "COGS",
+           t("money.wf.ads"), t("money.wf.cm")],
+        y=[tot_rev, -(tot_rev - tot_net), -tot_cogs, -tot_ads, 0],
+        text=[f"{tot_rev:,.0f}€", f"−{tot_rev - tot_net:,.0f}€",
+              f"−{tot_cogs:,.0f}€", f"−{tot_ads:,.0f}€", f"{cm:,.0f}€"],
+        textposition="outside",
+        connector={"line": {"color": "#9aa4b2"}},
+        decreasing={"marker": {"color": ACCENT}},
+        increasing={"marker": {"color": GREEN}},
+        totals={"marker": {"color": GREEN if cm >= 0 else ACCENT}},
+    ))
+    wf.update_layout(height=380, showlegend=False,
+                     margin=dict(l=10, r=10, t=10, b=10),
+                     yaxis_title="€")
+    st.plotly_chart(wf, use_container_width=True)
+    st.caption(t("money.waterfall_caption"))
 
     st.markdown(f"**{t('money.pnl_table')}**")
     st.dataframe(
         by_sku[["⚑", "sku_display", "product_name", "units", "revenue",
-                "net_proceeds", "cogs", "ads", "cm", "cm_pct", "acos_pct"]],
+                "net_proceeds", "cogs", "ads", "cm", "cm_pct", "acos_pct",
+                "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
         column_config={
             "⚑": st.column_config.TextColumn("", width="small"),
@@ -187,6 +201,8 @@ with tab_pnl:
             "cm_pct": st.column_config.NumberColumn(t("money.col.cm_pct"), format="%.1f%%"),
             "acos_pct": st.column_config.NumberColumn("ACOS", format="%.1f%%",
                 help=t("money.col.acos_help")),
+            "amazon_url": st.column_config.LinkColumn(
+                "ASIN", display_text="↗", width="small"),
         },
     )
     st.caption(t("money.pnl_note"))
