@@ -748,6 +748,11 @@ TRANSLATIONS = {
         "en": "COGS for period",
     },
     "money.col.acos_help": {"ru": "Реклама / выручка", "uk": "Реклама / виручка", "en": "Ads / revenue"},
+    "money.col.ann_help": {
+        "ru": "Пометка: у цифр этого товара есть контекст (Vine, промо и т.п.)",
+        "uk": "Позначка: у цифр цього товару є контекст (Vine, промо тощо)",
+        "en": "Note: this product's numbers have context (Vine, promo, etc.)",
+    },
     "money.alert.losers": {
         "ru": "🔴 В убытке: {n} SKU ({skus}) — реклама/себестоимость съедают всё",
         "uk": "🔴 У збитку: {n} SKU ({skus})",
