@@ -1,4 +1,5 @@
 # pages/4_Reorder.py — Автозаказ: рекомендации по пополнению
+import io
 import re
 import pandas as pd
 import streamlit as st
@@ -125,6 +126,43 @@ c4.metric(t("ro.kpi.sku_controlled"), len(df))
 
 st.divider()
 
+# --- уровни складов-доноров и сроки доставки (дней) ---
+DONOR_TIERS = {
+    # склад (подстрока) : (уровень, срок до FBA, иконка)
+    "RS Warszawa": ("PL", 14, "📦"),   # Польша — ближний
+    "Тернопіль":   ("UA", 25, "🚛"),   # Украина — дальний (через PL)
+    "Тернополь":   ("UA", 25, "🚛"),
+}
+FBA_TRANSFER_DAYS = 10                  # FBA→FBA
+
+def donor_info(from_location: str, from_type: str):
+    """Маршрут донора: (уровень, срок до FBA в днях, иконка)."""
+    if from_type == "fba":
+        return ("FBA", FBA_TRANSFER_DAYS, "✈️")
+    for key, info in DONOR_TIERS.items():
+        if key in str(from_location):
+            return info
+    return ("ERP", 14, "📦")
+
+def build_transfer_order_xlsx(rows: pd.DataFrame):
+    """Заявка на переброску (xlsx): №, дата, строки SKU-товар-кол-во-откуда-куда-срок.
+    Возвращает (order_no, bytes)."""
+    order_no = "TR-" + datetime.now().strftime("%Y%m%d-%H%M")
+    out = rows[["sku_display", "product_name", "transfer_qty",
+                "from_location", "to_location", "eta_days"]].copy()
+    out.columns = ["SKU", "Товар", "Кол-во, шт", "Склад отправки",
+                   "Страна FBA", "Срок, дн"]
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as xw:
+        out.to_excel(xw, index=False, sheet_name="Заявка", startrow=3)
+        ws = xw.sheets["Заявка"]
+        ws["A1"] = f"ЗАЯВКА НА ПЕРЕБРОСКУ № {order_no}"
+        ws["A2"] = (f"Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+                    f"  ·  Позиций: {len(out)}  ·  Всего: {int(out['Кол-во, шт'].sum())} шт")
+        for col, w in zip("ABCDEF", [12, 60, 12, 32, 12, 10]):
+            ws.column_dimensions[col].width = w
+    return order_no, buf.getvalue()
+
 # ═════════════════════════════════════════════════════════════
 # ПЕРЕБРОСКА: свои склады (ERP) + между странами FBA
 # ═════════════════════════════════════════════════════════════
@@ -176,15 +214,17 @@ if not active_tr.empty:
     tr.loc[tr["product_name"] == "", "product_name"] = "— " + tr["sku_display"]
     tr.insert(0, "✓", True)
     # источник с иконкой
-    tr["Источник"] = tr.apply(
-        lambda r: ("📦 " if r["from_type"] == "erp" else "✈️ ") + str(r["from_location"]),
-        axis=1)
+    # маршрут: уровень склада-донора + срок доставки + иконка (📦 PL / 🚛 UA / ✈️ FBA)
+    tr[["tier", "eta_days", "route_icon"]] = tr.apply(
+        lambda r: pd.Series(donor_info(r["from_location"], r["from_type"])), axis=1)
+    tr["Источник"] = tr["route_icon"] + " " + tr["from_location"].astype(str)
+    tr["Срок"] = tr["eta_days"].astype(str) + " дн"
     tr["Куда"] = tr["to_location"]
     tr["Хватит(получатель)"] = tr["to_cover_days"].round(0).astype(int)
 
     tr_sorted = tr.sort_values(["from_type", "to_cover_days"])  # erp сверху
     tr_edited = st.data_editor(
-        tr_sorted[["✓", "sku_display", "product_name", "Источник", "Куда",
+        tr_sorted[["✓", "sku_display", "product_name", "Источник", "Срок", "Куда",
                    "transfer_qty", "Хватит(получатель)"]],
         use_container_width=True, hide_index=True, height=400,
         column_config={
@@ -192,6 +232,8 @@ if not active_tr.empty:
             "sku_display": st.column_config.TextColumn("SKU", width="small", disabled=True),
             "product_name": st.column_config.TextColumn(t("ro.tr.col_product"), width="large", disabled=True),
             "Источник": st.column_config.TextColumn(t("ro.tr.col_source"), width="medium", disabled=True),
+            "Срок": st.column_config.TextColumn(t("ro.tr.col_eta"), width="small",
+                help="Ожидаемый срок доставки до FBA по маршруту"),
             "Куда": st.column_config.TextColumn(t("ro.tr.col_to"), width="small", disabled=True),
             "transfer_qty": st.column_config.NumberColumn(t("ro.tr.col_qty"), width="small", min_value=0, step=1),
             "Хватит(получатель)": st.column_config.NumberColumn(t("ro.tr.col_cover"), width="small", disabled=True),
@@ -204,18 +246,18 @@ if not active_tr.empty:
     with tc1:
         if st.button(t("ro.tr.confirm").format(n=len(chosen_tr)),
                      use_container_width=True, disabled=chosen_tr.empty):
-            # восстановим ключи (from_location из "Источник" без иконки)
-            keys = []
-            for _, r in chosen_tr.iterrows():
-                src = r["Источник"].replace("📦 ", "").replace("✈️ ", "")
-                # найдём оригинальный sku по sku_display
-                orig = active_tr[active_tr["sku"].apply(clean_sku) == r["sku_display"]]
-                orig = orig[(orig["from_location"] == src) & (orig["to_location"] == r["Куда"])]
-                if not orig.empty:
-                    keys.append((orig.iloc[0]["sku"], src, r["Куда"]))
+            # полные строки выбранного берём по индексу (сохраняется из tr),
+            # кол-во — правленое из редактора. Надёжнее парсинга строки с иконкой.
+            sel = tr.loc[chosen_tr.index].copy()
+            sel["transfer_qty"] = chosen_tr["transfer_qty"]
+            keys = [(r["sku"], r["from_location"], r["to_location"])
+                    for _, r in sel.iterrows()]
             set_transfer_status(keys, "confirmed")
+            # заявка Excel — в session_state, чтобы пережить rerun ниже
+            order_no, xlsx = build_transfer_order_xlsx(sel)
+            st.session_state["tr_order"] = {
+                "no": order_no, "bytes": xlsx, "n": len(sel)}
             st.cache_data.clear()
-            st.success(t("ro.tr.confirmed").format(n=len(keys)))
             st.rerun()
     with tc2:
         st.download_button(
@@ -224,6 +266,22 @@ if not active_tr.empty:
             file_name="transfers.csv", mime="text/csv",
             use_container_width=True, disabled=chosen_tr.empty,
         )
+
+    # заявка последней подтверждённой переброски — переживает rerun
+    _order = st.session_state.get("tr_order")
+    if _order:
+        oc1, oc2 = st.columns([3, 1])
+        with oc1:
+            st.success(t("ro.tr.order_created").format(no=_order["no"], n=_order["n"]))
+            st.download_button(
+                t("ro.tr.order_download").format(no=_order["no"]),
+                _order["bytes"], file_name=f"zayavka_{_order['no']}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_tr_order", use_container_width=True)
+        with oc2:
+            if st.button("✕", key="tr_order_dismiss", help="Скрыть заявку"):
+                st.session_state.pop("tr_order", None)
+                st.rerun()
     st.divider()
 
 # ═════════════════════════════════════════════════════════════
