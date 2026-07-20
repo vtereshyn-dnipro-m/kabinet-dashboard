@@ -548,6 +548,7 @@ TRANSLATIONS = {
     "ro.tr.col_product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "ro.tr.col_source": {"ru": "Откуда (источник)", "uk": "Звідки (джерело)", "en": "From (source)"},
     "ro.tr.col_to": {"ru": "Куда", "uk": "Куди", "en": "To"},
+    "ro.tr.col_eta": {"ru": "Срок", "uk": "Термін", "en": "ETA"},
     "ro.tr.col_qty": {"ru": "Перебросить, шт", "uk": "Перекинути, шт", "en": "Transfer, pcs"},
     "ro.tr.col_cover": {"ru": "Хватит получателю, дн", "uk": "Вистачить отримувачу, дн", "en": "Recipient cover, days"},
     "ro.tr.confirm": {"ru": "🔄 Подтвердить переброску ({n})", "uk": "🔄 Підтвердити переброс ({n})", "en": "🔄 Confirm transfer ({n})"},
@@ -557,6 +558,12 @@ TRANSLATIONS = {
         "en": "Transfer confirmed: {n} items. Next — arrange the movement on your side.",
     },
     "ro.tr.export": {"ru": "⬇️ Экспорт CSV ({n})", "uk": "⬇️ Експорт CSV ({n})", "en": "⬇️ Export CSV ({n})"},
+    "ro.tr.order_created": {
+        "ru": "Заявка {no} сформирована: {n} позиций. Скачай и отправь исполнителю.",
+        "uk": "Заявку {no} сформовано: {n} позицій. Завантаж і відправ виконавцю.",
+        "en": "Order {no} created: {n} lines. Download and send to the executor.",
+    },
+    "ro.tr.order_download": {"ru": "⬇️ Скачать заявку {no}", "uk": "⬇️ Завантажити заявку {no}", "en": "⬇️ Download {no}"},
 
     # --- 4_Reorder.py: заказ у поставщика ---
     "ro.order.title": {"ru": "🛒 Заказ у поставщика", "uk": "🛒 Замовлення у постачальника", "en": "🛒 Supplier order"},
