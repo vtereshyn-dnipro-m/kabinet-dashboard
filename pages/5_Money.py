@@ -174,7 +174,7 @@ with tab_pnl:
         if row["cm_pct"] < 15:
             return "🟡"
         return "🟢"
-    by_sku["⚑"] = by_sku.apply(flag, axis=1)
+    by_sku["flag_col"] = by_sku.apply(flag, axis=1)
 
     @st.cache_data(ttl=600)
     def load_annotations():
@@ -197,7 +197,7 @@ with tab_pnl:
             badge=("badge", "first"), note=("note", " | ".join)).to_dict("index")
     else:
         ann_map = {}
-    by_sku["📌"] = by_sku["norm_sku"].map(
+    by_sku["ann_col"] = by_sku["norm_sku"].map(
         lambda s: ann_map.get(s, {}).get("badge", ""))
     by_sku["ann_note"] = by_sku["norm_sku"].map(
         lambda s: ann_map.get(s, {}).get("note", ""))
@@ -245,13 +245,13 @@ with tab_pnl:
 
     st.markdown(f"**{t('money.pnl_table')}**")
     st.dataframe(
-        by_sku[["⚑", "📌", "sku_display", "product_name", "units", "revenue",
+        by_sku[["flag_col", "ann_col", "sku_display", "product_name", "units", "revenue",
                 "net_proceeds", "cogs", "ads", "cm", "cm_pct", "acos_pct",
                 "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
         column_config={
-            "⚑": st.column_config.TextColumn("", width="small"),
-            "📌": st.column_config.TextColumn("", width="small",
+            "flag_col": st.column_config.TextColumn("⚑", width="small"),
+            "ann_col": st.column_config.TextColumn("📌", width="small",
                 help=t("money.col.ann_help")),
             "sku_display": st.column_config.TextColumn("SKU", width="small"),
             "product_name": st.column_config.TextColumn(t("money.col.product"), width="medium"),
