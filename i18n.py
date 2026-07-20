@@ -753,6 +753,21 @@ TRANSLATIONS = {
         "uk": "Позначка: у цифр цього товару є контекст (Vine, промо тощо)",
         "en": "Note: this product's numbers have context (Vine, promo, etc.)",
     },
+    "money.col.flag": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "money.col.flag_help": {
+        "ru": "Прибыльность товара за период",
+        "uk": "Прибутковість товару за період",
+        "en": "Product profitability for the period",
+    },
+    "money.col.ann": {"ru": "Контекст", "uk": "Контекст", "en": "Context"},
+    "money.legend": {
+        "ru": "Статус: 🟢 маржа >15% · 🟡 5–15% · 🟠 <5% · 🔴 убыток. "
+              "Контекст: 🌿 Vine-кампания · 🏷️ промо · 💱 репрайсинг — цифры объясняются событием, это не проблема.",
+        "uk": "Статус: 🟢 маржа >15% · 🟡 5–15% · 🟠 <5% · 🔴 збиток. "
+              "Контекст: 🌿 Vine-кампанія · 🏷️ промо · 💱 репрайсинг — цифри пояснюються подією, це не проблема.",
+        "en": "Status: 🟢 margin >15% · 🟡 5–15% · 🟠 <5% · 🔴 loss. "
+              "Context: 🌿 Vine campaign · 🏷️ promo · 💱 repricing — numbers explained by an event, not a problem.",
+    },
     "money.alert.losers": {
         "ru": "🔴 В убытке: {n} SKU ({skus}) — реклама/себестоимость съедают всё",
         "uk": "🔴 У збитку: {n} SKU ({skus})",
