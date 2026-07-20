@@ -673,6 +673,7 @@ TRANSLATIONS = {
     "money.low_margin": {"ru": "Низкая маржа (%)", "uk": "Низька маржа (%)", "en": "Low margin (%)"},
     "money.table_title": {"ru": "Все товары", "uk": "Всі товари", "en": "All products"},
     "money.col.units": {"ru": "Продано, шт", "uk": "Продано, шт", "en": "Units"},
+    "money.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "money.col.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
     "money.col.fees": {"ru": "Комиссии", "uk": "Комісії", "en": "Fees"},
     "money.col.net": {"ru": "Чистыми", "uk": "Чистими", "en": "Net"},
