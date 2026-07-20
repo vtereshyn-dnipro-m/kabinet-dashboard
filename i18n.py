@@ -813,6 +813,12 @@ TRANSLATIONS = {
         "uk": "Алерти перераховуються щодня о 12:30 за даними реклами та P&L за 30 днів.",
         "en": "Alerts recalculated daily at 12:30 from ads (SP+SD) and 30-day P&L.",
     },
+
+    # --- 5_Money.py: выбор периода ---
+    "money.period.label": {"ru": "Период", "uk": "Період", "en": "Period"},
+    "money.period.custom": {"ru": "Свой", "uk": "Свій", "en": "Custom"},
+    "money.period.range": {"ru": "Даты от–до", "uk": "Дати від–до", "en": "Date range"},
+    "money.period.pick": {"ru": "Выбери обе даты периода", "uk": "Обери обидві дати періоду", "en": "Pick both dates"},
 }
 
 
@@ -870,4 +876,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
