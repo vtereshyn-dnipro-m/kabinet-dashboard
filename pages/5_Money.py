@@ -175,6 +175,33 @@ with tab_pnl:
             return "🟡"
         return "🟢"
     by_sku["⚑"] = by_sku.apply(flag, axis=1)
+
+    @st.cache_data(ttl=600)
+    def load_annotations():
+        conn = get_connection()
+        try:
+            adf = pd.read_sql("""
+                SELECT sku, annotation_type, note
+                FROM kabinet_data.pnl_annotations
+            """, conn)
+        except Exception:
+            adf = pd.DataFrame(columns=["sku", "annotation_type", "note"])
+        conn.close()
+        return adf
+
+    ann = load_annotations()
+    ANN_ICON = {"vine": "🌿", "promo": "🏷️", "repricing": "💱", "issue": "⚠️"}
+    if not ann.empty:
+        ann["badge"] = ann["annotation_type"].map(lambda x: ANN_ICON.get(x, "📌"))
+        ann_map = ann.groupby("sku").agg(
+            badge=("badge", "first"), note=("note", " | ".join)).to_dict("index")
+    else:
+        ann_map = {}
+    by_sku["📌"] = by_sku["norm_sku"].map(
+        lambda s: ann_map.get(s, {}).get("badge", ""))
+    by_sku["ann_note"] = by_sku["norm_sku"].map(
+        lambda s: ann_map.get(s, {}).get("note", ""))
+
     by_sku = by_sku.sort_values("cm", ascending=False)
 
     # алерты: только РЕАЛЬНЫЕ проблемы (есть продажи и заметная выручка)
@@ -218,12 +245,14 @@ with tab_pnl:
 
     st.markdown(f"**{t('money.pnl_table')}**")
     st.dataframe(
-        by_sku[["⚑", "sku_display", "product_name", "units", "revenue",
+        by_sku[["⚑", "📌", "sku_display", "product_name", "units", "revenue",
                 "net_proceeds", "cogs", "ads", "cm", "cm_pct", "acos_pct",
                 "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
         column_config={
             "⚑": st.column_config.TextColumn("", width="small"),
+            "📌": st.column_config.TextColumn("", width="small",
+                help=t("money.col.ann_help")),
             "sku_display": st.column_config.TextColumn("SKU", width="small"),
             "product_name": st.column_config.TextColumn(t("money.col.product"), width="medium"),
             "units": st.column_config.NumberColumn(t("money.col.units"), width="small"),
