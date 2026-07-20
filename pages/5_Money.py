@@ -30,11 +30,16 @@ def clean_sku(sku: str) -> str:
     s = re.sub(r"-[A-Za-z]$", "", s)
     return s.strip(" -")
 
-WINDOW = 30  # окно P&L, дней
+WINDOW_DEFAULT = 30
 
 @st.cache_data(ttl=600)
-def load_pnl():
+def load_pnl(days: int, d_from=None, d_to=None):
     conn = get_connection()
+    if d_from and d_to:
+        where = f"e.sales_date BETWEEN '{d_from}' AND '{d_to}'"
+    else:
+        where = f"""e.sales_date >= (SELECT MAX(sales_date) - INTERVAL '{days} days'
+                               FROM kabinet_data.economics_summary)"""
     df = pd.read_sql(f"""
         SELECT e.norm_sku, e.product_name, e.marketplace, e.sales_date,
                e.units_ordered      AS units,
@@ -61,13 +66,35 @@ def load_pnl():
                 WHERE asin IS NOT NULL
             ) u GROUP BY norm_sku
         ) s ON s.norm_sku = e.norm_sku
-        WHERE e.sales_date >= (SELECT MAX(sales_date) - INTERVAL '{WINDOW} days'
-                               FROM kabinet_data.economics_summary)
+        WHERE {where}
     """, conn)
     conn.close()
     return df
 
-df = load_pnl()
+# ---------- выбор периода ----------
+pc1, pc2 = st.columns([2, 2])
+with pc1:
+    period = st.segmented_control(
+        t("money.period.label"),
+        options=["7", "30", "60", "90", t("money.period.custom")],
+        default="30",
+    )
+with pc2:
+    d_from = d_to = None
+    if period == t("money.period.custom"):
+        rng = st.date_input(t("money.period.range"), value=[], format="DD.MM.YYYY")
+        if len(rng) == 2:
+            d_from, d_to = rng[0], rng[1]
+
+if period == t("money.period.custom"):
+    if not (d_from and d_to):
+        st.info(t("money.period.pick"))
+        st.stop()
+    WINDOW = (d_to - d_from).days
+    df = load_pnl(0, d_from, d_to)
+else:
+    WINDOW = int(period)
+    df = load_pnl(WINDOW)
 if df.empty:
     st.info(t("money.empty"))
     st.stop()
