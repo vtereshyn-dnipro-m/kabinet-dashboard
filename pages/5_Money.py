@@ -250,8 +250,9 @@ with tab_pnl:
                 "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
         column_config={
-            "flag_col": st.column_config.TextColumn("⚑", width="small"),
-            "ann_col": st.column_config.TextColumn("📌", width="small",
+            "flag_col": st.column_config.TextColumn(t("money.col.flag"), width="small",
+                help=t("money.col.flag_help")),
+            "ann_col": st.column_config.TextColumn(t("money.col.ann"), width="small",
                 help=t("money.col.ann_help")),
             "sku_display": st.column_config.TextColumn("SKU", width="small"),
             "product_name": st.column_config.TextColumn(t("money.col.product"), width="medium"),
@@ -271,6 +272,7 @@ with tab_pnl:
                 "ASIN", display_text="↗", width="small"),
         },
     )
+    st.caption(t("money.legend"))
     st.caption(t("money.pnl_note"))
     st.download_button(
         t("money.download"),
