@@ -1,7 +1,8 @@
 streamlit
 psycopg2-binary
 pandas
-anthropic
+numpy
 plotly
-databricks-sdk
 openpyxl
+databricks-sdk
+anthropic
