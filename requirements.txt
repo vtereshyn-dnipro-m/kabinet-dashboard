@@ -4,3 +4,4 @@ pandas
 anthropic
 plotly
 databricks-sdk
+openpyxl
