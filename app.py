@@ -26,6 +26,8 @@ pages = st.navigation({
         st.Page("pages/4_Reorder.py", title=t("nav.reorder"), icon=":material/shopping_cart:"),
         st.Page("pages/5_Money.py", title=t("nav.money"), icon=":material/payments:"),
         st.Page("pages/3_Forecast.py", title=t("nav.forecast"), icon=":material/show_chart:"),
+        st.Page("pages/6_Dictionaries.py", title=t("nav.dictionaries"),
+                icon=":material/library_books:"),
     ],
 })
 
