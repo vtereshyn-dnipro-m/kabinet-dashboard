@@ -20,17 +20,7 @@ import pandas as pd
 import streamlit as st
 
 from i18n import init_lang, get_lang
-
-# --- подключение к БД -------------------------------------------------------
-# ⚠️ импорт должен совпадать с 4_Reorder.py / 5_Money.py — если там другой
-#    путь модуля, поправить только эту строку
-try:
-    from db import get_connection
-except Exception:  # pragma: no cover
-    try:
-        from utils.db import get_connection
-    except Exception:
-        from lib.db import get_connection
+from db.connection import get_connection
 
 
 # ═══════════════════════════════════════════════════════════════════════════
