@@ -23,6 +23,7 @@ TRANSLATIONS = {
     "nav.reorder": {"ru": "Автозаказ", "uk": "Автозамовлення", "en": "Reorder"},
     "nav.forecast": {"ru": "Прогноз", "uk": "Прогноз", "en": "Forecast"},
     "nav.money": {"ru": "Деньги", "uk": "Гроші", "en": "Money"},
+    "nav.dictionaries": {"ru": "Справочники", "uk": "Довідники", "en": "Dictionaries"},
 
     # --- общие элементы ---
     "common.loading": {"ru": "Загрузка данных...", "uk": "Завантаження даних...", "en": "Loading data..."},
@@ -549,8 +550,8 @@ TRANSLATIONS = {
     "ro.tr.col_source": {"ru": "Откуда (источник)", "uk": "Звідки (джерело)", "en": "From (source)"},
     "ro.tr.col_to": {"ru": "Куда", "uk": "Куди", "en": "To"},
     "ro.tr.col_eta": {"ru": "Срок", "uk": "Термін", "en": "ETA"},
-    "ro.tr.col_qty": {"ru": "Перебросить, шт", "uk": "Перекинути, шт", "en": "Transfer, pcs"},
-    "ro.tr.col_cover": {"ru": "Хватит получателю, дн", "uk": "Вистачить отримувачу, дн", "en": "Recipient cover, days"},
+    "ro.tr.col_qty": {"ru": "Шт", "uk": "Шт", "en": "Pcs"},
+    "ro.tr.col_cover": {"ru": "Хватит, дн", "uk": "Вистачить, дн", "en": "Cover, days"},
     "ro.tr.confirm": {"ru": "🔄 Подтвердить переброску ({n})", "uk": "🔄 Підтвердити переброс ({n})", "en": "🔄 Confirm transfer ({n})"},
     "ro.tr.confirmed": {
         "ru": "Переброска подтверждена: {n} позиций. Дальше — оформление перемещения на вашей стороне.",
@@ -741,8 +742,10 @@ TRANSLATIONS = {
     "money.worst_cm": {"ru": "Худшие по прибыли (€)", "uk": "Найгірші за прибутком (€)", "en": "Worst by profit (€)"},
     "money.pnl_table": {"ru": "Полный P&L по товарам", "uk": "Повний P&L за товарами", "en": "Full P&L by product"},
     "money.col.ads": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
+    "money.col.ads_help": {"ru": "Рекламные расходы, отнесённые на SKU", "uk": "Рекламні витрати, віднесені на SKU", "en": "Ad spend attributed to the SKU"},
     "money.col.cm": {"ru": "Прибыль", "uk": "Прибуток", "en": "Profit"},
     "money.col.cm_pct": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
+    "money.col.cm_pct_help": {"ru": "Прибыль ÷ выручка, %", "uk": "Прибуток ÷ виторг, %", "en": "Profit ÷ revenue, %"},
     "money.col.cm_help": {"ru": "Чистыми − COGS − реклама", "uk": "Чистими − COGS − реклама", "en": "Net − COGS − ads"},
     "money.col.net_help": {
         "ru": "Выручка минус все комиссии Amazon (Data Kiosk)",
@@ -826,6 +829,7 @@ TRANSLATIONS = {
         "uk": "Рекламних проблем не знайдено 🎉",
         "en": "No ads issues found 🎉",
     },
+    "money.alerts.none_help": {"ru": "Ни одного SKU с рекламными проблемами за период", "uk": "Жодного SKU з рекламними проблемами за період", "en": "No SKU with ad problems in the period"},
     "money.alerts.zero": {"ru": "🔴 Реклама без продаж", "uk": "🔴 Реклама без продажів", "en": "🔴 Ads, no sales"},
     "money.alerts.zero_help": {
         "ru": "Кампании крутятся, продаж 0 — бюджет впустую",
@@ -833,7 +837,9 @@ TRANSLATIONS = {
         "en": "Campaigns running, 0 sales — wasted budget",
     },
     "money.alerts.negcm": {"ru": "🔴 Убыточные (CM<0)", "uk": "🔴 Збиткові (CM<0)", "en": "🔴 Loss-making (CM<0)"},
+    "money.alerts.negcm_help": {"ru": "CM<0 — себестоимость и реклама больше выручки", "uk": "CM<0 — собівартість і реклама більші за виторг", "en": "CM<0 — COGS + ads exceed revenue"},
     "money.alerts.wasted": {"ru": "🟡 Холостые дни", "uk": "🟡 Холості дні", "en": "🟡 Wasted days"},
+    "money.alerts.wasted_help": {"ru": "Дни с рекламой, но без заказов", "uk": "Дні з рекламою, але без замовлень", "en": "Days with ad spend but no orders"},
     "money.alerts.col_type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
     "money.alerts.col_details": {"ru": "Детали", "uk": "Деталі", "en": "Details"},
     "money.alerts.note": {
