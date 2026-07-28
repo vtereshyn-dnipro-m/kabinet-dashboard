@@ -8,8 +8,10 @@
   📦 Пулы               kabinet_data.pools + pool_members
   📏 Нормативы          kabinet_data.coverage_norms
 
-Страница самодостаточна по переводам (словарь TR внизу-вверху файла),
-чтобы не плодить ключи в i18n.py. Язык берётся из st.session_state['lang'].
+Переводы страницы лежат в этом же файле (словарь TR + функция _tr),
+чтобы не раздувать i18n.py сотней ключей dict.*. Текущий язык берётся
+из i18n.get_lang() — то есть из того же st.session_state['lang'],
+что и на остальных страницах Кабинета.
 """
 
 from datetime import date
@@ -17,8 +19,11 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
+from i18n import init_lang, get_lang
+
 # --- подключение к БД -------------------------------------------------------
-# ⚠️ если в проекте другой путь — поправь эту строку так же, как в 5_Money.py
+# ⚠️ импорт должен совпадать с 4_Reorder.py / 5_Money.py — если там другой
+#    путь модуля, поправить только эту строку
 try:
     from db import get_connection
 except Exception:  # pragma: no cover
@@ -181,11 +186,16 @@ TR = {
 
 
 def _lang() -> str:
-    lg = str(st.session_state.get("lang", "ru")).lower()[:2]
+    """Текущий язык Кабинета (ru/uk/en) из общей i18n-системы."""
+    try:
+        lg = str(get_lang() or "ru").lower()[:2]
+    except Exception:
+        lg = str(st.session_state.get("lang", "ru")).lower()[:2]
     return lg if lg in TR else "ru"
 
 
-def t(key: str) -> str:
+def _tr(key: str) -> str:
+    """Перевод строки этой страницы (ключи живут в TR, не в i18n.py)."""
     return TR[_lang()].get(key, TR["ru"].get(key, key))
 
 
@@ -265,31 +275,33 @@ def build_updates(orig: pd.DataFrame, edited: pd.DataFrame, table: str,
 def save_block(orig, edited, table, pk, cols):
     ups = build_updates(orig, edited, table, pk, cols)
     if not ups:
-        st.info(t("nochange"))
+        st.info(_tr("nochange"))
         return
     try:
         exec_sql(ups)
         st.cache_data.clear()
-        st.success(t("saved").format(n=len(ups)))
+        st.success(_tr("saved").format(n=len(ups)))
         st.rerun()
     except Exception as e:
-        st.error(t("err").format(e=e))
+        st.error(_tr("err").format(e=e))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # СТРАНИЦА
 # ═══════════════════════════════════════════════════════════════════════════
 
-st.title(t("title"))
-st.caption(t("sub"))
+init_lang()
+
+st.title(_tr("title"))
+st.caption(_tr("sub"))
 
 tab_wh, tab_ch, tab_mp, tab_pool, tab_norm = st.tabs(
-    [t("tab_wh"), t("tab_ch"), t("tab_mp"), t("tab_pool"), t("tab_norm")]
+    [_tr("tab_wh"), _tr("tab_ch"), _tr("tab_mp"), _tr("tab_pool"), _tr("tab_norm")]
 )
 
 # ---------------------------------------------------------------- склады ---
 with tab_wh:
-    st.caption(t("wh_hint"))
+    st.caption(_tr("wh_hint"))
     wh = q("""
         SELECT id, name, code, type, marketplace, country,
                shipping_priority, is_active, canonical_id, note
@@ -297,35 +309,35 @@ with tab_wh:
         ORDER BY type, country, name
     """)
     if wh.empty:
-        st.info(t("no_data"))
+        st.info(_tr("no_data"))
     else:
         ed = st.data_editor(
             wh, key="ed_wh", use_container_width=True, height=520,
             hide_index=True, num_rows="fixed",
             disabled=["id", "name", "code", "canonical_id"],
             column_config={
-                "id": st.column_config.NumberColumn(t("col_id"), width="small"),
-                "name": st.column_config.TextColumn(t("col_name"), width="large"),
-                "code": st.column_config.TextColumn(t("col_code"), width="small"),
+                "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
+                "name": st.column_config.TextColumn(_tr("col_name"), width="large"),
+                "code": st.column_config.TextColumn(_tr("col_code"), width="small"),
                 "type": st.column_config.SelectboxColumn(
-                    t("col_type"), options=["sales", "storage", "transit", "manufacturer"]),
-                "marketplace": st.column_config.TextColumn(t("col_mp"), width="small"),
-                "country": st.column_config.TextColumn(t("col_country"), width="small"),
+                    _tr("col_type"), options=["sales", "storage", "transit", "manufacturer"]),
+                "marketplace": st.column_config.TextColumn(_tr("col_mp"), width="small"),
+                "country": st.column_config.TextColumn(_tr("col_country"), width="small"),
                 "shipping_priority": st.column_config.NumberColumn(
-                    t("col_ship_prio"), min_value=1, max_value=99, step=1),
-                "is_active": st.column_config.CheckboxColumn(t("col_active")),
-                "canonical_id": st.column_config.NumberColumn(t("col_canon"), width="small"),
-                "note": st.column_config.TextColumn(t("col_note"), width="large"),
+                    _tr("col_ship_prio"), min_value=1, max_value=99, step=1),
+                "is_active": st.column_config.CheckboxColumn(_tr("col_active")),
+                "canonical_id": st.column_config.NumberColumn(_tr("col_canon"), width="small"),
+                "note": st.column_config.TextColumn(_tr("col_note"), width="large"),
             },
         )
-        if st.button(t("save"), key="save_wh", type="primary"):
+        if st.button(_tr("save"), key="save_wh", type="primary"):
             save_block(wh, ed, "kabinet_data.warehouses", "id",
                        ["type", "marketplace", "country", "shipping_priority",
                         "is_active", "note"])
 
 # ------------------------------------------------------------- подпитка ---
 with tab_ch:
-    st.caption(t("ch_hint"))
+    st.caption(_tr("ch_hint"))
     ch = q("""
         SELECT c.id,
                r.name AS receiver_name,
@@ -348,46 +360,46 @@ with tab_ch:
     label_wh = {v: k for k, v in wh_label.items()}
 
     if ch.empty:
-        st.info(t("no_data"))
+        st.info(_tr("no_data"))
     else:
         ed_ch = st.data_editor(
             ch, key="ed_ch", use_container_width=True, height=460,
             hide_index=True, num_rows="fixed",
             disabled=["id", "receiver_name", "source_name", "lead_source", "sample_size"],
             column_config={
-                "id": st.column_config.NumberColumn(t("col_id"), width="small"),
-                "receiver_name": st.column_config.TextColumn(t("ch_receiver"), width="medium"),
-                "source_name": st.column_config.TextColumn(t("ch_source"), width="medium"),
-                "echelon": st.column_config.NumberColumn(t("col_echelon"), min_value=1, step=1),
-                "priority": st.column_config.NumberColumn(t("col_prio"), min_value=1, step=1),
+                "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
+                "receiver_name": st.column_config.TextColumn(_tr("ch_receiver"), width="medium"),
+                "source_name": st.column_config.TextColumn(_tr("ch_source"), width="medium"),
+                "echelon": st.column_config.NumberColumn(_tr("col_echelon"), min_value=1, step=1),
+                "priority": st.column_config.NumberColumn(_tr("col_prio"), min_value=1, step=1),
                 "guaranteed_lead_days": st.column_config.NumberColumn(
-                    t("col_lead"), min_value=0, step=1),
-                "lead_source": st.column_config.TextColumn(t("col_lead_src"), width="small"),
-                "sample_size": st.column_config.NumberColumn(t("col_sample"), width="small"),
-                "is_active": st.column_config.CheckboxColumn(t("col_active")),
-                "comment": st.column_config.TextColumn(t("col_comment"), width="large"),
+                    _tr("col_lead"), min_value=0, step=1),
+                "lead_source": st.column_config.TextColumn(_tr("col_lead_src"), width="small"),
+                "sample_size": st.column_config.NumberColumn(_tr("col_sample"), width="small"),
+                "is_active": st.column_config.CheckboxColumn(_tr("col_active")),
+                "comment": st.column_config.TextColumn(_tr("col_comment"), width="large"),
             },
         )
-        if st.button(t("save"), key="save_ch", type="primary"):
+        if st.button(_tr("save"), key="save_ch", type="primary"):
             save_block(ch, ed_ch, "kabinet_data.supply_chains", "id",
                        ["echelon", "priority", "guaranteed_lead_days",
                         "is_active", "comment"])
 
-    with st.expander(t("ch_add")):
+    with st.expander(_tr("ch_add")):
         c1, c2, c3 = st.columns([2, 2, 1])
-        rec = c1.selectbox(t("ch_receiver"), list(label_wh.keys()), key="new_ch_rec")
-        src = c2.selectbox(t("ch_source"), list(label_wh.keys()), key="new_ch_src")
-        ech = c3.number_input(t("col_echelon"), 1, 9, 1, key="new_ch_ech")
+        rec = c1.selectbox(_tr("ch_receiver"), list(label_wh.keys()), key="new_ch_rec")
+        src = c2.selectbox(_tr("ch_source"), list(label_wh.keys()), key="new_ch_src")
+        ech = c3.number_input(_tr("col_echelon"), 1, 9, 1, key="new_ch_ech")
         c4, c5 = st.columns([1, 3])
-        lead = c4.number_input(t("col_lead"), 0, 180, 14, key="new_ch_lead")
-        cmt = c5.text_input(t("col_comment"), key="new_ch_cmt")
-        if st.button(t("ch_add"), key="add_ch"):
+        lead = c4.number_input(_tr("col_lead"), 0, 180, 14, key="new_ch_lead")
+        cmt = c5.text_input(_tr("col_comment"), key="new_ch_cmt")
+        if st.button(_tr("ch_add"), key="add_ch"):
             rid, sid = label_wh[rec], label_wh[src]
             if rid == sid:
-                st.error(t("ch_same"))
+                st.error(_tr("ch_same"))
             elif not ch.empty and ((ch["receiver_name"] == rec.split(" (")[0]) &
                                    (ch["source_name"] == src.split(" (")[0])).any():
-                st.warning(t("ch_exists"))
+                st.warning(_tr("ch_exists"))
             else:
                 try:
                     exec_sql([("""
@@ -398,14 +410,14 @@ with tab_ch:
                         ON CONFLICT (receiver_warehouse_id, source_warehouse_id) DO NOTHING
                     """, [rid, sid, int(ech), 1, int(lead), cmt or None])])
                     st.cache_data.clear()
-                    st.success(t("saved").format(n=1))
+                    st.success(_tr("saved").format(n=1))
                     st.rerun()
                 except Exception as e:
-                    st.error(t("err").format(e=e))
+                    st.error(_tr("err").format(e=e))
 
 # -------------------------------------------------------- маркетплейсы ---
 with tab_mp:
-    st.caption(t("mp_hint"))
+    st.caption(_tr("mp_hint"))
     mp = q("""
         SELECT m.id, m.marketplace, m.country, m.coverage_priority,
                m.sales_warehouse_id, w.name AS warehouse_name,
@@ -415,7 +427,7 @@ with tab_mp:
         ORDER BY m.coverage_priority NULLS LAST, m.marketplace
     """)
     if mp.empty:
-        st.info(t("no_data"))
+        st.info(_tr("no_data"))
     else:
         wh_sales = q("""
             SELECT id, name FROM kabinet_data.warehouses
@@ -432,18 +444,18 @@ with tab_mp:
             hide_index=True, num_rows="fixed",
             disabled=["id", "marketplace", "country"],
             column_config={
-                "id": st.column_config.NumberColumn(t("col_id"), width="small"),
-                "marketplace": st.column_config.TextColumn(t("col_mp"), width="small"),
-                "country": st.column_config.TextColumn(t("col_country"), width="small"),
+                "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
+                "marketplace": st.column_config.TextColumn(_tr("col_mp"), width="small"),
+                "country": st.column_config.TextColumn(_tr("col_country"), width="small"),
                 "coverage_priority": st.column_config.NumberColumn(
-                    t("col_prio"), min_value=1, max_value=99, step=1),
+                    _tr("col_prio"), min_value=1, max_value=99, step=1),
                 "warehouse_name": st.column_config.SelectboxColumn(
-                    t("col_wh_sales"), options=list(opts.values())),
-                "is_active": st.column_config.CheckboxColumn(t("col_active")),
-                "comment": st.column_config.TextColumn(t("col_comment"), width="large"),
+                    _tr("col_wh_sales"), options=list(opts.values())),
+                "is_active": st.column_config.CheckboxColumn(_tr("col_active")),
+                "comment": st.column_config.TextColumn(_tr("col_comment"), width="large"),
             },
         )
-        if st.button(t("save"), key="save_mp", type="primary"):
+        if st.button(_tr("save"), key="save_mp", type="primary"):
             e2 = ed_mp.copy()
             e2["sales_warehouse_id"] = e2["warehouse_name"].map(rev)
             o2 = view.copy()
@@ -452,7 +464,7 @@ with tab_mp:
 
 # ------------------------------------------------------------------ пулы ---
 with tab_pool:
-    st.caption(t("pool_hint"))
+    st.caption(_tr("pool_hint"))
     pools = q("SELECT id, name, comment FROM kabinet_data.pools ORDER BY name")
     mps = q("""
         SELECT id, marketplace, country FROM kabinet_data.marketplaces
@@ -464,9 +476,9 @@ with tab_pool:
     left, right = st.columns([1, 2])
 
     with left:
-        st.markdown(f"**{t('pool_list')}**")
+        st.markdown(f"**{_tr('pool_list')}**")
         if pools.empty:
-            st.info(t("pool_none"))
+            st.info(_tr("pool_none"))
             sel_pool = None
         else:
             names = pools["name"].tolist()
@@ -474,54 +486,54 @@ with tab_pool:
             sel_pool = int(pools.loc[pools["name"] == sel_name, "id"].iloc[0])
 
         with st.form("new_pool", clear_on_submit=True):
-            st.markdown(f"**{t('pool_new')}**")
-            nname = st.text_input(t("pool_name"))
-            ncomment = st.text_input(t("pool_comment"))
-            if st.form_submit_button(t("pool_create")):
+            st.markdown(f"**{_tr('pool_new')}**")
+            nname = st.text_input(_tr("pool_name"))
+            ncomment = st.text_input(_tr("pool_comment"))
+            if st.form_submit_button(_tr("pool_create")):
                 if not nname.strip():
-                    st.error(t("pool_empty_name"))
+                    st.error(_tr("pool_empty_name"))
                 else:
                     try:
                         exec_sql([("INSERT INTO kabinet_data.pools (name, comment) "
                                    "VALUES (%s,%s) ON CONFLICT (name) DO NOTHING",
                                    [nname.strip(), ncomment or None])])
                         st.cache_data.clear()
-                        st.success(t("pool_created"))
+                        st.success(_tr("pool_created"))
                         st.rerun()
                     except Exception as e:
-                        st.error(t("err").format(e=e))
+                        st.error(_tr("err").format(e=e))
 
     with right:
         if not pools.empty and sel_pool:
             cur_comment = pools.loc[pools["id"] == sel_pool, "comment"].iloc[0]
             c1, c2 = st.columns([3, 1])
-            new_cmt = c1.text_input(t("pool_comment"), value=cur_comment or "",
+            new_cmt = c1.text_input(_tr("pool_comment"), value=cur_comment or "",
                                     key=f"pc_{sel_pool}")
-            if c2.button(t("pool_rename"), key=f"pr_{sel_pool}"):
+            if c2.button(_tr("pool_rename"), key=f"pr_{sel_pool}"):
                 try:
                     exec_sql([("UPDATE kabinet_data.pools SET comment=%s WHERE id=%s",
                                [new_cmt or None, sel_pool])])
                     st.cache_data.clear()
-                    st.success(t("saved").format(n=1))
+                    st.success(_tr("saved").format(n=1))
                     st.rerun()
                 except Exception as e:
-                    st.error(t("err").format(e=e))
+                    st.error(_tr("err").format(e=e))
 
-            st.markdown(f"**{t('pool_members')}**")
+            st.markdown(f"**{_tr('pool_members')}**")
             members = q(f"""
                 SELECT marketplace_id, valid_from, valid_to
                 FROM kabinet_data.pool_members WHERE pool_id = {sel_pool}
             """)
             cur_ids = set(members["marketplace_id"].astype(int)) if not members.empty else set()
             picked = st.multiselect(
-                t("pool_select"), list(label_mp.keys()),
+                _tr("pool_select"), list(label_mp.keys()),
                 default=[mp_label[i] for i in cur_ids if i in mp_label],
                 key=f"pm_{sel_pool}")
             d1, d2 = st.columns(2)
-            v_from = d1.date_input(t("pool_from"), value=date.today(), key=f"pf_{sel_pool}")
-            v_to = d2.date_input(t("pool_to"), value=None, key=f"pt_{sel_pool}")
+            v_from = d1.date_input(_tr("pool_from"), value=date.today(), key=f"pf_{sel_pool}")
+            v_to = d2.date_input(_tr("pool_to"), value=None, key=f"pt_{sel_pool}")
 
-            if st.button(t("pool_save"), key=f"ps_{sel_pool}", type="primary"):
+            if st.button(_tr("pool_save"), key=f"ps_{sel_pool}", type="primary"):
                 picked_ids = [label_mp[p] for p in picked]
                 busy = q(f"""
                     SELECT pm.marketplace_id, p.name
@@ -534,7 +546,7 @@ with tab_pool:
                          for _, r in busy.iterrows()
                          if int(r.marketplace_id) in picked_ids]
                 if clash:
-                    st.error(t("pool_conflict").format(mp=", ".join(clash)))
+                    st.error(_tr("pool_conflict").format(mp=", ".join(clash)))
                 else:
                     try:
                         stmts = [(f"DELETE FROM kabinet_data.pool_members "
@@ -547,64 +559,64 @@ with tab_pool:
                                 [sel_pool, mid, v_from, v_to or None]))
                         exec_sql(stmts)
                         st.cache_data.clear()
-                        st.success(t("saved").format(n=len(picked_ids)))
+                        st.success(_tr("saved").format(n=len(picked_ids)))
                         st.rerun()
                     except Exception as e:
-                        st.error(t("err").format(e=e))
+                        st.error(_tr("err").format(e=e))
 
-            if st.button(t("pool_delete"), key=f"pd_{sel_pool}"):
+            if st.button(_tr("pool_delete"), key=f"pd_{sel_pool}"):
                 try:
                     exec_sql([
                         ("DELETE FROM kabinet_data.pool_members WHERE pool_id=%s", [sel_pool]),
                         ("DELETE FROM kabinet_data.pools WHERE id=%s", [sel_pool]),
                     ])
                     st.cache_data.clear()
-                    st.success(t("pool_deleted"))
+                    st.success(_tr("pool_deleted"))
                     st.rerun()
                 except Exception as e:
-                    st.error(t("err").format(e=e))
+                    st.error(_tr("err").format(e=e))
 
 # ------------------------------------------------------------- нормативы ---
 with tab_norm:
-    st.caption(t("norm_hint"))
+    st.caption(_tr("norm_hint"))
 
     mps_n = q("SELECT marketplace, country FROM kabinet_data.marketplaces ORDER BY marketplace")
     pools_n = q("SELECT name FROM kabinet_data.pools ORDER BY name")
     countries = sorted(mps_n["country"].dropna().unique().tolist()) or ["ES"]
 
-    with st.expander(t("norm_add"), expanded=True):
+    with st.expander(_tr("norm_add"), expanded=True):
         with st.form("add_norm", clear_on_submit=True):
             a1, a2, a3 = st.columns([1, 2, 1])
-            scope = a1.selectbox(t("norm_scope"), [t("norm_scope_sku"), t("norm_scope_cat")])
-            scope_val = a2.text_input(t("norm_value"))
-            country = a3.selectbox(t("norm_country"), countries)
+            scope = a1.selectbox(_tr("norm_scope"), [_tr("norm_scope_sku"), _tr("norm_scope_cat")])
+            scope_val = a2.text_input(_tr("norm_value"))
+            country = a3.selectbox(_tr("norm_country"), countries)
 
             b1, b2 = st.columns([1, 2])
-            tgt_type = b1.selectbox(t("norm_target"),
-                                    [t("norm_target_mp"), t("norm_target_pool")])
-            if tgt_type == t("norm_target_mp"):
+            tgt_type = b1.selectbox(_tr("norm_target"),
+                                    [_tr("norm_target_mp"), _tr("norm_target_pool")])
+            if tgt_type == _tr("norm_target_mp"):
                 tgt_opts = mps_n["marketplace"].dropna().unique().tolist()
             else:
                 tgt_opts = pools_n["name"].tolist() or ["—"]
-            tgt_val = b2.selectbox(t("norm_target_val"), tgt_opts)
+            tgt_val = b2.selectbox(_tr("norm_target_val"), tgt_opts)
 
             c1, c2, c3, c4 = st.columns(4)
-            mn = c1.number_input(t("norm_min"), 0.0, 24.0, 1.0, step=0.5)
-            mx = c2.number_input(t("norm_max"), 0.0, 24.0, 3.0, step=0.5)
-            vf = c3.date_input(t("norm_from"), value=date.today())
-            vt = c4.date_input(t("norm_to"), value=None)
+            mn = c1.number_input(_tr("norm_min"), 0.0, 24.0, 1.0, step=0.5)
+            mx = c2.number_input(_tr("norm_max"), 0.0, 24.0, 3.0, step=0.5)
+            vf = c3.date_input(_tr("norm_from"), value=date.today())
+            vt = c4.date_input(_tr("norm_to"), value=None)
 
             d1, d2 = st.columns(2)
-            author = d1.text_input(t("norm_author"))
-            comment = d2.text_input(t("norm_comment"))
+            author = d1.text_input(_tr("norm_author"))
+            comment = d2.text_input(_tr("norm_comment"))
 
-            if st.form_submit_button(t("norm_add"), type="primary"):
-                st_scope = "sku" if scope == t("norm_scope_sku") else "category"
-                st_tgt = "marketplace" if tgt_type == t("norm_target_mp") else "pool"
+            if st.form_submit_button(_tr("norm_add"), type="primary"):
+                st_scope = "sku" if scope == _tr("norm_scope_sku") else "category"
+                st_tgt = "marketplace" if tgt_type == _tr("norm_target_mp") else "pool"
                 if not scope_val.strip():
-                    st.error(t("norm_empty"))
+                    st.error(_tr("norm_empty"))
                 elif mn > mx:
-                    st.error(t("norm_minmax"))
+                    st.error(_tr("norm_minmax"))
                 else:
                     ov = q(f"""
                         SELECT 1 FROM kabinet_data.coverage_norms
@@ -619,7 +631,7 @@ with tab_norm:
                         LIMIT 1
                     """)
                     if not ov.empty:
-                        st.error(t("norm_overlap"))
+                        st.error(_tr("norm_overlap"))
                     else:
                         try:
                             exec_sql([("""
@@ -632,12 +644,12 @@ with tab_norm:
                                   float(mn), float(mx), vf, vt or None,
                                   comment or None, author or None])])
                             st.cache_data.clear()
-                            st.success(t("norm_added"))
+                            st.success(_tr("norm_added"))
                             st.rerun()
                         except Exception as e:
-                            st.error(t("err").format(e=e))
+                            st.error(_tr("err").format(e=e))
 
-    st.markdown(f"**{t('norm_list')}**")
+    st.markdown(f"**{_tr('norm_list')}**")
     norms = q("""
         SELECT id, scope_type, scope_value, country, target_type, target_value,
                min_months, max_months, valid_from, valid_to, author, comment
@@ -645,7 +657,7 @@ with tab_norm:
         ORDER BY country, target_value, scope_value, valid_from DESC
     """)
     if norms.empty:
-        st.info(t("norm_none"))
+        st.info(_tr("norm_none"))
     else:
         view_n = norms.copy()
         view_n["__del"] = False
@@ -655,40 +667,40 @@ with tab_norm:
             disabled=["id", "scope_type", "scope_value", "country",
                       "target_type", "target_value", "valid_from"],
             column_config={
-                "id": st.column_config.NumberColumn(t("col_id"), width="small"),
-                "scope_type": st.column_config.TextColumn(t("norm_scope"), width="small"),
-                "scope_value": st.column_config.TextColumn(t("norm_value"), width="medium"),
-                "country": st.column_config.TextColumn(t("col_country"), width="small"),
-                "target_type": st.column_config.TextColumn(t("norm_target"), width="small"),
-                "target_value": st.column_config.TextColumn(t("norm_target_val"), width="small"),
-                "min_months": st.column_config.NumberColumn(t("norm_min"), step=0.5),
-                "max_months": st.column_config.NumberColumn(t("norm_max"), step=0.5),
-                "valid_from": st.column_config.DateColumn(t("col_from")),
-                "valid_to": st.column_config.DateColumn(t("col_to")),
-                "author": st.column_config.TextColumn(t("norm_author"), width="small"),
-                "comment": st.column_config.TextColumn(t("col_comment"), width="large"),
-                "__del": st.column_config.CheckboxColumn(t("del_col"), width="small"),
+                "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
+                "scope_type": st.column_config.TextColumn(_tr("norm_scope"), width="small"),
+                "scope_value": st.column_config.TextColumn(_tr("norm_value"), width="medium"),
+                "country": st.column_config.TextColumn(_tr("col_country"), width="small"),
+                "target_type": st.column_config.TextColumn(_tr("norm_target"), width="small"),
+                "target_value": st.column_config.TextColumn(_tr("norm_target_val"), width="small"),
+                "min_months": st.column_config.NumberColumn(_tr("norm_min"), step=0.5),
+                "max_months": st.column_config.NumberColumn(_tr("norm_max"), step=0.5),
+                "valid_from": st.column_config.DateColumn(_tr("col_from")),
+                "valid_to": st.column_config.DateColumn(_tr("col_to")),
+                "author": st.column_config.TextColumn(_tr("norm_author"), width="small"),
+                "comment": st.column_config.TextColumn(_tr("col_comment"), width="large"),
+                "__del": st.column_config.CheckboxColumn(_tr("del_col"), width="small"),
             },
         )
         s1, s2 = st.columns([1, 1])
-        if s1.button(t("save"), key="save_norm", type="primary"):
+        if s1.button(_tr("save"), key="save_norm", type="primary"):
             bad = ed_n[ed_n["min_months"] > ed_n["max_months"]]
             if not bad.empty:
-                st.error(t("norm_minmax"))
+                st.error(_tr("norm_minmax"))
             else:
                 save_block(norms, ed_n.drop(columns=["__del"]),
                            "kabinet_data.coverage_norms", "id",
                            ["min_months", "max_months", "valid_to", "author", "comment"])
-        if s2.button(t("delete_sel"), key="del_norm"):
+        if s2.button(_tr("delete_sel"), key="del_norm"):
             ids = [int(i) for i in ed_n.loc[ed_n["__del"], "id"].tolist()]
             if not ids:
-                st.info(t("nochange"))
+                st.info(_tr("nochange"))
             else:
                 try:
                     exec_sql([("DELETE FROM kabinet_data.coverage_norms WHERE id = ANY(%s)",
                                [ids])])
                     st.cache_data.clear()
-                    st.success(t("deleted").format(n=len(ids)))
+                    st.success(_tr("deleted").format(n=len(ids)))
                     st.rerun()
                 except Exception as e:
-                    st.error(t("err").format(e=e))
+                    st.error(_tr("err").format(e=e))
