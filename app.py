@@ -10,6 +10,25 @@ st.set_page_config(
 )
 init_lang()
 
+# ---------- скрываем служебные элементы Streamlit Cloud ----------
+# ВАЖНО: CSS собирается конкатенацией без переносов строк.
+# Многострочный литерал с отступами Streamlit markdown принимает
+# за блок кода и печатает CSS текстом на странице.
+st.markdown(
+    "<style>"
+    '[data-testid="stToolbar"]{display:none !important;}'
+    '[data-testid="stToolbarActions"]{display:none !important;}'
+    '[data-testid="stActionButtonIcon"]{display:none !important;}'
+    '[data-testid="stAppDeployButton"]{display:none !important;}'
+    '[data-testid="stMainMenu"]{display:none !important;}'
+    '[data-testid="manage-app-button"]{display:none !important;}'
+    '[data-testid="stStatusWidget"]{visibility:hidden;}'
+    "header{background:transparent !important;}"
+    "footer{visibility:hidden !important;}"
+    "</style>",
+    unsafe_allow_html=True,
+)
+
 try:
     _dark = st.context.theme.type == "dark"
 except Exception:
