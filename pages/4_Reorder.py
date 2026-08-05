@@ -23,6 +23,7 @@ st.markdown("""
 st.title(t("ro.title"))
 st.caption(t("ro.caption"))
 
+
 def clean_sku(sku: str) -> str:
     """Чистый базовый SKU: режет amzn.gr., -FBA/-FBM, хвост-хеш, вариант -A/-B."""
     s = str(sku or "").strip()
@@ -32,8 +33,10 @@ def clean_sku(sku: str) -> str:
     s = re.sub(r"-[A-Za-z]$", "", s)
     return s.strip(" -")
 
+
 def is_defect_sku(sku: str) -> bool:
     return str(sku or "").lower().startswith("amzn.gr.")
+
 
 # ---------- автозаказ ----------
 @st.cache_data(ttl=300)
@@ -51,6 +54,7 @@ def load_reorder(has_status: bool):
     conn.close()
     return df
 
+
 def mark_ordered(skus, qtys):
     conn = get_connection(); cur = conn.cursor()
     cur.execute("SELECT MAX(calc_date) FROM kabinet_data.reorder_recommendations")
@@ -62,6 +66,7 @@ def mark_ordered(skus, qtys):
             WHERE calc_date=%s AND sku=%s
         """, (int(qty), d, sku))
     conn.commit(); cur.close(); conn.close()
+
 
 @st.cache_data(ttl=600)
 def has_order_status() -> bool:
@@ -80,10 +85,33 @@ def has_order_status() -> bool:
     except Exception:
         return False
 
+
+@st.cache_data(ttl=600)
+def has_incoming_cols() -> bool:
+    """Есть ли в transfer_recommendations колонка прихода в Мадрид."""
+    try:
+        conn = get_connection(); cur = conn.cursor()
+        cur.execute("""
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema='kabinet_data'
+              AND table_name='transfer_recommendations'
+              AND column_name='incoming_to_madrid'
+        """)
+        ok = cur.fetchone() is not None
+        cur.close(); conn.close()
+        return ok
+    except Exception:
+        return False
+
+
 HAS_ORDER_STATUS = has_order_status()
+HAS_INCOMING = has_incoming_cols()
+
 df = load_reorder(HAS_ORDER_STATUS)
+
 # дефекты/возвраты (amzn.gr.) не заказываем — убираем из рекомендаций
 df = df[~df["sku"].apply(is_defect_sku)].copy()
+
 
 # SKU, у которых есть активная переброска (чтобы не заказать лишнее)
 @st.cache_data(ttl=120)
@@ -99,16 +127,23 @@ def skus_in_transfer():
     conn.close()
     return dict(zip(tdf["sku"], tdf["transfer_in"]))
 
+
 transfer_map = skus_in_transfer()
 df["has_transfer"] = df["sku"].map(lambda s: transfer_map.get(s, 0))
+
 if df.empty:
     st.info(t("ro.empty"))
     st.stop()
 
 df["sku_display"] = df["sku"].apply(clean_sku)
+
 URG_ORDER = {"critical": 0, "warning": 1, "ok": 2}
 URG_ICON = {"critical": "🔴", "warning": "🟡", "ok": "🟢"}
+
+
 def urg_label(u): return t(f"ro.urg.{u}")
+
+
 df["urg_rank"] = df["urgency"].map(URG_ORDER)
 
 active = df[df["order_status"] != "ordered"]
@@ -135,6 +170,7 @@ DONOR_TIERS = {
 }
 FBA_TRANSFER_DAYS = 10                  # FBA→FBA
 
+
 def donor_info(from_location: str, from_type: str):
     """Маршрут донора: (уровень, срок до FBA в днях, иконка)."""
     if from_type == "fba":
@@ -143,6 +179,7 @@ def donor_info(from_location: str, from_type: str):
         if key in str(from_location):
             return info
     return ("ERP", 14, "📦")
+
 
 def build_transfer_order_xlsx(rows: pd.DataFrame):
     """Заявка на переброску (xlsx): №, дата, строки SKU-товар-кол-во-откуда-куда-срок.
@@ -163,22 +200,27 @@ def build_transfer_order_xlsx(rows: pd.DataFrame):
             ws.column_dimensions[col].width = w
     return order_no, buf.getvalue()
 
+
 # ═════════════════════════════════════════════════════════════
 # ПЕРЕБРОСКА: свои склады (ERP) + между странами FBA
 # ═════════════════════════════════════════════════════════════
 @st.cache_data(ttl=120)
-def load_transfers():
+def load_transfers(with_incoming: bool):
     conn = get_connection()
-    tdf = pd.read_sql("""
+    incoming_col = ("COALESCE(incoming_to_madrid, 0) AS incoming_to_madrid"
+                    if with_incoming else "0 AS incoming_to_madrid")
+    tdf = pd.read_sql(f"""
         SELECT sku, product_name, from_location, to_location, transfer_qty,
                from_stock, from_cover_days, to_stock, to_cover_days,
                COALESCE(from_type,'fba') AS from_type,
-               COALESCE(status,'new') AS status
+               COALESCE(status,'new') AS status,
+               {incoming_col}
         FROM kabinet_data.transfer_recommendations
         WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.transfer_recommendations)
     """, conn)
     conn.close()
     return tdf
+
 
 def set_transfer_status(keys, new_status):
     conn = get_connection(); cur = conn.cursor()
@@ -192,12 +234,14 @@ def set_transfer_status(keys, new_status):
         """, (new_status, d, sku, fl, tl))
     conn.commit(); cur.close(); conn.close()
 
-transfers = load_transfers()
+
+transfers = load_transfers(HAS_INCOMING)
 active_tr = transfers[transfers["status"] == "new"]
 
 if not active_tr.empty:
     n_erp = int((active_tr["from_type"] == "erp").sum())
     n_fba = int((active_tr["from_type"] == "fba").sum())
+
     st.markdown(f"#### {t('ro.tr.title')}")
     st.caption(t("ro.tr.caption"))
 
@@ -213,7 +257,7 @@ if not active_tr.empty:
     tr["product_name"] = tr["product_name"].fillna("").astype(str).replace("None", "")
     tr.loc[tr["product_name"] == "", "product_name"] = "— " + tr["sku_display"]
     tr.insert(0, "✓", True)
-    # источник с иконкой
+
     # маршрут: уровень склада-донора + срок доставки + иконка (📦 PL / 🚛 UA / ✈️ FBA)
     tr[["tier", "eta_days", "route_icon"]] = tr.apply(
         lambda r: pd.Series(donor_info(r["from_location"], r["from_type"])), axis=1)
@@ -221,11 +265,18 @@ if not active_tr.empty:
     tr["Срок"] = tr["eta_days"].astype(str) + " дн"
     tr["Куда"] = tr["to_location"]
     tr["Хватит(получатель)"] = tr["to_cover_days"].round(0).astype(int)
+    # приход в Мадрид по данным снабжения (лист Poland-Spain) — справочно.
+    # Из рекомендации НЕ вычитается: товар едет на склад Мадрид, а не в FBA.
+    tr["incoming_to_madrid"] = pd.to_numeric(
+        tr["incoming_to_madrid"], errors="coerce").fillna(0)
+    tr["Едет в Мадрид"] = tr["incoming_to_madrid"].map(
+        lambda x: f"{int(x)} шт" if x > 0 else "")
 
     tr_sorted = tr.sort_values(["from_type", "to_cover_days"])  # erp сверху
+
     tr_edited = st.data_editor(
         tr_sorted[["✓", "sku_display", "product_name", "Источник", "Срок", "Куда",
-                   "transfer_qty", "Хватит(получатель)"]],
+                   "transfer_qty", "Хватит(получатель)", "Едет в Мадрид"]],
         use_container_width=True, hide_index=True, height=400,
         column_config={
             "✓": st.column_config.CheckboxColumn(t("ro.tr.col_do"), width="small"),
@@ -233,15 +284,19 @@ if not active_tr.empty:
             "product_name": st.column_config.TextColumn(t("ro.tr.col_product"), width="large", disabled=True),
             "Источник": st.column_config.TextColumn(t("ro.tr.col_source"), width="medium", disabled=True),
             "Срок": st.column_config.TextColumn(t("ro.tr.col_eta"), width="small",
-                help="Ожидаемый срок доставки до FBA по маршруту"),
+                help=t("ro.tr.col_eta_help")),
             "Куда": st.column_config.TextColumn(t("ro.tr.col_to"), width="small", disabled=True),
             "transfer_qty": st.column_config.NumberColumn(t("ro.tr.col_qty"), width="small", min_value=0, step=1),
             "Хватит(получатель)": st.column_config.NumberColumn(t("ro.tr.col_cover"), width="small", disabled=True),
+            "Едет в Мадрид": st.column_config.TextColumn(
+                t("ro.tr.col_incoming"), width="small", disabled=True,
+                help=t("ro.tr.col_incoming_help")),
         },
         key="transfer_editor",
     )
 
     chosen_tr = tr_edited[tr_edited["✓"]]
+
     tc1, tc2 = st.columns([1, 1])
     with tc1:
         if st.button(t("ro.tr.confirm").format(n=len(chosen_tr)),
@@ -282,6 +337,7 @@ if not active_tr.empty:
             if st.button("✕", key="tr_order_dismiss", help="Скрыть заявку"):
                 st.session_state.pop("tr_order", None)
                 st.rerun()
+
     st.divider()
 
 # ═════════════════════════════════════════════════════════════
@@ -304,6 +360,7 @@ if search:
     m = (fdf["sku_display"].str.contains(search, case=False, na=False)
          | fdf["product_name"].str.contains(search, case=False, na=False))
     fdf = fdf[m]
+
 fdf = fdf.sort_values(["urg_rank", "days_of_cover"])
 
 edit = fdf[["sku_display", "product_name", "current_stock", "daily_velocity",
@@ -338,6 +395,7 @@ edited = st.data_editor(
 )
 
 chosen = edited[edited["✓"]]
+
 t1, t2, t3 = st.columns(3)
 t1.metric(t("ro.order.chosen"), len(chosen))
 t2.metric(t("ro.order.total"), int(chosen["suggested_qty"].sum()))
