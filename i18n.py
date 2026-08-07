@@ -48,7 +48,6 @@ TRANSLATIONS = {
         "uk": "Консолідація по складах: Amazon FBA (по країнах) + власні/3PL",
         "en": "Consolidated by warehouse: Amazon FBA (by country) + own/3PL",
     },
-
     "stock.other": {"ru": "Прочее", "uk": "Інше", "en": "Other"},
     "stock.cat.amoladora": {"ru": "Amoladoras (болгарки)", "uk": "Amoladoras (кутові шліфмашини)", "en": "Amoladoras (angle grinders)"},
     "stock.cat.martillo": {"ru": "Martillos (перфораторы)", "uk": "Martillos (перфоратори)", "en": "Martillos (rotary hammers)"},
@@ -59,14 +58,12 @@ TRANSLATIONS = {
     "stock.cat.soldador": {"ru": "Soldadores (сварка)", "uk": "Soldadores (зварювання)", "en": "Soldadores (welders)"},
     "stock.cat.compresor": {"ru": "Compresores", "uk": "Compresores", "en": "Compresores (compressors)"},
     "stock.cat.bateria": {"ru": "Baterías / зарядки", "uk": "Baterías / зарядні", "en": "Baterías / chargers"},
-
     "stock.filter.warehouse": {"ru": "Склад (часть названия)", "uk": "Склад (частина назви)", "en": "Warehouse (partial name)"},
     "stock.filter.sku": {"ru": "SKU / артикул", "uk": "SKU / артикул", "en": "SKU"},
     "stock.filter.avail_status": {"ru": "Статус доступности", "uk": "Статус доступності", "en": "Availability status"},
     "stock.filter.all": {"ru": "Все", "uk": "Всі", "en": "All"},
     "stock.filter.country": {"ru": "Страна (FBA)", "uk": "Країна (FBA)", "en": "Country (FBA)"},
     "stock.filter.country_placeholder": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
-
     "stock.kpi.total_sku": {"ru": "Всего SKU", "uk": "Всього SKU", "en": "Total SKUs"},
     "stock.kpi.countries": {"ru": "Стран (FBA)", "uk": "Країн (FBA)", "en": "Countries (FBA)"},
     "stock.kpi.countries_help": {"ru": "Количество стран, где лежит товар на Amazon FBA", "uk": "Кількість країн, де лежить товар на Amazon FBA", "en": "Number of countries where the product sits in Amazon FBA"},
@@ -74,22 +71,18 @@ TRANSLATIONS = {
     "stock.kpi.median": {"ru": "Медиана на SKU", "uk": "Медіана на SKU", "en": "Median per SKU"},
     "stock.kpi.low_stock": {"ru": "SKU с остатком ≤ 3", "uk": "SKU із залишком ≤ 3", "en": "SKUs with stock ≤ 3"},
     "stock.kpi.low_stock_help": {"ru": "Кандидаты на пополнение (сумма по всем странам)", "uk": "Кандидати на поповнення (сума по всіх країнах)", "en": "Replenishment candidates (summed across all countries)"},
-
     "stock.burn_title": {"ru": "🔥 Минимальные остатки — кандидаты на пополнение", "uk": "🔥 Мінімальні залишки — кандидати на поповнення", "en": "🔥 Minimum stock — replenishment candidates"},
     "stock.burn_none": {"ru": "нет в наличии", "uk": "немає в наявності", "en": "out of stock"},
-
     "stock.tab.overview": {"ru": "📊 Обзор", "uk": "📊 Огляд", "en": "📊 Overview"},
     "stock.tab.abc": {"ru": "🅰️ ABC-анализ", "uk": "🅰️ ABC-аналіз", "en": "🅰️ ABC analysis"},
     "stock.tab.categories": {"ru": "🧰 Категории", "uk": "🧰 Категорії", "en": "🧰 Categories"},
     "stock.tab.countries": {"ru": "🌍 По странам", "uk": "🌍 По країнах", "en": "🌍 By country"},
     "stock.tab.table": {"ru": "📋 Таблица", "uk": "📋 Таблиця", "en": "📋 Table"},
-
     "stock.ov.top15_title": {"ru": "Топ-15 SKU по остатку (сумма по всем странам)", "uk": "Топ-15 SKU за залишком (сума по всіх країнах)", "en": "Top 15 SKUs by stock (summed across all countries)"},
     "stock.ov.unit_short": {"ru": "шт", "uk": "шт", "en": "pcs"},
     "stock.ov.by_status_title": {"ru": "Остаток по статусу доступности", "uk": "Залишок за статусом доступності", "en": "Stock by availability status"},
     "stock.ov.dist_title": {"ru": "Распределение остатка по SKU", "uk": "Розподіл залишку за SKU", "en": "Stock distribution by SKU"},
     "stock.ov.dist_xaxis": {"ru": "шт на SKU", "uk": "шт на SKU", "en": "pcs per SKU"},
-
     "stock.abc.class_label": {"ru": "Класс {cls}", "uk": "Клас {cls}", "en": "Class {cls}"},
     "stock.abc.sku_count": {"ru": "{n} SKU", "uk": "{n} SKU", "en": "{n} SKUs"},
     "stock.abc.pct_of_stock": {"ru": "{pct:.0f}% остатка", "uk": "{pct:.0f}% залишку", "en": "{pct:.0f}% of stock"},
@@ -110,13 +103,11 @@ TRANSLATIONS = {
         "uk": "A — SKU, що дають 80% залишку; B — наступні 15%; C — хвіст. Коли підключимо продажі, перерахуємо ABC за velocity — це буде чесніше.",
         "en": "A — SKUs contributing 80% of stock; B — next 15%; C — the tail. Once sales data is connected, we'll recompute ABC by velocity for a fairer split.",
     },
-
     "stock.cat.treemap_title": {"ru": "Остаток по категориям инструмента", "uk": "Залишок за категоріями інструменту", "en": "Stock by tool category"},
     "stock.cat.sku_word": {"ru": "SKU", "uk": "SKU", "en": "SKU"},
     "stock.cat.power_scatter_title": {"ru": "Мощность (W) vs остаток — где сидит сток", "uk": "Потужність (W) vs залишок — де сидить сток", "en": "Power (W) vs stock — where stock sits"},
     "stock.cat.power_xaxis": {"ru": "Мощность, W", "uk": "Потужність, W", "en": "Power, W"},
     "stock.cat.qty_yaxis": {"ru": "Остаток, шт", "uk": "Залишок, шт", "en": "Stock, pcs"},
-
     "stock.ctr.by_country_title": {"ru": "Остаток по странам FBA", "uk": "Залишок по країнах FBA", "en": "Stock by FBA country"},
     "stock.ctr.metric_help": {"ru": "{n} SKU", "uk": "{n} SKU", "en": "{n} SKUs"},
     "stock.ctr.bar_title": {"ru": "Остаток по странам", "uk": "Залишок по країнах", "en": "Stock by country"},
@@ -143,7 +134,6 @@ TRANSLATIONS = {
         "en": "Damaged or returned items (Amazon removal/grade). Excluded from stock and reorder.",
     },
     "stock.ctr.defects_download": {"ru": "⬇️ Скачать дефекты CSV", "uk": "⬇️ Завантажити дефекти CSV", "en": "⬇️ Download defects CSV"},
-
     "stock.tbl.view_mode": {"ru": "Вид таблицы", "uk": "Вигляд таблиці", "en": "Table view"},
     "stock.tbl.view_by_product": {"ru": "По товару (сумма по странам)", "uk": "За товаром (сума по країнах)", "en": "By product (summed across countries)"},
     "stock.tbl.view_by_product_country": {"ru": "По товару и стране (детально)", "uk": "За товаром і країною (детально)", "en": "By product and country (detailed)"},
@@ -158,7 +148,32 @@ TRANSLATIONS = {
     "stock.tbl.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "stock.tbl.col_snapshot": {"ru": "Снапшот", "uk": "Знімок", "en": "Snapshot"},
     "stock.tbl.download_detail": {"ru": "⬇️ Скачать CSV (детально, по странам)", "uk": "⬇️ Завантажити CSV (детально, по країнах)", "en": "⬇️ Download CSV (detailed, by country)"},
-
+    # --- 1_Stock.py: квоты, выделенные на каналы продаж ---
+    "stock.kpi.total_qty_help": {
+        "ru": "Физический остаток на складах. Квоты, выделенные на каналы продаж, не входят.",
+        "uk": "Фізичний залишок на складах. Квоти, виділені на канали продажів, не входять.",
+        "en": "Physical stock in warehouses. Quotas allocated to sales channels are excluded.",
+    },
+    "stock.channels.title": {
+        "ru": "📤 Выделено на каналы продаж ({n} шт)",
+        "uk": "📤 Виділено на канали продажів ({n} шт)",
+        "en": "📤 Allocated to sales channels ({n} pcs)",
+    },
+    "stock.channels.caption": {
+        "ru": "Квота, выставленная на канал из складского остатка (например, офферы Leroy Merlin — "
+              "часть мадридского стока). Это не дополнительный товар: он уже учтён в остатках складов выше.",
+        "uk": "Квота, виставлена на канал зі складського залишку (наприклад, оффери Leroy Merlin — "
+              "частина мадридського стоку). Це не додатковий товар: він уже врахований у залишках складів вище.",
+        "en": "Quantity listed on a channel out of existing warehouse stock (e.g. Leroy Merlin offers are "
+              "part of the Madrid stock). This is not additional goods — it's already counted above.",
+    },
+    "stock.channels.col_channel": {"ru": "Канал", "uk": "Канал", "en": "Channel"},
+    "stock.channels.col_qty": {"ru": "Выделено, шт", "uk": "Виділено, шт", "en": "Allocated, pcs"},
+    "stock.channels.download": {
+        "ru": "⬇️ Скачать квоты каналов CSV",
+        "uk": "⬇️ Завантажити квоти каналів CSV",
+        "en": "⬇️ Download channel quotas CSV",
+    },
     "stock.no_data_warning": {"ru": "Нет данных в kabinet_data.stock_local", "uk": "Немає даних у kabinet_data.stock_local", "en": "No data in kabinet_data.stock_local"},
 
     # --- home.py ---
@@ -309,13 +324,11 @@ TRANSLATIONS = {
     "inc.filter.type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
     "inc.filter.search": {"ru": "Поиск (SKU / текст)", "uk": "Пошук (SKU / текст)", "en": "Search (SKU / text)"},
     "inc.filter.search_placeholder": {"ru": "например 22635000", "uk": "наприклад 22635000", "en": "e.g. 22635000"},
-
     "inc.sev.critical": {"ru": "Critical", "uk": "Critical", "en": "Critical"},
     "inc.sev.high": {"ru": "High", "uk": "High", "en": "High"},
     "inc.sev.warning": {"ru": "Warning", "uk": "Warning", "en": "Warning"},
     "inc.sev.low": {"ru": "Low", "uk": "Low", "en": "Low"},
     "inc.sev.info": {"ru": "Info", "uk": "Info", "en": "Info"},
-
     "inc.sev_help.critical": {
         "ru": "Продажи уже остановлены: остаток = 0. Реагировать немедленно.",
         "uk": "Продажі вже зупинені: залишок = 0. Реагувати негайно.",
@@ -341,7 +354,6 @@ TRANSLATIONS = {
         "uk": "Інформаційне повідомлення, дії за ситуацією.",
         "en": "Informational notice, act as needed.",
     },
-
     "inc.kpi.open": {"ru": "Открытых", "uk": "Відкритих", "en": "Open"},
     "inc.kpi.open_help": {
         "ru": "Инциденты со статусом open — требуют действия. Закрываются автоматически, когда проблема исчезает из данных.",
@@ -359,12 +371,10 @@ TRANSLATIONS = {
         "uk": "Автозакриті: сток поповнився — система сама перевела інцидент у resolved. Показник того, що проблеми реально вирішуються.",
         "en": "Auto-resolved: stock was replenished — the system moved the incident to resolved itself. A sign problems are actually getting fixed.",
     },
-
     "inc.burning_title": {"ru": "🔥 Требуют внимания первыми", "uk": "🔥 Потребують уваги першими", "en": "🔥 Needs attention first"},
     "inc.age_delta_open": {"ru": "-{n} дн. открыт", "uk": "-{n} дн. відкрито", "en": "-{n}d open"},
     "inc.age_new": {"ru": "новый", "uk": "новий", "en": "new"},
     "inc.status_word": {"ru": "статус", "uk": "статус", "en": "status"},
-
     "inc.chart.by_type_title": {"ru": "Открытые по типу", "uk": "Відкриті за типом", "en": "Open by type"},
     "inc.age.today": {"ru": "сегодня", "uk": "сьогодні", "en": "today"},
     "inc.age.1_2d": {"ru": "1–2 дня", "uk": "1–2 дні", "en": "1–2 days"},
@@ -379,7 +389,6 @@ TRANSLATIONS = {
         "uk": "📈 З'явиться, коли накопичиться історія за декілька днів. Увімкни розклад лоадера — і за тиждень тут буде тренд.",
         "en": "📈 Will appear once a few days of history accumulate. Turn on the loader schedule and there'll be a trend here within a week.",
     },
-
     "inc.tbl.col_created": {"ru": "Создан", "uk": "Створено", "en": "Created"},
     "inc.tbl.col_level": {"ru": "Уровень", "uk": "Рівень", "en": "Level"},
     "inc.tbl.col_type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
@@ -389,7 +398,6 @@ TRANSLATIONS = {
     "inc.tbl.col_age": {"ru": "Дней", "uk": "Днів", "en": "Days"},
     "inc.tbl.col_age_help": {"ru": "Сколько дней инцидент открыт", "uk": "Скільки днів інцидент відкрито", "en": "How many days the incident has been open"},
     "inc.tbl.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
-
     "inc.btn.acknowledge": {"ru": "🎯 Взять в работу ({n})", "uk": "🎯 Взяти в роботу ({n})", "en": "🎯 Acknowledge ({n})"},
     "inc.btn.resolve": {"ru": "✅ Закрыть вручную ({n})", "uk": "✅ Закрити вручну ({n})", "en": "✅ Resolve manually ({n})"},
     "inc.hint.select_rows": {
@@ -462,7 +470,6 @@ TRANSLATIONS = {
     "ro.urg.critical": {"ru": "Заказать срочно", "uk": "Замовити терміново", "en": "Order urgently"},
     "ro.urg.warning": {"ru": "Пора заказывать", "uk": "Час замовляти", "en": "Time to order"},
     "ro.urg.ok": {"ru": "В норме", "uk": "В нормі", "en": "OK"},
-
     "ro.kpi.critical": {"ru": "🔴 Заказать срочно", "uk": "🔴 Замовити терміново", "en": "🔴 Order urgently"},
     "ro.kpi.critical_help": {
         "ru": "Кончатся раньше, чем приедет поставка",
@@ -472,17 +479,14 @@ TRANSLATIONS = {
     "ro.kpi.warning": {"ru": "🟡 Пора заказывать", "uk": "🟡 Час замовляти", "en": "🟡 Time to order"},
     "ro.kpi.total_qty": {"ru": "Всего к заказу, шт", "uk": "Всього до замовлення, шт", "en": "Total to order, pcs"},
     "ro.kpi.sku_controlled": {"ru": "SKU под контролем", "uk": "SKU під контролем", "en": "SKUs monitored"},
-
     "ro.priority_title": {"ru": "🔴 Требуют заказа в первую очередь", "uk": "🔴 Потребують замовлення в першу чергу", "en": "🔴 Needs ordering first"},
     "ro.priority.value": {"ru": "заказать {n}", "uk": "замовити {n}", "en": "order {n}"},
     "ro.priority.delta": {"ru": "хватит на {n:.0f} дн", "uk": "вистачить на {n:.0f} дн", "en": "lasts {n:.0f}d"},
     "ro.priority.help": {"ru": "{name} · продаётся {v:.1f}/день", "uk": "{name} · продається {v:.1f}/день", "en": "{name} · sells {v:.1f}/day"},
-
     "ro.filter.urgency": {"ru": "Срочность", "uk": "Терміновість", "en": "Urgency"},
     "ro.filter.search": {"ru": "Поиск SKU / товар", "uk": "Пошук SKU / товар", "en": "Search SKU / product"},
     "ro.filter.search_ph": {"ru": "напр. Amoladora", "uk": "напр. Amoladora", "en": "e.g. Amoladora"},
     "ro.filter.search_placeholder": {"ru": "напр. Amoladora", "uk": "напр. Amoladora", "en": "e.g. Amoladora"},
-
     "ro.tbl.col_urgency": {"ru": "Срочность", "uk": "Терміновість", "en": "Urgency"},
     "ro.tbl.col_sku": {"ru": "SKU", "uk": "SKU", "en": "SKU"},
     "ro.tbl.col_product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
@@ -500,9 +504,7 @@ TRANSLATIONS = {
         "uk": "Рекомендована кількість до замовлення",
         "en": "Recommended order quantity",
     },
-
     "ro.download_btn": {"ru": "⬇️ Скачать заказ ({n} SKU, {qty} шт)", "uk": "⬇️ Завантажити замовлення ({n} SKU, {qty} шт)", "en": "⬇️ Download order ({n} SKUs, {qty} pcs)"},
-
     "ro.how_title": {"ru": "ℹ️ Как считается автозаказ", "uk": "ℹ️ Як рахується автозамовлення", "en": "ℹ️ How the reorder is calculated"},
     "ro.how_body": {
         "ru": (
@@ -534,7 +536,7 @@ TRANSLATIONS = {
         ),
     },
 
-    # --- 4_Reorder.py: переброска (новый flow) ---
+    # --- 4_Reorder.py: переброска ---
     "ro.tr.title": {"ru": "🔄 Сначала — переброска", "uk": "🔄 Спочатку — переброс", "en": "🔄 First — transfer"},
     "ro.tr.caption": {
         "ru": "Товар горит на Amazon, но есть на своих складах или в других странах — перебросить дешевле, чем заказывать.",
@@ -550,8 +552,27 @@ TRANSLATIONS = {
     "ro.tr.col_source": {"ru": "Откуда (источник)", "uk": "Звідки (джерело)", "en": "From (source)"},
     "ro.tr.col_to": {"ru": "Куда", "uk": "Куди", "en": "To"},
     "ro.tr.col_eta": {"ru": "Срок", "uk": "Термін", "en": "ETA"},
+    "ro.tr.col_eta_help": {
+        "ru": "Ожидаемый срок доставки до FBA по маршруту",
+        "uk": "Очікуваний термін доставки до FBA за маршрутом",
+        "en": "Expected delivery time to FBA for this route",
+    },
     "ro.tr.col_qty": {"ru": "Шт", "uk": "Шт", "en": "Pcs"},
     "ro.tr.col_cover": {"ru": "Хватит, дн", "uk": "Вистачить, дн", "en": "Cover, days"},
+    "ro.tr.col_incoming": {
+        "ru": "🚚 Едет в Мадрид",
+        "uk": "🚚 Їде до Мадрида",
+        "en": "🚚 En route to Madrid",
+    },
+    "ro.tr.col_incoming_help": {
+        "ru": "Товар уже в пути на склад Мадрид по данным снабжения. "
+              "Из рекомендации не вычитается — приедет на другой склад, но учитывай при решении.",
+        "uk": "Товар уже в дорозі на склад Мадрид за даними постачання. "
+              "З рекомендації не віднімається — приїде на інший склад, але враховуй при рішенні.",
+        "en": "Already in transit to the Madrid warehouse per supply data. "
+              "Not deducted from the recommendation — it arrives at a different warehouse, "
+              "but take it into account when deciding.",
+    },
     "ro.tr.confirm": {"ru": "🔄 Подтвердить переброску ({n})", "uk": "🔄 Підтвердити переброс ({n})", "en": "🔄 Confirm transfer ({n})"},
     "ro.tr.confirmed": {
         "ru": "Переброска подтверждена: {n} позиций. Дальше — оформление перемещения на вашей стороне.",
@@ -580,10 +601,8 @@ TRANSLATIONS = {
     "ro.order.form": {"ru": "✅ Сформировать заказ ({n})", "uk": "✅ Сформувати замовлення ({n})", "en": "✅ Create order ({n})"},
     "ro.order.formed": {"ru": "Заказ сформирован: {n} SKU, {qty} шт.", "uk": "Замовлення сформовано: {n} SKU, {qty} шт.", "en": "Order created: {n} SKUs, {qty} pcs."},
     "ro.order.export": {"ru": "⬇️ Экспорт CSV ({n})", "uk": "⬇️ Експорт CSV ({n})", "en": "⬇️ Export CSV ({n})"},
-
     "ro.ordered.title": {"ru": "✅ Уже заказано ({n} SKU, {qty} шт)", "uk": "✅ Вже замовлено ({n} SKU, {qty} шт)", "en": "✅ Already ordered ({n} SKUs, {qty} pcs)"},
     "ro.ordered.col_qty": {"ru": "Заказано, шт", "uk": "Замовлено, шт", "en": "Ordered, pcs"},
-
     "ro.how.title": {"ru": "ℹ️ Как считается", "uk": "ℹ️ Як рахується", "en": "ℹ️ How it's calculated"},
     "ro.how.body": {
         "ru": (
@@ -612,34 +631,6 @@ TRANSLATIONS = {
         ),
     },
 
-    # --- 4_Reorder.py: переброска между странами ---
-    "reorder.transfer.section_title": {"ru": "🔄 Сначала — переброска между странами", "uk": "🔄 Спочатку — переброс між країнами", "en": "🔄 First — transfer between countries"},
-    "reorder.transfer.section_caption": {
-        "ru": "Товар горит в одной стране, но есть излишек в другой — дешевле и быстрее перебросить, чем заказывать у поставщика.",
-        "uk": "Товар горить в одній країні, але є надлишок в іншій — дешевше і швидше перекинути, ніж замовляти у постачальника.",
-        "en": "Stock is critical in one country but there's surplus in another — cheaper and faster to transfer than to order from the supplier.",
-    },
-    "reorder.transfer.col_confirm": {"ru": "Перебросить?", "uk": "Перекинути?", "en": "Transfer?"},
-    "reorder.transfer.col_sku": {"ru": "SKU", "uk": "SKU", "en": "SKU"},
-    "reorder.transfer.col_product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
-    "reorder.transfer.col_route": {"ru": "Маршрут", "uk": "Маршрут", "en": "Route"},
-    "reorder.transfer.col_qty": {"ru": "Перебросить, шт", "uk": "Перекинути, шт", "en": "Transfer, pcs"},
-    "reorder.transfer.col_from_stock": {"ru": "Донор: остаток", "uk": "Донор: залишок", "en": "Donor: stock"},
-    "reorder.transfer.col_to_cover": {"ru": "Получатель: хватит, дн", "uk": "Отримувач: вистачить, дн", "en": "Recipient: covers, days"},
-    "reorder.transfer.col_to_cover_help": {
-        "ru": "На сколько дней хватит в стране-получателе сейчас",
-        "uk": "На скільки днів вистачить у країні-отримувачі зараз",
-        "en": "How many days of cover the recipient country has now",
-    },
-    "reorder.transfer.unit_pcs": {"ru": "шт", "uk": "шт", "en": "pcs"},
-    "reorder.transfer.confirm_button": {"ru": "🔄 Подтвердить переброску ({n})", "uk": "🔄 Підтвердити переброс ({n})", "en": "🔄 Confirm transfer ({n})"},
-    "reorder.transfer.confirm_success": {
-        "ru": "Переброска подтверждена: {n} позиций. Дальше — оформление перемещения (ТТН) на вашей стороне.",
-        "uk": "Переброс підтверджено: {n} позицій. Далі — оформлення переміщення (ТТН) на вашій стороні.",
-        "en": "Transfer confirmed: {n} items. Next — arrange the shipment (waybill) on your side.",
-    },
-    "reorder.transfer.export_button": {"ru": "⬇️ Экспорт переброски CSV", "uk": "⬇️ Експорт переброса CSV", "en": "⬇️ Export transfer CSV"},
-
     # --- 5_Money.py: юнит-экономика ---
     "money.title": {"ru": "Деньги", "uk": "Гроші", "en": "Money"},
     "money.caption": {
@@ -652,26 +643,23 @@ TRANSLATIONS = {
         "uk": "Дані економіки ще не розраховані. Запусти агрегатор.",
         "en": "Economics not calculated yet. Run the aggregator.",
     },
-    "money.filter.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
-    "money.filter.country_ph": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
     "money.filter.search": {"ru": "Поиск по SKU", "uk": "Пошук за SKU", "en": "Search SKU"},
     "money.filter.search_ph": {"ru": "напр. 41324000", "uk": "напр. 41324000", "en": "e.g. 41324000"},
     "money.kpi.revenue": {"ru": "Выручка ({d} дн)", "uk": "Виручка ({d} дн)", "en": "Revenue ({d}d)"},
     "money.kpi.net": {"ru": "Чистыми", "uk": "Чистими", "en": "Net proceeds"},
     "money.kpi.net_help": {
-        "ru": "После вычета всех комиссий Amazon",
-        "uk": "Після вирахування всіх комісій Amazon",
-        "en": "After all Amazon fees",
+        "ru": "После вычета всех комиссий маркетплейса",
+        "uk": "Після вирахування всіх комісій маркетплейсу",
+        "en": "After all marketplace fees",
     },
     "money.kpi.margin": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
     "money.kpi.fees": {"ru": "Комиссии", "uk": "Комісії", "en": "Fees"},
     "money.kpi.fees_help": {
-        "ru": "Сколько всего забрал Amazon",
-        "uk": "Скільки всього забрав Amazon",
-        "en": "Total Amazon took",
+        "ru": "Сколько всего забрал маркетплейс",
+        "uk": "Скільки всього забрав маркетплейс",
+        "en": "Total marketplace fees",
     },
     "money.tab.by_sku": {"ru": "📦 По товарам", "uk": "📦 За товарами", "en": "📦 By product"},
-    "money.tab.by_country": {"ru": "🌍 По странам", "uk": "🌍 За країнами", "en": "🌍 By country"},
     "money.tab.fees": {"ru": "💸 Комиссии", "uk": "💸 Комісії", "en": "💸 Fees"},
     "money.top_profit": {
         "ru": "Топ прибыльных (чистыми, €)",
@@ -687,35 +675,29 @@ TRANSLATIONS = {
     "money.col.net": {"ru": "Чистыми", "uk": "Чистими", "en": "Net"},
     "money.col.ppu": {"ru": "Прибыль/шт", "uk": "Прибуток/шт", "en": "Profit/unit"},
     "money.col.margin": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
-    "money.col.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
     "money.download": {"ru": "⬇️ Скачать CSV", "uk": "⬇️ Завантажити CSV", "en": "⬇️ Download CSV"},
-    "money.country_chart": {
-        "ru": "Чистая прибыль и комиссии по странам",
-        "uk": "Чистий прибуток і комісії за країнами",
-        "en": "Net proceeds & fees by country",
-    },
-    "money.fees_title": {
-        "ru": "Какую долю выручки забирают комиссии",
-        "uk": "Яку частку виручки забирають комісії",
-        "en": "What share of revenue fees take",
-    },
-    "money.fees_by_country": {
-        "ru": "Доля комиссий от выручки по странам (%)",
-        "uk": "Частка комісій від виручки за країнами (%)",
-        "en": "Fees as % of revenue by country",
-    },
     "money.fees_axis": {"ru": "% от выручки", "uk": "% від виручки", "en": "% of revenue"},
     "money.struct_title": {"ru": "Куда уходит выручка", "uk": "Куди йде виручка", "en": "Where revenue goes"},
     "money.struct.net": {"ru": "Чистыми нам", "uk": "Чистими нам", "en": "Net to us"},
-    "money.struct.fees": {"ru": "Комиссии Amazon", "uk": "Комісії Amazon", "en": "Amazon fees"},
+    "money.struct.fees": {"ru": "Комиссии маркетплейса", "uk": "Комісії маркетплейсу", "en": "Marketplace fees"},
     "money.struct.other": {"ru": "Прочее", "uk": "Інше", "en": "Other"},
-    "money.fees_note": {
-        "ru": "Комиссии включают FBA-фи, реферальные и прочие сборы Amazon. "
-              "Себестоимость товара (COGS) сюда не входит — это отдельный слой.",
-        "uk": "Комісії включають FBA-фі, реферальні та інші збори Amazon. "
-              "Собівартість (COGS) сюди не входить — окремий шар.",
-        "en": "Fees include FBA, referral and other Amazon charges. "
-              "COGS is not included — separate layer.",
+
+    # --- 5_Money.py: мультиканальность (Amazon + Leroy Merlin и далее) ---
+    "money.filter.marketplace": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
+    "money.filter.marketplace_ph": {"ru": "Все каналы", "uk": "Всі канали", "en": "All channels"},
+    "money.tab.by_marketplace": {
+        "ru": "🌍 По маркетплейсам", "uk": "🌍 За маркетплейсами", "en": "🌍 By marketplace",
+    },
+    "money.col.marketplace": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
+    "money.marketplace_chart": {
+        "ru": "Прибыль и расходы по маркетплейсам",
+        "uk": "Прибуток і витрати за маркетплейсами",
+        "en": "Profit & costs by marketplace",
+    },
+    "money.fees_by_marketplace": {
+        "ru": "Доля комиссий от выручки по маркетплейсам (%)",
+        "uk": "Частка комісій від виручки за маркетплейсами (%)",
+        "en": "Fees as % of revenue by marketplace",
     },
 
     # --- 5_Money.py: P&L (COGS + реклама + CM) ---
@@ -748,9 +730,9 @@ TRANSLATIONS = {
     "money.col.cm_pct_help": {"ru": "Прибыль ÷ выручка, %", "uk": "Прибуток ÷ виторг, %", "en": "Profit ÷ revenue, %"},
     "money.col.cm_help": {"ru": "Чистыми − COGS − реклама", "uk": "Чистими − COGS − реклама", "en": "Net − COGS − ads"},
     "money.col.net_help": {
-        "ru": "Выручка минус все комиссии Amazon (Data Kiosk)",
-        "uk": "Виручка мінус всі комісії Amazon",
-        "en": "Revenue minus all Amazon fees",
+        "ru": "Выручка минус все комиссии маркетплейса",
+        "uk": "Виручка мінус всі комісії маркетплейсу",
+        "en": "Revenue minus all marketplace fees",
     },
     "money.col.cogs_help": {
         "ru": "Себестоимость проданного за период",
@@ -789,10 +771,10 @@ TRANSLATIONS = {
         "en": "🟠 Margin <5%: {n} SKU ({skus})",
     },
     "money.pnl_note": {
-        "ru": "P&L = выручка − комиссии Amazon (Data Kiosk) − себестоимость (ERP) − реклама (Ads). "
+        "ru": "P&L = выручка − комиссии маркетплейса − себестоимость (ERP) − реклама. "
               "Логистика не учтена — добавим, когда появится стоимость доставки.",
-        "uk": "P&L = виручка − комісії Amazon − собівартість − реклама. Логістика не врахована.",
-        "en": "P&L = revenue − Amazon fees − COGS − ads. Logistics not included yet.",
+        "uk": "P&L = виручка − комісії маркетплейсу − собівартість − реклама. Логістика не врахована.",
+        "en": "P&L = revenue − marketplace fees − COGS − ads. Logistics not included yet.",
     },
     "money.struct_pie_title": {
         "ru": "Куда уходит выручка (после комиссий)",
@@ -812,14 +794,14 @@ TRANSLATIONS = {
         "en": "How revenue turns into profit",
     },
     "money.wf.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
-    "money.wf.fees": {"ru": "Комиссии Amazon", "uk": "Комісії Amazon", "en": "Amazon fees"},
+    "money.wf.fees": {"ru": "Комиссии маркетплейса", "uk": "Комісії маркетплейсу", "en": "Marketplace fees"},
     "money.wf.cogs": {"ru": "Себестоимость", "uk": "Собівартість", "en": "COGS"},
     "money.wf.ads": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
     "money.wf.cm": {"ru": "Прибыль (CM)", "uk": "Прибуток (CM)", "en": "Profit (CM)"},
     "money.waterfall_caption": {
-        "ru": "Водопад за 30 дней: из выручки по шагам вычитаются комиссии, себестоимость и реклама.",
-        "uk": "Водоспад за 30 днів: з виручки по кроках віднімаються комісії, собівартість і реклама.",
-        "en": "30-day waterfall: fees, COGS and ads are deducted from revenue step by step.",
+        "ru": "Водопад за период: из выручки по шагам вычитаются комиссии, себестоимость и реклама.",
+        "uk": "Водоспад за період: з виручки по кроках віднімаються комісії, собівартість і реклама.",
+        "en": "Waterfall for the period: fees, COGS and ads are deducted from revenue step by step.",
     },
 
     # --- 5_Money.py: алерты по рекламе ---
@@ -853,6 +835,13 @@ TRANSLATIONS = {
     "money.period.custom": {"ru": "Свой", "uk": "Свій", "en": "Custom"},
     "money.period.range": {"ru": "Даты от–до", "uk": "Дати від–до", "en": "Date range"},
     "money.period.pick": {"ru": "Выбери обе даты периода", "uk": "Обери обидві дати періоду", "en": "Pick both dates"},
+
+    # --- 6_Dictionaries.py ---
+    "nav.dictionaries_hint": {
+        "ru": "Справочники складов, цепочек подпитки, маркетплейсов, пулов и нормативов",
+        "uk": "Довідники складів, ланцюгів підживлення, маркетплейсів, пулів і нормативів",
+        "en": "Warehouses, supply chains, marketplaces, pools and coverage norms",
+    },
 }
 
 
@@ -887,7 +876,6 @@ def language_toggle(location=None):
         st.session_state.lang = current
 
     loc.caption(t("common.language_label"))
-
     if hasattr(loc, "segmented_control"):
         choice = loc.segmented_control(
             "Язык",
@@ -906,7 +894,6 @@ def language_toggle(location=None):
             label_visibility="collapsed",
             key="lang_toggle_widget",
         )
-
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
