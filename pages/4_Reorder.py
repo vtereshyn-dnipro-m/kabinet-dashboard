@@ -441,4 +441,4 @@ if not ordered.empty:
         )
 
 with st.expander(t("ro.how.title")):
-    st.markdown(t("ro.how.body")) 
+    st.markdown(t("ro.how.body"))
