@@ -174,6 +174,11 @@ TRANSLATIONS = {
         "uk": "⬇️ Завантажити квоти каналів CSV",
         "en": "⬇️ Download channel quotas CSV",
     },
+    "stock.only_channels": {
+        "ru": "В последнем снапшоте только квоты каналов, физических остатков нет. Показаны квоты.",
+        "uk": "В останньому знімку лише квоти каналів, фізичних залишків немає. Показані квоти.",
+        "en": "The latest snapshot contains only channel quotas, no physical stock. Showing quotas.",
+    },
     "stock.no_data_warning": {"ru": "Нет данных в kabinet_data.stock_local", "uk": "Немає даних у kabinet_data.stock_local", "en": "No data in kabinet_data.stock_local"},
 
     # --- home.py ---
