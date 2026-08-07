@@ -3,12 +3,13 @@ import streamlit as st
 from i18n import init_lang, language_toggle, t
 from db.connection import get_connection
 
+init_lang()
+
 st.set_page_config(
-    page_title="Кабинет Demand & Supply — Dnipro-M",
+    page_title=t("app.page_title"),
     page_icon="📦",
     layout="wide",
 )
-init_lang()
 
 # ---------- скрываем служебные элементы Streamlit Cloud ----------
 # ВАЖНО: CSS собирается конкатенацией без переносов строк.
@@ -50,10 +51,14 @@ pages = st.navigation({
     ],
 })
 
+
 # ---------- бейджи-счётчики в сайдбаре ----------
 @st.cache_data(ttl=60)
 def get_nav_badge_counts():
-    """Открытых инцидентов и SKU к заказу (critical+warning) — для бейджей."""
+    """Открытых инцидентов и SKU к заказу (critical+warning) — для бейджей.
+
+    Инциденты считаются по всем источникам: остатки, реклама, Leroy Merlin и т.д.
+    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -71,6 +76,7 @@ def get_nav_badge_counts():
         return {"incidents": 0, "reorder": 0}
     finally:
         conn.close()
+
 
 def inject_nav_badges(counts: dict):
     """Streamlit не поддерживает бейджи в st.Page нативно — добавляем через JS.
@@ -112,6 +118,7 @@ def inject_nav_badges(counts: dict):
     applyNavBadges();
     </script>
     """, unsafe_allow_html=True)
+
 
 inject_nav_badges(get_nav_badge_counts())
 pages.run()
