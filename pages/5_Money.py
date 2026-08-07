@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
 from db.connection import get_connection
 from i18n import init_lang, t
 
@@ -22,6 +23,7 @@ st.markdown("""
 st.title(t("money.title"))
 st.caption(t("money.caption"))
 
+
 def clean_sku(sku: str) -> str:
     s = str(sku or "").strip()
     s = re.sub(r"^amzn\.gr\.", "", s)
@@ -30,7 +32,26 @@ def clean_sku(sku: str) -> str:
     s = re.sub(r"-[A-Za-z]$", "", s)
     return s.strip(" -")
 
+
+# домены Amazon по коду маркетплейса — ссылка на листинг строится по стране,
+# а не всегда на amazon.es. Каналы вне Amazon (LM и т.п.) ссылки не получают.
+AMAZON_DOMAIN = {
+    "ES": "amazon.es", "DE": "amazon.de", "FR": "amazon.fr", "IT": "amazon.it",
+    "NL": "amazon.nl", "BE": "amazon.com.be", "SE": "amazon.se", "PL": "amazon.pl",
+    "IE": "amazon.ie", "UK": "amazon.co.uk", "GB": "amazon.co.uk",
+}
+
+
+def amazon_url(marketplace: str, asin) -> str | None:
+    """Ссылка на листинг Amazon. Для не-Amazon каналов возвращает None."""
+    dom = AMAZON_DOMAIN.get(str(marketplace or "").upper())
+    if not dom or asin is None or str(asin) in ("None", "nan", ""):
+        return None
+    return f"https://www.{dom}/dp/{asin}"
+
+
 WINDOW_DEFAULT = 30
+
 
 @st.cache_data(ttl=600)
 def load_pnl(days: int, d_from=None, d_to=None):
@@ -71,6 +92,7 @@ def load_pnl(days: int, d_from=None, d_to=None):
     conn.close()
     return df
 
+
 # ---------- выбор периода ----------
 pc1, pc2 = st.columns([2, 2])
 with pc1:
@@ -95,6 +117,7 @@ if period == t("money.period.custom"):
 else:
     WINDOW = int(period)
     df = load_pnl(WINDOW)
+
 if df.empty:
     st.info(t("money.empty"))
     st.stop()
@@ -108,9 +131,9 @@ df["cogs_total"] = df["cogs_unit"] * df["units"]
 c1, c2 = st.columns([1, 2])
 with c1:
     mp_filter = st.multiselect(
-        t("money.filter.country"),
+        t("money.filter.marketplace"),
         sorted(df["marketplace"].dropna().unique().tolist()),
-        placeholder=t("money.filter.country_ph"),
+        placeholder=t("money.filter.marketplace_ph"),
     )
 with c2:
     search = st.text_input(t("money.filter.search"), placeholder=t("money.filter.search_ph"))
@@ -140,31 +163,34 @@ k5.metric(t("money.kpi.cm"), f"{cm:,.0f} €", delta=f"{cm_pct:.1f}%",
 st.divider()
 
 tab_pnl, tab_country, tab_fees, tab_alerts = st.tabs(
-    [t("money.tab.pnl"), t("money.tab.by_country"), t("money.tab.fees"),
+    [t("money.tab.pnl"), t("money.tab.by_marketplace"), t("money.tab.fees"),
      t("money.tab.alerts")]
 )
+
 BLUE = "#1f77b4"
 ACCENT = "#e8484d"
 GREEN = "#2e9e5b"
 
+
 def safe_div(a, b):
     return np.where(b > 0, a / np.where(b > 0, b, 1), 0.0)
+
 
 # ---------- P&L по товарам ----------
 with tab_pnl:
     by_sku = (f.groupby(["sku_display", "norm_sku"], as_index=False)
                 .agg(product_name=("product_name", "first"),
                      asin=("asin", "first"),
+                     marketplace=("marketplace", "first"),
                      units=("units", "sum"), revenue=("revenue", "sum"),
                      fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum"),
                      cogs=("cogs_total", "sum"), ads=("ads", "sum")))
     by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
     by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
-    by_sku["amazon_url"] = np.where(
-        by_sku["asin"].notna() & (by_sku["asin"].astype(str) != "None"),
-        "https://www.amazon.es/dp/" + by_sku["asin"].astype(str),
-        None)
+    by_sku["amazon_url"] = [
+        amazon_url(mp, a) for mp, a in zip(by_sku["marketplace"], by_sku["asin"])
+    ]
 
     def flag(row):
         if row["cm"] < 0:
@@ -174,6 +200,7 @@ with tab_pnl:
         if row["cm_pct"] < 15:
             return "🟡"
         return "🟢"
+
     by_sku["flag_col"] = by_sku.apply(flag, axis=1)
 
     @st.cache_data(ttl=600)
@@ -210,6 +237,7 @@ with tab_pnl:
                     & (by_sku["revenue"] >= MIN_REV_ALERT)]
     thin = by_sku[(by_sku["cm"] >= 0) & (by_sku["cm_pct"] < 5)
                   & (by_sku["revenue"] >= MIN_REV_ALERT * 5)]
+
     if not losers.empty or not thin.empty:
         alert_parts = []
         if not losers.empty:
@@ -222,11 +250,10 @@ with tab_pnl:
 
     # ---------- Waterfall: как выручка превращается в прибыль ----------
     st.markdown(f"**{t('money.waterfall_title')}**")
-    import plotly.graph_objects as go
     wf = go.Figure(go.Waterfall(
         orientation="v",
         measure=["absolute", "relative", "relative", "relative", "total"],
-        x=[t("money.wf.revenue"), t("money.wf.fees"), "COGS",
+        x=[t("money.wf.revenue"), t("money.wf.fees"), t("money.wf.cogs"),
            t("money.wf.ads"), t("money.wf.cm")],
         y=[tot_rev, -(tot_rev - tot_net), -tot_cogs, -tot_ads, 0],
         text=[f"{tot_rev:,.0f}€", f"−{tot_rev - tot_net:,.0f}€",
@@ -274,13 +301,14 @@ with tab_pnl:
     )
     st.caption(t("money.legend"))
     st.caption(t("money.pnl_note"))
+
     st.download_button(
         t("money.download"),
         by_sku.to_csv(index=False).encode("utf-8-sig"),
         file_name="pnl_by_sku.csv", mime="text/csv",
     )
 
-# ---------- по странам ----------
+# ---------- по маркетплейсам ----------
 with tab_country:
     by_c = (f.groupby("marketplace", as_index=False)
               .agg(units=("units", "sum"), revenue=("revenue", "sum"),
@@ -303,7 +331,7 @@ with tab_country:
     part_names = {"cm": t("money.col.cm"), "cogs": "COGS", "ads": t("money.col.ads")}
     melt["part"] = melt["part"].map(part_names)
     fig = px.bar(melt, x="marketplace", y="eur", color="part",
-                 title=t("money.country_chart"),
+                 title=t("money.marketplace_chart"),
                  color_discrete_sequence=[GREEN, "#9aa4b2", ACCENT])
     fig.update_layout(height=380, xaxis_title=None, yaxis_title="€",
                       margin=dict(l=10, r=10, t=50, b=10))
@@ -313,7 +341,7 @@ with tab_country:
         by_c[["marketplace", "units", "revenue", "net_proceeds", "cogs", "ads", "cm", "cm_pct"]],
         use_container_width=True, hide_index=True,
         column_config={
-            "marketplace": st.column_config.TextColumn(t("money.col.country")),
+            "marketplace": st.column_config.TextColumn(t("money.col.marketplace")),
             "units": st.column_config.NumberColumn(t("money.col.units")),
             "revenue": st.column_config.NumberColumn(t("money.col.revenue"), format="%.0f €"),
             "net_proceeds": st.column_config.NumberColumn(t("money.col.net"), format="%.0f €"),
@@ -344,7 +372,7 @@ with tab_fees:
     fee_share["fees_pct"] = np.round(safe_div(fee_share["fees"], fee_share["revenue"]) * 100, 1)
     fig = px.bar(fee_share.sort_values("fees_pct", ascending=False),
                  x="marketplace", y="fees_pct", text="fees_pct",
-                 title=t("money.fees_by_country"), color_discrete_sequence=["#f2b134"])
+                 title=t("money.fees_by_marketplace"), color_discrete_sequence=["#f2b134"])
     fig.update_traces(texttemplate="%{text:.0f}%")
     fig.update_layout(height=340, xaxis_title=None, yaxis_title=t("money.fees_axis"),
                       margin=dict(l=10, r=10, t=50, b=10))
@@ -384,6 +412,7 @@ with tab_alerts:
         z = alerts[alerts["alert_type"] == "zero_sales"]
         n = alerts[alerts["alert_type"] == "negative_cm"]
         w = alerts[alerts["alert_type"] == "wasted_days"]
+
         a1, a2, a3 = st.columns(3)
         a1.metric(t("money.alerts.zero"), len(z),
                   delta=f"−{z['ads_spend'].sum():,.0f} €" if len(z) else None,
