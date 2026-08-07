@@ -102,12 +102,16 @@ df = df[~df["is_defect"]].copy()             # основной сток — б�
 # (например, офферы Leroy Merlin — часть мадридского стока).
 # Смешивать их с физическим остатком нельзя: получится двойной счёт.
 RESERVE_STATUS = "reserve"
-reserve_df = df[df["availability_status"] == RESERVE_STATUS].copy()
-df = df[df["availability_status"] != RESERVE_STATUS].copy()
+_status_norm = df["availability_status"].astype(str).str.strip().str.lower()
+reserve_df = df[_status_norm == RESERVE_STATUS].copy()
+df = df[_status_norm != RESERVE_STATUS].copy()
 
-if df.empty:
-    st.warning(t("stock.no_data_warning"))
-    st.stop()
+# страховка: если физических строк не осталось (например, в снапшот попали
+# только квоты каналов) — показываем то, что есть, но честно предупреждаем
+if df.empty and not reserve_df.empty:
+    st.info(t("stock.only_channels"))
+    df = reserve_df.copy()
+    reserve_df = reserve_df.iloc[0:0]
 
 # ---------- фильтры ----------
 c1, c2, c3, c4 = st.columns(4)
@@ -561,4 +565,4 @@ with tab_table:
         f.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"stock_{f['snapshot_date'].max()}.csv",
         mime="text/csv",
-    ) 
+    )
