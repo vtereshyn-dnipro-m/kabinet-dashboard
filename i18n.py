@@ -841,6 +841,219 @@ TRANSLATIONS = {
     "money.period.range": {"ru": "Даты от–до", "uk": "Дати від–до", "en": "Date range"},
     "money.period.pick": {"ru": "Выбери обе даты периода", "uk": "Обери обидві дати періоду", "en": "Pick both dates"},
 
+    # --- 7_Reviews.py: монитор запросов на отзывы ---
+    "nav.reviews": {"ru": "Отзывы", "uk": "Відгуки", "en": "Reviews"},
+    "rev.title": {"ru": "Отзывы", "uk": "Відгуки", "en": "Reviews"},
+    "rev.caption": {
+        "ru": "Автоматические запросы на отзыв: сколько уходит, что покрыто, где теряем",
+        "uk": "Автоматичні запити на відгук: скільки йде, що покрито, де втрачаємо",
+        "en": "Automated review requests: how many go out, what is covered, where we lose",
+    },
+    "rev.no_table": {
+        "ru": "Рассылка ещё не запускалась — таблица журнала не создана.",
+        "uk": "Розсилка ще не запускалась — таблиця журналу не створена.",
+        "en": "The mailing hasn't run yet — the log table does not exist.",
+    },
+    "rev.empty": {
+        "ru": "Журнал пуст. Запусти отправитель в пайплайне.",
+        "uk": "Журнал порожній. Запусти відправник у пайплайні.",
+        "en": "The log is empty. Run the sender in the pipeline.",
+    },
+    "rev.health_ok": {
+        "ru": "Рассылка работает. Последняя отправка: {when}",
+        "uk": "Розсилка працює. Остання відправка: {when}",
+        "en": "Mailing is running. Last send: {when}",
+    },
+    "rev.health_stopped": {
+        "ru": "Рассылка не работает {h:.0f} ч. Порог — 25 ч. Проверь расписание отправителя.",
+        "uk": "Розсилка не працює {h:.0f} год. Поріг — 25 год. Перевір розклад відправника.",
+        "en": "No sends for {h:.0f}h (threshold 25h). Check the sender schedule.",
+    },
+    "rev.health_never": {
+        "ru": "Ни одного запроса ещё не отправлено.",
+        "uk": "Жодного запиту ще не надіслано.",
+        "en": "No requests have been sent yet.",
+    },
+    "rev.period": {"ru": "Период", "uk": "Період", "en": "Period"},
+    "rev.kpi.today": {"ru": "Отправлено сегодня", "uk": "Надіслано сьогодні", "en": "Sent today"},
+    "rev.kpi.week": {"ru": "За 7 дней", "uk": "За 7 днів", "en": "Last 7 days"},
+    "rev.kpi.week_help": {
+        "ru": "Запросов на отзыв отправлено за последнюю неделю",
+        "uk": "Запитів на відгук надіслано за останній тиждень",
+        "en": "Review requests sent over the last week",
+    },
+    "rev.kpi.pool": {"ru": "Ждут обработки", "uk": "Чекають обробки", "en": "Pending"},
+    "rev.kpi.pool_help": {
+        "ru": "Заказы в окне 8–33 дня, по которым запрос ещё не проверяли",
+        "uk": "Замовлення у вікні 8–33 дні, по яких запит ще не перевіряли",
+        "en": "Orders in the 8–33 day window not yet processed",
+    },
+    "rev.kpi.burning": {"ru": "Окно закрывается", "uk": "Вікно закривається", "en": "Closing soon"},
+    "rev.kpi.burning_help": {
+        "ru": "Заказы старше 26 дней — окно отправки скоро закроется",
+        "uk": "Замовлення старші 26 днів — вікно відправки скоро закриється",
+        "en": "Orders older than 26 days — the send window is about to close",
+    },
+    "rev.kpi.skipped": {"ru": "Пропущено (возврат)", "uk": "Пропущено (повернення)", "en": "Skipped (returns)"},
+    "rev.kpi.skipped_help": {
+        "ru": "По этим заказам был возврат — запрос на отзыв не отправляем",
+        "uk": "По цих замовленнях було повернення — запит на відгук не надсилаємо",
+        "en": "These orders had a return — no review request is sent",
+    },
+    "rev.tab.coverage": {"ru": "Покрытие", "uk": "Покриття", "en": "Coverage"},
+    "rev.tab.marketplace": {"ru": "По маркетплейсам", "uk": "За маркетплейсами", "en": "By marketplace"},
+    "rev.tab.age": {"ru": "Возраст заказа", "uk": "Вік замовлення", "en": "Order age"},
+    "rev.tab.asin": {"ru": "По товарам", "uk": "За товарами", "en": "By product"},
+    "rev.sum.orders": {"ru": "Заказов", "uk": "Замовлень", "en": "Orders"},
+    "rev.sum.matured_only": {
+        "ru": "Только дозревшие даты — свежие заказы ещё не в окне отправки",
+        "uk": "Лише дозрілі дати — свіжі замовлення ще не у вікні відправки",
+        "en": "Matured dates only — fresh orders are not in the send window yet",
+    },
+    "rev.sum.processed": {"ru": "Обработано", "uk": "Оброблено", "en": "Processed"},
+    "rev.sum.coverage": {"ru": "Покрытие", "uk": "Покриття", "en": "Coverage"},
+    "rev.sum.missed": {"ru": "Упущено", "uk": "Втрачено", "en": "Missed"},
+    "rev.sum.missed_help": {
+        "ru": "Окно отправки закрылось, а запрос так и не ушёл — отзывы потеряны",
+        "uk": "Вікно відправки закрилось, а запит так і не пішов — відгуки втрачені",
+        "en": "The send window closed with no request sent — reviews lost",
+    },
+    "rev.chart.orders_vs_processed": {
+        "ru": "Заказы и обработка по датам",
+        "uk": "Замовлення та обробка за датами",
+        "en": "Orders and processing by date",
+    },
+    "rev.chart.by_marketplace": {
+        "ru": "Результат обработки по маркетплейсам",
+        "uk": "Результат обробки за маркетплейсами",
+        "en": "Processing outcome by marketplace",
+    },
+    "rev.table.by_date": {"ru": "Покрытие по датам заказа", "uk": "Покриття за датами замовлення", "en": "Coverage by order date"},
+    "rev.col.date": {"ru": "Дата заказа", "uk": "Дата замовлення", "en": "Order date"},
+    "rev.col.orders": {"ru": "Заказов", "uk": "Замовлень", "en": "Orders"},
+    "rev.col.processed": {"ru": "Обработано", "uk": "Оброблено", "en": "Processed"},
+    "rev.col.sent": {"ru": "Отправлено", "uk": "Надіслано", "en": "Sent"},
+    "rev.col.no_action": {"ru": "Amazon отказал", "uk": "Amazon відмовив", "en": "Declined"},
+    "rev.col.no_action_help": {
+        "ru": "Amazon не разрешил запрос: заказ не доставлен, запрос уже был или покупатель отказался от писем",
+        "uk": "Amazon не дозволив запит: замовлення не доставлене, запит уже був або покупець відмовився від листів",
+        "en": "Amazon did not allow the request: not delivered, already requested, or buyer opted out",
+    },
+    "rev.col.skipped": {"ru": "Возврат", "uk": "Повернення", "en": "Return"},
+    "rev.col.skipped_help": {
+        "ru": "По заказу был возврат — запрос не отправляли намеренно",
+        "uk": "По замовленню було повернення — запит не надсилали навмисно",
+        "en": "The order had a return — request deliberately not sent",
+    },
+    "rev.col.coverage": {"ru": "Покрытие", "uk": "Покриття", "en": "Coverage"},
+    "rev.col.pending": {"ru": "Не обработано", "uk": "Не оброблено", "en": "Pending"},
+    "rev.col.status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "rev.col.marketplace": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
+    "rev.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
+    "rev.col.hit_rate": {"ru": "Доля разрешённых", "uk": "Частка дозволених", "en": "Allowed rate"},
+    "rev.col.hit_rate_help": {
+        "ru": "Какую долю проверенных заказов Amazon разрешил запросить",
+        "uk": "Яку частку перевірених замовлень Amazon дозволив запитати",
+        "en": "Share of checked orders Amazon allowed to request",
+    },
+    "rev.st.ok": {"ru": "В норме", "uk": "В нормі", "en": "On target"},
+    "rev.st.catching": {"ru": "Догоняем", "uk": "Доганяємо", "en": "Catching up"},
+    "rev.st.missed": {"ru": "Упущено", "uk": "Втрачено", "en": "Missed"},
+    "rev.st.maturing": {"ru": "Зреет", "uk": "Зріє", "en": "Maturing"},
+    "rev.legend": {
+        "ru": "В норме — покрытие 90% и выше. Догоняем — ниже цели, но окно ещё открыто, "
+              "запросы дошлются. Упущено — окно закрылось, отзывы потеряны. "
+              "Зреет — заказ моложе 8 дней, отправка пока невозможна.",
+        "uk": "В нормі — покриття 90% і вище. Доганяємо — нижче цілі, але вікно ще відкрите, "
+              "запити дошлються. Втрачено — вікно закрилось, відгуки втрачені. "
+              "Зріє — замовлення молодше 8 днів, відправка поки неможлива.",
+        "en": "On target — coverage 90% or above. Catching up — below target but the window "
+              "is still open. Missed — the window closed, reviews are lost. "
+              "Maturing — order younger than 8 days, sending not possible yet.",
+    },
+    "rev.download": {"ru": "Скачать покрытие CSV", "uk": "Завантажити покриття CSV", "en": "Download coverage CSV"},
+    "rev.mp.metric_help": {
+        "ru": "Отправлено запросов и общее покрытие по маркетплейсу",
+        "uk": "Надіслано запитів і загальне покриття за маркетплейсом",
+        "en": "Requests sent and overall coverage for this marketplace",
+    },
+    "rev.age.title": {
+        "ru": "Когда Amazon чаще разрешает запрос",
+        "uk": "Коли Amazon частіше дозволяє запит",
+        "en": "When Amazon is most likely to allow a request",
+    },
+    "rev.age.caption": {
+        "ru": "По оси — возраст заказа в днях. Столбцы — сколько заказов проверено, "
+              "линия — какую долю Amazon разрешил. По этим данным будем настраивать окно отправки.",
+        "uk": "По осі — вік замовлення в днях. Стовпці — скільки замовлень перевірено, "
+              "лінія — яку частку Amazon дозволив. За цими даними налаштуємо вікно відправки.",
+        "en": "X axis — order age in days. Bars show orders checked, the line shows the share "
+              "Amazon allowed. We will tune the send window from this data.",
+    },
+    "rev.age.axis": {"ru": "Дней с даты заказа", "uk": "Днів з дати замовлення", "en": "Days since order"},
+    "rev.age.checked": {"ru": "Проверено", "uk": "Перевірено", "en": "Checked"},
+    "rev.age.no_data": {
+        "ru": "Данных о возрасте пока нет — появятся после первых прогонов.",
+        "uk": "Даних про вік поки немає — зʼявляться після перших прогонів.",
+        "en": "No age data yet — it will appear after the first runs.",
+    },
+    "rev.age.small_sample": {
+        "ru": "Наблюдений пока {n} — мало для выводов. Окно отправки не меняем, "
+              "пока не наберётся хотя бы 200.",
+        "uk": "Спостережень поки {n} — замало для висновків. Вікно відправки не змінюємо, "
+              "поки не набереться щонайменше 200.",
+        "en": "Only {n} observations so far — too few to conclude. The send window stays "
+              "unchanged until at least 200 accumulate.",
+    },
+    "rev.age.enough_sample": {
+        "ru": "Наблюдений: {n}. Выборки достаточно, чтобы обсуждать границы окна отправки.",
+        "uk": "Спостережень: {n}. Вибірки достатньо, щоб обговорювати межі вікна відправки.",
+        "en": "Observations: {n}. Enough data to discuss the send window boundaries.",
+    },
+    "rev.asin.top": {"ru": "Топ товаров по отправкам", "uk": "Топ товарів за відправками", "en": "Top products by requests sent"},
+    "rev.asin.table": {"ru": "Все товары", "uk": "Всі товари", "en": "All products"},
+    "rev.asin.no_data": {
+        "ru": "По товарам данных пока нет.",
+        "uk": "За товарами даних поки немає.",
+        "en": "No product data yet.",
+    },
+    "rev.how.title": {"ru": "Как это работает", "uk": "Як це працює", "en": "How this works"},
+    "rev.how.body": {
+        "ru": (
+            "Раз в сутки система берёт доставленные заказы возрастом 8–33 дня и спрашивает "
+            "у Amazon, можно ли запросить отзыв. Где Amazon разрешает — запрос уходит "
+            "автоматически, письмо покупателю отправляет сам Amazon по своему шаблону.\n\n"
+            "**Заказы с возвратом пропускаются** — просить отзыв у того, кто вернул товар, "
+            "значит собирать негатив.\n\n"
+            "**Почему Amazon отказывает.** Заказ ещё не доставлен, запрос по нему уже "
+            "отправляли раньше, или покупатель отказался от таких писем. Причину Amazon "
+            "не сообщает, поэтому колонка называется просто «Amazon отказал».\n\n"
+            "**Окно 8–33 дня** выбрано с запасом. Реальные границы будем настраивать по "
+            "вкладке «Возраст заказа», когда наберётся статистика."
+        ),
+        "uk": (
+            "Раз на добу система бере доставлені замовлення віком 8–33 дні й питає в Amazon, "
+            "чи можна запросити відгук. Де Amazon дозволяє — запит іде автоматично, лист "
+            "покупцеві надсилає сам Amazon за своїм шаблоном.\n\n"
+            "**Замовлення з поверненням пропускаються** — просити відгук у того, хто повернув "
+            "товар, означає збирати негатив.\n\n"
+            "**Чому Amazon відмовляє.** Замовлення ще не доставлене, запит уже надсилали "
+            "раніше, або покупець відмовився від таких листів. Причину Amazon не повідомляє.\n\n"
+            "**Вікно 8–33 дні** обрано із запасом. Реальні межі налаштуємо за вкладкою "
+            "«Вік замовлення», коли набереться статистика."
+        ),
+        "en": (
+            "Once a day the system takes delivered orders aged 8–33 days and asks Amazon "
+            "whether a review can be requested. Where Amazon allows it, the request is sent "
+            "automatically — Amazon emails the buyer using its own template.\n\n"
+            "**Orders with returns are skipped** — asking for a review from someone who "
+            "returned the item means collecting negative feedback.\n\n"
+            "**Why Amazon declines.** The order is not delivered yet, a request was already "
+            "sent, or the buyer opted out. Amazon does not disclose the reason.\n\n"
+            "**The 8–33 day window** is deliberately wide. Real boundaries will be tuned from "
+            "the Order age tab once enough statistics accumulate."
+        ),
+    },
     # --- 6_Dictionaries.py ---
     "nav.dictionaries_hint": {
         "ru": "Справочники складов, цепочек подпитки, маркетплейсов, пулов и нормативов",
@@ -902,4 +1115,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
