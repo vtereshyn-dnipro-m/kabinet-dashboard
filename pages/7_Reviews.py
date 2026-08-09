@@ -96,7 +96,7 @@ def load_pool() -> pd.DataFrame:
         return pd.read_sql(f"""
             SELECT o.sales_channel,
                    DATE_PART('day', NOW() - o.purchase_date)::int AS age_days,
-                   COUNT(DISTINCT o.amazon_order_id)              AS orders
+                   COUNT(DISTINCT o.order_id)                     AS orders
             FROM kabinet_data.orders_history o
             WHERE o.order_status = 'Shipped'
               AND o.sales_channel LIKE 'Amazon.%%'
@@ -104,7 +104,7 @@ def load_pool() -> pd.DataFrame:
                                       AND NOW() - INTERVAL '{AGE_MIN} days'
               AND NOT EXISTS (
                   SELECT 1 FROM kabinet_data.review_request_log l
-                  WHERE l.amazon_order_id = o.amazon_order_id
+                  WHERE l.amazon_order_id = o.order_id
               )
             GROUP BY 1, 2
         """, conn)
@@ -121,7 +121,7 @@ def load_coverage(days: int) -> pd.DataFrame:
             WITH ord AS (
                 SELECT purchase_date::date AS day,
                        sales_channel,
-                       COUNT(DISTINCT amazon_order_id) AS orders
+                       COUNT(DISTINCT order_id) AS orders
                 FROM kabinet_data.orders_history
                 WHERE order_status = 'Shipped'
                   AND sales_channel LIKE 'Amazon.%%'
@@ -141,7 +141,7 @@ def load_coverage(days: int) -> pd.DataFrame:
                            FILTER (WHERE l.status = 'failed')          AS errors
                 FROM kabinet_data.review_request_log l
                 JOIN kabinet_data.orders_history o
-                  ON o.amazon_order_id = l.amazon_order_id
+                  ON o.order_id = l.amazon_order_id
                 WHERE o.purchase_date >= NOW() - INTERVAL '{days} days'
                 GROUP BY 1, 2
             )
@@ -202,15 +202,21 @@ def load_by_asin(days: int) -> pd.DataFrame:
     try:
         return pd.read_sql(f"""
             SELECT o.asin,
-                   MAX(o.sales_channel)              AS sales_channel,
-                   MAX(o.product_name)               AS product_name,
+                   MAX(o.sales_channel) AS sales_channel,
+                   MAX(s.product_name)  AS product_name,
                    COUNT(DISTINCT l.amazon_order_id)
                        FILTER (WHERE l.status='sent')      AS sent,
                    COUNT(DISTINCT l.amazon_order_id)
                        FILTER (WHERE l.status='no_action') AS no_action
             FROM kabinet_data.review_request_log l
             JOIN kabinet_data.orders_history o
-              ON o.amazon_order_id = l.amazon_order_id
+              ON o.order_id = l.amazon_order_id
+            LEFT JOIN (
+                SELECT asin, MAX(product_name) AS product_name
+                FROM kabinet_data.stock_local
+                WHERE asin IS NOT NULL
+                GROUP BY asin
+            ) s ON s.asin = o.asin
             WHERE COALESCE(l.sent_at, l.checked_at) >= NOW() - INTERVAL '{days} days'
               AND o.asin IS NOT NULL
             GROUP BY o.asin
