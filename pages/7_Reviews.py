@@ -260,35 +260,61 @@ else:
 
 # ---------- как это работает: коротко на видном месте + подробности по клику ----------
 st.markdown(f"""
-<div style="background:rgba(31,119,180,0.08); border:1px solid rgba(31,119,180,0.25);
-            border-radius:10px; padding:12px 18px; margin:8px 0 6px 0; font-size:0.93rem;">
-  ℹ️ {t("rev.how.short")}
+<div style="border:1px solid rgba(128,128,128,0.22); border-left:3px solid {BLUE};
+            border-radius:10px; padding:12px 18px; margin:10px 0 14px 0;
+            background:rgba(31,119,180,0.045);">
+  <div style="font-size:0.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+              color:{BLUE}; margin-bottom:4px;">Как читать дашборд</div>
+  <div style="font-size:0.93rem; line-height:1.55;">
+    Запрос можно отправить только когда заказу {AGE_MIN}–{AGE_MAX} дней.
+    Свежие даты — «Зреет», отправка ещё невозможна. «Догоняем» — окно открыто,
+    система ещё успеет. «Упущено» — окно закрылось, отзыв уже не запросить.
+  </div>
 </div>
 """, unsafe_allow_html=True)
+
 with st.expander(t("rev.how.title")):
     st.markdown(t("rev.how.body"))
-    lg1, lg2 = st.columns([1, 1])
-    with lg1:
-        def _chip(color: str, label: str, desc: str) -> str:
-            return f"""<div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:10px;">
-  <span style="display:inline-block; width:14px; height:14px; border-radius:4px;
-               background:{color}; margin-top:3px; flex-shrink:0;"></span>
-  <span><b>{label}</b> — {desc}</span>
+
+    def _legend_item(color: str, label: str, desc: str) -> str:
+        return f"""<div style="display:flex; gap:10px; align-items:flex-start;">
+  <span style="width:10px; height:10px; border-radius:3px; background:{color};
+               margin-top:5px; flex-shrink:0;"></span>
+  <div>
+    <div style="font-weight:600; font-size:0.88rem;">{label}</div>
+    <div style="font-size:0.8rem; color:{GREY}; line-height:1.4;">{desc}</div>
+  </div>
 </div>"""
 
-        st.markdown(
-            _chip(GREEN, t('rev.st.ok'), t('rev.how.ok_desc'))
-            + _chip(AMBER, t('rev.st.catching'), t('rev.how.catching_desc'))
-            + _chip(ACCENT, t('rev.st.missed'), t('rev.how.missed_desc'))
-            + _chip(GREY, t('rev.st.maturing'), t('rev.how.maturing_desc')),
-            unsafe_allow_html=True,
-        )
-    with lg2:
-        st.code(
-            f"{t('rev.col.coverage')} = {t('rev.col.sent')} / {t('rev.col.orders')} × 100\n"
-            f"{t('rev.col.pending')} = {t('rev.col.orders')} - {t('rev.col.sent')}",
-            language=None,
-        )
+    legend_html = f"""
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+            gap:14px 22px; margin:14px 0 4px 0;">
+  {_legend_item(GREEN, t('rev.st.ok'),
+                "Покрытие 90% и выше — запросы ушли, делать ничего не нужно.")}
+  {_legend_item(AMBER, t('rev.st.catching'),
+                "Ниже цели, но окно ещё открыто — запросы дошлют автоматически.")}
+  {_legend_item(ACCENT, t('rev.st.missed'),
+                f"Окно {AGE_MIN}–{AGE_MAX} дней закрылось, а покрытие осталось низким — "
+                "эти отзывы потеряны навсегда.")}
+  {_legend_item(GREY, t('rev.st.maturing'),
+                f"Заказ младше {AGE_MIN} дней — отправка пока невозможна, это норма.")}
+</div>
+"""
+    st.markdown(legend_html, unsafe_allow_html=True)
+
+    st.markdown(f"""
+<div style="margin-top:6px; border:1px solid rgba(128,128,128,0.22); border-radius:10px;
+            padding:12px 16px; background:rgba(128,128,128,0.05);">
+  <div style="font-size:0.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+              color:{GREY}; margin-bottom:8px;">Формула</div>
+  <code style="font-size:0.87rem; display:block; margin-bottom:4px;">
+    {t('rev.col.coverage')} = {t('rev.col.sent')} / {t('rev.col.orders')} × 100
+  </code>
+  <code style="font-size:0.87rem; display:block;">
+    {t('rev.col.pending')} = {t('rev.col.orders')} − {t('rev.col.sent')}
+  </code>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------- период ----------
 pc1, pc2 = st.columns([2, 3])
