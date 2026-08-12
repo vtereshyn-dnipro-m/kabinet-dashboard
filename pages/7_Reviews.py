@@ -258,6 +258,38 @@ else:
     st.success(t("rev.health_ok").format(
         when=last_sent.strftime("%d.%m %H:%M")))
 
+# ---------- как это работает: коротко на видном месте + подробности по клику ----------
+st.markdown(f"""
+<div style="background:rgba(31,119,180,0.08); border:1px solid rgba(31,119,180,0.25);
+            border-radius:10px; padding:12px 18px; margin:8px 0 6px 0; font-size:0.93rem;">
+  ℹ️ {t("rev.how.short")}
+</div>
+""", unsafe_allow_html=True)
+with st.expander(t("rev.how.title")):
+    st.markdown(t("rev.how.body"))
+    lg1, lg2 = st.columns([1, 1])
+    with lg1:
+        def _chip(color: str, label: str, desc: str) -> str:
+            return f"""<div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:10px;">
+  <span style="display:inline-block; width:14px; height:14px; border-radius:4px;
+               background:{color}; margin-top:3px; flex-shrink:0;"></span>
+  <span><b>{label}</b> — {desc}</span>
+</div>"""
+
+        st.markdown(
+            _chip(GREEN, t('rev.st.ok'), t('rev.how.ok_desc'))
+            + _chip(AMBER, t('rev.st.catching'), t('rev.how.catching_desc'))
+            + _chip(ACCENT, t('rev.st.missed'), t('rev.how.missed_desc'))
+            + _chip(GREY, t('rev.st.maturing'), t('rev.how.maturing_desc')),
+            unsafe_allow_html=True,
+        )
+    with lg2:
+        st.code(
+            f"{t('rev.col.coverage')} = {t('rev.col.sent')} / {t('rev.col.orders')} × 100\n"
+            f"{t('rev.col.pending')} = {t('rev.col.orders')} - {t('rev.col.sent')}",
+            language=None,
+        )
+
 # ---------- период ----------
 pc1, pc2 = st.columns([2, 3])
 with pc1:
@@ -303,7 +335,7 @@ with tab_cov:
                      .agg(orders=("orders", "sum"), sent=("sent", "sum"),
                           no_action=("no_action", "sum"),
                           skipped=("skipped", "sum"), errors=("errors", "sum")))
-        by_day["processed"] = by_day["sent"] + by_day["no_action"] + by_day["skipped"]
+        by_day["processed"] = by_day["sent"]
         by_day["coverage"] = np.round(
             safe_div(by_day["processed"], by_day["orders"]) * 100, 1)
         by_day["pending"] = (by_day["orders"] - by_day["processed"]).clip(lower=0)
@@ -344,9 +376,15 @@ with tab_cov:
         gd = by_day.sort_values("day")
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         fig.add_trace(go.Bar(name=t("rev.col.orders"), x=gd["day"], y=gd["orders"],
-                             marker_color=BLUE), secondary_y=False)
-        fig.add_trace(go.Bar(name=t("rev.col.processed"), x=gd["day"], y=gd["processed"],
-                             marker_color=GREEN), secondary_y=False)
+                             marker_color=BLUE, offsetgroup=0), secondary_y=False)
+        fig.add_trace(go.Bar(name=t("rev.col.sent"), x=gd["day"], y=gd["sent"],
+                             marker_color=GREEN, offsetgroup=1), secondary_y=False)
+        fig.add_trace(go.Bar(name=t("rev.col.no_action"), x=gd["day"], y=gd["no_action"],
+                             marker_color=GREY, offsetgroup=1, base=gd["sent"]),
+                      secondary_y=False)
+        fig.add_trace(go.Bar(name=t("rev.col.skipped"), x=gd["day"], y=gd["skipped"],
+                             marker_color=AMBER, offsetgroup=1,
+                             base=gd["sent"] + gd["no_action"]), secondary_y=False)
         fig.add_trace(go.Scatter(name=t("rev.col.coverage"), x=gd["day"],
                                  y=gd["coverage"], mode="lines+markers",
                                  line=dict(color=ACCENT, width=2)), secondary_y=True)
@@ -358,8 +396,9 @@ with tab_cov:
         fig.update_yaxes(range=[0, 105], ticksuffix="%", showgrid=False,
                          secondary_y=True)
         st.plotly_chart(fig, use_container_width=True)
+        st.caption(t("rev.chart.no_action_note"))
 
-        # ---- таблица по датам ----
+        # ---- таблица по датам (агрегат по всем маркетплейсам) ----
         st.markdown(f"**{t('rev.table.by_date')}**")
         view = by_day.sort_values("day", ascending=False).copy()
         view["day"] = pd.to_datetime(view["day"]).dt.strftime("%d.%m.%Y")
@@ -391,6 +430,62 @@ with tab_cov:
             t("common.refresh") if False else t("rev.download"),
             view.to_csv(index=False).encode("utf-8-sig"),
             file_name="review_coverage.csv", mime="text/csv",
+            key="dl_by_date",
+        )
+
+        # ---- та же таблица, но с разбивкой по маркетплейсу ----
+        st.markdown(f"**{t('rev.table.by_date_marketplace')}**")
+        by_day_mp = (cov.groupby(["day", "sales_channel"], as_index=False)
+                        .agg(orders=("orders", "sum"), sent=("sent", "sum"),
+                             no_action=("no_action", "sum"),
+                             skipped=("skipped", "sum")))
+        by_day_mp["coverage"] = np.round(
+            safe_div(by_day_mp["sent"], by_day_mp["orders"]) * 100, 1)
+        by_day_mp["pending"] = (by_day_mp["orders"] - by_day_mp["sent"]).clip(lower=0)
+        by_day_mp["age"] = (today - pd.to_datetime(by_day_mp["day"])).dt.days
+        by_day_mp["st"] = by_day_mp.apply(
+            lambda row: status_of({"age": row["age"], "coverage": row["coverage"]}),
+            axis=1,
+        )
+        by_day_mp["status"] = by_day_mp["st"].map(ST_LABEL)
+
+        mp_options = sorted(by_day_mp["sales_channel"].dropna().unique().tolist())
+        mp_filter = st.multiselect(
+            t("rev.table.marketplace_filter"), options=mp_options, default=mp_options)
+        view_mp = by_day_mp[by_day_mp["sales_channel"].isin(mp_filter)].copy()
+        view_mp = view_mp.sort_values(["day", "sales_channel"], ascending=[False, True])
+        view_mp["day"] = pd.to_datetime(view_mp["day"]).dt.strftime("%d.%m.%Y")
+
+        st.dataframe(
+            view_mp[["day", "sales_channel", "orders", "sent", "no_action",
+                     "skipped", "coverage", "pending", "status"]],
+            use_container_width=True, height=420, hide_index=True,
+            column_config={
+                "day": st.column_config.TextColumn(t("rev.col.date"), width="small"),
+                "sales_channel": st.column_config.TextColumn(
+                    t("rev.col.marketplace"), width="small"),
+                "orders": st.column_config.NumberColumn(t("rev.col.orders"), width="small"),
+                "sent": st.column_config.NumberColumn(t("rev.col.sent"), width="small"),
+                "no_action": st.column_config.NumberColumn(
+                    t("rev.col.no_action"), width="small",
+                    help=t("rev.col.no_action_help")),
+                "skipped": st.column_config.NumberColumn(
+                    t("rev.col.skipped"), width="small",
+                    help=t("rev.col.skipped_help")),
+                "coverage": st.column_config.ProgressColumn(
+                    t("rev.col.coverage"), format="%.0f%%",
+                    min_value=0, max_value=100),
+                "pending": st.column_config.NumberColumn(
+                    t("rev.col.pending"), width="small"),
+                "status": st.column_config.TextColumn(t("rev.col.status"), width="medium"),
+            },
+        )
+
+        st.download_button(
+            t("rev.download"),
+            view_mp.to_csv(index=False).encode("utf-8-sig"),
+            file_name="review_coverage_by_marketplace.csv", mime="text/csv",
+            key="dl_by_date_mp",
         )
 
 # ═══════════════════════════════════════════════════════════════════
@@ -405,7 +500,7 @@ with tab_mp:
                     .agg(orders=("orders", "sum"), sent=("sent", "sum"),
                          no_action=("no_action", "sum"),
                          skipped=("skipped", "sum")))
-        by_mp["processed"] = by_mp["sent"] + by_mp["no_action"] + by_mp["skipped"]
+        by_mp["processed"] = by_mp["sent"]
         by_mp["coverage"] = np.round(
             safe_div(by_mp["processed"], by_mp["orders"]) * 100, 1)
         by_mp["hit_rate"] = np.round(
@@ -536,7 +631,3 @@ with tab_asin:
                     "url": st.column_config.LinkColumn("", display_text="↗", width="small"),
                 },
             )
-
-st.divider()
-with st.expander(t("rev.how.title")):
-    st.markdown(t("rev.how.body"))
