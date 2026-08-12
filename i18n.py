@@ -971,6 +971,26 @@ TRANSLATIONS = {
               "is still open. Missed — the window closed, reviews are lost. "
               "Maturing — order younger than 8 days, sending not possible yet.",
     },
+    "rev.chart.no_action_note": {
+        "ru": "Серым — заказы, по которым Amazon не разрешил запрос: не доставлен, "
+              "запрос уже был или покупатель отказался от писем. Жёлтым — заказы с возвратом, "
+              "их пропускаем намеренно.",
+        "uk": "Сірим — замовлення, за якими Amazon не дозволив запит: не доставлено, "
+              "запит уже був або покупець відмовився від листів. Жовтим — замовлення з поверненням, "
+              "їх пропускаємо навмисно.",
+        "en": "Grey — orders Amazon did not allow: not delivered, already requested, or the buyer "
+              "opted out. Amber — orders with a return, deliberately skipped.",
+    },
+    "rev.table.by_date_marketplace": {
+        "ru": "Покрытие по датам и маркетплейсам",
+        "uk": "Покриття за датами та маркетплейсами",
+        "en": "Coverage by date and marketplace",
+    },
+    "rev.table.marketplace_filter": {
+        "ru": "Маркетплейсы в таблице",
+        "uk": "Маркетплейси в таблиці",
+        "en": "Marketplaces in the table",
+    },
     "rev.download": {"ru": "Скачать покрытие CSV", "uk": "Завантажити покриття CSV", "en": "Download coverage CSV"},
     "rev.mp.metric_help": {
         "ru": "Отправлено запросов и общее покрытие по маркетплейсу",
