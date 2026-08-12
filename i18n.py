@@ -991,6 +991,49 @@ TRANSLATIONS = {
         "uk": "Маркетплейси в таблиці",
         "en": "Marketplaces in the table",
     },
+    "rev.intro.title": {
+        "ru": "Как читать дашборд",
+        "uk": "Як читати дашборд",
+        "en": "How to read this dashboard",
+    },
+    "rev.intro.body": {
+        "ru": "Запрос можно отправить только когда заказу {min}–{max} дней. "
+              "Свежие даты — «{maturing}», отправка ещё невозможна. "
+              "«{catching}» — окно открыто, система ещё успеет. "
+              "«{missed}» — окно закрылось, отзыв уже не запросить.",
+        "uk": "Запит можна надіслати лише коли замовленню {min}–{max} днів. "
+              "Свіжі дати — «{maturing}», відправка ще неможлива. "
+              "«{catching}» — вікно відкрите, система ще встигне. "
+              "«{missed}» — вікно закрилось, відгук уже не запросити.",
+        "en": "A request can only be sent when the order is {min}–{max} days old. "
+              "Recent dates show «{maturing}» — sending is not possible yet. "
+              "«{catching}» — the window is open, the system will catch up. "
+              "«{missed}» — the window closed, the review can no longer be requested.",
+    },
+    "rev.st.ok_desc": {
+        "ru": "Покрытие 90% и выше — запросы ушли, делать ничего не нужно.",
+        "uk": "Покриття 90% і вище — запити пішли, робити нічого не треба.",
+        "en": "Coverage 90% or above — requests went out, no action needed.",
+    },
+    "rev.st.catching_desc": {
+        "ru": "Ниже цели, но окно ещё открыто — запросы дошлют автоматически.",
+        "uk": "Нижче цілі, але вікно ще відкрите — запити дошлють автоматично.",
+        "en": "Below target, but the window is still open — requests will be sent automatically.",
+    },
+    "rev.st.missed_desc": {
+        "ru": "Окно {min}–{max} дней закрылось, а покрытие осталось низким — "
+              "эти отзывы потеряны навсегда.",
+        "uk": "Вікно {min}–{max} днів закрилось, а покриття залишилось низьким — "
+              "ці відгуки втрачені назавжди.",
+        "en": "The {min}–{max} day window closed with coverage still low — "
+              "these reviews are lost for good.",
+    },
+    "rev.st.maturing_desc": {
+        "ru": "Заказ младше {min} дней — отправка пока невозможна, это норма.",
+        "uk": "Замовлення молодше {min} днів — відправка поки неможлива, це норма.",
+        "en": "The order is younger than {min} days — sending is not possible yet, this is normal.",
+    },
+    "rev.formula.title": {"ru": "Формула", "uk": "Формула", "en": "Formula"},
     "rev.download": {"ru": "Скачать покрытие CSV", "uk": "Завантажити покриття CSV", "en": "Download coverage CSV"},
     "rev.mp.metric_help": {
         "ru": "Отправлено запросов и общее покрытие по маркетплейсу",
