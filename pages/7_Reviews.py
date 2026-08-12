@@ -259,17 +259,19 @@ else:
         when=last_sent.strftime("%d.%m %H:%M")))
 
 # ---------- как это работает: коротко на видном месте + подробности по клику ----------
+_intro_body = t("rev.intro.body").format(
+    min=AGE_MIN, max=AGE_MAX,
+    maturing=t("rev.st.maturing"),
+    catching=t("rev.st.catching"),
+    missed=t("rev.st.missed"),
+)
 st.markdown(f"""
 <div style="border:1px solid rgba(128,128,128,0.22); border-left:3px solid {BLUE};
             border-radius:10px; padding:12px 18px; margin:10px 0 14px 0;
             background:rgba(31,119,180,0.045);">
   <div style="font-size:0.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-              color:{BLUE}; margin-bottom:4px;">Как читать дашборд</div>
-  <div style="font-size:0.93rem; line-height:1.55;">
-    Запрос можно отправить только когда заказу {AGE_MIN}–{AGE_MAX} дней.
-    Свежие даты — «Зреет», отправка ещё невозможна. «Догоняем» — окно открыто,
-    система ещё успеет. «Упущено» — окно закрылось, отзыв уже не запросить.
-  </div>
+              color:{BLUE}; margin-bottom:4px;">{t("rev.intro.title")}</div>
+  <div style="font-size:0.93rem; line-height:1.55;">{_intro_body}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -289,15 +291,12 @@ with st.expander(t("rev.how.title")):
     legend_html = f"""
 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
             gap:14px 22px; margin:14px 0 4px 0;">
-  {_legend_item(GREEN, t('rev.st.ok'),
-                "Покрытие 90% и выше — запросы ушли, делать ничего не нужно.")}
-  {_legend_item(AMBER, t('rev.st.catching'),
-                "Ниже цели, но окно ещё открыто — запросы дошлют автоматически.")}
+  {_legend_item(GREEN, t('rev.st.ok'), t('rev.st.ok_desc'))}
+  {_legend_item(AMBER, t('rev.st.catching'), t('rev.st.catching_desc'))}
   {_legend_item(ACCENT, t('rev.st.missed'),
-                f"Окно {AGE_MIN}–{AGE_MAX} дней закрылось, а покрытие осталось низким — "
-                "эти отзывы потеряны навсегда.")}
+                t('rev.st.missed_desc').format(min=AGE_MIN, max=AGE_MAX))}
   {_legend_item(GREY, t('rev.st.maturing'),
-                f"Заказ младше {AGE_MIN} дней — отправка пока невозможна, это норма.")}
+                t('rev.st.maturing_desc').format(min=AGE_MIN))}
 </div>
 """
     st.markdown(legend_html, unsafe_allow_html=True)
@@ -306,7 +305,7 @@ with st.expander(t("rev.how.title")):
 <div style="margin-top:6px; border:1px solid rgba(128,128,128,0.22); border-radius:10px;
             padding:12px 16px; background:rgba(128,128,128,0.05);">
   <div style="font-size:0.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-              color:{GREY}; margin-bottom:8px;">Формула</div>
+              color:{GREY}; margin-bottom:8px;">{t("rev.formula.title")}</div>
   <code style="font-size:0.87rem; display:block; margin-bottom:4px;">
     {t('rev.col.coverage')} = {t('rev.col.sent')} / {t('rev.col.orders')} × 100
   </code>
@@ -453,7 +452,7 @@ with tab_cov:
         st.caption(t("rev.legend"))
 
         st.download_button(
-            t("common.refresh") if False else t("rev.download"),
+            t("rev.download"),
             view.to_csv(index=False).encode("utf-8-sig"),
             file_name="review_coverage.csv", mime="text/csv",
             key="dl_by_date",
@@ -506,7 +505,6 @@ with tab_cov:
                 "status": st.column_config.TextColumn(t("rev.col.status"), width="medium"),
             },
         )
-
         st.download_button(
             t("rev.download"),
             view_mp.to_csv(index=False).encode("utf-8-sig"),
