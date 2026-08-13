@@ -196,8 +196,9 @@ def load_incidents() -> pd.DataFrame:
     conn = get_connection()
     try:
         return pd.read_sql("""
-            SELECT incident_type, severity, sku, description,
-                   created_at, status
+            SELECT incident_type, severity, sku, warehouse_name,
+                   message, source, created_at,
+                   DATE_PART('day', NOW() - created_at)::int AS days_open
             FROM kabinet_data.incidents
             WHERE status = 'open'
             ORDER BY created_at
@@ -206,29 +207,6 @@ def load_incidents() -> pd.DataFrame:
         return pd.DataFrame()
     finally:
         conn.close()
-
-
-@st.cache_data(ttl=600)
-def load_returns(days: int) -> pd.DataFrame:
-    """Возвраты за период — источник может лежать в другой схеме."""
-    for tbl in ("raw_amazon_returns",):
-        if not table_exists(tbl):
-            continue
-        conn = get_connection()
-        try:
-            return pd.read_sql(f"""
-                SELECT SUBSTRING(sku FROM '([0-9]{{5,}})') AS base_sku,
-                       marketplace, COUNT(*) AS returns_cnt
-                FROM kabinet_data.{tbl}
-                WHERE return_date >= CURRENT_DATE - INTERVAL '{days} days'
-                  AND SUBSTRING(sku FROM '([0-9]{{5,}})') IS NOT NULL
-                GROUP BY 1, 2
-            """, conn)
-        except Exception:
-            return pd.DataFrame()
-        finally:
-            conn.close()
-    return pd.DataFrame()
 
 
 def safe_div(a, b):
@@ -488,53 +466,68 @@ with tab_lm:
 
 with tab_amz:
     inc = load_incidents()
-    rets = load_returns(DAYS)
 
-    a1, a2, a3 = st.columns(3)
-    a1.metric(t("cm.amz.open_incidents"), f"{len(inc):,}" if not inc.empty else "0")
-    a2.metric(t("cm.amz.returns"),
-              f"{int(rets['returns_cnt'].sum()):,}" if not rets.empty else "0",
-              help=t("cm.amz.returns_help").format(d=DAYS))
-    crit = int((inc["severity"] == "critical").sum()) if not inc.empty else 0
-    a3.metric(t("cm.amz.critical"), f"{crit:,}")
-
-    st.divider()
-
-    st.markdown(f"**{t('cm.amz.incidents_title')}**")
     if inc.empty:
         st.success(t("cm.amz.no_incidents"))
     else:
-        inc_view = inc.copy()
-        inc_view["created_at"] = pd.to_datetime(
-            inc_view["created_at"]).dt.strftime("%d.%m.%Y")
+        # инциденты Leroy Merlin живут в общем журнале — здесь показываем
+        # только амазоновские, чтобы вкладки не дублировали друг друга
+        inc["source"] = inc["source"].fillna("amazon")
+        amz = inc[~inc["source"].str.contains("leroy|lm", case=False, na=False)].copy()
+
+        a1, a2, a3, a4 = st.columns(4)
+        a1.metric(t("cm.amz.open_incidents"), f"{len(amz):,}")
+        a2.metric(t("cm.amz.critical"),
+                  f"{int((amz['severity'] == 'critical').sum()):,}")
+        a3.metric(t("cm.amz.high"),
+                  f"{int((amz['severity'] == 'high').sum()):,}")
+        a4.metric(t("cm.amz.oldest"),
+                  f"{int(amz['days_open'].max()) if len(amz) else 0}",
+                  help=t("cm.amz.oldest_help"))
+
+        st.divider()
+
+        # по типу — что именно чаще всего требует внимания
+        by_type = (amz.groupby("incident_type", as_index=False)
+                      .agg(cnt=("incident_type", "size"),
+                           oldest=("days_open", "max"))
+                      .sort_values("cnt", ascending=False))
+        fig = px.bar(by_type.sort_values("cnt"), x="cnt", y="incident_type",
+                     orientation="h", text="cnt",
+                     title=t("cm.amz.by_type"),
+                     color_discrete_sequence=[ACCENT])
+        fig.update_layout(height=max(240, 40 * len(by_type)),
+                          xaxis_title=None, yaxis_title=None,
+                          margin=dict(l=10, r=10, t=50, b=10))
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+
+        st.markdown(f"**{t('cm.amz.incidents_title')}**")
+        view = amz.sort_values("days_open", ascending=False).copy()
+        view["created_at"] = pd.to_datetime(view["created_at"]).dt.strftime("%d.%m.%Y")
         st.dataframe(
-            inc_view[["created_at", "severity", "incident_type", "sku", "description"]],
-            use_container_width=True, height=380, hide_index=True,
+            view[["created_at", "days_open", "severity", "incident_type",
+                  "sku", "warehouse_name", "message"]],
+            use_container_width=True, height=420, hide_index=True,
             column_config={
                 "created_at": st.column_config.TextColumn(
                     t("cm.col.created"), width="small"),
+                "days_open": st.column_config.NumberColumn(
+                    t("cm.col.days_open"), width="small",
+                    help=t("cm.col.days_open_help")),
                 "severity": st.column_config.TextColumn(
                     t("cm.col.severity"), width="small"),
                 "incident_type": st.column_config.TextColumn(
                     t("cm.col.type"), width="small"),
                 "sku": st.column_config.TextColumn("SKU", width="small"),
-                "description": st.column_config.TextColumn(
+                "warehouse_name": st.column_config.TextColumn(
+                    t("cm.col.warehouse"), width="medium"),
+                "message": st.column_config.TextColumn(
                     t("cm.col.description"), width="large"),
             },
         )
+        st.caption(t("cm.amz.incidents_note"))
 
-    if not rets.empty:
-        st.markdown(f"**{t('cm.amz.returns_title')}**")
-        top_ret = rets.nlargest(15, "returns_cnt")
-        fig = px.bar(top_ret.sort_values("returns_cnt"),
-                     x="returns_cnt", y="base_sku", orientation="h",
-                     color_discrete_sequence=[ACCENT], text="returns_cnt")
-        fig.update_layout(height=max(300, 26 * len(top_ret)),
-                          xaxis_title=None, yaxis_title=None,
-                          margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
-
-    st.info(t("cm.amz.sqp_soon"))
+    st.info(t("cm.amz.returns_soon"))
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -594,4 +587,4 @@ with tab_all:
                     t("cm.col.cm_pct"), format="%.1f%%"),
             },
         )
-        st.caption(t("cm.all.note"))
+        st.caption(t("cm.all.note")) 
