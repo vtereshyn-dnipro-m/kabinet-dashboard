@@ -875,26 +875,36 @@ TRANSLATIONS = {
         "en": "No requests have been sent yet.",
     },
     "rev.period": {"ru": "Период", "uk": "Період", "en": "Period"},
-    "rev.kpi.today": {"ru": "Отправлено сегодня", "uk": "Надіслано сьогодні", "en": "Sent today"},
-    "rev.kpi.week": {"ru": "За 7 дней", "uk": "За 7 днів", "en": "Last 7 days"},
+    "rev.kpi.today": {"ru": "Сегодня", "uk": "Сьогодні", "en": "Today"},
+    "rev.kpi.week": {"ru": "За неделю", "uk": "За тиждень", "en": "This week"},
+    "rev.kpi.today_help": {
+        "ru": "Запросов отправлено с начала сегодняшнего дня по киевскому времени",
+        "uk": "Запитів надіслано з початку сьогоднішнього дня за київським часом",
+        "en": "Requests sent since the start of today, Kyiv time",
+    },
+    "rev.col.coverage_help": {
+        "ru": "Доля заказов, по которым запрос реально ушёл: отправлено / заказов × 100",
+        "uk": "Частка замовлень, за якими запит реально пішов: надіслано / замовлень × 100",
+        "en": "Share of orders where the request actually went out: sent / orders × 100",
+    },
     "rev.kpi.week_help": {
         "ru": "Запросов на отзыв отправлено за последнюю неделю",
         "uk": "Запитів на відгук надіслано за останній тиждень",
         "en": "Review requests sent over the last week",
     },
-    "rev.kpi.pool": {"ru": "Ждут обработки", "uk": "Чекають обробки", "en": "Pending"},
+    "rev.kpi.pool": {"ru": "В очереди", "uk": "У черзі", "en": "In queue"},
     "rev.kpi.pool_help": {
         "ru": "Заказы в окне 8–33 дня, по которым запрос ещё не проверяли",
         "uk": "Замовлення у вікні 8–33 дні, по яких запит ще не перевіряли",
         "en": "Orders in the 8–33 day window not yet processed",
     },
-    "rev.kpi.burning": {"ru": "Окно закрывается", "uk": "Вікно закривається", "en": "Closing soon"},
+    "rev.kpi.burning": {"ru": "Горит", "uk": "Горить", "en": "Urgent"},
     "rev.kpi.burning_help": {
         "ru": "Заказы старше 26 дней — окно отправки скоро закроется",
         "uk": "Замовлення старші 26 днів — вікно відправки скоро закриється",
         "en": "Orders older than 26 days — the send window is about to close",
     },
-    "rev.kpi.skipped": {"ru": "Пропущено (возврат)", "uk": "Пропущено (повернення)", "en": "Skipped (returns)"},
+    "rev.kpi.skipped": {"ru": "Возвраты", "uk": "Повернення", "en": "Returns"},
     "rev.kpi.skipped_help": {
         "ru": "По этим заказам был возврат — запрос на отзыв не отправляем",
         "uk": "По цих замовленнях було повернення — запит на відгук не надсилаємо",
@@ -1005,10 +1015,10 @@ TRANSLATIONS = {
               "Свіжі дати — «{maturing}», відправка ще неможлива. "
               "«{catching}» — вікно відкрите, система ще встигне. "
               "«{missed}» — вікно закрилось, відгук уже не запросити.",
-        "en": "A request can only be sent when the order is {min}–{max} days old. "
-              "Recent dates show «{maturing}» — sending is not possible yet. "
-              "«{catching}» — the window is open, the system will catch up. "
-              "«{missed}» — the window closed, the review can no longer be requested.",
+        "en": "A request can only be sent when the order is {min}\u2013{max} days old. "
+              "Recent dates show \u201c{maturing}\u201d \u2014 sending is not possible yet. "
+              "\u201c{catching}\u201d \u2014 the window is open, the system will catch up. "
+              "\u201c{missed}\u201d \u2014 the window closed, the review can no longer be requested.",
     },
     "rev.st.ok_desc": {
         "ru": "Покрытие 90% и выше — запросы ушли, делать ничего не нужно.",
@@ -1048,13 +1058,13 @@ TRANSLATIONS = {
               "а не сбой системы. Разрыв между «Заказов» и «Проверено» — наша зона ответственности.",
         "uk": "Основна втрата — між «Перевірено» і «Amazon дозволив»: це рішення Amazon, "
               "а не збій системи. Розрив між «Замовлень» і «Перевірено» — наша зона відповідальності.",
-        "en": "The main drop is between «Checked» and «Amazon allowed» — that is Amazon's "
-              "decision, not a system failure. The gap between «Orders» and «Checked» is ours.",
+        "en": "The main drop is between \u201cChecked\u201d and \u201cAmazon allowed\u201d — that is Amazon's "
+              "decision, not a system failure. The gap between \u201cOrders\u201d and \u201cChecked\u201d is ours.",
     },
-    "rev.table.sort_by": {
-        "ru": "Сортировка",
-        "uk": "Сортування",
-        "en": "Sort by",
+    "rev.table.sort_hint": {
+        "ru": "Нажми на заголовок колонки, чтобы отсортировать. Повторный клик меняет порядок.",
+        "uk": "Натисни на заголовок колонки, щоб відсортувати. Повторний клік змінює порядок.",
+        "en": "Click a column header to sort. Click again to reverse the order.",
     },
     "rev.table.split_by_marketplace": {
         "ru": "Разбить по маркетплейсам",
@@ -1165,6 +1175,169 @@ TRANSLATIONS = {
             "the Order age tab once enough statistics accumulate."
         ),
     },
+    # --- 8_CM_Dashboard.py: сводка по площадкам и здоровье каналов ---
+    "nav.cm": {"ru": "Сводка CM", "uk": "Зведення CM", "en": "CM Dashboard"},
+    "cm.title": {"ru": "Сводка по площадкам", "uk": "Зведення за майданчиками", "en": "Channel summary"},
+    "cm.caption": {
+        "ru": "Amazon и Leroy Merlin в одной картине: продажи, цены, остатки, здоровье каналов",
+        "uk": "Amazon і Leroy Merlin в одній картині: продажі, ціни, залишки, здоров'я каналів",
+        "en": "Amazon and Leroy Merlin side by side: sales, prices, stock, channel health",
+    },
+    "cm.filter.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "cm.filter.all_countries": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
+    "cm.filter.period": {"ru": "Период", "uk": "Період", "en": "Period"},
+    "cm.tab.summary": {"ru": "Свод по товарам", "uk": "Зведення за товарами", "en": "By product"},
+    "cm.tab.lm_health": {"ru": "Leroy Merlin", "uk": "Leroy Merlin", "en": "Leroy Merlin"},
+    "cm.tab.amazon_health": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
+    "cm.tab.all_countries": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
+    "cm.kpi.skus": {"ru": "Товаров", "uk": "Товарів", "en": "Products"},
+    "cm.kpi.revenue_amazon": {"ru": "Выручка Amazon", "uk": "Виручка Amazon", "en": "Amazon revenue"},
+    "cm.kpi.revenue_lm": {"ru": "Выручка LM", "uk": "Виручка LM", "en": "LM revenue"},
+    "cm.kpi.price_alerts": {"ru": "Расхождения цен", "uk": "Розбіжності цін", "en": "Price gaps"},
+    "cm.kpi.price_alerts_help": {
+        "ru": "Товары, где средняя цена на площадках отличается больше чем на 10%",
+        "uk": "Товари, де середня ціна на майданчиках відрізняється більш ніж на 10%",
+        "en": "Products where the average price differs by more than 10% between channels",
+    },
+    "cm.summary.only_alerts": {
+        "ru": "Только расхождения цен",
+        "uk": "Лише розбіжності цін",
+        "en": "Price gaps only",
+    },
+    "cm.summary.no_alerts": {
+        "ru": "Расхождений цен больше 10% не найдено.",
+        "uk": "Розбіжностей цін понад 10% не знайдено.",
+        "en": "No price gaps above 10% found.",
+    },
+    "cm.summary.note": {
+        "ru": "Остаток Amazon — физический товар на складах FBA. Остаток LM — квота, "
+              "выставленная на канал из мадридского склада, это не отдельный запас.",
+        "uk": "Залишок Amazon — фізичний товар на складах FBA. Залишок LM — квота, "
+              "виставлена на канал з мадридського складу, це не окремий запас.",
+        "en": "Amazon stock is physical inventory in FBA. LM stock is a quota listed on the "
+              "channel out of the Madrid warehouse — not separate inventory.",
+    },
+    "cm.download": {"ru": "Скачать свод CSV", "uk": "Завантажити зведення CSV", "en": "Download summary CSV"},
+    "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
+    "cm.col.units_amazon": {"ru": "Продано AMZ", "uk": "Продано AMZ", "en": "Units AMZ"},
+    "cm.col.revenue_amazon": {"ru": "Выручка AMZ", "uk": "Виручка AMZ", "en": "Revenue AMZ"},
+    "cm.col.price_amazon": {"ru": "Цена AMZ", "uk": "Ціна AMZ", "en": "Price AMZ"},
+    "cm.col.stock_amazon": {"ru": "Остаток AMZ", "uk": "Залишок AMZ", "en": "Stock AMZ"},
+    "cm.col.stock_amazon_help": {
+        "ru": "Физический остаток на складах FBA",
+        "uk": "Фізичний залишок на складах FBA",
+        "en": "Physical stock in FBA warehouses",
+    },
+    "cm.col.units_lm": {"ru": "Продано LM", "uk": "Продано LM", "en": "Units LM"},
+    "cm.col.revenue_lm": {"ru": "Выручка LM", "uk": "Виручка LM", "en": "Revenue LM"},
+    "cm.col.price_lm": {"ru": "Цена LM", "uk": "Ціна LM", "en": "Price LM"},
+    "cm.col.stock_lm": {"ru": "Квота LM", "uk": "Квота LM", "en": "LM quota"},
+    "cm.col.stock_lm_help": {
+        "ru": "Количество, выставленное на канал из мадридского склада",
+        "uk": "Кількість, виставлена на канал з мадридського складу",
+        "en": "Quantity listed on the channel out of the Madrid warehouse",
+    },
+    "cm.col.price_gap": {"ru": "Разница цен", "uk": "Різниця цін", "en": "Price gap"},
+    "cm.col.price_gap_help": {
+        "ru": "Насколько цена на LM выше или ниже цены на Amazon",
+        "uk": "Наскільки ціна на LM вища або нижча за ціну на Amazon",
+        "en": "How much the LM price is above or below the Amazon price",
+    },
+    "cm.lm.no_table": {
+        "ru": "Мониторинг Leroy Merlin ещё не запущен — таблица показателей не создана.",
+        "uk": "Моніторинг Leroy Merlin ще не запущено — таблиця показників не створена.",
+        "en": "Leroy Merlin monitoring is not running yet — the metrics table does not exist.",
+    },
+    "cm.lm.as_of": {"ru": "Данные на {d}", "uk": "Дані на {d}", "en": "Data as of {d}"},
+    "cm.lm.acceptance": {"ru": "Акцепт заказов", "uk": "Акцепт замовлень", "en": "Acceptance rate"},
+    "cm.lm.avg_time": {"ru": "Среднее время", "uk": "Середній час", "en": "Average time"},
+    "cm.lm.p90_time": {"ru": "Худшие 10%", "uk": "Найгірші 10%", "en": "Worst 10%"},
+    "cm.lm.tracking": {"ru": "С трек-номером", "uk": "З трек-номером", "en": "With tracking"},
+    "cm.lm.incidents": {"ru": "Инциденты", "uk": "Інциденти", "en": "Incidents"},
+    "cm.lm.waiting": {"ru": "Ждут акцепта", "uk": "Чекають акцепту", "en": "Awaiting acceptance"},
+    "cm.lm.orders": {"ru": "Заказов", "uk": "Замовлень", "en": "Orders"},
+    "cm.lm.on_time": {"ru": "Отгружено в срок", "uk": "Відвантажено вчасно", "en": "Shipped on time"},
+    "cm.lm.open_incidents": {"ru": "Открытых инцидентов", "uk": "Відкритих інцидентів", "en": "Open incidents"},
+    "cm.lm.trend": {"ru": "Динамика по дням", "uk": "Динаміка за днями", "en": "Daily trend"},
+    "cm.lm.waiting_title": {
+        "ru": "Заказы, ожидающие акцепта",
+        "uk": "Замовлення, що чекають акцепту",
+        "en": "Orders awaiting acceptance",
+    },
+    "cm.lm.waiting_none": {
+        "ru": "Все заказы приняты — ожидающих нет.",
+        "uk": "Усі замовлення прийняті — очікуючих немає.",
+        "en": "All orders accepted — none waiting.",
+    },
+    "cm.lm.waiting_warn": {
+        "ru": "{n} заказ(ов) ждут акцепта. Mirakl отменяет непринятые заказы автоматически — "
+              "их нужно принять в кабинете Leroy Merlin.",
+        "uk": "{n} замовлень чекають акцепту. Mirakl скасовує неприйняті замовлення автоматично — "
+              "їх потрібно прийняти в кабінеті Leroy Merlin.",
+        "en": "{n} order(s) awaiting acceptance. Mirakl cancels unaccepted orders automatically — "
+              "they need to be accepted in the Leroy Merlin back office.",
+    },
+    "cm.amz.open_incidents": {"ru": "Открытых инцидентов", "uk": "Відкритих інцидентів", "en": "Open incidents"},
+    "cm.amz.critical": {"ru": "Критических", "uk": "Критичних", "en": "Critical"},
+    "cm.amz.returns": {"ru": "Возвратов", "uk": "Повернень", "en": "Returns"},
+    "cm.amz.returns_help": {
+        "ru": "Возвраты за последние {d} дней",
+        "uk": "Повернення за останні {d} днів",
+        "en": "Returns over the last {d} days",
+    },
+    "cm.amz.incidents_title": {"ru": "Открытые инциденты", "uk": "Відкриті інциденти", "en": "Open incidents"},
+    "cm.amz.no_incidents": {
+        "ru": "Открытых инцидентов нет.",
+        "uk": "Відкритих інцидентів немає.",
+        "en": "No open incidents.",
+    },
+    "cm.amz.returns_title": {
+        "ru": "Товары с наибольшим числом возвратов",
+        "uk": "Товари з найбільшою кількістю повернень",
+        "en": "Products with the most returns",
+    },
+    "cm.amz.sqp_soon": {
+        "ru": "Показатели поисковых запросов (SQP) появятся здесь после подключения источника.",
+        "uk": "Показники пошукових запитів (SQP) з'являться тут після підключення джерела.",
+        "en": "Search query performance metrics will appear here once the source is connected.",
+    },
+    "cm.col.order": {"ru": "Заказ", "uk": "Замовлення", "en": "Order"},
+    "cm.col.created": {"ru": "Создан", "uk": "Створено", "en": "Created"},
+    "cm.col.state": {"ru": "Состояние", "uk": "Стан", "en": "State"},
+    "cm.col.amount": {"ru": "Сумма", "uk": "Сума", "en": "Amount"},
+    "cm.col.hours_open": {"ru": "Ждёт", "uk": "Чекає", "en": "Waiting"},
+    "cm.col.severity": {"ru": "Уровень", "uk": "Рівень", "en": "Severity"},
+    "cm.col.type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
+    "cm.col.description": {"ru": "Описание", "uk": "Опис", "en": "Description"},
+    "cm.platform.amazon": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
+    "cm.platform.lm": {"ru": "Leroy Merlin", "uk": "Leroy Merlin", "en": "Leroy Merlin"},
+    "cm.all.metric_help": {
+        "ru": "Выручка и маржа за выбранный период",
+        "uk": "Виручка і маржа за обраний період",
+        "en": "Revenue and margin for the selected period",
+    },
+    "cm.all.chart": {
+        "ru": "Выручка по площадкам",
+        "uk": "Виручка за майданчиками",
+        "en": "Revenue by channel",
+    },
+    "cm.all.note": {
+        "ru": "Маржа считается как выручка минус комиссии площадки и себестоимость. "
+              "Реклама и логистика в этот расчёт не входят — они на странице «Деньги».",
+        "uk": "Маржа рахується як виручка мінус комісії майданчика і собівартість. "
+              "Реклама і логістика в цей розрахунок не входять — вони на сторінці «Гроші».",
+        "en": "Margin is revenue minus channel fees and COGS. Ads and logistics are not "
+              "included here — see the Money page.",
+    },
+    "cm.col.marketplace": {"ru": "Площадка", "uk": "Майданчик", "en": "Channel"},
+    "cm.col.platform": {"ru": "Тип", "uk": "Тип", "en": "Type"},
+    "cm.col.skus": {"ru": "Товаров", "uk": "Товарів", "en": "Products"},
+    "cm.col.units": {"ru": "Продано", "uk": "Продано", "en": "Units"},
+    "cm.col.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
+    "cm.col.fees": {"ru": "Комиссии", "uk": "Комісії", "en": "Fees"},
+    "cm.col.fees_pct": {"ru": "Доля комиссий", "uk": "Частка комісій", "en": "Fees share"},
+    "cm.col.cm": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
+    "cm.col.cm_pct": {"ru": "Маржа %", "uk": "Маржа %", "en": "Margin %"},
     # --- 6_Dictionaries.py ---
     "nav.dictionaries_hint": {
         "ru": "Справочники складов, цепочек подпитки, маркетплейсов, пулов и нормативов",
