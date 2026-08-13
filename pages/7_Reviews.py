@@ -287,15 +287,15 @@ def _legend() -> str:
 
 def _coverage_table(rows: list, with_marketplace: bool) -> str:
     """HTML-таблица покрытия: полоса прогресса + бейдж статуса."""
-    head_cols = [(t("rev.col.date"), "92px", "left")]
+    head_cols = [(t("rev.col.date"), None, "left")]
     if with_marketplace:
-        head_cols.append((t("rev.col.marketplace"), "116px", "left"))
+        head_cols.append((t("rev.col.marketplace"), None, "left"))
     head_cols += [
-        (t("rev.col.orders"), "72px", "right"),
-        (t("rev.col.sent"), "84px", "right"),
-        (t("rev.col.no_action"), "96px", "right"),
-        (t("rev.col.coverage"), "140px", "left"),
-        (t("rev.col.status"), None, "left"),
+        (t("rev.col.orders"), "78px", "right"),
+        (t("rev.col.sent"), "92px", "right"),
+        (t("rev.col.no_action"), "108px", "right"),
+        (t("rev.col.coverage"), "146px", "left"),
+        (t("rev.col.status"), "104px", "left"),
     ]
     th = "".join(
         f'<th style="font-weight:400;padding:0 0 8px;text-align:{al};'
@@ -322,8 +322,7 @@ def _coverage_table(rows: list, with_marketplace: bool) -> str:
 
     return (f'<div style="background:var(--surface-2);border:0.5px solid var(--border);'
             f'border-radius:12px;padding:0.75rem 1.25rem 1rem;">'
-            f'<table style="width:100%;border-collapse:collapse;font-size:13px;'
-            f'table-layout:fixed;">'
+            f'<table style="width:100%;border-collapse:collapse;font-size:13px;">'
             f'<thead><tr style="color:var(--text-secondary);text-align:left;">{th}</tr></thead>'
             f'<tbody>{"".join(tr)}</tbody></table>{_legend()}</div>')
 
