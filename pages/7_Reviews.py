@@ -34,6 +34,9 @@ GREEN = "#2e9e5b"
 AMBER = "#f2b134"
 GREY = "#9aa4b2"
 
+# цвета статусов покрытия — совпадают в бейдже, прогресс-баре и легенде
+ST_COLOR = {"ok": GREEN, "catching": AMBER, "missed": ACCENT, "maturing": GREY}
+
 # окно отправки: заказы 8–33 дней от даты покупки
 AGE_MIN, AGE_MAX = 8, 33
 
@@ -236,6 +239,96 @@ def safe_div(a, b):
     return np.where(b > 0, a / np.where(b > 0, b, 1), 0.0)
 
 
+def _bar(pct, color: str, dash: bool = False) -> str:
+    """Полоса покрытия: заполненная часть + подпись процента."""
+    if pct is None or (isinstance(pct, float) and np.isnan(pct)):
+        return (f'<div style="display:flex;align-items:center;gap:8px;">'
+                f'<div style="flex:1;height:6px;background:var(--surface-0);'
+                f'border-radius:3px;"></div>'
+                f'<span style="font-size:12px;color:var(--text-muted);'
+                f'min-width:34px;">—</span></div>')
+    w = max(0, min(100, float(pct)))
+    return (f'<div style="display:flex;align-items:center;gap:8px;">'
+            f'<div style="flex:1;height:6px;background:var(--surface-0);'
+            f'border-radius:3px;overflow:hidden;">'
+            f'<div style="width:{w:.0f}%;height:100%;background:{color};"></div></div>'
+            f'<span style="font-size:12px;color:var(--text-secondary);'
+            f'min-width:34px;">{w:.0f}%</span></div>')
+
+
+def _badge(label: str, key: str) -> str:
+    """Статус цветным бейджем в стиле Кабинета."""
+    bg = {"ok": "var(--bg-success)", "catching": "var(--bg-warning)",
+          "missed": "var(--bg-danger)", "maturing": "var(--surface-0)"}.get(key, "")
+    fg = {"ok": "var(--text-success)", "catching": "var(--text-warning)",
+          "missed": "var(--text-danger)", "maturing": "var(--text-secondary)"}.get(key, "")
+    return (f'<span style="background:{bg};color:{fg};font-size:12px;'
+            f'padding:3px 10px;border-radius:var(--radius);'
+            f'white-space:nowrap;">{label}</span>')
+
+
+def _legend() -> str:
+    """Легенда статусов одной строкой под таблицей."""
+    items = [
+        (ST_COLOR["ok"], t("rev.st.ok"), t("rev.legend.ok_short")),
+        (ST_COLOR["catching"], t("rev.st.catching"), t("rev.legend.catching_short")),
+        (ST_COLOR["missed"], t("rev.st.missed"), t("rev.legend.missed_short")),
+        (ST_COLOR["maturing"], t("rev.st.maturing"),
+         t("rev.legend.maturing_short").format(min=AGE_MIN)),
+    ]
+    cells = "".join(
+        f'<span style="display:flex;align-items:center;gap:6px;">'
+        f'<span style="width:9px;height:9px;border-radius:2px;background:{c};'
+        f'flex-shrink:0;"></span>{name} — {desc}</span>'
+        for c, name, desc in items)
+    return (f'<div style="display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:10px;'
+            f'padding-top:10px;border-top:0.5px solid var(--border);font-size:12px;'
+            f'color:var(--text-secondary);">{cells}</div>')
+
+
+def _coverage_table(rows: list, with_marketplace: bool) -> str:
+    """HTML-таблица покрытия: полоса прогресса + бейдж статуса."""
+    head_cols = [(t("rev.col.date"), "76px", "left")]
+    if with_marketplace:
+        head_cols.append((t("rev.col.marketplace"), "104px", "left"))
+    head_cols += [
+        (t("rev.col.orders"), "62px", "right"),
+        (t("rev.col.sent"), "68px", "right"),
+        (t("rev.col.no_action"), "78px", "right"),
+        (t("rev.col.coverage"), None, "left"),
+        (t("rev.col.status"), "96px", "left"),
+    ]
+    th = "".join(
+        f'<th style="font-weight:400;padding:0 0 8px;text-align:{al};'
+        + (f'width:{w};' if w else '') + f'">{name}</th>'
+        for name, w, al in head_cols)
+
+    tr = []
+    for r in rows:
+        cells = [f'<td style="padding:9px 0;color:var(--text-secondary);">{r["day"]}</td>']
+        if with_marketplace:
+            cells.append(f'<td style="padding:9px 0;color:var(--text-secondary);">'
+                         f'{r["marketplace"]}</td>')
+        cells += [
+            f'<td style="padding:9px 0;text-align:right;">{r["orders"]}</td>',
+            f'<td style="padding:9px 0;text-align:right;">{r["sent"]}</td>',
+            f'<td style="padding:9px 0;text-align:right;color:var(--text-secondary);">'
+            f'{r["no_action"]}</td>',
+            f'<td style="padding:9px 12px 9px 0;">'
+            f'{_bar(r["coverage"], ST_COLOR.get(r["st"], GREY))}</td>',
+            f'<td style="padding:9px 0;">{_badge(r["status"], r["st"])}</td>',
+        ]
+        tr.append(f'<tr style="border-top:0.5px solid var(--border);">'
+                  + "".join(cells) + '</tr>')
+
+    return (f'<div style="background:var(--surface-2);border:0.5px solid var(--border);'
+            f'border-radius:12px;padding:0.75rem 1.25rem 1rem;">'
+            f'<table style="width:100%;border-collapse:collapse;font-size:13px;'
+            f'table-layout:fixed;">'
+            f'<thead><tr style="color:var(--text-secondary);text-align:left;">{th}</tr></thead>'
+            f'<tbody>{"".join(tr)}</tbody></table>{_legend()}</div>')
+
+
 # ═══════════════════════════════════════════════════════════════════
 # ПРОВЕРКИ
 # ═══════════════════════════════════════════════════════════════════
@@ -406,6 +499,46 @@ with tab_cov:
         s3.metric(t("rev.sum.coverage"), f"{m_cov:.1f}%")
         s4.metric(t("rev.sum.missed"), f"{m_missed:,}", help=t("rev.sum.missed_help"))
 
+        # ---- воронка: где теряются запросы ----
+        f_orders = m_orders
+        f_checked = int(matured["sent"].sum() + matured["no_action"].sum()
+                        + matured["skipped"].sum())
+        f_allowed = int(matured["sent"].sum())
+        f_sent = f_allowed
+
+        st.markdown(f"**{t('rev.funnel.title')}**")
+        steps = [
+            (t("rev.funnel.orders"), f_orders, BLUE),
+            (t("rev.funnel.checked"), f_checked, "#3987e5"),
+            (t("rev.funnel.allowed"), f_allowed, "#5DCAA5"),
+            (t("rev.funnel.sent"), f_sent, GREEN),
+        ]
+        base = max(f_orders, 1)
+        bars = ""
+        labels = ""
+        for i, (name, val, color) in enumerate(steps):
+            h = max(4, round(val / base * 110))
+            pct = val / base * 100
+            gap = '<div style="width:2px;"></div>' if i else ""
+            bars += (gap + f'<div style="flex:1;display:flex;flex-direction:column;'
+                     f'justify-content:flex-end;align-items:center;gap:8px;">'
+                     f'<span style="font-size:20px;font-weight:500;">{val:,}</span>'
+                     f'<div style="width:100%;max-width:110px;height:{h}px;'
+                     f'background:{color};border-radius:4px 4px 0 0;"></div></div>')
+            labels += (gap + f'<div style="flex:1;text-align:center;">'
+                       f'<div style="font-size:13px;color:var(--text-secondary);">{name}</div>'
+                       f'<div style="font-size:12px;color:var(--text-muted);">'
+                       f'{pct:.0f}%</div></div>')
+        st.markdown(
+            f'<div style="background:var(--surface-1);border-radius:12px;'
+            f'padding:1rem 1.25rem;margin-bottom:1.25rem;">'
+            f'<div style="display:flex;align-items:flex-end;height:150px;'
+            f'margin-bottom:10px;">{bars}</div>'
+            f'<div style="display:flex;border-top:0.5px solid var(--border);'
+            f'padding-top:10px;">{labels}</div></div>',
+            unsafe_allow_html=True)
+        st.caption(t("rev.funnel.note"))
+
         # ---- график: заказы против обработанных ----
         st.markdown(f"**{t('rev.chart.orders_vs_processed')}**")
         gd = by_day.sort_values("day")
@@ -433,94 +566,66 @@ with tab_cov:
         st.plotly_chart(fig, use_container_width=True)
         st.caption(t("rev.chart.no_action_note"))
 
-        # ---- таблица по датам (агрегат по всем маркетплейсам) ----
+        # ---- таблица по датам: итог по дате + разбивка по маркетплейсам ----
         st.markdown(f"**{t('rev.table.by_date')}**")
-        view = by_day.sort_values("day", ascending=False).copy()
-        view["day"] = pd.to_datetime(view["day"]).dt.strftime("%d.%m.%Y")
-        st.dataframe(
-            view[["day", "orders", "sent", "no_action", "skipped",
-                  "coverage", "pending", "status"]],
-            use_container_width=True, height=420, hide_index=True,
-            column_config={
-                "day": st.column_config.TextColumn(t("rev.col.date"), width="small"),
-                "orders": st.column_config.NumberColumn(t("rev.col.orders"), width="small"),
-                "sent": st.column_config.NumberColumn(t("rev.col.sent"), width="small"),
-                "no_action": st.column_config.NumberColumn(
-                    t("rev.col.no_action"), width="small",
-                    help=t("rev.col.no_action_help")),
-                "skipped": st.column_config.NumberColumn(
-                    t("rev.col.skipped"), width="small",
-                    help=t("rev.col.skipped_help")),
-                "coverage": st.column_config.ProgressColumn(
-                    t("rev.col.coverage"), format="%.0f%%",
-                    min_value=0, max_value=100),
-                "pending": st.column_config.NumberColumn(
-                    t("rev.col.pending"), width="small"),
-                "status": st.column_config.TextColumn(t("rev.col.status"), width="medium"),
-            },
-        )
-        st.caption(t("rev.legend"))
 
-        st.download_button(
-            t("rev.download"),
-            view.to_csv(index=False).encode("utf-8-sig"),
-            file_name="review_coverage.csv", mime="text/csv",
-            key="dl_by_date",
-        )
-
-        # ---- та же таблица, но с разбивкой по маркетплейсу ----
-        st.markdown(f"**{t('rev.table.by_date_marketplace')}**")
         by_day_mp = (cov.groupby(["day", "sales_channel"], as_index=False)
                         .agg(orders=("orders", "sum"), sent=("sent", "sum"),
                              no_action=("no_action", "sum"),
                              skipped=("skipped", "sum")))
         by_day_mp["coverage"] = np.round(
             safe_div(by_day_mp["sent"], by_day_mp["orders"]) * 100, 1)
-        by_day_mp["pending"] = (by_day_mp["orders"] - by_day_mp["sent"]).clip(lower=0)
         by_day_mp["age"] = (today - pd.to_datetime(by_day_mp["day"])).dt.days
         by_day_mp["st"] = by_day_mp.apply(
             lambda row: status_of({"age": row["age"], "coverage": row["coverage"]}),
-            axis=1,
-        )
-        by_day_mp["status"] = by_day_mp["st"].map(ST_LABEL)
+            axis=1)
 
-        mp_options = sorted(by_day_mp["sales_channel"].dropna().unique().tolist())
-        mp_filter = st.multiselect(
-            t("rev.table.marketplace_filter"), options=mp_options, default=mp_options)
-        view_mp = by_day_mp[by_day_mp["sales_channel"].isin(mp_filter)].copy()
-        view_mp = view_mp.sort_values(["day", "sales_channel"], ascending=[False, True])
-        view_mp["day"] = pd.to_datetime(view_mp["day"]).dt.strftime("%d.%m.%Y")
+        tc1, tc2 = st.columns([1, 2])
+        with tc1:
+            split_mp = st.toggle(t("rev.table.split_by_marketplace"), value=False)
+        with tc2:
+            mp_options = sorted(by_day_mp["sales_channel"].dropna().unique().tolist())
+            mp_filter = st.multiselect(
+                t("rev.table.marketplace_filter"), options=mp_options,
+                default=mp_options, disabled=not split_mp,
+                label_visibility="collapsed" if not split_mp else "visible")
 
-        st.dataframe(
-            view_mp[["day", "sales_channel", "orders", "sent", "no_action",
-                     "skipped", "coverage", "pending", "status"]],
-            use_container_width=True, height=420, hide_index=True,
-            column_config={
-                "day": st.column_config.TextColumn(t("rev.col.date"), width="small"),
-                "sales_channel": st.column_config.TextColumn(
-                    t("rev.col.marketplace"), width="small"),
-                "orders": st.column_config.NumberColumn(t("rev.col.orders"), width="small"),
-                "sent": st.column_config.NumberColumn(t("rev.col.sent"), width="small"),
-                "no_action": st.column_config.NumberColumn(
-                    t("rev.col.no_action"), width="small",
-                    help=t("rev.col.no_action_help")),
-                "skipped": st.column_config.NumberColumn(
-                    t("rev.col.skipped"), width="small",
-                    help=t("rev.col.skipped_help")),
-                "coverage": st.column_config.ProgressColumn(
-                    t("rev.col.coverage"), format="%.0f%%",
-                    min_value=0, max_value=100),
-                "pending": st.column_config.NumberColumn(
-                    t("rev.col.pending"), width="small"),
-                "status": st.column_config.TextColumn(t("rev.col.status"), width="medium"),
-            },
-        )
+        rows = []
+        src = by_day.sort_values("day", ascending=False)
+        for _, r in src.iterrows():
+            day_str = pd.to_datetime(r["day"]).strftime("%d.%m.%Y")
+            rows.append({
+                "day": day_str, "marketplace": t("rev.table.all_marketplaces"),
+                "orders": int(r["orders"]), "sent": int(r["sent"]),
+                "no_action": int(r["no_action"]),
+                "coverage": None if r["st"] == "maturing" and r["sent"] == 0 else r["coverage"],
+                "st": r["st"], "status": r["status"],
+            })
+            if split_mp:
+                sub = by_day_mp[(by_day_mp["day"] == r["day"])
+                                & (by_day_mp["sales_channel"].isin(mp_filter))]
+                for _, m in sub.sort_values("orders", ascending=False).iterrows():
+                    rows.append({
+                        "day": "", "marketplace": m["sales_channel"],
+                        "orders": int(m["orders"]), "sent": int(m["sent"]),
+                        "no_action": int(m["no_action"]),
+                        "coverage": (None if m["st"] == "maturing" and m["sent"] == 0
+                                     else m["coverage"]),
+                        "st": m["st"], "status": ST_LABEL.get(m["st"], ""),
+                    })
+
+        st.markdown(_coverage_table(rows, with_marketplace=True),
+                    unsafe_allow_html=True)
+
+        export = by_day_mp.copy()
+        export["day"] = pd.to_datetime(export["day"]).dt.strftime("%d.%m.%Y")
+        export["status"] = export["st"].map(ST_LABEL)
         st.download_button(
             t("rev.download"),
-            view_mp.to_csv(index=False).encode("utf-8-sig"),
-            file_name="review_coverage_by_marketplace.csv", mime="text/csv",
-            key="dl_by_date_mp",
-        )
+            export[["day", "sales_channel", "orders", "sent", "no_action",
+                    "skipped", "coverage", "status"]]
+                .to_csv(index=False).encode("utf-8-sig"),
+            file_name="review_coverage.csv", mime="text/csv", key="dl_cov")
 
 # ═══════════════════════════════════════════════════════════════════
 # ПО МАРКЕТПЛЕЙСАМ
