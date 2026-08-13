@@ -242,17 +242,19 @@ def safe_div(a, b):
 def _bar(pct, color: str, dash: bool = False) -> str:
     """Полоса покрытия: заполненная часть + подпись процента."""
     if pct is None or (isinstance(pct, float) and np.isnan(pct)):
-        return (f'<div style="display:flex;align-items:center;gap:8px;">'
-                f'<div style="width:120px;height:6px;background:var(--surface-0);'
-                f'border-radius:3px;"></div>'
-                f'<span style="font-size:12px;color:var(--text-muted);">—</span></div>')
+        return (f'<div style="display:flex;align-items:center;gap:10px;">'
+                f'<div style="flex:1;height:8px;background:var(--surface-0);'
+                f'border-radius:4px;"></div>'
+                f'<span style="font-size:12px;color:var(--text-muted);'
+                f'min-width:34px;text-align:right;">—</span></div>')
     w = max(0, min(100, float(pct)))
-    return (f'<div style="display:flex;align-items:center;gap:8px;">'
-            f'<div style="width:120px;height:6px;background:var(--surface-0);'
-            f'border-radius:3px;overflow:hidden;flex-shrink:0;">'
-            f'<div style="width:{w:.0f}%;height:100%;background:{color};"></div></div>'
+    return (f'<div style="display:flex;align-items:center;gap:10px;">'
+            f'<div style="flex:1;height:8px;background:var(--surface-0);'
+            f'border-radius:4px;overflow:hidden;">'
+            f'<div style="width:{w:.0f}%;height:100%;background:{color};'
+            f'border-radius:4px;"></div></div>'
             f'<span style="font-size:12px;color:var(--text-secondary);'
-            f'min-width:30px;">{w:.0f}%</span></div>')
+            f'min-width:34px;text-align:right;">{w:.0f}%</span></div>')
 
 
 def _badge(label: str, key: str) -> str:
