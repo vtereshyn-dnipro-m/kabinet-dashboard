@@ -580,10 +580,21 @@ with tab_cov:
             lambda row: status_of({"age": row["age"], "coverage": row["coverage"]}),
             axis=1)
 
-        tc1, tc2 = st.columns([1, 2])
+        tc1, tc2, tc3 = st.columns([1.1, 1.4, 1.5])
         with tc1:
             split_mp = st.toggle(t("rev.table.split_by_marketplace"), value=False)
         with tc2:
+            SORT_FIELDS = {
+                t("rev.col.date"): "day",
+                t("rev.col.coverage"): "coverage",
+                t("rev.col.orders"): "orders",
+                t("rev.col.sent"): "sent",
+                t("rev.col.no_action"): "no_action",
+            }
+            sort_label = st.selectbox(t("rev.table.sort_by"),
+                                      list(SORT_FIELDS.keys()), index=0)
+            sort_col = SORT_FIELDS[sort_label]
+        with tc3:
             mp_options = sorted(by_day_mp["sales_channel"].dropna().unique().tolist())
             mp_filter = st.multiselect(
                 t("rev.table.marketplace_filter"), options=mp_options,
@@ -591,7 +602,13 @@ with tab_cov:
                 label_visibility="collapsed" if not split_mp else "visible")
 
         rows = []
-        src = by_day.sort_values("day", ascending=False)
+        # даты без покрытия («зреет») всегда внизу — иначе они забьют верх списка
+        src = by_day.copy()
+        if sort_col == "day":
+            src = src.sort_values("day", ascending=False)
+        else:
+            src["_null"] = src[sort_col].isna()
+            src = src.sort_values(["_null", sort_col], ascending=[True, False])
         for _, r in src.iterrows():
             day_str = pd.to_datetime(r["day"]).strftime("%d.%m.%Y")
             rows.append({
@@ -604,7 +621,10 @@ with tab_cov:
             if split_mp:
                 sub = by_day_mp[(by_day_mp["day"] == r["day"])
                                 & (by_day_mp["sales_channel"].isin(mp_filter))]
-                for _, m in sub.sort_values("orders", ascending=False).iterrows():
+                sub_sorted = (sub.sort_values(sort_col, ascending=False)
+                              if sort_col in sub.columns
+                              else sub.sort_values("orders", ascending=False))
+                for _, m in sub_sorted.iterrows():
                     rows.append({
                         "day": "", "marketplace": m["sales_channel"],
                         "orders": int(m["orders"]), "sent": int(m["sent"]),
@@ -769,4 +789,4 @@ with tab_asin:
                         t("rev.col.no_action"), width="small"),
                     "url": st.column_config.LinkColumn("", display_text="↗", width="small"),
                 },
-            ) 
+            )
