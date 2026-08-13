@@ -1051,6 +1051,11 @@ TRANSLATIONS = {
         "en": "The main drop is between «Checked» and «Amazon allowed» — that is Amazon's "
               "decision, not a system failure. The gap between «Orders» and «Checked» is ours.",
     },
+    "rev.table.sort_by": {
+        "ru": "Сортировка",
+        "uk": "Сортування",
+        "en": "Sort by",
+    },
     "rev.table.split_by_marketplace": {
         "ru": "Разбить по маркетплейсам",
         "uk": "Розбити за маркетплейсами",
