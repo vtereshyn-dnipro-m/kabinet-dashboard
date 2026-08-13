@@ -684,4 +684,4 @@ with tab_all:
                     t("cm.col.cm_pct"), format="%.1f%%"),
             },
         )
-        st.caption(t("cm.all.note"))
+        st.caption(t("cm.all.note")) 
