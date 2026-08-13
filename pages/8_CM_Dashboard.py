@@ -38,13 +38,15 @@ LM_CODE = "LM"
 LM_COUNTRY = "ES"
 
 # пороги здоровья канала Leroy Merlin: (ok при >=, warn при >=) либо обратные
+# совпадают с порогами загрузчика LM Health — иначе цвет на странице
+# расходился бы с алертами
 LM_THRESHOLDS = {
-    "acceptance_rate_pct": {"ok": 98, "warn": 90, "higher_better": True},
+    "acceptance_rate_pct": {"ok": 95, "warn": 90, "higher_better": True},
     "tracking_rate_pct": {"ok": 95, "warn": 85, "higher_better": True},
     "on_time_ship_pct": {"ok": 95, "warn": 85, "higher_better": True},
-    "avg_acceptance_h": {"ok": 12, "warn": 24, "higher_better": False},
-    "p90_acceptance_h": {"ok": 24, "warn": 48, "higher_better": False},
-    "incident_rate_pct": {"ok": 2, "warn": 5, "higher_better": False},
+    "avg_acceptance_h": {"ok": 24, "warn": 48, "higher_better": False},
+    "p90_acceptance_h": {"ok": 48, "warn": 72, "higher_better": False},
+    "incident_rate_pct": {"ok": 0, "warn": 3, "higher_better": False},
     "waiting_acceptance": {"ok": 0, "warn": 3, "higher_better": False},
 }
 
@@ -104,7 +106,7 @@ def load_sales(days: int) -> pd.DataFrame:
     conn = get_connection()
     try:
         return pd.read_sql(f"""
-            SELECT REGEXP_REPLACE(norm_sku, '^([0-9]+).*$', '\\\\1') AS base_sku,
+            SELECT SUBSTRING(norm_sku FROM '([0-9]{{5,}})') AS base_sku,
                    marketplace,
                    MAX(product_name)                    AS product_name,
                    SUM(units_ordered)                   AS units,
@@ -114,7 +116,7 @@ def load_sales(days: int) -> pd.DataFrame:
                    SUM(COALESCE(cogs, 0) * units_ordered) AS cogs_total
             FROM kabinet_data.economics_summary
             WHERE sales_date >= CURRENT_DATE - INTERVAL '{days} days'
-              AND norm_sku ~ '^[0-9]'
+              AND SUBSTRING(norm_sku FROM '([0-9]{{5,}})') IS NOT NULL
             GROUP BY 1, 2
         """, conn)
     finally:
@@ -127,7 +129,7 @@ def load_stock() -> pd.DataFrame:
     conn = get_connection()
     try:
         return pd.read_sql("""
-            SELECT REGEXP_REPLACE(sku, '^([0-9]+).*$', '\\\\1') AS base_sku,
+            SELECT SUBSTRING(sku FROM '([0-9]{5,})') AS base_sku,
                    source,
                    availability_status,
                    location,
@@ -135,7 +137,7 @@ def load_stock() -> pd.DataFrame:
                    SUM(quantity) AS qty
             FROM kabinet_data.stock_local
             WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM kabinet_data.stock_local)
-              AND sku ~ '^[0-9]'
+              AND SUBSTRING(sku FROM '([0-9]{5,})') IS NOT NULL
             GROUP BY 1, 2, 3, 4, 5
         """, conn)
     finally:
@@ -215,10 +217,11 @@ def load_returns(days: int) -> pd.DataFrame:
         conn = get_connection()
         try:
             return pd.read_sql(f"""
-                SELECT REGEXP_REPLACE(sku, '^([0-9]+).*$', '\\\\1') AS base_sku,
+                SELECT SUBSTRING(sku FROM '([0-9]{{5,}})') AS base_sku,
                        marketplace, COUNT(*) AS returns_cnt
                 FROM kabinet_data.{tbl}
                 WHERE return_date >= CURRENT_DATE - INTERVAL '{days} days'
+                  AND SUBSTRING(sku FROM '([0-9]{{5,}})') IS NOT NULL
                 GROUP BY 1, 2
             """, conn)
         except Exception:
