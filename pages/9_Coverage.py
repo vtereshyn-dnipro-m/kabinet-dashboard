@@ -198,7 +198,7 @@ n_pool = int((base["pool_exhaustion_weeks"] < base["total_coverage_weeks"]).sum(
 
 k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric(t("cov.kpi.critical"), f"{n_crit:,}", help=t("cov.kpi.critical_help"))
-k2.metric(t("cov.kpi.warning"), f"{n_warn:,}")
+k2.metric(t("cov.kpi.warning"), f"{n_warn:,}", help=t("cov.kpi.warning_help"))
 k3.metric(t("cov.kpi.deficit_13"), f"{n_13:,}", help=t("cov.kpi.deficit_13_help"))
 k4.metric(t("cov.kpi.switch"), f"{n_switch:,}", help=t("cov.kpi.switch_help"))
 k5.metric(t("cov.kpi.pool_risk"), f"{n_pool:,}", help=t("cov.kpi.pool_risk_help"))
@@ -226,12 +226,18 @@ with tab_list:
             view["channel_switch_week"], errors="coerce").dt.strftime("%d.%m.%Y")
         view["pool_warn"] = (view["pool_exhaustion_weeks"]
                              < view["total_coverage_weeks"])
+        # вместо второй колонки с неделями — понятная пометка «делят N стран»
+        view["shared_note"] = np.where(
+            view["pool_warn"] & (view["competing_marketplaces"] > 1),
+            view["competing_marketplaces"].fillna(0).astype(int).astype(str)
+            + " " + t("cov.col.shared_suffix"),
+            "—")
 
         st.dataframe(
             view[["sku", "product_name", "marketplace", "available_now",
                   "coverage_weeks", "fbm_fallback_qty", "total_coverage_weeks",
-                  "pool_exhaustion_weeks", "realistic_coverage_weeks",
-                  "first_deficit_week", "channel_switch_week", "status_label"]],
+                  "shared_note", "realistic_coverage_weeks",
+                  "first_deficit_week", "status_label"]],
             use_container_width=True, height=560, hide_index=True,
             column_config={
                 "sku": st.column_config.TextColumn("SKU", width="small"),
@@ -251,18 +257,15 @@ with tab_list:
                 "total_coverage_weeks": st.column_config.NumberColumn(
                     t("cov.col.weeks_total"), width="small",
                     help=t("cov.col.weeks_total_help")),
-                "pool_exhaustion_weeks": st.column_config.NumberColumn(
-                    t("cov.col.pool_weeks"), width="small",
-                    help=t("cov.col.pool_weeks_help")),
+                "shared_note": st.column_config.TextColumn(
+                    t("cov.col.shared"), width="small",
+                    help=t("cov.col.shared_help")),
                 "realistic_coverage_weeks": st.column_config.ProgressColumn(
                     t("cov.col.weeks_real"), format="%d",
                     min_value=0, max_value=26,
                     help=t("cov.col.weeks_real_help")),
                 "first_deficit_week": st.column_config.TextColumn(
                     t("cov.col.first_deficit"), width="small"),
-                "channel_switch_week": st.column_config.TextColumn(
-                    t("cov.col.switch"), width="small",
-                    help=t("cov.col.switch_help")),
                 "status_label": st.column_config.TextColumn(
                     t("cov.col.status"), width="small"),
             },
@@ -273,10 +276,17 @@ with tab_list:
             st.warning(t("cov.list.pool_warn").format(n=n_optimistic))
         st.caption(t("cov.list.note"))
 
-        st.download_button(
-            t("cov.download"),
-            view.to_csv(index=False).encode("utf-8-sig"),
-            file_name="coverage.csv", mime="text/csv")
+        b1, b2 = st.columns([1, 1])
+        with b1:
+            st.download_button(
+                t("cov.download"),
+                view.to_csv(index=False).encode("utf-8-sig"),
+                file_name="coverage.csv", mime="text/csv",
+                use_container_width=True)
+        with b2:
+            st.page_link("pages/4_Reorder.py", label=t("cov.go_reorder"),
+                         icon=":material/shopping_cart:",
+                         use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -331,10 +341,23 @@ with tab_detail:
             fig.add_trace(go.Bar(
                 name=t("cov.proj.unmet"), x=proj["label"],
                 y=proj["unmet_demand"], marker_color=ACCENT, opacity=0.4))
+
+            # общий мадридский запас кончится раньше, чем показывает расчёт
+            # по этой стране — отмечаем неделю прямо на графике
+            if (pd.notna(pool_w) and pd.notna(total_w) and pool_w < total_w
+                    and int(row.get("competing_marketplaces") or 0) > 1):
+                idx = int(pool_w)
+                if 0 <= idx < len(proj):
+                    fig.add_vline(
+                        x=proj["label"].iloc[idx], line_dash="dash",
+                        line_color=ACCENT, opacity=0.8,
+                        annotation_text=t("cov.proj.pool_line"),
+                        annotation_position="top")
+
             fig.update_layout(barmode="group", height=360,
-                              margin=dict(l=10, r=10, t=10, b=10),
+                              margin=dict(l=10, r=10, t=30, b=10),
                               hovermode="x unified",
-                              legend=dict(orientation="h", y=1.14))
+                              legend=dict(orientation="h", y=1.16))
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
             tbl = proj.copy()
@@ -365,6 +388,9 @@ with tab_detail:
                 },
             )
             st.caption(t("cov.detail.note"))
+            if (pd.notna(pool_w) and pd.notna(total_w) and pool_w < total_w
+                    and int(row.get("competing_marketplaces") or 0) > 1):
+                st.caption(t("cov.detail.chart_note"))
 
 
 # ═══════════════════════════════════════════════════════════════════
