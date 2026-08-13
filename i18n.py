@@ -860,9 +860,9 @@ TRANSLATIONS = {
         "en": "The log is empty. Run the sender in the pipeline.",
     },
     "rev.health_ok": {
-        "ru": "Рассылка работает. Последняя отправка: {when}",
-        "uk": "Розсилка працює. Остання відправка: {when}",
-        "en": "Mailing is running. Last send: {when}",
+        "ru": "Рассылка работает. Последняя отправка: {when} по Киеву",
+        "uk": "Розсилка працює. Остання відправка: {when} за Києвом",
+        "en": "Mailing is running. Last send: {when} Kyiv time",
     },
     "rev.health_stopped": {
         "ru": "Рассылка не работает {h:.0f} ч. Порог — 25 ч. Проверь расписание отправителя.",
@@ -1034,6 +1034,49 @@ TRANSLATIONS = {
         "en": "The order is younger than {min} days — sending is not possible yet, this is normal.",
     },
     "rev.formula.title": {"ru": "Формула", "uk": "Формула", "en": "Formula"},
+    "rev.funnel.title": {
+        "ru": "Где теряются запросы",
+        "uk": "Де губляться запити",
+        "en": "Where requests are lost",
+    },
+    "rev.funnel.orders": {"ru": "Заказов", "uk": "Замовлень", "en": "Orders"},
+    "rev.funnel.checked": {"ru": "Проверено", "uk": "Перевірено", "en": "Checked"},
+    "rev.funnel.allowed": {"ru": "Amazon разрешил", "uk": "Amazon дозволив", "en": "Amazon allowed"},
+    "rev.funnel.sent": {"ru": "Отправлено", "uk": "Надіслано", "en": "Sent"},
+    "rev.funnel.note": {
+        "ru": "Основная потеря — между «Проверено» и «Amazon разрешил»: это решение Amazon, "
+              "а не сбой системы. Разрыв между «Заказов» и «Проверено» — наша зона ответственности.",
+        "uk": "Основна втрата — між «Перевірено» і «Amazon дозволив»: це рішення Amazon, "
+              "а не збій системи. Розрив між «Замовлень» і «Перевірено» — наша зона відповідальності.",
+        "en": "The main drop is between «Checked» and «Amazon allowed» — that is Amazon's "
+              "decision, not a system failure. The gap between «Orders» and «Checked» is ours.",
+    },
+    "rev.table.split_by_marketplace": {
+        "ru": "Разбить по маркетплейсам",
+        "uk": "Розбити за маркетплейсами",
+        "en": "Split by marketplace",
+    },
+    "rev.table.all_marketplaces": {"ru": "Все", "uk": "Всі", "en": "All"},
+    "rev.legend.ok_short": {
+        "ru": "покрытие 90% и выше",
+        "uk": "покриття 90% і вище",
+        "en": "coverage 90% or above",
+    },
+    "rev.legend.catching_short": {
+        "ru": "окно открыто, запросы дошлются",
+        "uk": "вікно відкрите, запити дошлються",
+        "en": "window open, requests will follow",
+    },
+    "rev.legend.missed_short": {
+        "ru": "окно закрылось, отзывы потеряны",
+        "uk": "вікно закрилось, відгуки втрачені",
+        "en": "window closed, reviews lost",
+    },
+    "rev.legend.maturing_short": {
+        "ru": "заказ младше {min} дней",
+        "uk": "замовлення молодше {min} днів",
+        "en": "order younger than {min} days",
+    },
     "rev.download": {"ru": "Скачать покрытие CSV", "uk": "Завантажити покриття CSV", "en": "Download coverage CSV"},
     "rev.mp.metric_help": {
         "ru": "Отправлено запросов и общее покрытие по маркетплейсу",
@@ -1178,4 +1221,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
