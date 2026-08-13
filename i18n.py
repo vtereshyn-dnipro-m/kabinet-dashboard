@@ -1299,13 +1299,53 @@ TRANSLATIONS = {
         "en": "Leroy Merlin incidents are on their own tab. The full log with statuses and "
               "history is on the Incidents page.",
     },
-    "cm.amz.returns_soon": {
-        "ru": "Возвраты собираются по всем странам и появятся здесь после переноса "
-              "источника в базу дашборда.",
-        "uk": "Повернення збираються по всіх країнах і зʼявляться тут після перенесення "
-              "джерела в базу дашборда.",
-        "en": "Returns are being collected for all countries and will appear here once the "
-              "source is moved into the dashboard database.",
+    "cm.amz.returns": {"ru": "Возвратов", "uk": "Повернень", "en": "Returns"},
+    "cm.amz.returns_help": {
+        "ru": "Единиц возвращено за последние {d} дней",
+        "uk": "Одиниць повернено за останні {d} днів",
+        "en": "Units returned over the last {d} days",
+    },
+    "cm.amz.refunded": {"ru": "Возвращено денег", "uk": "Повернуто грошей", "en": "Refunded"},
+    "cm.amz.return_skus": {"ru": "Товаров с возвратами", "uk": "Товарів з поверненнями", "en": "Products returned"},
+    "cm.amz.returns_title": {"ru": "Возвраты", "uk": "Повернення", "en": "Returns"},
+    "cm.amz.no_returns": {
+        "ru": "Возвратов за выбранный период нет.",
+        "uk": "Повернень за обраний період немає.",
+        "en": "No returns in the selected period.",
+    },
+    "cm.amz.top_returns": {
+        "ru": "Больше всего возвращают",
+        "uk": "Найбільше повертають",
+        "en": "Most returned products",
+    },
+    "cm.amz.by_reason": {"ru": "Причины возврата", "uk": "Причини повернення", "en": "Return reasons"},
+    "cm.amz.reason_note": {
+        "ru": "Причину Amazon передаёт только по возвратам со своих складов. По отгрузкам "
+              "со своего склада причина не приходит — вместо неё бывает комментарий покупателя.",
+        "uk": "Причину Amazon передає лише за поверненнями зі своїх складів. За відвантаженнями "
+              "з власного складу причина не приходить — замість неї буває коментар покупця.",
+        "en": "Amazon only provides a reason for returns from its own warehouses. For "
+              "merchant-fulfilled orders there is no reason, sometimes a buyer comment instead.",
+    },
+    "cm.kpi.return_alerts": {"ru": "Много возвратов", "uk": "Багато повернень", "en": "High returns"},
+    "cm.kpi.return_alerts_help": {
+        "ru": "Товары, где возвращают больше 15% проданного",
+        "uk": "Товари, де повертають понад 15% проданого",
+        "en": "Products where more than 15% of units sold are returned",
+    },
+    "cm.summary.only_returns": {
+        "ru": "Только много возвратов",
+        "uk": "Лише багато повернень",
+        "en": "High returns only",
+    },
+    "cm.col.returns_pct": {"ru": "Возвраты", "uk": "Повернення", "en": "Returns"},
+    "cm.col.returns_pct_help": {
+        "ru": "Доля возвратов от проданного за период. Больше 15% — повод посмотреть "
+              "на товар: описание, качество или ожидания покупателя.",
+        "uk": "Частка повернень від проданого за період. Понад 15% — привід подивитись "
+              "на товар: опис, якість або очікування покупця.",
+        "en": "Share of units returned out of units sold. Above 15% is worth a look — "
+              "listing, quality, or buyer expectations.",
     },
     "cm.col.days_open": {"ru": "Дней", "uk": "Днів", "en": "Days"},
     "cm.col.days_open_help": {
