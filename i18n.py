@@ -1539,6 +1539,39 @@ TRANSLATIONS = {
         "en": "The sales forecast is currently based on the last 30 days of velocity. Once a "
               "planned forecast is available the calculation will switch to it — nothing else changes.",
     },
+    "cov.kpi.warning_help": {
+        "ru": "Товаров, которых хватит на 5–13 недель — не критично, но стоит планировать поставку",
+        "uk": "Товарів, яких вистачить на 5–13 тижнів — не критично, але варто планувати поставку",
+        "en": "Products with 5–13 weeks of cover — not critical, but worth planning a shipment",
+    },
+    "cov.col.shared": {"ru": "Общий запас", "uk": "Спільний запас", "en": "Shared stock"},
+    "cov.col.shared_suffix": {"ru": "стран", "uk": "країн", "en": "countries"},
+    "cov.col.shared_help": {
+        "ru": "Мадридский запас по этому товару делят несколько стран. Поэтому «Реально "
+              "недель» меньше, чем «С Мадридом»: общий спрос израсходует запас быстрее.",
+        "uk": "Мадридський запас за цим товаром ділять кілька країн. Тому «Реально тижнів» "
+              "менше, ніж «З Мадридом»: спільний попит витратить запас швидше.",
+        "en": "Several countries share the Madrid stock for this product. That is why "
+              "“Realistic weeks” is lower than “With Madrid” — combined demand drains it faster.",
+    },
+    "cov.proj.pool_line": {
+        "ru": "Мадрид кончится",
+        "uk": "Мадрид закінчиться",
+        "en": "Madrid runs out",
+    },
+    "cov.detail.chart_note": {
+        "ru": "График показывает только склад Amazon этой страны. Пунктирная линия — неделя, "
+              "когда закончится общий мадридский запас: после неё переключаться будет уже не на что.",
+        "uk": "Графік показує лише склад Amazon цієї країни. Пунктирна лінія — тиждень, коли "
+              "закінчиться спільний мадридський запас: після нього перемикатися буде вже нема на що.",
+        "en": "The chart shows only this country's Amazon stock. The dashed line marks the week "
+              "the shared Madrid stock runs out — after that there is nothing to switch to.",
+    },
+    "cov.go_reorder": {
+        "ru": "Перейти к автозаказу",
+        "uk": "Перейти до автозамовлення",
+        "en": "Go to reorder",
+    },
     "cov.download": {"ru": "Скачать CSV", "uk": "Завантажити CSV", "en": "Download CSV"},
     "cov.detail.pick": {"ru": "Товар и маркетплейс", "uk": "Товар і маркетплейс", "en": "Product and marketplace"},
     "cov.detail.no_projection": {
@@ -1554,8 +1587,8 @@ TRANSLATIONS = {
               "{demand:.0f} шт на тиждень. Спільного запасу вистачить приблизно на "
               "{pool_weeks} тиж., а розрахунок по цій країні обіцяє {promised}.",
         "en": "The Madrid stock ({qty} units) is shared by {n} countries with a combined "
-              "demand of {demand:.0f} units per week. The shared stock lasts about "
-              "{pool_weeks} weeks, while this country's calculation promises {promised}.",
+              "demand of {demand:.0f} units per week. It will last roughly {pool_weeks} "
+              "week(s), while this country's own calculation promises {promised}.",
     },
     "cov.detail.note": {
         "ru": "Поступление становится доступным со следующей недели после прибытия. "
