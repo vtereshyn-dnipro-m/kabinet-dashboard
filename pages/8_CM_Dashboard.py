@@ -209,6 +209,33 @@ def load_incidents() -> pd.DataFrame:
         conn.close()
 
 
+@st.cache_data(ttl=600)
+def load_returns(days: int) -> pd.DataFrame:
+    """Возвраты за период. SKU нормализуем до базового кода, как везде."""
+    if not table_exists("raw_amazon_returns"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT SUBSTRING(sku FROM '([0-9]{{5,}})') AS base_sku,
+                   marketplace,
+                   return_date,
+                   COALESCE(NULLIF(return_reason, ''), '—') AS reason,
+                   fulfillment_type,
+                   MAX(product_name)      AS product_name,
+                   SUM(quantity)          AS qty,
+                   SUM(refunded_amount)   AS refunded
+            FROM kabinet_data.raw_amazon_returns
+            WHERE return_date >= CURRENT_DATE - INTERVAL '{days} days'
+              AND SUBSTRING(sku FROM '([0-9]{{5,}})') IS NOT NULL
+            GROUP BY 1, 2, 3, 4, 5
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
 def safe_div(a, b):
     return np.where(b > 0, a / np.where(b > 0, b, 1), 0.0)
 
@@ -292,10 +319,28 @@ with tab_sum:
         wide[["stock_amazon", "stock_lm"]] = \
             wide[["stock_amazon", "stock_lm"]].fillna(0)
 
+        # доля возвратов от проданного — сразу видно проблемные позиции
+        rets_all = load_returns(DAYS)
+        if not rets_all.empty:
+            rq = (rets_all[rets_all["marketplace"].isin(mp_scope)]
+                  .groupby("base_sku", as_index=False)["qty"].sum()
+                  .rename(columns={"qty": "returns_qty"}))
+            wide = wide.merge(rq, on="base_sku", how="left")
+        if "returns_qty" not in wide.columns:
+            wide["returns_qty"] = 0
+        wide["returns_qty"] = wide["returns_qty"].fillna(0)
+
         for col in ("units_amazon", "units_lm", "revenue_amazon", "revenue_lm",
                     "avg_price_amazon", "avg_price_lm"):
             if col not in wide.columns:
                 wide[col] = 0.0
+
+        sold_total = wide["units_amazon"] + wide["units_lm"]
+        wide["returns_pct"] = np.where(
+            sold_total > 0,
+            np.round(wide["returns_qty"] / sold_total * 100, 1),
+            np.nan)
+        wide["returns_alert"] = wide["returns_pct"] > 15
 
         # расхождение цены между площадками — только там, где продаётся на обеих
         both = (wide["avg_price_amazon"] > 0) & (wide["avg_price_lm"] > 0)
@@ -308,15 +353,26 @@ with tab_sum:
 
         wide = wide.sort_values("revenue_amazon", ascending=False)
 
-        k1, k2, k3, k4 = st.columns(4)
+        k1, k2, k3, k4, k5 = st.columns(5)
         k1.metric(t("cm.kpi.skus"), f"{len(wide):,}")
         k2.metric(t("cm.kpi.revenue_amazon"), fmt_money(wide["revenue_amazon"].sum()))
         k3.metric(t("cm.kpi.revenue_lm"), fmt_money(wide["revenue_lm"].sum()))
         k4.metric(t("cm.kpi.price_alerts"), f"{int(wide['price_alert'].sum()):,}",
                   help=t("cm.kpi.price_alerts_help"))
+        k5.metric(t("cm.kpi.return_alerts"), f"{int(wide['returns_alert'].sum()):,}",
+                  help=t("cm.kpi.return_alerts_help"))
 
-        only_alerts = st.toggle(t("cm.summary.only_alerts"), value=False)
-        view = wide[wide["price_alert"]] if only_alerts else wide
+        fl1, fl2 = st.columns([1, 1])
+        with fl1:
+            only_alerts = st.toggle(t("cm.summary.only_alerts"), value=False)
+        with fl2:
+            only_returns = st.toggle(t("cm.summary.only_returns"), value=False)
+
+        view = wide
+        if only_alerts:
+            view = view[view["price_alert"]]
+        if only_returns:
+            view = view[view["returns_alert"]]
 
         if view.empty:
             st.success(t("cm.summary.no_alerts"))
@@ -325,7 +381,7 @@ with tab_sum:
                 view[["base_sku", "product_name",
                       "units_amazon", "revenue_amazon", "avg_price_amazon", "stock_amazon",
                       "units_lm", "revenue_lm", "avg_price_lm", "stock_lm",
-                      "price_gap_pct"]],
+                      "price_gap_pct", "returns_pct"]],
                 use_container_width=True, height=560, hide_index=True,
                 column_config={
                     "base_sku": st.column_config.TextColumn("SKU", width="small"),
@@ -352,6 +408,9 @@ with tab_sum:
                     "price_gap_pct": st.column_config.NumberColumn(
                         t("cm.col.price_gap"), format="%+.1f%%",
                         help=t("cm.col.price_gap_help")),
+                    "returns_pct": st.column_config.NumberColumn(
+                        t("cm.col.returns_pct"), format="%.0f%%",
+                        help=t("cm.col.returns_pct_help")),
                 },
             )
             st.caption(t("cm.summary.note"))
@@ -527,7 +586,45 @@ with tab_amz:
         )
         st.caption(t("cm.amz.incidents_note"))
 
-    st.info(t("cm.amz.returns_soon"))
+    # ---- возвраты ----
+    rets = load_returns(DAYS)
+    st.divider()
+    st.markdown(f"**{t('cm.amz.returns_title')}**")
+
+    if rets.empty:
+        st.info(t("cm.amz.no_returns"))
+    else:
+        scoped_ret = rets[rets["marketplace"].isin(mp_scope)] if not is_all else rets
+
+        r1, r2, r3 = st.columns(3)
+        r1.metric(t("cm.amz.returns"), f"{int(scoped_ret['qty'].sum()):,}",
+                  help=t("cm.amz.returns_help").format(d=DAYS))
+        r2.metric(t("cm.amz.refunded"), fmt_money(scoped_ret["refunded"].sum()))
+        r3.metric(t("cm.amz.return_skus"), f"{scoped_ret['base_sku'].nunique():,}")
+
+        rc1, rc2 = st.columns([1, 1])
+        with rc1:
+            top = (scoped_ret.groupby(["base_sku", "product_name"], as_index=False)
+                             ["qty"].sum().nlargest(12, "qty"))
+            if not top.empty:
+                fig = px.bar(top.sort_values("qty"), x="qty", y="base_sku",
+                             orientation="h", text="qty",
+                             title=t("cm.amz.top_returns"),
+                             color_discrete_sequence=[ACCENT])
+                fig.update_layout(height=max(280, 28 * len(top)),
+                                  xaxis_title=None, yaxis_title=None,
+                                  margin=dict(l=10, r=10, t=50, b=10))
+                st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+        with rc2:
+            # причина приходит только по FBA — по остальным Amazon её не отдаёт
+            by_reason = (scoped_ret.groupby("reason", as_index=False)["qty"].sum()
+                                   .sort_values("qty", ascending=False))
+            if not by_reason.empty:
+                fig = px.pie(by_reason, names="reason", values="qty", hole=0.5,
+                             title=t("cm.amz.by_reason"))
+                fig.update_layout(height=340, margin=dict(l=10, r=10, t=50, b=10))
+                st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+                st.caption(t("cm.amz.reason_note"))
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -587,4 +684,4 @@ with tab_all:
                     t("cm.col.cm_pct"), format="%.1f%%"),
             },
         )
-        st.caption(t("cm.all.note")) 
+        st.caption(t("cm.all.note"))
