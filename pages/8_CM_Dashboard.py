@@ -144,20 +144,26 @@ def load_stock() -> pd.DataFrame:
 
 @st.cache_data(ttl=600)
 def load_lm_health(days: int) -> pd.DataFrame:
+    """Показатели канала. Берём все колонки — состав таблицы может меняться."""
     conn = get_connection()
     try:
-        return pd.read_sql(f"""
-            SELECT calc_date, orders_total, accepted, refused, shipped, received,
-                   acceptance_rate_pct, avg_acceptance_h, p90_acceptance_h,
-                   tracking_rate_pct, on_time_ship_pct,
-                   incident_count, incident_rate_pct, open_incidents,
-                   waiting_acceptance, waiting_age_max_h
+        df = pd.read_sql(f"""
+            SELECT *
             FROM kabinet_data.lm_health_daily
             WHERE calc_date >= CURRENT_DATE - INTERVAL '{days} days'
             ORDER BY calc_date
         """, conn)
+    except Exception:
+        return pd.DataFrame()
     finally:
         conn.close()
+    # недостающие показатели добавляем пустыми, чтобы страница не падала
+    for col in ("orders_total", "acceptance_rate_pct", "avg_acceptance_h",
+                "p90_acceptance_h", "tracking_rate_pct", "on_time_ship_pct",
+                "incident_rate_pct", "open_incidents", "waiting_acceptance"):
+        if col not in df.columns:
+            df[col] = np.nan
+    return df
 
 
 @st.cache_data(ttl=600)
