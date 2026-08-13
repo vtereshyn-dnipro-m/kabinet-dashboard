@@ -243,17 +243,16 @@ def _bar(pct, color: str, dash: bool = False) -> str:
     """Полоса покрытия: заполненная часть + подпись процента."""
     if pct is None or (isinstance(pct, float) and np.isnan(pct)):
         return (f'<div style="display:flex;align-items:center;gap:8px;">'
-                f'<div style="flex:1;height:6px;background:var(--surface-0);'
+                f'<div style="width:88px;height:6px;background:var(--surface-0);'
                 f'border-radius:3px;"></div>'
-                f'<span style="font-size:12px;color:var(--text-muted);'
-                f'min-width:34px;">—</span></div>')
+                f'<span style="font-size:12px;color:var(--text-muted);">—</span></div>')
     w = max(0, min(100, float(pct)))
     return (f'<div style="display:flex;align-items:center;gap:8px;">'
-            f'<div style="flex:1;height:6px;background:var(--surface-0);'
-            f'border-radius:3px;overflow:hidden;">'
+            f'<div style="width:88px;height:6px;background:var(--surface-0);'
+            f'border-radius:3px;overflow:hidden;flex-shrink:0;">'
             f'<div style="width:{w:.0f}%;height:100%;background:{color};"></div></div>'
             f'<span style="font-size:12px;color:var(--text-secondary);'
-            f'min-width:34px;">{w:.0f}%</span></div>')
+            f'min-width:30px;">{w:.0f}%</span></div>')
 
 
 def _badge(label: str, key: str) -> str:
@@ -288,15 +287,15 @@ def _legend() -> str:
 
 def _coverage_table(rows: list, with_marketplace: bool) -> str:
     """HTML-таблица покрытия: полоса прогресса + бейдж статуса."""
-    head_cols = [(t("rev.col.date"), "76px", "left")]
+    head_cols = [(t("rev.col.date"), "92px", "left")]
     if with_marketplace:
-        head_cols.append((t("rev.col.marketplace"), "104px", "left"))
+        head_cols.append((t("rev.col.marketplace"), "116px", "left"))
     head_cols += [
-        (t("rev.col.orders"), "62px", "right"),
-        (t("rev.col.sent"), "68px", "right"),
-        (t("rev.col.no_action"), "78px", "right"),
-        (t("rev.col.coverage"), None, "left"),
-        (t("rev.col.status"), "96px", "left"),
+        (t("rev.col.orders"), "72px", "right"),
+        (t("rev.col.sent"), "84px", "right"),
+        (t("rev.col.no_action"), "96px", "right"),
+        (t("rev.col.coverage"), "140px", "left"),
+        (t("rev.col.status"), None, "left"),
     ]
     th = "".join(
         f'<th style="font-weight:400;padding:0 0 8px;text-align:{al};'
@@ -314,7 +313,7 @@ def _coverage_table(rows: list, with_marketplace: bool) -> str:
             f'<td style="padding:9px 0;text-align:right;">{r["sent"]}</td>',
             f'<td style="padding:9px 0;text-align:right;color:var(--text-secondary);">'
             f'{r["no_action"]}</td>',
-            f'<td style="padding:9px 12px 9px 0;">'
+            f'<td style="padding:9px 16px 9px 0;">'
             f'{_bar(r["coverage"], ST_COLOR.get(r["st"], GREY))}</td>',
             f'<td style="padding:9px 0;">{_badge(r["status"], r["st"])}</td>',
         ]
