@@ -1397,6 +1397,211 @@ TRANSLATIONS = {
     "cm.col.fees_pct": {"ru": "Доля комиссий", "uk": "Частка комісій", "en": "Fees share"},
     "cm.col.cm": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
     "cm.col.cm_pct": {"ru": "Маржа %", "uk": "Маржа %", "en": "Margin %"},
+    # --- 9_Coverage.py: покрытие по неделям ---
+    "nav.coverage": {"ru": "Покрытие", "uk": "Покриття", "en": "Coverage"},
+    "cov.title": {"ru": "Покрытие", "uk": "Покриття", "en": "Coverage"},
+    "cov.caption": {
+        "ru": "На сколько недель хватит товара и когда начнётся дефицит",
+        "uk": "На скільки тижнів вистачить товару і коли почнеться дефіцит",
+        "en": "How many weeks of stock are left and when the shortage begins",
+    },
+    "cov.no_table": {
+        "ru": "Расчёт покрытия ещё не запускался — таблица не создана.",
+        "uk": "Розрахунок покриття ще не запускався — таблиця не створена.",
+        "en": "The coverage calculation has not run yet — the table does not exist.",
+    },
+    "cov.empty": {
+        "ru": "Данных пока нет. Запусти расчёт покрытия в пайплайне.",
+        "uk": "Даних поки немає. Запусти розрахунок покриття в пайплайні.",
+        "en": "No data yet. Run the coverage calculation in the pipeline.",
+    },
+    "cov.as_of": {"ru": "Расчёт на {d}", "uk": "Розрахунок на {d}", "en": "Calculated on {d}"},
+    "cov.intro.title": {
+        "ru": "Как читать",
+        "uk": "Як читати",
+        "en": "How to read this",
+    },
+    "cov.intro.body": {
+        "ru": "Покрытие считается по неделям вперёд: из остатка вычитается прогноз продаж, "
+              "добавляются поступления. Когда остаток на складе Amazon кончается, продажи "
+              "не встают — листинг переключается на отгрузку из Мадрида. Но мадридский "
+              "запас общий на несколько стран, поэтому реальный срок короче обещанного.",
+        "uk": "Покриття рахується по тижнях уперед: із залишку віднімається прогноз продажів, "
+              "додаються надходження. Коли залишок на складі Amazon закінчується, продажі "
+              "не зупиняються — лістинг перемикається на відвантаження з Мадрида. Але "
+              "мадридський запас спільний на кілька країн, тому реальний строк коротший.",
+        "en": "Coverage is projected week by week: the forecast is subtracted from stock and "
+              "incoming shipments are added. When Amazon stock runs out, sales do not stop — "
+              "the listing switches to shipping from Madrid. But the Madrid stock is shared "
+              "across several countries, so the real horizon is shorter than promised.",
+    },
+    "cov.filter.marketplace": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
+    "cov.filter.status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "cov.filter.search": {"ru": "Поиск по SKU или товару", "uk": "Пошук за SKU або товаром", "en": "Search SKU or product"},
+    "cov.filter.search_ph": {"ru": "напр. 41324000", "uk": "напр. 41324000", "en": "e.g. 41324000"},
+    "cov.st.critical": {"ru": "Критично", "uk": "Критично", "en": "Critical"},
+    "cov.st.warning": {"ru": "Под вопросом", "uk": "Під питанням", "en": "At risk"},
+    "cov.st.ok": {"ru": "В норме", "uk": "В нормі", "en": "OK"},
+    "cov.kpi.critical": {"ru": "Критично", "uk": "Критично", "en": "Critical"},
+    "cov.kpi.critical_help": {
+        "ru": "Товаров, которых хватит меньше чем на 4 недели с учётом мадридского запаса",
+        "uk": "Товарів, яких вистачить менш ніж на 4 тижні з урахуванням мадридського запасу",
+        "en": "Products with less than 4 weeks of cover including the Madrid stock",
+    },
+    "cov.kpi.warning": {"ru": "Под вопросом", "uk": "Під питанням", "en": "At risk"},
+    "cov.kpi.deficit_13": {"ru": "Дефицит в 13 недель", "uk": "Дефіцит у 13 тижнів", "en": "Shortage within 13 weeks"},
+    "cov.kpi.deficit_13_help": {
+        "ru": "Товаров, у которых запас кончится в горизонте 13 недель",
+        "uk": "Товарів, у яких запас закінчиться в горизонті 13 тижнів",
+        "en": "Products running out within a 13-week horizon",
+    },
+    "cov.kpi.switch": {"ru": "Перейдут на Мадрид", "uk": "Перейдуть на Мадрид", "en": "Switching to Madrid"},
+    "cov.kpi.switch_help": {
+        "ru": "Товары, по которым запас Amazon кончится и отгрузка переключится на склад в Мадриде",
+        "uk": "Товари, за якими запас Amazon закінчиться і відвантаження перемкнеться на склад у Мадриді",
+        "en": "Products where Amazon stock runs out and fulfilment switches to the Madrid warehouse",
+    },
+    "cov.kpi.pool_risk": {"ru": "Прогноз завышен", "uk": "Прогноз завищений", "en": "Optimistic forecast"},
+    "cov.kpi.pool_risk_help": {
+        "ru": "Товары, где мадридский запас делят несколько стран — общий спрос съест его "
+              "раньше, чем показывает расчёт по каждой стране отдельно",
+        "uk": "Товари, де мадридський запас ділять кілька країн — спільний попит вичерпає його "
+              "раніше, ніж показує розрахунок по кожній країні окремо",
+        "en": "Products where several countries share the Madrid stock — combined demand will "
+              "consume it sooner than the per-country calculation suggests",
+    },
+    "cov.tab.list": {"ru": "Список товаров", "uk": "Список товарів", "en": "Products"},
+    "cov.tab.detail": {"ru": "По неделям", "uk": "По тижнях", "en": "Week by week"},
+    "cov.tab.distribution": {"ru": "Распределение", "uk": "Розподіл", "en": "Distribution"},
+    "cov.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
+    "cov.col.marketplace": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
+    "cov.col.stock": {"ru": "Остаток", "uk": "Залишок", "en": "Stock"},
+    "cov.col.stock_help": {
+        "ru": "Доступный остаток на складе Amazon",
+        "uk": "Доступний залишок на складі Amazon",
+        "en": "Available stock in the Amazon warehouse",
+    },
+    "cov.col.weeks_fba": {"ru": "Недель Amazon", "uk": "Тижнів Amazon", "en": "Weeks Amazon"},
+    "cov.col.weeks_fba_help": {
+        "ru": "На сколько недель хватит только складского остатка Amazon",
+        "uk": "На скільки тижнів вистачить лише складського залишку Amazon",
+        "en": "Weeks of cover from Amazon stock alone",
+    },
+    "cov.col.madrid": {"ru": "Мадрид", "uk": "Мадрид", "en": "Madrid"},
+    "cov.col.madrid_help": {
+        "ru": "Остаток на мадридском складе — резерв на случай, когда Amazon опустеет",
+        "uk": "Залишок на мадридському складі — резерв на випадок, коли Amazon спорожніє",
+        "en": "Stock in the Madrid warehouse — the fallback when Amazon runs out",
+    },
+    "cov.col.weeks_total": {"ru": "С Мадридом", "uk": "З Мадридом", "en": "With Madrid"},
+    "cov.col.weeks_total_help": {
+        "ru": "Покрытие, если весь мадридский запас достанется этой стране",
+        "uk": "Покриття, якщо весь мадридський запас дістанеться цій країні",
+        "en": "Cover if the entire Madrid stock went to this country",
+    },
+    "cov.col.pool_weeks": {"ru": "Хватит пула", "uk": "Вистачить пулу", "en": "Pool lasts"},
+    "cov.col.pool_weeks_help": {
+        "ru": "На сколько недель хватит мадридского запаса при суммарном спросе всех стран, "
+              "которые его делят",
+        "uk": "На скільки тижнів вистачить мадридського запасу за сумарного попиту всіх країн, "
+              "які його ділять",
+        "en": "How long the Madrid stock lasts against the combined demand of all countries "
+              "sharing it",
+    },
+    "cov.col.weeks_real": {"ru": "Реально недель", "uk": "Реально тижнів", "en": "Realistic weeks"},
+    "cov.col.weeks_real_help": {
+        "ru": "Меньшее из двух: покрытие этой страны и срок жизни общего мадридского запаса",
+        "uk": "Менше з двох: покриття цієї країни і термін життя спільного мадридського запасу",
+        "en": "The lower of two: this country's cover and the life of the shared Madrid stock",
+    },
+    "cov.col.first_deficit": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Shortage from"},
+    "cov.col.switch": {"ru": "Переход на Мадрид", "uk": "Перехід на Мадрид", "en": "Switch to Madrid"},
+    "cov.col.switch_help": {
+        "ru": "Неделя, когда склад Amazon опустеет и отгрузка пойдёт из Мадрида",
+        "uk": "Тиждень, коли склад Amazon спорожніє і відвантаження піде з Мадрида",
+        "en": "The week when Amazon stock runs out and fulfilment moves to Madrid",
+    },
+    "cov.col.status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "cov.list.pool_warn": {
+        "ru": "У {n} позиций прогноз завышен: мадридский запас делят несколько стран, "
+              "и общий спрос съест его раньше срока, показанного в колонке «С Мадридом».",
+        "uk": "У {n} позицій прогноз завищений: мадридський запас ділять кілька країн, "
+              "і спільний попит вичерпає його раніше строку в колонці «З Мадридом».",
+        "en": "{n} items have an optimistic forecast: the Madrid stock is shared across "
+              "countries, and combined demand will consume it before the date shown in "
+              "the “With Madrid” column.",
+    },
+    "cov.list.note": {
+        "ru": "Прогноз продаж пока считается по скорости за 30 дней. Когда появится "
+              "плановый прогноз, расчёт переключится на него — остальная логика не изменится.",
+        "uk": "Прогноз продажів поки рахується за швидкістю за 30 днів. Коли зʼявиться "
+              "плановий прогноз, розрахунок перемкнеться на нього — решта логіки не зміниться.",
+        "en": "The sales forecast is currently based on the last 30 days of velocity. Once a "
+              "planned forecast is available the calculation will switch to it — nothing else changes.",
+    },
+    "cov.download": {"ru": "Скачать CSV", "uk": "Завантажити CSV", "en": "Download CSV"},
+    "cov.detail.pick": {"ru": "Товар и маркетплейс", "uk": "Товар і маркетплейс", "en": "Product and marketplace"},
+    "cov.detail.no_projection": {
+        "ru": "Проекция по неделям для этой пары не рассчитана.",
+        "uk": "Проекція по тижнях для цієї пари не розрахована.",
+        "en": "No week-by-week projection for this pair.",
+    },
+    "cov.detail.pool_warn": {
+        "ru": "Мадридский запас ({qty} шт) делят {n} стран, их суммарный спрос — "
+              "{demand:.0f} шт в неделю. Общего запаса хватит примерно на {pool_weeks} нед., "
+              "а расчёт по этой стране обещает {promised}.",
+        "uk": "Мадридський запас ({qty} шт) ділять {n} країн, їхній сумарний попит — "
+              "{demand:.0f} шт на тиждень. Спільного запасу вистачить приблизно на "
+              "{pool_weeks} тиж., а розрахунок по цій країні обіцяє {promised}.",
+        "en": "The Madrid stock ({qty} units) is shared by {n} countries with a combined "
+              "demand of {demand:.0f} units per week. The shared stock lasts about "
+              "{pool_weeks} weeks, while this country's calculation promises {promised}.",
+    },
+    "cov.detail.note": {
+        "ru": "Поступление становится доступным со следующей недели после прибытия. "
+              "Непокрытый спрос не переносится на следующую неделю — потерянные продажи "
+              "не возвращаются.",
+        "uk": "Надходження стає доступним з наступного тижня після прибуття. "
+              "Непокритий попит не переноситься на наступний тиждень — втрачені продажі "
+              "не повертаються.",
+        "en": "An incoming shipment becomes available from the week after it arrives. "
+              "Unmet demand does not carry over — lost sales are gone.",
+    },
+    "cov.proj.week_num": {"ru": "Неделя", "uk": "Тиждень", "en": "Week"},
+    "cov.proj.week_start": {"ru": "С даты", "uk": "З дати", "en": "From"},
+    "cov.proj.stock_begin": {"ru": "На начало", "uk": "На початок", "en": "Opening"},
+    "cov.proj.incoming": {"ru": "Поступление", "uk": "Надходження", "en": "Incoming"},
+    "cov.proj.forecast": {"ru": "Прогноз продаж", "uk": "Прогноз продажів", "en": "Forecast"},
+    "cov.proj.stock_end": {"ru": "На конец", "uk": "На кінець", "en": "Closing"},
+    "cov.proj.unmet": {"ru": "Не покрыто", "uk": "Не покрито", "en": "Unmet"},
+    "cov.proj.status": {"ru": "Итог", "uk": "Підсумок", "en": "Result"},
+    "cov.proj.covered": {"ru": "Хватает", "uk": "Вистачає", "en": "Covered"},
+    "cov.proj.deficit": {"ru": "Дефицит", "uk": "Дефіцит", "en": "Shortage"},
+    "cov.bucket.0_4": {"ru": "до 4 недель", "uk": "до 4 тижнів", "en": "under 4 weeks"},
+    "cov.bucket.5_13": {"ru": "5–13 недель", "uk": "5–13 тижнів", "en": "5–13 weeks"},
+    "cov.bucket.14_26": {"ru": "14–26 недель", "uk": "14–26 тижнів", "en": "14–26 weeks"},
+    "cov.bucket.26plus": {"ru": "больше 26", "uk": "більше 26", "en": "over 26"},
+    "cov.dist.title": {
+        "ru": "Сколько товаров в каждой зоне покрытия",
+        "uk": "Скільки товарів у кожній зоні покриття",
+        "en": "Products by coverage band",
+    },
+    "cov.dist.pairs": {"ru": "Позиций", "uk": "Позицій", "en": "Items"},
+    "cov.dist.by_marketplace": {
+        "ru": "По маркетплейсам",
+        "uk": "За маркетплейсами",
+        "en": "By marketplace",
+    },
+    "cov.dist.critical_share": {"ru": "Доля критичных", "uk": "Частка критичних", "en": "Critical share"},
+    "cov.dist.median_weeks": {"ru": "Медиана недель", "uk": "Медіана тижнів", "en": "Median weeks"},
+    "cov.dist.note": {
+        "ru": "Позиция — это товар на одном маркетплейсе. Один товар может быть критичным "
+              "в одной стране и в норме в другой.",
+        "uk": "Позиція — це товар на одному маркетплейсі. Один товар може бути критичним "
+              "в одній країні і в нормі в іншій.",
+        "en": "An item is one product on one marketplace. The same product can be critical "
+              "in one country and fine in another.",
+    },
     # --- 6_Dictionaries.py ---
     "nav.dictionaries_hint": {
         "ru": "Справочники складов, цепочек подпитки, маркетплейсов, пулов и нормативов",
@@ -1458,4 +1663,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
