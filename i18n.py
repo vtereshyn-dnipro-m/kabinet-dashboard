@@ -1279,27 +1279,46 @@ TRANSLATIONS = {
     },
     "cm.amz.open_incidents": {"ru": "Открытых инцидентов", "uk": "Відкритих інцидентів", "en": "Open incidents"},
     "cm.amz.critical": {"ru": "Критических", "uk": "Критичних", "en": "Critical"},
-    "cm.amz.returns": {"ru": "Возвратов", "uk": "Повернень", "en": "Returns"},
-    "cm.amz.returns_help": {
-        "ru": "Возвраты за последние {d} дней",
-        "uk": "Повернення за останні {d} днів",
-        "en": "Returns over the last {d} days",
+    "cm.amz.high": {"ru": "Высокого уровня", "uk": "Високого рівня", "en": "High severity"},
+    "cm.amz.oldest": {"ru": "Самый старый", "uk": "Найстаріший", "en": "Oldest"},
+    "cm.amz.oldest_help": {
+        "ru": "Сколько дней открыт самый давний инцидент",
+        "uk": "Скільки днів відкритий найдавніший інцидент",
+        "en": "How many days the oldest incident has been open",
     },
+    "cm.amz.by_type": {
+        "ru": "Открытые инциденты по типу",
+        "uk": "Відкриті інциденти за типом",
+        "en": "Open incidents by type",
+    },
+    "cm.amz.incidents_note": {
+        "ru": "Инциденты Leroy Merlin показаны на своей вкладке. Полный журнал со всеми "
+              "статусами и историей — на странице «Инциденты».",
+        "uk": "Інциденти Leroy Merlin показані на своїй вкладці. Повний журнал з усіма "
+              "статусами та історією — на сторінці «Інциденти».",
+        "en": "Leroy Merlin incidents are on their own tab. The full log with statuses and "
+              "history is on the Incidents page.",
+    },
+    "cm.amz.returns_soon": {
+        "ru": "Возвраты собираются по всем странам и появятся здесь после переноса "
+              "источника в базу дашборда.",
+        "uk": "Повернення збираються по всіх країнах і зʼявляться тут після перенесення "
+              "джерела в базу дашборда.",
+        "en": "Returns are being collected for all countries and will appear here once the "
+              "source is moved into the dashboard database.",
+    },
+    "cm.col.days_open": {"ru": "Дней", "uk": "Днів", "en": "Days"},
+    "cm.col.days_open_help": {
+        "ru": "Сколько дней инцидент остаётся открытым",
+        "uk": "Скільки днів інцидент залишається відкритим",
+        "en": "How many days the incident has been open",
+    },
+    "cm.col.warehouse": {"ru": "Склад", "uk": "Склад", "en": "Warehouse"},
     "cm.amz.incidents_title": {"ru": "Открытые инциденты", "uk": "Відкриті інциденти", "en": "Open incidents"},
     "cm.amz.no_incidents": {
         "ru": "Открытых инцидентов нет.",
         "uk": "Відкритих інцидентів немає.",
         "en": "No open incidents.",
-    },
-    "cm.amz.returns_title": {
-        "ru": "Товары с наибольшим числом возвратов",
-        "uk": "Товари з найбільшою кількістю повернень",
-        "en": "Products with the most returns",
-    },
-    "cm.amz.sqp_soon": {
-        "ru": "Показатели поисковых запросов (SQP) появятся здесь после подключения источника.",
-        "uk": "Показники пошукових запитів (SQP) з'являться тут після підключення джерела.",
-        "en": "Search query performance metrics will appear here once the source is connected.",
     },
     "cm.col.order": {"ru": "Заказ", "uk": "Замовлення", "en": "Order"},
     "cm.col.created": {"ru": "Создан", "uk": "Створено", "en": "Created"},
