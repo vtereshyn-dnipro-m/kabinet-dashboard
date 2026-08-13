@@ -1,6 +1,7 @@
 # pages/7_Reviews.py — Отзывы: монитор запросов на отзывы (Request a Review)
 import re
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -35,6 +36,9 @@ GREY = "#9aa4b2"
 
 # окно отправки: заказы 8–33 дней от даты покупки
 AGE_MIN, AGE_MAX = 8, 33
+
+# время в базе хранится в UTC — на странице показываем киевское
+TZ = ZoneInfo("Europe/Kyiv")
 
 # домены Amazon по каналу продаж — ссылка на листинг строится по стране
 CHANNEL_DOMAIN = {
@@ -73,7 +77,8 @@ def load_health() -> dict:
         df = pd.read_sql("""
             SELECT
               COUNT(*) FILTER (WHERE status='sent'
-                               AND sent_at::date = CURRENT_DATE)              AS today,
+                               AND (sent_at AT TIME ZONE 'Europe/Kyiv')::date
+                                   = (NOW() AT TIME ZONE 'Europe/Kyiv')::date) AS today,
               COUNT(*) FILTER (WHERE status='sent'
                                AND sent_at >= NOW() - INTERVAL '7 days')      AS sent7,
               COUNT(*) FILTER (WHERE status='failed'
@@ -247,7 +252,12 @@ if not health or int(health.get("total_rows") or 0) == 0:
 # ---------- состояние рассылки ----------
 last_sent = pd.to_datetime(health.get("last_sent")) if health.get("last_sent") else None
 hours_since = None
+last_sent_local = None
 if last_sent is not None and pd.notna(last_sent):
+    # в базе UTC — приводим к киевскому для отображения
+    if last_sent.tzinfo is None:
+        last_sent = last_sent.tz_localize("UTC")
+    last_sent_local = last_sent.tz_convert(TZ)
     hours_since = (datetime.now(last_sent.tzinfo) - last_sent).total_seconds() / 3600
 
 if hours_since is None:
@@ -256,7 +266,7 @@ elif hours_since > 25:
     st.error(t("rev.health_stopped").format(h=hours_since))
 else:
     st.success(t("rev.health_ok").format(
-        when=last_sent.strftime("%d.%m %H:%M")))
+        when=last_sent_local.strftime("%d.%m %H:%M")))
 
 # ---------- как это работает: коротко на видном месте + подробности по клику ----------
 _intro_body = t("rev.intro.body").format(
@@ -365,7 +375,7 @@ with tab_cov:
             safe_div(by_day["processed"], by_day["orders"]) * 100, 1)
         by_day["pending"] = (by_day["orders"] - by_day["processed"]).clip(lower=0)
 
-        today = pd.Timestamp(datetime.now().date())
+        today = pd.Timestamp(datetime.now(TZ).date())
         by_day["age"] = (today - pd.to_datetime(by_day["day"])).dt.days
 
         def status_of(row):
