@@ -243,12 +243,12 @@ def _bar(pct, color: str, dash: bool = False) -> str:
     """Полоса покрытия: заполненная часть + подпись процента."""
     if pct is None or (isinstance(pct, float) and np.isnan(pct)):
         return (f'<div style="display:flex;align-items:center;gap:8px;">'
-                f'<div style="width:88px;height:6px;background:var(--surface-0);'
+                f'<div style="width:120px;height:6px;background:var(--surface-0);'
                 f'border-radius:3px;"></div>'
                 f'<span style="font-size:12px;color:var(--text-muted);">—</span></div>')
     w = max(0, min(100, float(pct)))
     return (f'<div style="display:flex;align-items:center;gap:8px;">'
-            f'<div style="width:88px;height:6px;background:var(--surface-0);'
+            f'<div style="width:120px;height:6px;background:var(--surface-0);'
             f'border-radius:3px;overflow:hidden;flex-shrink:0;">'
             f'<div style="width:{w:.0f}%;height:100%;background:{color};"></div></div>'
             f'<span style="font-size:12px;color:var(--text-secondary);'
@@ -287,14 +287,14 @@ def _legend() -> str:
 
 def _coverage_table(rows: list, with_marketplace: bool) -> str:
     """HTML-таблица покрытия: полоса прогресса + бейдж статуса."""
-    head_cols = [(t("rev.col.date"), None, "left")]
+    head_cols = [(t("rev.col.date"), "104px", "left")]
     if with_marketplace:
-        head_cols.append((t("rev.col.marketplace"), None, "left"))
+        head_cols.append((t("rev.col.marketplace"), "124px", "left"))
     head_cols += [
-        (t("rev.col.orders"), "78px", "right"),
-        (t("rev.col.sent"), "92px", "right"),
-        (t("rev.col.no_action"), "108px", "right"),
-        (t("rev.col.coverage"), "146px", "left"),
+        (t("rev.col.orders"), "76px", "right"),
+        (t("rev.col.sent"), "90px", "right"),
+        (t("rev.col.no_action"), "104px", "right"),
+        (t("rev.col.coverage"), None, "left"),
         (t("rev.col.status"), "104px", "left"),
     ]
     th = "".join(
