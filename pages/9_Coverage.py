@@ -444,4 +444,4 @@ with tab_dist:
                     t("cov.dist.median_weeks"), format="%.0f"),
             },
         )
-        st.caption(t("cov.dist.note"))
+        st.caption(t("cov.dist.note")) 
