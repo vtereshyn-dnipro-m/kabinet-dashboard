@@ -326,7 +326,8 @@ with tab_detail:
             st.info(t("cov.detail.no_projection"))
         else:
             proj["week_start"] = pd.to_datetime(proj["week_start"])
-            proj["label"] = proj["week_start"].dt.strftime("%d.%m")
+            proj["label"] = (proj["week_num"].astype(str) + ". "
+                             + proj["week_start"].dt.strftime("%d.%m"))
 
             fig = make_subplots(specs=[[{"secondary_y": False}]])
             fig.add_trace(go.Bar(
@@ -364,7 +365,12 @@ with tab_detail:
             fig.update_layout(barmode="group", height=360,
                               margin=dict(l=10, r=10, t=30, b=10),
                               hovermode="x unified",
-                              legend=dict(orientation="h", y=1.16))
+                              legend=dict(orientation="h", y=1.16),
+                              # подписи вида «10.08» Plotly принимает за числа и
+                              # раскладывает недели не по порядку — ось строго категориальная
+                              xaxis=dict(type="category",
+                                         categoryorder="array",
+                                         categoryarray=proj["label"].tolist()))
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
             tbl = proj.copy()
@@ -451,4 +457,4 @@ with tab_dist:
                     t("cov.dist.median_weeks"), format="%.0f"),
             },
         )
-        st.caption(t("cov.dist.note")) 
+        st.caption(t("cov.dist.note"))
