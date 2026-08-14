@@ -271,6 +271,17 @@ mp_scope = all_mp if is_all else (
 sales = load_sales(DAYS)
 stock = load_stock()
 
+st.markdown(f"""
+<div style="border:1px solid rgba(128,128,128,0.22); border-left:3px solid {BLUE};
+            border-radius:10px; padding:12px 18px; margin:14px 0 4px 0;
+            background:rgba(31,119,180,0.045);">
+  <div style="font-size:0.72rem; font-weight:700; letter-spacing:.06em;
+              text-transform:uppercase; color:{BLUE}; margin-bottom:4px;">
+    {t("cm.intro.title")}</div>
+  <div style="font-size:0.93rem; line-height:1.55;">{t("cm.intro.body")}</div>
+</div>
+""", unsafe_allow_html=True)
+
 st.divider()
 
 tab_sum, tab_lm, tab_amz, tab_all = st.tabs(
@@ -684,4 +695,4 @@ with tab_all:
                     t("cm.col.cm_pct"), format="%.1f%%"),
             },
         )
-        st.caption(t("cm.all.note")) 
+        st.caption(t("cm.all.note"))
