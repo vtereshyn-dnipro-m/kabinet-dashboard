@@ -318,11 +318,16 @@ with tab_sum:
                     .drop_duplicates("base_sku").set_index("base_sku")["product_name"])
         wide["product_name"] = wide["base_sku"].map(names).fillna("—")
 
-        # остатки: физический товар и выделенная квота канала
-        phys = (stock[stock["availability_status"] == "available"]
+        # остатки: физический товар и выделенная квота канала.
+        # ключ приводим к строке с обеих сторон — иначе merge молча даёт пустоту
+        stock_k = stock.copy()
+        stock_k["base_sku"] = stock_k["base_sku"].astype(str).str.strip()
+        wide["base_sku"] = wide["base_sku"].astype(str).str.strip()
+
+        phys = (stock_k[stock_k["availability_status"] == "available"]
                 .groupby("base_sku", as_index=False)["qty"].sum()
                 .rename(columns={"qty": "stock_amazon"}))
-        quota = (stock[stock["source"] == "mirakl-offers"]
+        quota = (stock_k[stock_k["source"] == "mirakl-offers"]
                  .groupby("base_sku", as_index=False)["qty"].sum()
                  .rename(columns={"qty": "stock_lm"}))
         wide = wide.merge(phys, on="base_sku", how="left") \
@@ -360,6 +365,7 @@ with tab_sum:
             np.round((wide["avg_price_lm"] - wide["avg_price_amazon"])
                      / wide["avg_price_amazon"].replace(0, np.nan) * 100, 1),
             np.nan)
+        wide["price_gap_pct"] = pd.to_numeric(wide["price_gap_pct"], errors="coerce")
         wide["price_alert"] = both & (wide["price_gap_pct"].abs() > 10)
 
         wide = wide.sort_values("revenue_amazon", ascending=False)
@@ -448,6 +454,13 @@ with tab_lm:
             st.caption(t("cm.lm.as_of").format(
                 d=pd.to_datetime(last["calc_date"]).strftime("%d.%m.%Y")))
 
+            # в метриках значение вчерашнее — список заказов актуальнее,
+            # поэтому счётчик берём из него
+            waiting_now = load_lm_open_orders()
+            if not waiting_now.empty:
+                last = last.copy()
+                last["waiting_acceptance"] = len(waiting_now)
+
             cards = [
                 ("acceptance_rate_pct", t("cm.lm.acceptance"), "{:.0f}%"),
                 ("avg_acceptance_h", t("cm.lm.avg_time"), "{:.1f} ч"),
@@ -510,6 +523,10 @@ with tab_lm:
             else:
                 waiting["created_date"] = pd.to_datetime(
                     waiting["created_date"]).dt.strftime("%d.%m %H:%M")
+                STATE_LABEL = {"WAITING_ACCEPTANCE": t("cm.state.waiting_acceptance"),
+                               "WAITING_DEBIT": t("cm.state.waiting_debit")}
+                waiting["order_state"] = waiting["order_state"].map(
+                    lambda v: STATE_LABEL.get(v, v))
                 st.dataframe(
                     waiting[["order_id", "created_date", "order_state",
                              "total_price", "hours_open"]],
@@ -543,6 +560,22 @@ with tab_amz:
         # инциденты Leroy Merlin живут в общем журнале — здесь показываем
         # только амазоновские, чтобы вкладки не дублировали друг друга
         inc["source"] = inc["source"].fillna("amazon")
+        # в базе коды — на экране человеческие названия
+        TYPE_LABEL = {
+            "low_stock": t("cm.inc.low_stock"),
+            "out_of_stock": t("cm.inc.out_of_stock"),
+            "stale_data": t("cm.inc.stale_data"),
+            "negative_stock": t("cm.inc.negative_stock"),
+            "lm_order_not_accepted": t("cm.inc.lm_not_accepted"),
+            "lm_offer_out_of_stock": t("cm.inc.lm_offer_zero"),
+            "lm_health_degraded": t("cm.inc.lm_degraded"),
+        }
+        SEV_LABEL = {"critical": t("cm.sev.critical"), "high": t("cm.sev.high"),
+                     "warning": t("cm.sev.warning"), "low": t("cm.sev.low"),
+                     "info": t("cm.sev.info")}
+        inc["type_label"] = inc["incident_type"].map(
+            lambda v: TYPE_LABEL.get(v, v))
+        inc["sev_label"] = inc["severity"].map(lambda v: SEV_LABEL.get(v, v))
         amz = inc[~inc["source"].str.contains("leroy|lm", case=False, na=False)].copy()
 
         a1, a2, a3, a4 = st.columns(4)
@@ -558,11 +591,11 @@ with tab_amz:
         st.divider()
 
         # по типу — что именно чаще всего требует внимания
-        by_type = (amz.groupby("incident_type", as_index=False)
-                      .agg(cnt=("incident_type", "size"),
+        by_type = (amz.groupby("type_label", as_index=False)
+                      .agg(cnt=("type_label", "size"),
                            oldest=("days_open", "max"))
                       .sort_values("cnt", ascending=False))
-        fig = px.bar(by_type.sort_values("cnt"), x="cnt", y="incident_type",
+        fig = px.bar(by_type.sort_values("cnt"), x="cnt", y="type_label",
                      orientation="h", text="cnt",
                      title=t("cm.amz.by_type"),
                      color_discrete_sequence=[ACCENT])
@@ -575,7 +608,7 @@ with tab_amz:
         view = amz.sort_values("days_open", ascending=False).copy()
         view["created_at"] = pd.to_datetime(view["created_at"]).dt.strftime("%d.%m.%Y")
         st.dataframe(
-            view[["created_at", "days_open", "severity", "incident_type",
+            view[["created_at", "days_open", "sev_label", "type_label",
                   "sku", "warehouse_name", "message"]],
             use_container_width=True, height=420, hide_index=True,
             column_config={
@@ -584,9 +617,9 @@ with tab_amz:
                 "days_open": st.column_config.NumberColumn(
                     t("cm.col.days_open"), width="small",
                     help=t("cm.col.days_open_help")),
-                "severity": st.column_config.TextColumn(
+                "sev_label": st.column_config.TextColumn(
                     t("cm.col.severity"), width="small"),
-                "incident_type": st.column_config.TextColumn(
+                "type_label": st.column_config.TextColumn(
                     t("cm.col.type"), width="small"),
                 "sku": st.column_config.TextColumn("SKU", width="small"),
                 "warehouse_name": st.column_config.TextColumn(
