@@ -1176,8 +1176,8 @@ TRANSLATIONS = {
         ),
     },
     # --- 8_CM_Dashboard.py: сводка по площадкам и здоровье каналов ---
-    "nav.cm": {"ru": "Сводка CM", "uk": "Зведення CM", "en": "CM Dashboard"},
-    "cm.title": {"ru": "Сводка по площадкам", "uk": "Зведення за майданчиками", "en": "Channel summary"},
+    "nav.cm": {"ru": "Площадки", "uk": "Майданчики", "en": "Channels"},
+    "cm.title": {"ru": "Площадки", "uk": "Майданчики", "en": "Channels"},
     "cm.caption": {
         "ru": "Amazon и Leroy Merlin в одной картине: продажи, цены, остатки, здоровье каналов",
         "uk": "Amazon і Leroy Merlin в одній картині: продажі, ціни, залишки, здоров'я каналів",
@@ -1388,6 +1388,25 @@ TRANSLATIONS = {
         "uk": "Відкритих інцидентів немає.",
         "en": "No open incidents.",
     },
+    "cm.state.waiting_acceptance": {
+        "ru": "Ждёт акцепта", "uk": "Чекає акцепту", "en": "Awaiting acceptance"},
+    "cm.state.waiting_debit": {
+        "ru": "Ждёт оплаты", "uk": "Чекає оплати", "en": "Awaiting payment"},
+    "cm.inc.low_stock": {"ru": "Мало остатка", "uk": "Мало залишку", "en": "Low stock"},
+    "cm.inc.out_of_stock": {"ru": "Нет в наличии", "uk": "Немає в наявності", "en": "Out of stock"},
+    "cm.inc.stale_data": {"ru": "Данные устарели", "uk": "Дані застаріли", "en": "Stale data"},
+    "cm.inc.negative_stock": {"ru": "Отрицательный остаток", "uk": "Відʼємний залишок", "en": "Negative stock"},
+    "cm.inc.lm_not_accepted": {
+        "ru": "Заказ без акцепта", "uk": "Замовлення без акцепту", "en": "Order not accepted"},
+    "cm.inc.lm_offer_zero": {
+        "ru": "Оффер обнулён", "uk": "Оффер обнулено", "en": "Offer out of stock"},
+    "cm.inc.lm_degraded": {
+        "ru": "Показатели канала просели", "uk": "Показники каналу просіли", "en": "Channel health down"},
+    "cm.sev.critical": {"ru": "Критично", "uk": "Критично", "en": "Critical"},
+    "cm.sev.high": {"ru": "Высокий", "uk": "Високий", "en": "High"},
+    "cm.sev.warning": {"ru": "Средний", "uk": "Середній", "en": "Medium"},
+    "cm.sev.low": {"ru": "Низкий", "uk": "Низький", "en": "Low"},
+    "cm.sev.info": {"ru": "Инфо", "uk": "Інфо", "en": "Info"},
     "cm.col.order": {"ru": "Заказ", "uk": "Замовлення", "en": "Order"},
     "cm.col.created": {"ru": "Создан", "uk": "Створено", "en": "Created"},
     "cm.col.state": {"ru": "Состояние", "uk": "Стан", "en": "State"},
