@@ -1183,6 +1183,34 @@ TRANSLATIONS = {
         "uk": "Amazon і Leroy Merlin в одній картині: продажі, ціни, залишки, здоров'я каналів",
         "en": "Amazon and Leroy Merlin side by side: sales, prices, stock, channel health",
     },
+    "cm.intro.title": {
+        "ru": "Зачем эта страница",
+        "uk": "Навіщо ця сторінка",
+        "en": "What this page is for",
+    },
+    "cm.intro.body": {
+        "ru": "Amazon и Leroy Merlin продают один и тот же товар, но данные по ним лежат "
+              "в разных местах — сопоставить цены и остатки было негде. Здесь один товар "
+              "занимает одну строку, обе площадки рядом. Смотреть в первую очередь на две "
+              "колонки: разница цен (где на площадках расходится больше чем на 10%) и "
+              "возвраты (где возвращают больше 15% проданного). Остаток Leroy Merlin — это "
+              "не отдельный товар, а квота, выставленная на канал из мадридского склада: "
+              "складывать её с амазоновским остатком нельзя.",
+        "uk": "Amazon і Leroy Merlin продають один і той самий товар, але дані по них лежать "
+              "у різних місцях — зіставити ціни й залишки не було де. Тут один товар займає "
+              "один рядок, обидва майданчики поруч. Дивитись насамперед на дві колонки: "
+              "різниця цін (де на майданчиках розходиться більш ніж на 10%) і повернення "
+              "(де повертають понад 15% проданого). Залишок Leroy Merlin — це не окремий "
+              "товар, а квота, виставлена на канал з мадридського складу: складати її з "
+              "амазонівським залишком не можна.",
+        "en": "Amazon and Leroy Merlin sell the same products, but their data lives in "
+              "separate places — there was nowhere to compare prices and stock. Here one "
+              "product is one row with both channels side by side. Watch two columns first: "
+              "the price gap (where channels differ by more than 10%) and returns (where more "
+              "than 15% of units sold come back). Leroy Merlin stock is not separate "
+              "inventory — it is a quota listed on the channel out of the Madrid warehouse, "
+              "so it must not be added to the Amazon figure.",
+    },
     "cm.filter.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
     "cm.filter.all_countries": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
     "cm.filter.period": {"ru": "Период", "uk": "Період", "en": "Period"},
