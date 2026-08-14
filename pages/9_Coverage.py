@@ -343,16 +343,23 @@ with tab_detail:
                 y=proj["unmet_demand"], marker_color=ACCENT, opacity=0.4))
 
             # общий мадридский запас кончится раньше, чем показывает расчёт
-            # по этой стране — отмечаем неделю прямо на графике
+            # по этой стране — отмечаем неделю прямо на графике.
+            # add_vline здесь не годится: ось категориальная, Plotly пытается
+            # усреднить подписи вида «04.01» и падает — рисуем фигурой по индексу.
             if (pd.notna(pool_w) and pd.notna(total_w) and pool_w < total_w
                     and int(row.get("competing_marketplaces") or 0) > 1):
                 idx = int(pool_w)
                 if 0 <= idx < len(proj):
-                    fig.add_vline(
-                        x=proj["label"].iloc[idx], line_dash="dash",
-                        line_color=ACCENT, opacity=0.8,
-                        annotation_text=t("cov.proj.pool_line"),
-                        annotation_position="top")
+                    fig.add_shape(
+                        type="line", xref="x", yref="paper",
+                        x0=idx, x1=idx, y0=0, y1=1,
+                        line=dict(color=ACCENT, width=2, dash="dash"),
+                        opacity=0.8)
+                    fig.add_annotation(
+                        xref="x", yref="paper", x=idx, y=1.02,
+                        text=t("cov.proj.pool_line"), showarrow=False,
+                        font=dict(color=ACCENT, size=11),
+                        xanchor="left")
 
             fig.update_layout(barmode="group", height=360,
                               margin=dict(l=10, r=10, t=30, b=10),
