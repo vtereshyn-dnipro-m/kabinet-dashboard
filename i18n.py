@@ -911,6 +911,90 @@ TRANSLATIONS = {
         "en": "These orders had a return — no review request is sent",
     },
     "rev.tab.coverage": {"ru": "Покрытие", "uk": "Покриття", "en": "Coverage"},
+    "rev.tab.dynamics": {"ru": "Динамика отзывов", "uk": "Динаміка відгуків", "en": "Review growth"},
+    "rev.dyn.no_data": {
+        "ru": "Данных о количестве отзывов пока нет — сбор только запущен.",
+        "uk": "Даних про кількість відгуків поки немає — збір щойно запущено.",
+        "en": "No review count data yet — collection has just started.",
+    },
+    "rev.dyn.no_stable": {
+        "ru": "Пока нет позиций со стабильными данными для сравнения.",
+        "uk": "Поки немає позицій зі стабільними даними для порівняння.",
+        "en": "No products with stable data to compare yet.",
+    },
+    "rev.dyn.total": {"ru": "Отзывов всего", "uk": "Відгуків всього", "en": "Reviews total"},
+    "rev.dyn.total_help": {
+        "ru": "Сумма отзывов по {n} позициям, за которыми ведётся наблюдение",
+        "uk": "Сума відгуків по {n} позиціях, за якими ведеться спостереження",
+        "en": "Total reviews across {n} tracked items",
+    },
+    "rev.dyn.growth": {"ru": "Прибавилось", "uk": "Додалося", "en": "Added"},
+    "rev.dyn.growth_help": {
+        "ru": "Прирост за {d} дней наблюдения",
+        "uk": "Приріст за {d} днів спостереження",
+        "en": "Growth over {d} days of tracking",
+    },
+    "rev.dyn.before": {"ru": "В день до", "uk": "На день до", "en": "Per day before"},
+    "rev.dyn.before_help": {
+        "ru": "Сколько отзывов прибавлялось в день до запуска рассылки",
+        "uk": "Скільки відгуків додавалося на день до запуску розсилки",
+        "en": "Reviews added per day before the mailing started",
+    },
+    "rev.dyn.after": {"ru": "В день после", "uk": "На день після", "en": "Per day after"},
+    "rev.dyn.after_help": {
+        "ru": "Сколько отзывов прибавляется в день после запуска рассылки",
+        "uk": "Скільки відгуків додається на день після запуску розсилки",
+        "en": "Reviews added per day since the mailing started",
+    },
+    "rev.dyn.chart": {
+        "ru": "Отправленные запросы и новые отзывы по дням",
+        "uk": "Надіслані запити та нові відгуки за днями",
+        "en": "Requests sent and new reviews by day",
+    },
+    "rev.dyn.new_reviews": {"ru": "Новых отзывов", "uk": "Нових відгуків", "en": "New reviews"},
+    "rev.dyn.launch": {"ru": "Старт рассылки", "uk": "Старт розсилки", "en": "Mailing started"},
+    "rev.dyn.lag_note": {
+        "ru": "Отзыв появляется не сразу: покупатель получает письмо, пишет отзыв, "
+              "Amazon его публикует — обычно проходит 3–5 дней. Поэтому всплеск отзывов "
+              "отстаёт от дня отправки примерно на четыре дня.",
+        "uk": "Відгук зʼявляється не одразу: покупець отримує лист, пише відгук, "
+              "Amazon його публікує — зазвичай минає 3–5 днів. Тому сплеск відгуків "
+              "відстає від дня відправки приблизно на чотири дні.",
+        "en": "A review does not appear immediately: the buyer receives the email, writes "
+              "the review, Amazon publishes it — usually 3–5 days. So the spike in reviews "
+              "lags the send date by roughly four days.",
+    },
+    "rev.dyn.grown": {"ru": "Товаров выросло", "uk": "Товарів зросло", "en": "Products grown"},
+    "rev.dyn.grown_help": {
+        "ru": "Сколько позиций из {n} получили новые отзывы за период",
+        "uk": "Скільки позицій з {n} отримали нові відгуки за період",
+        "en": "How many of {n} tracked items gained new reviews",
+    },
+    "rev.dyn.excluded": {"ru": "Исключено из счёта", "uk": "Виключено з підрахунку", "en": "Excluded"},
+    "rev.dyn.excluded_help": {
+        "ru": "Позиции, где число отзывов скачет: Amazon показывает то отзывы страны, "
+              "то все европейские. Такие данные для сравнения не годятся.",
+        "uk": "Позиції, де число відгуків стрибає: Amazon показує то відгуки країни, "
+              "то всі європейські. Такі дані для порівняння не годяться.",
+        "en": "Items where the review count jumps: Amazon sometimes shows country reviews, "
+              "sometimes all European ones. Such data is not usable for comparison.",
+    },
+    "rev.dyn.top": {"ru": "Где отзывов прибавилось больше всего", "uk": "Де відгуків додалося найбільше", "en": "Biggest review gains"},
+    "rev.dyn.was": {"ru": "Было", "uk": "Було", "en": "Was"},
+    "rev.dyn.now": {"ru": "Стало", "uk": "Стало", "en": "Now"},
+    "rev.dyn.plus": {"ru": "Прирост", "uk": "Приріст", "en": "Gain"},
+    "rev.dyn.rating": {"ru": "Оценка", "uk": "Оцінка", "en": "Rating"},
+    "rev.dyn.note": {
+        "ru": "Часть отзывов появилась бы и без рассылки — покупатели пишут их сами. "
+              "Поэтому сравниваем не общий прирост, а скорость: сколько отзывов "
+              "прибавлялось в день до запуска и сколько после.",
+        "uk": "Частина відгуків зʼявилася б і без розсилки — покупці пишуть їх самі. "
+              "Тому порівнюємо не загальний приріст, а швидкість: скільки відгуків "
+              "додавалося на день до запуску і скільки після.",
+        "en": "Some reviews would have appeared anyway — buyers write them on their own. "
+              "That is why we compare the rate, not the total: how many reviews were added "
+              "per day before the launch and how many after.",
+    },
     "rev.tab.marketplace": {"ru": "По маркетплейсам", "uk": "За маркетплейсами", "en": "By marketplace"},
     "rev.tab.age": {"ru": "Возраст заказа", "uk": "Вік замовлення", "en": "Order age"},
     "rev.tab.asin": {"ru": "По товарам", "uk": "За товарами", "en": "By product"},
@@ -1743,4 +1827,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
