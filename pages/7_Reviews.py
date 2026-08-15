@@ -262,11 +262,26 @@ def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
         return df
 
     df["snapshot_date"] = pd.to_datetime(df["snapshot_date"])
-    # берём только пары с данными на все даты периода
+
+    # первые дни сбора скрапер трекал единицы товаров — такие даты
+    # исказят картину, поэтому берём период, где охват уже стабилен
+    per_day = df.groupby("snapshot_date")["asin"].count()
+    if len(per_day) > 3:
+        threshold = per_day.max() * 0.5
+        good_days = per_day[per_day >= threshold].index
+        if len(good_days) >= 3:
+            df = df[df["snapshot_date"].isin(good_days)]
+
+    if df.empty:
+        return df
+
+    # пара должна присутствовать почти во все дни периода: требовать все
+    # 100% слишком строго — один пропуск скрапера выбрасывает товар целиком
     dates = df["snapshot_date"].nunique()
+    need = max(2, int(dates * 0.8))
     full = (df.groupby(["asin", "marketplace"])["snapshot_date"]
               .nunique().reset_index(name="n"))
-    full = full[full["n"] == dates][["asin", "marketplace"]]
+    full = full[full["n"] >= need][["asin", "marketplace"]]
     df = df.merge(full, on=["asin", "marketplace"])
     if df.empty:
         return df
@@ -730,8 +745,16 @@ with tab_dyn:
         if stable.empty:
             st.info(t("rev.dyn.no_stable"))
         else:
-            daily = (stable.groupby("snapshot_date", as_index=False)["review_count"]
-                           .sum().sort_values("snapshot_date"))
+            # пропуск скрапера в отдельный день не должен выглядеть падением:
+            # переносим последнее известное значение вперёд
+            grid = (stable.pivot_table(index="snapshot_date",
+                                       columns=["asin", "marketplace"],
+                                       values="review_count", aggfunc="last")
+                          .sort_index().ffill().bfill())
+            daily = pd.DataFrame({
+                "snapshot_date": grid.index,
+                "review_count": grid.sum(axis=1).values,
+            })
             daily["delta"] = daily["review_count"].diff()
 
             first_val = float(daily["review_count"].iloc[0])
