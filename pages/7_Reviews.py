@@ -37,6 +37,9 @@ GREY = "#9aa4b2"
 # цвета статусов покрытия — совпадают в бейдже, прогресс-баре и легенде
 ST_COLOR = {"ok": GREEN, "catching": AMBER, "missed": ACCENT, "maturing": GREY}
 
+# панель инструментов Plotly не нужна пользователю дашборда
+PLOTLY_CFG = {"displayModeBar": False}
+
 # окно отправки: заказы 8–33 дней от даты покупки
 AGE_MIN, AGE_MAX = 8, 33
 
@@ -235,6 +238,66 @@ def load_by_asin(days: int) -> pd.DataFrame:
         conn.close()
 
 
+@st.cache_data(ttl=600)
+def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
+    """История количества отзывов по ASIN. Нестабильные ряды отсеиваем:
+    Amazon иногда показывает отзывы страны, иногда все европейские, и число
+    скачет — такие пары в динамику не берём."""
+    if not table_exists("asin_reviews_daily"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        df = pd.read_sql(f"""
+            SELECT asin, marketplace, snapshot_date, review_count, rating
+            FROM kabinet_data.asin_reviews_daily
+            WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+              AND review_count IS NOT NULL
+            ORDER BY snapshot_date
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+    if df.empty:
+        return df
+
+    df["snapshot_date"] = pd.to_datetime(df["snapshot_date"])
+    # берём только пары с данными на все даты периода
+    dates = df["snapshot_date"].nunique()
+    full = (df.groupby(["asin", "marketplace"])["snapshot_date"]
+              .nunique().reset_index(name="n"))
+    full = full[full["n"] == dates][["asin", "marketplace"]]
+    df = df.merge(full, on=["asin", "marketplace"])
+    if df.empty:
+        return df
+
+    # отсев скачущих: размах больше 20% от максимума — признак того,
+    # что Amazon показывал то локальные отзывы, то общеевропейские
+    amp = (df.groupby(["asin", "marketplace"])["review_count"]
+             .agg(["min", "max"]).reset_index())
+    amp["stable"] = (amp["max"] - amp["min"]) <= amp["max"] * 0.2
+    df = df.merge(amp[["asin", "marketplace", "stable"]],
+                  on=["asin", "marketplace"])
+    return df
+
+
+@st.cache_data(ttl=600)
+def load_sent_by_day(days: int = 30) -> pd.DataFrame:
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT sent_at::date AS day, COUNT(*) AS sent
+            FROM kabinet_data.review_request_log
+            WHERE status = 'sent'
+              AND sent_at >= CURRENT_DATE - INTERVAL '{days} days'
+            GROUP BY 1 ORDER BY 1
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
 def safe_div(a, b):
     return np.where(b > 0, a / np.where(b > 0, b, 1), 0.0)
 
@@ -287,22 +350,47 @@ def _legend() -> str:
             f'color:var(--text-secondary);">{cells}</div>')
 
 
-def _coverage_table(rows: list, with_marketplace: bool) -> str:
+def _coverage_table(rows: list, with_marketplace: bool,
+                    sort_col: str, sort_dir: str) -> str:
     """HTML-таблица покрытия: полоса прогресса + бейдж статуса."""
-    head_cols = [(t("rev.col.date"), "104px", "left")]
+    head_cols = [(t("rev.col.date"), "104px", "left", "day")]
     if with_marketplace:
-        head_cols.append((t("rev.col.marketplace"), "124px", "left"))
+        head_cols.append((t("rev.col.marketplace"), "124px", "left", None))
     head_cols += [
-        (t("rev.col.orders"), "76px", "right"),
-        (t("rev.col.sent"), "90px", "right"),
-        (t("rev.col.no_action"), "104px", "right"),
-        (t("rev.col.coverage"), None, "left"),
-        (t("rev.col.status"), "104px", "left"),
+        (t("rev.col.orders"), "76px", "right", "orders"),
+        (t("rev.col.sent"), "90px", "right", "sent"),
+        (t("rev.col.no_action"), "104px", "right", "no_action"),
+        (t("rev.col.coverage"), None, "left", "coverage"),
+        (t("rev.col.status"), "104px", "left", None),
     ]
-    th = "".join(
-        f'<th style="font-weight:400;padding:0 0 8px;text-align:{al};'
-        + (f'width:{w};' if w else '') + f'">{name}</th>'
-        for name, w, al in head_cols)
+
+    HINTS = {
+        "no_action": t("rev.col.no_action_help"),
+        "coverage": t("rev.col.coverage_help"),
+    }
+
+    def _th(name, w, al, field):
+        style = (f'font-weight:400;padding:0 0 8px;text-align:{al};'
+                 + (f'width:{w};' if w else ''))
+        hint = HINTS.get(field)
+        if hint:
+            name = (f'<span title="{hint}" style="border-bottom:1px dotted '
+                    f'var(--text-muted);cursor:help;">{name}</span>')
+        if not field:
+            return f'<th style="{style}">{name}</th>'
+        active = field == sort_col
+        # повторный клик по активной колонке разворачивает порядок
+        nxt = "asc" if (active and sort_dir == "desc") else "desc"
+        arrow = ("" if not active
+                 else ' <span style="font-size:10px;">'
+                      + ("&#9660;" if sort_dir == "desc" else "&#9650;")
+                      + "</span>")
+        color = "var(--text-primary)" if active else "var(--text-secondary)"
+        return (f'<th style="{style}"><a href="?sort={field}&dir={nxt}" '
+                f'target="_self" style="color:{color};text-decoration:none;'
+                f'cursor:pointer;">{name}{arrow}</a></th>')
+
+    th = "".join(_th(*c) for c in head_cols)
 
     tr = []
     for r in rows:
@@ -381,29 +469,6 @@ st.markdown(f"""
 with st.expander(t("rev.how.title")):
     st.markdown(t("rev.how.body"))
 
-    def _legend_item(color: str, label: str, desc: str) -> str:
-        return f"""<div style="display:flex; gap:10px; align-items:flex-start;">
-  <span style="width:10px; height:10px; border-radius:3px; background:{color};
-               margin-top:5px; flex-shrink:0;"></span>
-  <div>
-    <div style="font-weight:600; font-size:0.88rem;">{label}</div>
-    <div style="font-size:0.8rem; color:{GREY}; line-height:1.4;">{desc}</div>
-  </div>
-</div>"""
-
-    legend_html = f"""
-<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
-            gap:14px 22px; margin:14px 0 4px 0;">
-  {_legend_item(GREEN, t('rev.st.ok'), t('rev.st.ok_desc'))}
-  {_legend_item(AMBER, t('rev.st.catching'), t('rev.st.catching_desc'))}
-  {_legend_item(ACCENT, t('rev.st.missed'),
-                t('rev.st.missed_desc').format(min=AGE_MIN, max=AGE_MAX))}
-  {_legend_item(GREY, t('rev.st.maturing'),
-                t('rev.st.maturing_desc').format(min=AGE_MIN))}
-</div>
-"""
-    st.markdown(legend_html, unsafe_allow_html=True)
-
     st.markdown(f"""
 <div style="margin-top:6px; border:1px solid rgba(128,128,128,0.22); border-radius:10px;
             padding:12px 16px; background:rgba(128,128,128,0.05);">
@@ -434,7 +499,8 @@ pool_total = int(pool["orders"].sum()) if not pool.empty else 0
 pool_burning = int(pool.loc[pool["age_days"] >= 26, "orders"].sum()) if not pool.empty else 0
 
 k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric(t("rev.kpi.today"), f"{int(health.get('today') or 0):,}")
+k1.metric(t("rev.kpi.today"), f"{int(health.get('today') or 0):,}",
+          help=t("rev.kpi.today_help"))
 k2.metric(t("rev.kpi.week"), f"{int(health.get('sent7') or 0):,}",
           help=t("rev.kpi.week_help"))
 k3.metric(t("rev.kpi.pool"), f"{pool_total:,}", help=t("rev.kpi.pool_help"))
@@ -444,8 +510,8 @@ k5.metric(t("rev.kpi.skipped"), f"{int(health.get('skipped') or 0):,}",
 
 st.divider()
 
-tab_cov, tab_mp, tab_age, tab_asin = st.tabs(
-    [t("rev.tab.coverage"), t("rev.tab.marketplace"),
+tab_cov, tab_dyn, tab_mp, tab_age, tab_asin = st.tabs(
+    [t("rev.tab.coverage"), t("rev.tab.dynamics"), t("rev.tab.marketplace"),
      t("rev.tab.age"), t("rev.tab.asin")]
 )
 
@@ -563,7 +629,7 @@ with tab_cov:
         fig.update_yaxes(title_text=t("rev.col.orders"), secondary_y=False)
         fig.update_yaxes(range=[0, 105], ticksuffix="%", showgrid=False,
                          secondary_y=True)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
         st.caption(t("rev.chart.no_action_note"))
 
         # ---- таблица по датам: итог по дате + разбивка по маркетплейсам ----
@@ -580,21 +646,20 @@ with tab_cov:
             lambda row: status_of({"age": row["age"], "coverage": row["coverage"]}),
             axis=1)
 
-        tc1, tc2, tc3 = st.columns([1.1, 1.4, 1.5])
+        # сортировка живёт в адресе страницы — заголовки таблицы кликабельны
+        ALLOWED_SORT = {"day", "orders", "sent", "no_action", "coverage"}
+        sort_col = st.query_params.get("sort", "day")
+        if sort_col not in ALLOWED_SORT:
+            sort_col = "day"
+        sort_dir = st.query_params.get("dir", "desc")
+        if sort_dir not in ("asc", "desc"):
+            sort_dir = "desc"
+        asc = sort_dir == "asc"
+
+        tc1, tc2 = st.columns([1.1, 2.4])
         with tc1:
             split_mp = st.toggle(t("rev.table.split_by_marketplace"), value=False)
         with tc2:
-            SORT_FIELDS = {
-                t("rev.col.date"): "day",
-                t("rev.col.coverage"): "coverage",
-                t("rev.col.orders"): "orders",
-                t("rev.col.sent"): "sent",
-                t("rev.col.no_action"): "no_action",
-            }
-            sort_label = st.selectbox(t("rev.table.sort_by"),
-                                      list(SORT_FIELDS.keys()), index=0)
-            sort_col = SORT_FIELDS[sort_label]
-        with tc3:
             mp_options = sorted(by_day_mp["sales_channel"].dropna().unique().tolist())
             mp_filter = st.multiselect(
                 t("rev.table.marketplace_filter"), options=mp_options,
@@ -605,10 +670,10 @@ with tab_cov:
         # даты без покрытия («зреет») всегда внизу — иначе они забьют верх списка
         src = by_day.copy()
         if sort_col == "day":
-            src = src.sort_values("day", ascending=False)
+            src = src.sort_values("day", ascending=asc)
         else:
             src["_null"] = src[sort_col].isna()
-            src = src.sort_values(["_null", sort_col], ascending=[True, False])
+            src = src.sort_values(["_null", sort_col], ascending=[True, asc])
         for _, r in src.iterrows():
             day_str = pd.to_datetime(r["day"]).strftime("%d.%m.%Y")
             rows.append({
@@ -621,7 +686,7 @@ with tab_cov:
             if split_mp:
                 sub = by_day_mp[(by_day_mp["day"] == r["day"])
                                 & (by_day_mp["sales_channel"].isin(mp_filter))]
-                sub_sorted = (sub.sort_values(sort_col, ascending=False)
+                sub_sorted = (sub.sort_values(sort_col, ascending=asc)
                               if sort_col in sub.columns
                               else sub.sort_values("orders", ascending=False))
                 for _, m in sub_sorted.iterrows():
@@ -634,8 +699,10 @@ with tab_cov:
                         "st": m["st"], "status": ST_LABEL.get(m["st"], ""),
                     })
 
-        st.markdown(_coverage_table(rows, with_marketplace=True),
+        st.markdown(_coverage_table(rows, with_marketplace=True,
+                                    sort_col=sort_col, sort_dir=sort_dir),
                     unsafe_allow_html=True)
+        st.caption(t("rev.table.sort_hint"))
 
         export = by_day_mp.copy()
         export["day"] = pd.to_datetime(export["day"]).dt.strftime("%d.%m.%Y")
@@ -646,6 +713,147 @@ with tab_cov:
                     "skipped", "coverage", "status"]]
                 .to_csv(index=False).encode("utf-8-sig"),
             file_name="review_coverage.csv", mime="text/csv", key="dl_cov")
+
+# ═══════════════════════════════════════════════════════════════════
+# ДИНАМИКА ОТЗЫВОВ
+# ═══════════════════════════════════════════════════════════════════
+
+with tab_dyn:
+    dyn = load_reviews_dynamics(DAYS)
+    if dyn.empty:
+        st.info(t("rev.dyn.no_data"))
+    else:
+        stable = dyn[dyn["stable"]].copy()
+        n_pairs = stable.groupby(["asin", "marketplace"]).ngroups
+        n_dropped = dyn.groupby(["asin", "marketplace"]).ngroups - n_pairs
+
+        if stable.empty:
+            st.info(t("rev.dyn.no_stable"))
+        else:
+            daily = (stable.groupby("snapshot_date", as_index=False)["review_count"]
+                           .sum().sort_values("snapshot_date"))
+            daily["delta"] = daily["review_count"].diff()
+
+            first_val = float(daily["review_count"].iloc[0])
+            last_val = float(daily["review_count"].iloc[-1])
+            total_growth = last_val - first_val
+            days_span = max((daily["snapshot_date"].iloc[-1]
+                             - daily["snapshot_date"].iloc[0]).days, 1)
+
+            # день первой отправки — граница «до» и «после»
+            sent = load_sent_by_day(DAYS)
+            launch = None
+            if not sent.empty:
+                sent["day"] = pd.to_datetime(sent["day"])
+                launch = sent["day"].min()
+
+            before_rate = after_rate = None
+            if launch is not None:
+                b = daily[daily["snapshot_date"] < launch]
+                a = daily[daily["snapshot_date"] >= launch]
+                if len(b) > 1:
+                    before_rate = ((float(b["review_count"].iloc[-1])
+                                    - float(b["review_count"].iloc[0]))
+                                   / max((b["snapshot_date"].iloc[-1]
+                                          - b["snapshot_date"].iloc[0]).days, 1))
+                if len(a) > 1:
+                    after_rate = ((float(a["review_count"].iloc[-1])
+                                   - float(a["review_count"].iloc[0]))
+                                  / max((a["snapshot_date"].iloc[-1]
+                                         - a["snapshot_date"].iloc[0]).days, 1))
+
+            d1, d2, d3, d4 = st.columns(4)
+            d1.metric(t("rev.dyn.total"), f"{int(last_val):,}",
+                      help=t("rev.dyn.total_help").format(n=n_pairs))
+            d2.metric(t("rev.dyn.growth"), f"+{int(total_growth):,}",
+                      help=t("rev.dyn.growth_help").format(d=days_span))
+            d3.metric(t("rev.dyn.before"),
+                      f"{before_rate:.1f}" if before_rate is not None else "—",
+                      help=t("rev.dyn.before_help"))
+            d4.metric(t("rev.dyn.after"),
+                      f"{after_rate:.1f}" if after_rate is not None else "—",
+                      delta=(f"×{after_rate / before_rate:.1f}"
+                             if before_rate and after_rate and before_rate > 0
+                             else None),
+                      help=t("rev.dyn.after_help"))
+
+            # ---- график: отправки и прирост отзывов ----
+            st.markdown(f"**{t('rev.dyn.chart')}**")
+            merged = daily.merge(
+                sent.rename(columns={"day": "snapshot_date"}),
+                on="snapshot_date", how="left")
+            merged["sent"] = merged["sent"].fillna(0)
+            merged["label"] = merged["snapshot_date"].dt.strftime("%d.%m")
+
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            fig.add_trace(go.Bar(
+                name=t("rev.col.sent"), x=merged["label"], y=merged["sent"],
+                marker_color=BLUE, opacity=0.55), secondary_y=False)
+            fig.add_trace(go.Scatter(
+                name=t("rev.dyn.new_reviews"), x=merged["label"],
+                y=merged["delta"], mode="lines+markers",
+                line=dict(color=GREEN, width=2)), secondary_y=True)
+            if launch is not None:
+                lidx = merged.index[merged["snapshot_date"] >= launch]
+                if len(lidx):
+                    i = int(lidx[0])
+                    fig.add_shape(type="line", xref="x", yref="paper",
+                                  x0=i, x1=i, y0=0, y1=1,
+                                  line=dict(color=ACCENT, width=2, dash="dash"),
+                                  opacity=0.7)
+                    fig.add_annotation(xref="x", yref="paper", x=i, y=1.04,
+                                       text=t("rev.dyn.launch"), showarrow=False,
+                                       font=dict(color=ACCENT, size=11),
+                                       xanchor="left")
+            fig.update_layout(height=360, margin=dict(l=10, r=10, t=30, b=10),
+                              hovermode="x unified",
+                              legend=dict(orientation="h", y=1.16),
+                              xaxis=dict(type="category"))
+            fig.update_yaxes(title_text=t("rev.col.sent"), secondary_y=False)
+            fig.update_yaxes(title_text=t("rev.dyn.new_reviews"),
+                             showgrid=False, secondary_y=True)
+            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+            st.caption(t("rev.dyn.lag_note"))
+
+            # ---- топ выросших товаров ----
+            first_last = (stable.sort_values("snapshot_date")
+                                .groupby(["asin", "marketplace"])
+                                .agg(first=("review_count", "first"),
+                                     last=("review_count", "last"),
+                                     rating=("rating", "last"))
+                                .reset_index())
+            first_last["growth"] = first_last["last"] - first_last["first"]
+            grown = first_last[first_last["growth"] > 0] \
+                .sort_values("growth", ascending=False)
+
+            g1, g2 = st.columns(2)
+            g1.metric(t("rev.dyn.grown"), f"{len(grown):,}",
+                      help=t("rev.dyn.grown_help").format(n=n_pairs))
+            g2.metric(t("rev.dyn.excluded"), f"{n_dropped:,}",
+                      help=t("rev.dyn.excluded_help"))
+
+            if not grown.empty:
+                st.markdown(f"**{t('rev.dyn.top')}**")
+                st.dataframe(
+                    grown.head(20)[["asin", "marketplace", "first",
+                                    "last", "growth", "rating"]],
+                    use_container_width=True, height=380, hide_index=True,
+                    column_config={
+                        "asin": st.column_config.TextColumn("ASIN", width="small"),
+                        "marketplace": st.column_config.TextColumn(
+                            t("rev.col.marketplace"), width="small"),
+                        "first": st.column_config.NumberColumn(
+                            t("rev.dyn.was"), width="small"),
+                        "last": st.column_config.NumberColumn(
+                            t("rev.dyn.now"), width="small"),
+                        "growth": st.column_config.NumberColumn(
+                            t("rev.dyn.plus"), format="+%d", width="small"),
+                        "rating": st.column_config.NumberColumn(
+                            t("rev.dyn.rating"), format="%.1f", width="small"),
+                    },
+                )
+            st.caption(t("rev.dyn.note"))
+
 
 # ═══════════════════════════════════════════════════════════════════
 # ПО МАРКЕТПЛЕЙСАМ
@@ -673,14 +881,20 @@ with tab_mp:
                           delta=f"{r['coverage']:.0f}%",
                           help=t("rev.mp.metric_help"))
 
-        fig = px.bar(by_mp, x="sales_channel", y=["sent", "no_action", "skipped"],
+        plot_mp = by_mp.rename(columns={
+            "sent": t("rev.col.sent"),
+            "no_action": t("rev.col.no_action"),
+            "skipped": t("rev.col.skipped"),
+        })
+        fig = px.bar(plot_mp, x="sales_channel",
+                     y=[t("rev.col.sent"), t("rev.col.no_action"), t("rev.col.skipped")],
                      title=t("rev.chart.by_marketplace"),
                      color_discrete_sequence=[GREEN, GREY, AMBER])
         fig.update_layout(height=360, xaxis_title=None,
                           yaxis_title=t("rev.col.orders"),
                           margin=dict(l=10, r=10, t=50, b=10),
-                          legend=dict(orientation="h", y=1.12))
-        st.plotly_chart(fig, use_container_width=True)
+                          legend=dict(orientation="h", y=1.12, title_text=""))
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
         st.dataframe(
             by_mp[["sales_channel", "orders", "sent", "no_action", "skipped",
@@ -693,7 +907,8 @@ with tab_mp:
                 "no_action": st.column_config.NumberColumn(t("rev.col.no_action")),
                 "skipped": st.column_config.NumberColumn(t("rev.col.skipped")),
                 "coverage": st.column_config.ProgressColumn(
-                    t("rev.col.coverage"), format="%.0f%%", min_value=0, max_value=100),
+                    t("rev.col.coverage"), format="%.0f%%", min_value=0, max_value=100,
+                    help=t("rev.col.coverage_help")),
                 "hit_rate": st.column_config.NumberColumn(
                     t("rev.col.hit_rate"), format="%.0f%%",
                     help=t("rev.col.hit_rate_help")),
@@ -728,7 +943,7 @@ with tab_age:
         fig.update_yaxes(title_text=t("rev.age.checked"), secondary_y=False)
         fig.update_yaxes(range=[0, 105], ticksuffix="%", showgrid=False,
                          secondary_y=True)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
         if total_checked < 200:
             st.warning(t("rev.age.small_sample").format(n=total_checked))
@@ -756,6 +971,10 @@ with tab_asin:
     if by_asin.empty:
         st.info(t("rev.asin.no_data"))
     else:
+        by_asin["product_name"] = (by_asin["product_name"]
+                                   .fillna("").astype(str)
+                                   .replace({"None": "", "nan": ""}))
+        by_asin.loc[by_asin["product_name"].str.strip() == "", "product_name"] = "—"
         by_asin["url"] = [
             (f"https://www.{CHANNEL_DOMAIN[ch]}/dp/{a}"
              if ch in CHANNEL_DOMAIN and a else None)
@@ -771,7 +990,7 @@ with tab_asin:
             fig.update_layout(height=max(320, 26 * len(top)),
                               yaxis_title=None, xaxis_title=None,
                               margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
         with a2:
             st.markdown(f"**{t('rev.asin.table')}**")
             st.dataframe(
