@@ -221,6 +221,23 @@ TRANSLATIONS = {
               "production plans are not in the system yet, so a shortage beyond the first week "
               "means “no shipments planned in the data we have”, not “there will be no stock”.",
     },
+    "stock.cov.col_odoo": {"ru": "Ожидается, шт", "uk": "Очікується, шт", "en": "Expected, units"},
+    "stock.cov.col_odoo_help": {
+        "ru": "Товар, который числится в системе как заказанный или в производстве. "
+              "Дата прибытия неизвестна, поэтому в расчёт покрытия он не входит",
+        "uk": "Товар, що числиться в системі як замовлений або у виробництві. "
+              "Дата прибуття невідома, тому в розрахунок покриття він не входить",
+        "en": "Stock recorded as ordered or in production. The arrival date is unknown, "
+              "so it is not included in the coverage calculation",
+    },
+    "stock.cov.odoo_note": {
+        "ru": "По этому товару ожидается ещё {qty} шт — заказано или в производстве. "
+              "Дата прибытия в системе не зафиксирована, поэтому в расчёт выше он не вошёл.",
+        "uk": "За цим товаром очікується ще {qty} шт — замовлено або у виробництві. "
+              "Дата прибуття в системі не зафіксована, тому в розрахунок вище він не увійшов.",
+        "en": "Another {qty} units are expected for this item — ordered or in production. "
+              "No arrival date is recorded, so it is not part of the calculation above.",
+    },
     "stock.cov.kpi_overstock": {"ru": "Излишек", "uk": "Надлишок", "en": "Overstock"},
     "stock.cov.kpi_overstock_help": {
         "ru": "Позиции, где товар остаётся даже после того, как весь прогноз на год исчерпан",
