@@ -372,7 +372,8 @@ TRANSLATIONS = {
     "home.dist.normal": {"ru": "норма (>10)", "uk": "норма (>10)", "en": "normal (>10)"},
     "home.top_title": {"ru": "Топ запаса (куда вложены деньги)", "uk": "Топ запасу (куди вкладено гроші)", "en": "Top stock (where money is tied up)"},
     "home.link.full_analytics": {"ru": "Полная аналитика →", "uk": "Повна аналітика →", "en": "Full analytics →"},
-    "home.sec.sales": {"ru": "Продажи за 30 дней", "uk": "Продажі за 30 днів", "en": "Sales, last 30 days"},
+    "home.period": {"ru": "Период, дней", "uk": "Період, днів", "en": "Period, days"},
+    "home.sec.sales": {"ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
     "home.sec.stock": {"ru": "Запасы и обеспеченность", "uk": "Запаси та забезпеченість", "en": "Stock and coverage"},
     "home.sec.reorder": {"ru": "Пополнение", "uk": "Поповнення", "en": "Replenishment"},
     "home.sec.incidents": {"ru": "Что требует внимания", "uk": "Що потребує уваги", "en": "Needs attention"},
@@ -392,9 +393,9 @@ TRANSLATIONS = {
     },
     "home.kpi.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
     "home.kpi.revenue_help": {
-        "ru": "За последние 30 дней. Изменение — к предыдущим 30 дням",
-        "uk": "За останні 30 днів. Зміна — до попередніх 30 днів",
-        "en": "Last 30 days. Change compared with the previous 30 days",
+        "ru": "За последние {d} дней. Изменение — к предыдущим {d} дням",
+        "uk": "За останні {d} днів. Зміна — до попередніх {d} днів",
+        "en": "Last {d} days. Change compared with the previous {d} days",
     },
     "home.kpi.margin": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
     "home.kpi.margin_help": {
@@ -479,17 +480,20 @@ TRANSLATIONS = {
         "uk": "Розсилка запитів на відгук ще не запускалась.",
         "en": "Review requests have not started yet.",
     },
-    "home.kpi.requests": {"ru": "Запросов за неделю", "uk": "Запитів за тиждень", "en": "Requests this week"},
+    "home.kpi.requests": {"ru": "Запросов за {d} дней", "uk": "Запитів за {d} днів", "en": "Requests, {d} days"},
     "home.kpi.requests_help": {
-        "ru": "Автоматических запросов на отзыв отправлено за 7 дней",
-        "uk": "Автоматичних запитів на відгук надіслано за 7 днів",
-        "en": "Automated review requests sent over 7 days",
+        "ru": "Автоматических запросов на отзыв отправлено за {d} дней",
+        "uk": "Автоматичних запитів на відгук надіслано за {d} днів",
+        "en": "Automated review requests sent over {d} days",
     },
     "home.kpi.new_reviews": {"ru": "Новых отзывов", "uk": "Нових відгуків", "en": "New reviews"},
     "home.kpi.new_reviews_help": {
-        "ru": "Прирост количества отзывов за две недели по отслеживаемым товарам",
-        "uk": "Приріст кількості відгуків за два тижні за відстежуваними товарами",
-        "en": "Review count growth over two weeks across tracked products",
+        "ru": "Прирост за {d} дней по {n} позициям, которые отслеживаются всё это время. "
+              "Товары, добавленные в наблюдение позже, в расчёт не идут",
+        "uk": "Приріст за {d} днів по {n} позиціях, які відстежуються весь цей час. "
+              "Товари, додані у спостереження пізніше, у розрахунок не йдуть",
+        "en": "Growth over {d} days across {n} items tracked for the whole period. "
+              "Items added to tracking later are excluded",
     },
     "home.rev.stopped": {
         "ru": "Рассылка не работает {h:.0f} ч — стоит проверить.",
