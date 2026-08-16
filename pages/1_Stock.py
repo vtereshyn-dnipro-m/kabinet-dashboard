@@ -339,7 +339,7 @@ with tab_cov:
                   "total_coverage_weeks", "realistic_coverage_weeks",
                   "pool_exhaustion_weeks", "competing_marketplaces",
                   "pool_total_weekly_demand", "gaps_count", "gaps_total_qty",
-                  "overstock_qty", "overstock_weeks"):
+                  "overstock_qty", "overstock_weeks", "odoo_incoming_qty"):
             if c in cov.columns:
                 cov[c] = pd.to_numeric(cov[c], errors="coerce")
         cov["coverage_status"] = cov["coverage_status"].fillna("ok")
@@ -461,7 +461,7 @@ with tab_cov:
                        "coverage_weeks", "fbm_fallback_qty", "total_coverage_weeks",
                        "shared_note", "realistic_coverage_weeks",
                        "first_deficit_week", "gaps_count", "gaps_total_qty",
-                       "overstock_qty", "status_label"]],
+                       "odoo_incoming_qty", "overstock_qty", "status_label"]],
                 use_container_width=True, height=460, hide_index=True,
                 column_config={
                     "sku": st.column_config.TextColumn("SKU", width="small"),
@@ -495,6 +495,9 @@ with tab_cov:
                     "gaps_total_qty": st.column_config.NumberColumn(
                         t("stock.cov.col_gaps_qty"), format="%.0f", width="small",
                         help=t("stock.cov.col_gaps_qty_help")),
+                    "odoo_incoming_qty": st.column_config.NumberColumn(
+                        t("stock.cov.col_odoo"), format="%.0f", width="small",
+                        help=t("stock.cov.col_odoo_help")),
                     "overstock_qty": st.column_config.NumberColumn(
                         t("stock.cov.col_overstock"), format="%.0f", width="small",
                         help=t("stock.cov.col_overstock_help")),
@@ -554,6 +557,10 @@ with tab_cov:
                             t("stock.cov.gap_qty"), format="%.0f"),
                     },
                 )
+
+            odoo_q = float(prow.get("odoo_incoming_qty") or 0)
+            if odoo_q > 0:
+                st.caption(t("stock.cov.odoo_note").format(qty=int(odoo_q)))
 
             over_q = float(prow.get("overstock_qty") or 0)
             if over_q > 0:
