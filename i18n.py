@@ -205,6 +205,67 @@ TRANSLATIONS = {
               "the listing switches to shipping from Madrid. But the Madrid stock is shared "
               "across countries, so the real horizon is shorter than promised.",
     },
+    "stock.cov.horizon_note": {
+        "ru": "**Насколько можно верить горизонту.** В расчёте учтены только подтверждённые "
+              "поставки — товар, который уже в пути. Это примерно неделя вперёд. Заказы "
+              "поставщику и производственные планы в систему пока не заведены, поэтому "
+              "дефицит после первой недели означает «поставок не запланировано в известных "
+              "нам данных», а не «товара точно не будет».",
+        "uk": "**Наскільки можна вірити горизонту.** У розрахунку враховані лише підтверджені "
+              "поставки — товар, який уже в дорозі. Це приблизно тиждень уперед. Замовлення "
+              "постачальнику й виробничі плани в систему поки не заведені, тому дефіцит після "
+              "першого тижня означає «поставок не заплановано у відомих нам даних», а не "
+              "«товару точно не буде».",
+        "en": "**How far the horizon can be trusted.** The calculation only includes confirmed "
+              "shipments — stock already in transit, roughly a week ahead. Purchase orders and "
+              "production plans are not in the system yet, so a shortage beyond the first week "
+              "means “no shipments planned in the data we have”, not “there will be no stock”.",
+    },
+    "stock.cov.kpi_overstock": {"ru": "Излишек", "uk": "Надлишок", "en": "Overstock"},
+    "stock.cov.kpi_overstock_help": {
+        "ru": "Позиции, где товар остаётся даже после того, как весь прогноз на год исчерпан",
+        "uk": "Позиції, де товар залишається навіть після того, як увесь прогноз на рік вичерпано",
+        "en": "Items with stock left over after the entire year's forecast is consumed",
+    },
+    "stock.cov.col_gaps": {"ru": "Разрывов", "uk": "Розривів", "en": "Gaps"},
+    "stock.cov.col_gaps_help": {
+        "ru": "Сколько раз товар закончится на горизонте расчёта. Поставка закрывает один "
+              "разрыв, после неё может открыться следующий",
+        "uk": "Скільки разів товар закінчиться на горизонті розрахунку. Поставка закриває один "
+              "розрив, після неї може відкритися наступний",
+        "en": "How many times the item runs out over the horizon. A shipment closes one gap, "
+              "another may open after it",
+    },
+    "stock.cov.col_gaps_qty": {"ru": "Не покроем, шт", "uk": "Не покриємо, шт", "en": "Unmet, units"},
+    "stock.cov.col_gaps_qty_help": {
+        "ru": "Сколько единиц спроса останется без товара за все разрывы вместе",
+        "uk": "Скільки одиниць попиту залишиться без товару за всі розриви разом",
+        "en": "Total demand left unserved across all gaps",
+    },
+    "stock.cov.col_overstock": {"ru": "Излишек, шт", "uk": "Надлишок, шт", "en": "Overstock, units"},
+    "stock.cov.col_overstock_help": {
+        "ru": "Товар, который остаётся после того, как весь годовой прогноз продан",
+        "uk": "Товар, що залишається після того, як увесь річний прогноз продано",
+        "en": "Stock remaining after the full year's forecast is sold",
+    },
+    "stock.cov.gaps_found": {"ru": "Разрывов на горизонте", "uk": "Розривів на горизонті", "en": "Gaps ahead"},
+    "stock.cov.gaps_qty": {"ru": "Спроса без товара", "uk": "Попиту без товару", "en": "Demand unserved"},
+    "stock.cov.gaps_qty_help": {
+        "ru": "Суммарно по всем разрывам, единиц",
+        "uk": "Сумарно за всіма розривами, одиниць",
+        "en": "Total across all gaps, units",
+    },
+    "stock.cov.gap_from": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Gap from"},
+    "stock.cov.gap_to": {"ru": "по", "uk": "по", "en": "to"},
+    "stock.cov.gap_qty": {"ru": "Не покроем, шт", "uk": "Не покриємо, шт", "en": "Unmet, units"},
+    "stock.cov.overstock_note": {
+        "ru": "Излишек: {qty} шт останется после того, как весь годовой прогноз будет продан — "
+              "это примерно {weeks} недель продаж сверх горизонта.",
+        "uk": "Надлишок: {qty} шт залишиться після того, як увесь річний прогноз буде продано — "
+              "це приблизно {weeks} тижнів продажів понад горизонт.",
+        "en": "Overstock: {qty} units remain after the entire year's forecast is sold — "
+              "roughly {weeks} weeks of sales beyond the horizon.",
+    },
     "stock.cov.header": {"ru": "Покрытие на {d}", "uk": "Покриття на {d}", "en": "Coverage as of {d}"},
     "stock.cov.how": {"ru": "Как читать", "uk": "Як читати", "en": "How to read"},
     "stock.cov.show": {"ru": "Показать", "uk": "Показати", "en": "Show"},
