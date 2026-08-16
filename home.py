@@ -253,15 +253,49 @@ else:
     s3.metric(t("home.kpi.units"), f"{units_cur:,}")
     s4.metric(t("home.kpi.markets"), f"{cur['marketplace'].nunique()}")
 
-    daily = (cur.groupby("sales_date", as_index=False)["revenue"].sum()
-                .sort_values("sales_date"))
-    fig = px.area(daily, x="sales_date", y="revenue",
-                  color_discrete_sequence=[BLUE])
-    fig.update_layout(height=150, margin=dict(l=0, r=0, t=6, b=0),
-                      xaxis_title=None, yaxis_title=None,
-                      yaxis=dict(showgrid=False))
-    fig.update_traces(line=dict(width=1.5), fillcolor="rgba(31,119,180,0.15)")
-    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+    gl, gr = st.columns([1.6, 1])
+
+    with gl:
+        daily = (cur.groupby("sales_date", as_index=False)["revenue"].sum()
+                    .sort_values("sales_date"))
+        fig = px.area(daily, x="sales_date", y="revenue",
+                      color_discrete_sequence=[BLUE])
+        fig.update_layout(height=190, margin=dict(l=0, r=0, t=6, b=0),
+                          xaxis_title=None, yaxis_title=None,
+                          yaxis=dict(showgrid=False))
+        fig.update_traces(line=dict(width=1.5),
+                          fillcolor="rgba(31,119,180,0.15)")
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+
+    with gr:
+        # Leroy Merlin — отдельная площадка, а не ещё одна страна Amazon:
+        # свои комиссии, своя логистика, свой контракт
+        by_mp = (cur.groupby("marketplace", as_index=False)["revenue"].sum()
+                    .sort_values("revenue", ascending=False))
+        by_mp["platform"] = np.where(by_mp["marketplace"] == "LM",
+                                     t("home.platform.lm"),
+                                     t("home.platform.amazon"))
+        by_pl = by_mp.groupby("platform", as_index=False)["revenue"].sum()
+
+        for _, r in by_pl.iterrows():
+            share = r["revenue"] / rev_cur * 100 if rev_cur else 0
+            color = GREEN if r["platform"] == t("home.platform.lm") else BLUE
+            st.markdown(
+                f"<div style='margin-bottom:8px'>"
+                f"<div style='display:flex;justify-content:space-between;"
+                f"font-size:0.85rem'><span>{r['platform']}</span>"
+                f"<b>{r['revenue']:,.0f} €</b></div>"
+                f"<div style='height:6px;border-radius:3px;"
+                f"background:rgba(128,128,128,0.18)'>"
+                f"<div style='height:6px;border-radius:3px;width:{share:.0f}%;"
+                f"background:{color}'></div></div></div>",
+                unsafe_allow_html=True)
+
+        st.caption(t("home.sales.by_country"))
+        top_c = by_mp[by_mp["marketplace"] != "LM"].head(4)
+        cc = " · ".join(f"{r['marketplace']} {r['revenue']:,.0f} €"
+                        for _, r in top_c.iterrows())
+        st.caption(cc)
 
     st.caption(t("home.sales.no_plan"))
 
