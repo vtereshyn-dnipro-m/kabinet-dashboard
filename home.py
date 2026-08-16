@@ -134,32 +134,54 @@ def load_transfers() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
-def load_reviews() -> dict:
-    """Отправленные запросы и прирост отзывов."""
+def load_reviews(days: int = 30) -> dict:
+    """Отправленные запросы и прирост отзывов за период."""
     out = {}
     conn = get_connection()
     try:
         if table_exists("review_request_log"):
-            df = pd.read_sql("""
+            df = pd.read_sql(f"""
                 SELECT COUNT(*) FILTER (WHERE status='sent'
-                        AND sent_at >= NOW() - INTERVAL '7 days')  AS sent7,
-                       MAX(sent_at) FILTER (WHERE status='sent')   AS last_sent
+                        AND sent_at >= NOW() - INTERVAL '{days} days') AS sent7,
+                       MAX(sent_at) FILTER (WHERE status='sent')       AS last_sent
                 FROM kabinet_data.review_request_log
             """, conn)
             if not df.empty:
                 out["sent7"] = int(df["sent7"].iloc[0] or 0)
                 out["last_sent"] = df["last_sent"].iloc[0]
         if table_exists("asin_reviews_daily"):
-            df = pd.read_sql("""
-                SELECT snapshot_date, SUM(review_count) AS total
-                FROM kabinet_data.asin_reviews_daily
-                WHERE review_count IS NOT NULL
-                  AND snapshot_date >= CURRENT_DATE - INTERVAL '14 days'
-                GROUP BY 1 ORDER BY 1
+            # сравниваем только те пары товар×площадка, что есть на обе даты:
+            # охват скрапера растёт день ото дня, и общая сумма выросла бы
+            # даже без единого нового отзыва
+            df = pd.read_sql(f"""
+                WITH bounds AS (
+                    SELECT MIN(snapshot_date) AS d0, MAX(snapshot_date) AS d1
+                    FROM kabinet_data.asin_reviews_daily
+                    WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+                ),
+                pairs AS (
+                    SELECT a.asin, a.marketplace,
+                           MAX(CASE WHEN a.snapshot_date = b.d0
+                                    THEN a.review_count END) AS first_cnt,
+                           MAX(CASE WHEN a.snapshot_date = b.d1
+                                    THEN a.review_count END) AS last_cnt
+                    FROM kabinet_data.asin_reviews_daily a
+                    CROSS JOIN bounds b
+                    WHERE a.review_count IS NOT NULL
+                      AND a.snapshot_date IN (b.d0, b.d1)
+                    GROUP BY a.asin, a.marketplace
+                )
+                SELECT SUM(last_cnt - first_cnt) AS growth,
+                       SUM(last_cnt)             AS total,
+                       COUNT(*)                  AS pairs
+                FROM pairs
+                WHERE first_cnt IS NOT NULL AND last_cnt IS NOT NULL
+                  AND last_cnt >= first_cnt
             """, conn)
-            if len(df) > 1:
-                out["reviews_growth"] = int(df["total"].iloc[-1] - df["total"].iloc[0])
-                out["reviews_total"] = int(df["total"].iloc[-1])
+            if not df.empty and pd.notna(df["growth"].iloc[0]):
+                out["reviews_growth"] = int(df["growth"].iloc[0])
+                out["reviews_total"] = int(df["total"].iloc[0] or 0)
+                out["reviews_pairs"] = int(df["pairs"].iloc[0] or 0)
     except Exception:
         pass
     finally:
@@ -179,17 +201,23 @@ def fmt_money(v) -> str:
 # ЗАГРУЗКА
 # ═══════════════════════════════════════════════════════════════════
 
+pc1, _ = st.columns([1, 3])
+with pc1:
+    period = st.segmented_control(
+        t("home.period"), options=["7", "30", "90"], default="30",
+        key="home_period")
+DAYS = int(period or 30)
+
 try:
-    money = load_money()
+    money = load_money(DAYS)
     cov = load_coverage()
     inc = load_incidents()
     transfers = load_transfers()
-    reviews = load_reviews()
+    reviews = load_reviews(DAYS)
 except Exception as e:
     st.error(f"{t('home.db_error')}: {e}")
     st.stop()
 
-DAYS = 30
 today = pd.Timestamp(datetime.now().date())
 
 
@@ -197,7 +225,7 @@ today = pd.Timestamp(datetime.now().date())
 # ПРОДАЖИ
 # ═══════════════════════════════════════════════════════════════════
 
-st.markdown(f"##### {t('home.sec.sales')}")
+st.markdown(f"##### {t('home.sec.sales').format(d=DAYS)}")
 
 if money.empty:
     st.caption(t("home.sales.no_data"))
@@ -218,7 +246,7 @@ else:
     s1, s2, s3, s4 = st.columns(4)
     s1.metric(t("home.kpi.revenue"), fmt_money(rev_cur),
               delta=(f"{delta_pct:+.0f}%" if delta_pct is not None else None),
-              help=t("home.kpi.revenue_help"))
+              help=t("home.kpi.revenue_help").format(d=DAYS))
     s2.metric(t("home.kpi.margin"), fmt_money(cm_cur),
               delta=f"{cm_pct:.0f}%", delta_color="off",
               help=t("home.kpi.margin_help"))
@@ -354,12 +382,14 @@ with ir:
         st.caption(t("home.rev.no_data"))
     else:
         q1, q2 = st.columns(2)
-        q1.metric(t("home.kpi.requests"), f"{reviews.get('sent7', 0):,}",
-                  help=t("home.kpi.requests_help"))
+        q1.metric(t("home.kpi.requests").format(d=DAYS),
+                  f"{reviews.get('sent7', 0):,}",
+                  help=t("home.kpi.requests_help").format(d=DAYS))
         growth = reviews.get("reviews_growth")
         q2.metric(t("home.kpi.new_reviews"),
                   f"+{growth:,}" if growth is not None else "—",
-                  help=t("home.kpi.new_reviews_help"))
+                  help=t("home.kpi.new_reviews_help").format(
+                      d=DAYS, n=reviews.get("reviews_pairs", 0)))
         if reviews.get("last_sent") is not None:
             ls = pd.to_datetime(reviews["last_sent"])
             hours = (datetime.now(ls.tzinfo) - ls).total_seconds() / 3600
