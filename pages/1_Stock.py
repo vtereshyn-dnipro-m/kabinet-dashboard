@@ -338,7 +338,8 @@ with tab_cov:
         for c in ("available_now", "coverage_weeks", "fbm_fallback_qty",
                   "total_coverage_weeks", "realistic_coverage_weeks",
                   "pool_exhaustion_weeks", "competing_marketplaces",
-                  "pool_total_weekly_demand"):
+                  "pool_total_weekly_demand", "gaps_count", "gaps_total_qty",
+                  "overstock_qty", "overstock_weeks"):
             if c in cov.columns:
                 cov[c] = pd.to_numeric(cov[c], errors="coerce")
         cov["coverage_status"] = cov["coverage_status"].fillna("ok")
@@ -348,6 +349,8 @@ with tab_cov:
         hc1.markdown(f"##### {t('stock.cov.header').format(d=calc_d)}")
         with hc2.popover(t("stock.cov.how"), use_container_width=True):
             st.markdown(t("stock.cov.intro"))
+            st.markdown("---")
+            st.markdown(t("stock.cov.horizon_note"))
 
         CST = {"critical": t("stock.cov.st_critical"),
                "warning": t("stock.cov.st_warning"),
@@ -370,6 +373,8 @@ with tab_cov:
         n_switch = int(cv["channel_switch_week"].notna().sum())
         n_pool = int((cv["pool_exhaustion_weeks"]
                       < cv["total_coverage_weeks"]).sum())
+        n_over = int((cv["overstock_qty"].fillna(0) > 0).sum())
+        n_multi = int((cv["gaps_count"].fillna(0) > 1).sum())
 
         # карточки работают как фильтр: нажал — таблица отфильтровалась
         if "cov_quick" not in st.session_state:
@@ -379,7 +384,7 @@ with tab_cov:
             st.session_state.cov_quick = (
                 None if st.session_state.cov_quick == key else key)
 
-        m1, m2, m3, m4 = st.columns(4)
+        m1, m2, m3, m4, m5 = st.columns(5)
         with m1:
             st.metric(t("stock.cov.kpi_critical"), f"{n_crit:,}",
                       help=t("stock.cov.kpi_critical_help"))
@@ -412,6 +417,14 @@ with tab_cov:
                       type=("primary" if st.session_state.cov_quick == "pool"
                             else "secondary"),
                       on_click=_toggle, args=("pool",))
+        with m5:
+            st.metric(t("stock.cov.kpi_overstock"), f"{n_over:,}",
+                      help=t("stock.cov.kpi_overstock_help"))
+            st.button(t("stock.cov.show"), key="btn_over",
+                      use_container_width=True,
+                      type=("primary" if st.session_state.cov_quick == "over"
+                            else "secondary"),
+                      on_click=_toggle, args=("over",))
 
         quick = st.session_state.cov_quick
         if quick == "critical":
@@ -422,6 +435,8 @@ with tab_cov:
             cv = cv[cv["channel_switch_week"].notna()]
         elif quick == "pool":
             cv = cv[cv["pool_exhaustion_weeks"] < cv["total_coverage_weeks"]]
+        elif quick == "over":
+            cv = cv[cv["overstock_qty"].fillna(0) > 0]
         elif cov_st:
             keys = [k for k, v in CST.items() if v in cov_st]
             cv = cv[cv["coverage_status"].isin(keys)]
@@ -445,7 +460,8 @@ with tab_cov:
                 cview[["sku", "product_name", "marketplace", "available_now",
                        "coverage_weeks", "fbm_fallback_qty", "total_coverage_weeks",
                        "shared_note", "realistic_coverage_weeks",
-                       "first_deficit_week", "status_label"]],
+                       "first_deficit_week", "gaps_count", "gaps_total_qty",
+                       "overstock_qty", "status_label"]],
                 use_container_width=True, height=460, hide_index=True,
                 column_config={
                     "sku": st.column_config.TextColumn("SKU", width="small"),
@@ -473,6 +489,15 @@ with tab_cov:
                         help=t("stock.cov.col_weeks_real_help")),
                     "first_deficit_week": st.column_config.TextColumn(
                         t("stock.cov.col_first_deficit"), width="small"),
+                    "gaps_count": st.column_config.NumberColumn(
+                        t("stock.cov.col_gaps"), width="small",
+                        help=t("stock.cov.col_gaps_help")),
+                    "gaps_total_qty": st.column_config.NumberColumn(
+                        t("stock.cov.col_gaps_qty"), format="%.0f", width="small",
+                        help=t("stock.cov.col_gaps_qty_help")),
+                    "overstock_qty": st.column_config.NumberColumn(
+                        t("stock.cov.col_overstock"), format="%.0f", width="small",
+                        help=t("stock.cov.col_overstock_help")),
                     "status_label": st.column_config.TextColumn(
                         t("stock.cov.col_status"), width="small"),
                 },
@@ -499,6 +524,42 @@ with tab_cov:
                     qty=int(prow["fbm_fallback_qty"] or 0),
                     demand=float(prow["pool_total_weekly_demand"] or 0),
                     pool_weeks=int(pw_), promised=int(tw_)))
+
+            # разрывы: где именно товар кончается и на сколько
+            gaps = prow.get("gaps_detail")
+            if isinstance(gaps, str):
+                import json
+                try:
+                    gaps = json.loads(gaps)
+                except Exception:
+                    gaps = None
+            if gaps:
+                gl_, gr_ = st.columns([1, 1])
+                gl_.metric(t("stock.cov.gaps_found"), f"{len(gaps)}")
+                gr_.metric(t("stock.cov.gaps_qty"),
+                           f"{float(prow.get('gaps_total_qty') or 0):,.0f}",
+                           help=t("stock.cov.gaps_qty_help"))
+                gdf = pd.DataFrame(gaps)
+                gdf["start"] = pd.to_datetime(gdf["start"]).dt.strftime("%d.%m.%Y")
+                gdf["end"] = pd.to_datetime(gdf["end"]).dt.strftime("%d.%m.%Y")
+                st.dataframe(
+                    gdf[["start", "end", "qty"]],
+                    use_container_width=True, hide_index=True,
+                    column_config={
+                        "start": st.column_config.TextColumn(
+                            t("stock.cov.gap_from"), width="small"),
+                        "end": st.column_config.TextColumn(
+                            t("stock.cov.gap_to"), width="small"),
+                        "qty": st.column_config.NumberColumn(
+                            t("stock.cov.gap_qty"), format="%.0f"),
+                    },
+                )
+
+            over_q = float(prow.get("overstock_qty") or 0)
+            if over_q > 0:
+                st.info(t("stock.cov.overstock_note").format(
+                    qty=int(over_q),
+                    weeks=int(float(prow.get("overstock_weeks") or 0))))
 
             proj = load_projection(prow["sku"], prow["marketplace"])
             if proj.empty:
