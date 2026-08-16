@@ -383,6 +383,10 @@ TRANSLATIONS = {
         "uk": "Дані про продажі поки не завантажені.",
         "en": "Sales data is not loaded yet.",
     },
+    "home.platform.amazon": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
+    "home.platform.lm": {"ru": "Leroy Merlin", "uk": "Leroy Merlin", "en": "Leroy Merlin"},
+    "home.sales.by_country": {
+        "ru": "Amazon по странам:", "uk": "Amazon за країнами:", "en": "Amazon by country:"},
     "home.sales.no_plan": {
         "ru": "Сравнение с планом появится, когда будет подключён прогноз продаж. "
               "Пока сравниваем с предыдущим периодом.",
