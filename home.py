@@ -210,20 +210,48 @@ def fmt_money(v) -> str:
 
 # период держим в адресе — иначе он сбрасывается при переходе на другую
 # страницу и обратно
-_qp = st.query_params.get("d", "30")
-_default = _qp if _qp in ("7", "30", "90") else "30"
+P_7, P_30, P_90 = "7", "30", "90"
+P_MONTH, P_CUSTOM = t("home.period.month"), t("home.period.custom")
+_opts = [P_7, P_30, P_90, P_MONTH, P_CUSTOM]
 
-pc1, _ = st.columns([1, 3])
+_qp = st.query_params.get("d", P_30)
+_default = _qp if _qp in _opts else P_30
+
+pc1, pc2 = st.columns([2, 2])
 with pc1:
     period = st.segmented_control(
-        t("home.period"), options=["7", "30", "90"], default=_default,
-        key="home_period")
-DAYS = int(period or 30)
-if str(DAYS) != _qp:
-    st.query_params["d"] = str(DAYS)
+        t("home.period"), options=_opts, default=_default, key="home_period")
+period = period or P_30
+if period != _qp:
+    st.query_params["d"] = period
+
+today = pd.Timestamp(datetime.now().date())
+date_from = date_to = None
+
+if period == P_MONTH:
+    date_from = today.replace(day=1)
+    date_to = today
+    DAYS = (date_to - date_from).days + 1
+elif period == P_CUSTOM:
+    with pc2:
+        picked = st.date_input(
+            t("home.period.range"),
+            value=(today - pd.Timedelta(days=29), today),
+            max_value=today, format="DD.MM.YYYY", key="home_range")
+    if isinstance(picked, (list, tuple)) and len(picked) == 2:
+        date_from, date_to = (pd.Timestamp(picked[0]), pd.Timestamp(picked[1]))
+    else:
+        date_from = date_to = today
+    DAYS = max((date_to - date_from).days + 1, 1)
+else:
+    DAYS = int(period)
 
 try:
-    money = load_money(DAYS)
+    # для произвольного диапазона грузим с запасом от его начала,
+    # чтобы предыдущий период тоже был полным
+    _load_days = (DAYS if date_from is None
+                  else (today - date_from).days + DAYS + 10)
+    money = load_money(_load_days)
     # отдельно берём 90 дней: нужно понять, какие страны продавали раньше,
     # но замолчали в выбранном периоде
     money_wide = load_money(90) if DAYS < 90 else money
@@ -235,38 +263,53 @@ except Exception as e:
     st.error(f"{t('home.db_error')}: {e}")
     st.stop()
 
-today = pd.Timestamp(datetime.now().date())
-
 
 # ═══════════════════════════════════════════════════════════════════
 # ПРОДАЖИ
 # ═══════════════════════════════════════════════════════════════════
 
-st.markdown(f"##### {t('home.sec.sales').format(d=DAYS)}")
+if date_from is not None:
+    _title = t("home.sec.sales_range").format(
+        f=date_from.strftime("%d.%m"), to=date_to.strftime("%d.%m.%Y"))
+else:
+    _title = t("home.sec.sales").format(d=DAYS)
+st.markdown(f"##### {_title}")
 
 # данные о продажах приходят с задержкой в несколько дней — говорим об этом
 # прямо, иначе «за 7 дней» читается как «включая вчера»
 if not money.empty:
     _last = pd.to_datetime(money["sales_date"]).max()
     _lag = (pd.Timestamp(datetime.now().date()) - _last).days
-    if _lag >= 2:
+    if _lag >= 2 and date_from is None:
         _from = (_last - pd.Timedelta(days=DAYS - 1)).strftime("%d.%m")
         st.caption(t("home.sales.lag").format(
             d=_last.strftime("%d.%m"), n=_lag, f=_from))
+    elif _lag >= 2 and date_to is not None and date_to > _last:
+        st.caption(t("home.sales.lag_range").format(
+            d=_last.strftime("%d.%m"), n=_lag))
 
 if money.empty:
     st.caption(t("home.sales.no_data"))
 else:
     money["sales_date"] = pd.to_datetime(money["sales_date"])
 
-    # окно считаем от последней даты с данными, а не от сегодня.
-    # Amazon отдаёт отчёты с лагом в несколько дней, и если брать «сегодня
-    # минус 7», в текущем окне окажется 4-5 заполненных дней против семи
-    # в прошлом — сравнение покажет обвал, которого нет
-    anchor = money["sales_date"].max()
-    cur = money[money["sales_date"] > anchor - pd.Timedelta(days=DAYS)]
-    prev = money[(money["sales_date"] <= anchor - pd.Timedelta(days=DAYS))
-                 & (money["sales_date"] > anchor - pd.Timedelta(days=DAYS * 2))]
+    if date_from is not None:
+        # выбран конкретный диапазон — берём его как есть,
+        # предыдущий период той же длины идёт встык перед ним
+        cur = money[(money["sales_date"] >= date_from)
+                    & (money["sales_date"] <= date_to)]
+        prev = money[(money["sales_date"] < date_from)
+                     & (money["sales_date"] >= date_from
+                        - pd.Timedelta(days=DAYS))]
+    else:
+        # окно считаем от последней даты с данными, а не от сегодня.
+        # Amazon отдаёт отчёты с лагом в несколько дней, и если брать «сегодня
+        # минус 7», в текущем окне окажется 4-5 заполненных дней против семи
+        # в прошлом — сравнение покажет обвал, которого нет
+        anchor = money["sales_date"].max()
+        cur = money[money["sales_date"] > anchor - pd.Timedelta(days=DAYS)]
+        prev = money[(money["sales_date"] <= anchor - pd.Timedelta(days=DAYS))
+                     & (money["sales_date"] > anchor - pd.Timedelta(days=DAYS * 2))]
 
     rev_cur = float(cur["revenue"].sum())
     rev_prev = float(prev["revenue"].sum())
@@ -539,4 +582,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table"))
+    st.markdown(t("home.roadmap_table")) 
