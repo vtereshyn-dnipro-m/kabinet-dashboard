@@ -241,6 +241,15 @@ today = pd.Timestamp(datetime.now().date())
 
 st.markdown(f"##### {t('home.sec.sales').format(d=DAYS)}")
 
+# данные о продажах приходят с задержкой в несколько дней — говорим об этом
+# прямо, иначе «за 7 дней» читается как «включая вчера»
+if not money.empty:
+    _last = pd.to_datetime(money["sales_date"]).max()
+    _lag = (pd.Timestamp(datetime.now().date()) - _last).days
+    if _lag >= 2:
+        st.caption(t("home.sales.lag").format(
+            d=_last.strftime("%d.%m"), n=_lag))
+
 if money.empty:
     st.caption(t("home.sales.no_data"))
 else:
@@ -292,9 +301,11 @@ else:
                                      t("home.platform.lm"),
                                      t("home.platform.amazon"))
         # сколько стран стоит за каждой площадкой — чтобы «Leroy Merlin»
-        # не выглядел как ещё одна страна рядом с Amazon
-        countries = (by_mp.groupby("platform")["marketplace"]
-                          .nunique().to_dict())
+        # не выглядел как ещё одна страна рядом с Amazon.
+        # считаем только те, где выручка ненулевая: иначе подпись обещает
+        # больше стран, чем показано плашками ниже
+        countries = (by_mp[by_mp["revenue"] > 0]
+                     .groupby("platform")["marketplace"].nunique().to_dict())
         by_pl = by_mp.groupby("platform", as_index=False)["revenue"].sum()
 
         for _, r in by_pl.iterrows():
@@ -327,14 +338,17 @@ else:
                     f'<span style="color:var(--text-secondary)">{label}</span>'
                     f'&nbsp;&nbsp;<b style="color:{color}">{value:,.0f} €</b></span>')
 
-        # стран немного — показываем все, чтобы не гадать, кто скрыт за «ещё N»
-        chips = "".join(
-            _chip(t("home.platform.lm_short") if r["marketplace"] == "LM"
-                  else r["marketplace"],
-                  r["revenue"],
-                  GREEN if r["marketplace"] == "LM" else BLUE)
-            for _, r in by_mp.iterrows()
-            if float(r["revenue"]) > 0)
+        # стран немного — показываем все, чтобы не гадать, кто скрыт за «ещё N».
+        # Leroy Merlin ставим последним: иначе он вклинивается в середину
+        # списка стран Amazon и выглядит как одна из них
+        sold = by_mp[by_mp["revenue"] > 0]
+        amz = sold[sold["marketplace"] != "LM"]
+        lm = sold[sold["marketplace"] == "LM"]
+
+        chips = "".join(_chip(r["marketplace"], r["revenue"], BLUE)
+                        for _, r in amz.iterrows())
+        for _, r in lm.iterrows():
+            chips += _chip(t("home.platform.lm_short"), r["revenue"], GREEN)
 
         st.markdown(
             f'<div style="margin-top:6px;line-height:2">{chips}</div>',
@@ -495,4 +509,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table")) 
+    st.markdown(t("home.roadmap_table"))
