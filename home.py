@@ -501,4 +501,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table"))
+    st.markdown(t("home.roadmap_table")) 
