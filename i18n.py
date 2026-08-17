@@ -477,6 +477,16 @@ TRANSLATIONS = {
     "home.inc.lm_not_accepted": {"ru": "Заказ без акцепта", "uk": "Замовлення без акцепту", "en": "Order not accepted"},
     "home.inc.lm_offer_zero": {"ru": "Оффер обнулён", "uk": "Оффер обнулено", "en": "Offer out of stock"},
     "home.inc.lm_degraded": {"ru": "Показатели канала просели", "uk": "Показники каналу просіли", "en": "Channel health down"},
+    "home.sales.n_countries": {
+        "ru": "· продажи в {n} странах",
+        "uk": "· продажі в {n} країнах",
+        "en": "· sales in {n} countries"},
+    "home.sales.lm_where": {
+        "ru": "· Испания", "uk": "· Іспанія", "en": "· Spain"},
+    "home.sales.lm_country": {
+        "ru": "Leroy Merlin: Испания {v:,.0f} €",
+        "uk": "Leroy Merlin: Іспанія {v:,.0f} €",
+        "en": "Leroy Merlin: Spain {v:,.0f} €"},
     "home.sales.others": {
         "ru": "и ещё {n}: {v:,.0f} €", "uk": "і ще {n}: {v:,.0f} €", "en": "and {n} more: {v:,.0f} €"},
     "home.link.money": {"ru": "Деньги и маржа", "uk": "Гроші та маржа", "en": "Money and margin"},
