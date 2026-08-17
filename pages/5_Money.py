@@ -85,7 +85,12 @@ def load_pnl(days: int, d_from=None, d_to=None):
          AND a.marketplace = e.marketplace
          AND a.norm_sku = e.norm_sku
         LEFT JOIN (
-            SELECT norm_sku, MAX(asin) AS asin FROM (
+            -- одна строка на SKU. Раньше GROUP BY стоял внутри каждой ветки,
+            -- а UNION ALL их складывал: SKU, известный и по остаткам, и по
+            -- заказам, давал две строки — и каждая строка экономики
+            -- удваивалась при соединении, завышая выручку почти вдвое
+            SELECT norm_sku, MAX(asin) AS asin
+            FROM (
                 SELECT REGEXP_REPLACE(sku,'-FBA.*$','') AS norm_sku, asin
                 FROM kabinet_data.stock_local
                 WHERE asin IS NOT NULL
@@ -93,12 +98,39 @@ def load_pnl(days: int, d_from=None, d_to=None):
                 SELECT REGEXP_REPLACE(sku,'-FBA.*$','') AS norm_sku, asin
                 FROM kabinet_data.orders_history
                 WHERE asin IS NOT NULL
-            ) u GROUP BY norm_sku
+            ) u
+            GROUP BY norm_sku
         ) s ON s.norm_sku = e.norm_sku
         WHERE {where}
     """, conn)
     conn.close()
     return df
+
+
+@st.cache_data(ttl=600)
+def load_control_total(days: int, d_from=None, d_to=None):
+    """Контрольная выручка прямо из таблицы, без соединений.
+    Если основной запрос разойдётся с ней — значит строки размножились
+    при JOIN, и цифры на странице завышены. Такое уже случалось."""
+    if d_from and d_to:
+        where = f"sales_date BETWEEN '{d_from}' AND '{d_to}'"
+    else:
+        where = (f"sales_date >= (SELECT MAX(sales_date) - INTERVAL '{days} days' "
+                 f"FROM kabinet_data.economics_summary)")
+    conn = get_connection()
+    try:
+        r = pd.read_sql(f"""
+            SELECT COALESCE(SUM(net_product_sales), 0) AS revenue,
+                   COALESCE(SUM(units_ordered), 0)     AS units,
+                   COUNT(*)                            AS rows
+            FROM kabinet_data.economics_summary
+            WHERE {where}
+        """, conn)
+        return r.iloc[0].to_dict()
+    except Exception:
+        return {}
+    finally:
+        conn.close()
 
 
 # ---------- выбор периода ----------
@@ -136,6 +168,18 @@ else:
 if df.empty:
     st.info(t("money.empty"))
     st.stop()
+
+# сверяем с контрольной суммой: расхождение означает размножение строк
+_ctrl = (load_control_total(0, d_from, d_to) if (d_from and d_to)
+         else load_control_total(WINDOW))
+if _ctrl and _ctrl.get("rows"):
+    _mine = float(pd.to_numeric(df["revenue"], errors="coerce").fillna(0).sum())
+    _real = float(_ctrl["revenue"])
+    if _real > 0 and abs(_mine - _real) / _real > 0.01:
+        st.error(t("money.mismatch").format(
+            mine=_mine, real=_real,
+            k=(_mine / _real if _real else 0),
+            rows=int(len(df)), ctrl_rows=int(_ctrl["rows"])))
 
 df["sku_display"] = df["norm_sku"].apply(clean_sku)
 for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "cogs_unit", "ads"]:
