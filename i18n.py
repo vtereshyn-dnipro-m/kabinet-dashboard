@@ -161,11 +161,11 @@ TRANSLATIONS = {
     },
     "stock.channels.caption": {
         "ru": "Квота, выставленная на канал из складского остатка (например, офферы Leroy Merlin — "
-              "часть мадридского стока). Это не дополнительный товар: он уже учтён в остатках складов выше.",
+              "часть складского остатка). Это не дополнительный товар: он уже учтён в остатках складов выше.",
         "uk": "Квота, виставлена на канал зі складського залишку (наприклад, оффери Leroy Merlin — "
-              "частина мадридського стоку). Це не додатковий товар: він уже врахований у залишках складів вище.",
+              "частина складського залишку). Це не додатковий товар: він уже врахований у залишках складів вище.",
         "en": "Quantity listed on a channel out of existing warehouse stock (e.g. Leroy Merlin offers are "
-              "part of the Madrid stock). This is not additional goods — it's already counted above.",
+              "part of the local stock). This is not additional goods — it's already counted above.",
     },
     "stock.channels.col_channel": {"ru": "Канал", "uk": "Канал", "en": "Channel"},
     "stock.channels.col_qty": {"ru": "Выделено, шт", "uk": "Виділено, шт", "en": "Allocated, pcs"},
@@ -194,16 +194,16 @@ TRANSLATIONS = {
     "stock.cov.intro": {
         "ru": "Покрытие считается по неделям вперёд: из остатка вычитается прогноз продаж, "
               "добавляются поступления. Когда склад Amazon пустеет, продажи не встают — "
-              "листинг переключается на отгрузку из Мадрида. Но мадридский запас общий на "
+              "листинг переключается на отгрузку с местного склада. Но этот запас общий на "
               "несколько стран, поэтому реальный срок короче обещанного.",
         "uk": "Покриття рахується по тижнях уперед: із залишку віднімається прогноз продажів, "
               "додаються надходження. Коли склад Amazon порожніє, продажі не зупиняються — "
-              "лістинг перемикається на відвантаження з Мадрида. Але мадридський запас "
+              "лістинг перемикається на відвантаження з місцевого складу. Але цей запас "
               "спільний на кілька країн, тому реальний строк коротший за обіцяний.",
         "en": "Coverage is projected week by week: the forecast is subtracted from stock and "
               "incoming shipments are added. When Amazon stock runs out, sales do not stop — "
-              "the listing switches to shipping from Madrid. But the Madrid stock is shared "
-              "across countries, so the real horizon is shorter than promised.",
+              "the listing switches to shipping from the local warehouse. But that stock is "
+              "shared across countries, so the real horizon is shorter than promised.",
     },
     "stock.cov.horizon_note": {
         "ru": "**Насколько можно верить горизонту.** В расчёте учтены только подтверждённые "
@@ -297,9 +297,9 @@ TRANSLATIONS = {
     "stock.cov.filter_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "stock.cov.kpi_critical": {"ru": "Дефицит ≤ 4 недель", "uk": "Дефіцит ≤ 4 тижнів", "en": "Shortage ≤ 4 weeks"},
     "stock.cov.kpi_critical_help": {
-        "ru": "Товаров, которых хватит меньше чем на 4 недели с учётом мадридского запаса",
-        "uk": "Товарів, яких вистачить менш ніж на 4 тижні з урахуванням мадридського запасу",
-        "en": "Products with less than 4 weeks of cover including the Madrid stock",
+        "ru": "Товаров, которых хватит меньше чем на 4 недели с учётом местного запаса",
+        "uk": "Товарів, яких вистачить менш ніж на 4 тижні з урахуванням місцевого запасу",
+        "en": "Products with less than 4 weeks of cover including the local stock",
     },
     "stock.cov.kpi_warning": {"ru": "Дефицит 5–13 недель", "uk": "Дефіцит 5–13 тижнів", "en": "Shortage 5–13 weeks"},
     "stock.cov.kpi_warning_help": {
@@ -311,28 +311,46 @@ TRANSLATIONS = {
                              "uk": "Перейдуть на локальний склад",
                              "en": "Switch to local warehouse"},
     "stock.cov.kpi_switch_help": {
-        "ru": "Товары, по которым запас Amazon кончится и отгрузка переключится на Мадрид",
-        "uk": "Товари, за якими запас Amazon закінчиться і відвантаження перемкнеться на Мадрид",
-        "en": "Products where Amazon stock runs out and fulfilment switches to Madrid",
+        "ru": "Товары, по которым запас Amazon кончится и отгрузка переключится на местный склад",
+        "uk": "Товари, за якими запас Amazon закінчиться і відвантаження перемкнеться на местный склад",
+        "en": "Products where Amazon stock runs out and fulfilment switches to the local warehouse",
     },
     "stock.cov.kpi_pool": {"ru": "Прогноз завышен", "uk": "Прогноз завищений", "en": "Optimistic"},
     "stock.cov.kpi_pool_help": {
-        "ru": "Товары, где мадридский запас делят несколько стран — общий спрос израсходует "
+        "ru": "Товары, где местный запас делят несколько стран — общий спрос израсходует "
               "его раньше, чем показывает расчёт по каждой стране отдельно",
-        "uk": "Товари, де мадридський запас ділять кілька країн — спільний попит витратить "
+        "uk": "Товари, де місцевий запас ділять кілька країн — спільний попит витратить "
               "його раніше, ніж показує розрахунок по кожній країні окремо",
-        "en": "Products where several countries share the Madrid stock — combined demand "
+        "en": "Products where several countries share the local stock — combined demand "
               "drains it sooner than the per-country calculation suggests",
     },
     "stock.cov.col_mp": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
     "stock.cov.col_stock": {"ru": "Остаток FBA, шт", "uk": "Залишок FBA, шт", "en": "FBA stock, units"},
-    "stock.cov.col_weeks_fba": {"ru": "Обеспеченность с FBA, недели",
-                                "uk": "Забезпеченість з FBA, тижні",
-                                "en": "Cover from FBA, weeks"},
+    "stock.cov.col_until_gap": {"ru": "До дефицита, недель", "uk": "До дефіциту, тижнів", "en": "Until shortage, weeks"},
+    "stock.cov.col_until_gap_help": {
+        "ru": "Сколько недель подряд товар обеспечен, начиная с сегодня. Ноль означает, "
+              "что дефицит наступает уже на этой неделе. Это главное число: показывает, "
+              "сколько времени осталось на решение",
+        "uk": "Скільки тижнів поспіль товар забезпечений, починаючи з сьогодні. Нуль означає, "
+              "що дефіцит настає вже цього тижня. Це головне число: показує, скільки часу "
+              "лишилось на рішення",
+        "en": "How many consecutive weeks the item is covered starting today. Zero means the "
+              "shortage hits this week. This is the number that matters — how much time is "
+              "left to act",
+    },
+    "stock.cov.col_weeks_fba": {"ru": "Обеспечено недель из 52",
+                                "uk": "Забезпечено тижнів із 52",
+                                "en": "Weeks covered of 52"},
     "stock.cov.col_weeks_fba_help": {
-        "ru": "На сколько недель хватит только складского остатка Amazon",
-        "uk": "На скільки тижнів вистачить лише складського залишку Amazon",
-        "en": "Weeks of cover from Amazon stock alone",
+        "ru": "Сколько недель из года товар будет в наличии — с учётом всех известных "
+              "поставок. Это не непрерывный срок: между покрытыми неделями могут быть "
+              "разрывы, смотри колонку «До дефицита»",
+        "uk": "Скільки тижнів із року товар буде в наявності — з урахуванням усіх відомих "
+              "поставок. Це не безперервний строк: між покритими тижнями можуть бути "
+              "розриви, дивись колонку «До дефіциту»",
+        "en": "How many weeks of the year the item will be in stock, counting all known "
+              "shipments. Not a continuous run — there may be gaps between covered weeks, "
+              "see the “Until shortage” column",
     },
     "stock.cov.col_madrid": {"ru": "Остаток локального склада, шт",
                              "uk": "Залишок локального складу, шт",
@@ -353,18 +371,18 @@ TRANSLATIONS = {
     "stock.cov.col_shared": {"ru": "Общий запас", "uk": "Спільний запас", "en": "Shared"},
     "stock.cov.col_shared_suffix": {"ru": "стран", "uk": "країн", "en": "countries"},
     "stock.cov.col_shared_help": {
-        "ru": "Мадридский запас по этому товару делят несколько стран. Поэтому «Реально "
-              "недель» меньше, чем «С Мадридом»: общий спрос израсходует его быстрее.",
-        "uk": "Мадридський запас за цим товаром ділять кілька країн. Тому «Реально тижнів» "
-              "менше, ніж «З Мадридом»: спільний попит витратить його швидше.",
-        "en": "Several countries share the Madrid stock for this product. That is why "
-              "“Realistic weeks” is lower than “With Madrid”.",
+        "ru": "Местный запас по этому товару делят несколько стран. Поэтому «Реально недель» "
+              "меньше: общий спрос израсходует его быстрее.",
+        "uk": "Місцевий запас за цим товаром ділять кілька країн. Тому «Реально тижнів» "
+              "менше: спільний попит витратить його швидше.",
+        "en": "Several countries share the local stock for this product. That is why "
+              "“Realistic weeks” is lower.",
     },
     "stock.cov.col_weeks_real": {"ru": "Реально недель", "uk": "Реально тижнів", "en": "Realistic weeks"},
     "stock.cov.col_weeks_real_help": {
-        "ru": "Меньшее из двух: покрытие этой страны и срок жизни общего мадридского запаса",
-        "uk": "Менше з двох: покриття цієї країни і термін життя спільного мадридського запасу",
-        "en": "The lower of two: this country's cover and the life of the shared Madrid stock",
+        "ru": "Меньшее из двух: покрытие этой страны и срок жизни общего местного запаса",
+        "uk": "Менше з двох: покриття цієї країни і термін життя спільного місцевого запасу",
+        "en": "The lower of two: this country's cover and the life of the shared local stock",
     },
     "stock.cov.col_first_deficit": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Shortage from"},
     "stock.cov.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
@@ -384,15 +402,15 @@ TRANSLATIONS = {
         "en": "No projection for this pair.",
     },
     "stock.cov.pool_warn": {
-        "ru": "Мадридский запас ({qty} шт) делят {n} стран, их суммарный спрос — {demand:.0f} шт "
-              "в неделю. Общего запаса хватит примерно на {pool_weeks} нед., а расчёт по этой "
-              "стране обещает {promised}.",
-        "uk": "Мадридський запас ({qty} шт) ділять {n} країн, їхній сумарний попит — {demand:.0f} "
-              "шт на тиждень. Спільного запасу вистачить приблизно на {pool_weeks} тиж., а "
-              "розрахунок по цій країні обіцяє {promised}.",
-        "en": "The Madrid stock ({qty} units) is shared by {n} countries with combined demand "
-              "of {demand:.0f} units per week. It lasts about {pool_weeks} week(s), while this "
-              "country's calculation promises {promised}.",
+        "ru": "Местный запас ({qty} шт) делится между несколькими странами — их {n}, "
+              "суммарный спрос {demand:.0f} шт в неделю. Общего запаса хватит примерно на "
+              "{pool_weeks} нед., а расчёт по этой стране обещает {promised}.",
+        "uk": "Місцевий запас ({qty} шт) ділиться між кількома країнами — їх {n}, "
+              "сумарний попит {demand:.0f} шт на тиждень. Спільного запасу вистачить "
+              "приблизно на {pool_weeks} тиж., а розрахунок по цій країні обіцяє {promised}.",
+        "en": "The local stock ({qty} units) is shared across {n} countries with combined "
+              "demand of {demand:.0f} units per week. It lasts about {pool_weeks} week(s), "
+              "while this country's calculation promises {promised}.",
     },
     "stock.cov.p_week": {"ru": "Неделя", "uk": "Тиждень", "en": "Week"},
     "stock.cov.p_from": {"ru": "С даты", "uk": "З дати", "en": "From"},
@@ -404,7 +422,9 @@ TRANSLATIONS = {
     "stock.cov.p_result": {"ru": "Итог", "uk": "Підсумок", "en": "Result"},
     "stock.cov.p_covered": {"ru": "Хватает", "uk": "Вистачає", "en": "Covered"},
     "stock.cov.p_deficit": {"ru": "Дефицит", "uk": "Дефіцит", "en": "Shortage"},
-    "stock.cov.p_pool_line": {"ru": "Мадрид кончится", "uk": "Мадрид закінчиться", "en": "Madrid runs out"},
+    "stock.cov.p_pool_line": {"ru": "Местный запас кончится",
+                              "uk": "Місцевий запас закінчиться",
+                              "en": "Local stock runs out"},
     "stock.cov.weekly_note": {
         "ru": "Поступление становится доступным со следующей недели после прибытия. "
               "Непокрытый спрос не переносится — потерянные продажи не возвращаются.",
@@ -450,6 +470,21 @@ TRANSLATIONS = {
     "home.dist.normal": {"ru": "норма (>10)", "uk": "норма (>10)", "en": "normal (>10)"},
     "home.top_title": {"ru": "Топ запаса (куда вложены деньги)", "uk": "Топ запасу (куди вкладено гроші)", "en": "Top stock (where money is tied up)"},
     "home.link.full_analytics": {"ru": "Полная аналитика →", "uk": "Повна аналітика →", "en": "Full analytics →"},
+    "home.inc.low_stock": {"ru": "Мало остатка", "uk": "Мало залишку", "en": "Low stock"},
+    "home.inc.out_of_stock": {"ru": "Нет в наличии", "uk": "Немає в наявності", "en": "Out of stock"},
+    "home.inc.stale_data": {"ru": "Данные устарели", "uk": "Дані застаріли", "en": "Stale data"},
+    "home.inc.negative_stock": {"ru": "Отрицательный остаток", "uk": "Відʼємний залишок", "en": "Negative stock"},
+    "home.inc.lm_not_accepted": {"ru": "Заказ без акцепта", "uk": "Замовлення без акцепту", "en": "Order not accepted"},
+    "home.inc.lm_offer_zero": {"ru": "Оффер обнулён", "uk": "Оффер обнулено", "en": "Offer out of stock"},
+    "home.inc.lm_degraded": {"ru": "Показатели канала просели", "uk": "Показники каналу просіли", "en": "Channel health down"},
+    "home.sales.others": {
+        "ru": "и ещё {n}: {v:,.0f} €", "uk": "і ще {n}: {v:,.0f} €", "en": "and {n} more: {v:,.0f} €"},
+    "home.link.money": {"ru": "Деньги и маржа", "uk": "Гроші та маржа", "en": "Money and margin"},
+    "home.sec.stock_note": {
+        "ru": "Ниже — состояние на сейчас, период выше на него не влияет.",
+        "uk": "Нижче — стан на зараз, період вище на нього не впливає.",
+        "en": "Below is the current state — the period selector above does not affect it.",
+    },
     "home.period": {"ru": "Период, дней", "uk": "Період, днів", "en": "Period, days"},
     "home.sec.sales": {"ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
     "home.sec.stock": {"ru": "Запасы и обеспеченность", "uk": "Запаси та забезпеченість", "en": "Stock and coverage"},
@@ -479,7 +514,7 @@ TRANSLATIONS = {
         "uk": "За останні {d} днів. Зміна — до попередніх {d} днів",
         "en": "Last {d} days. Change compared with the previous {d} days",
     },
-    "home.kpi.margin": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
+    "home.kpi.margin": {"ru": "Маржа и её доля", "uk": "Маржа та її частка", "en": "Margin and its share"},
     "home.kpi.margin_help": {
         "ru": "Выручка минус комиссии площадки и себестоимость. Реклама и логистика "
               "не входят — они на странице «Деньги»",
@@ -1650,21 +1685,21 @@ TRANSLATIONS = {
               "занимает одну строку, обе площадки рядом. Смотреть в первую очередь на две "
               "колонки: разница цен (где на площадках расходится больше чем на 10%) и "
               "возвраты (где возвращают больше 15% проданного). Остаток Leroy Merlin — это "
-              "не отдельный товар, а квота, выставленная на канал из мадридского склада: "
+              "не отдельный товар, а квота, выставленная на канал из местного склада: "
               "складывать её с амазоновским остатком нельзя.",
         "uk": "Amazon і Leroy Merlin продають один і той самий товар, але дані по них лежать "
               "у різних місцях — зіставити ціни й залишки не було де. Тут один товар займає "
               "один рядок, обидва майданчики поруч. Дивитись насамперед на дві колонки: "
               "різниця цін (де на майданчиках розходиться більш ніж на 10%) і повернення "
               "(де повертають понад 15% проданого). Залишок Leroy Merlin — це не окремий "
-              "товар, а квота, виставлена на канал з мадридського складу: складати її з "
+              "товар, а квота, виставлена на канал з місцевого складу: складати її з "
               "амазонівським залишком не можна.",
         "en": "Amazon and Leroy Merlin sell the same products, but their data lives in "
               "separate places — there was nowhere to compare prices and stock. Here one "
               "product is one row with both channels side by side. Watch two columns first: "
               "the price gap (where channels differ by more than 10%) and returns (where more "
               "than 15% of units sold come back). Leroy Merlin stock is not separate "
-              "inventory — it is a quota listed on the channel out of the Madrid warehouse, "
+              "inventory — it is a quota listed on the channel out of the local warehouse, "
               "so it must not be added to the Amazon figure.",
     },
     "cm.filter.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
@@ -1695,11 +1730,11 @@ TRANSLATIONS = {
     },
     "cm.summary.note": {
         "ru": "Остаток Amazon — физический товар на складах FBA. Остаток LM — квота, "
-              "выставленная на канал из мадридского склада, это не отдельный запас.",
+              "выставленная на канал из местного склада, это не отдельный запас.",
         "uk": "Залишок Amazon — фізичний товар на складах FBA. Залишок LM — квота, "
-              "виставлена на канал з мадридського складу, це не окремий запас.",
+              "виставлена на канал з місцевого складу, це не окремий запас.",
         "en": "Amazon stock is physical inventory in FBA. LM stock is a quota listed on the "
-              "channel out of the Madrid warehouse — not separate inventory.",
+              "channel out of the local warehouse — not separate inventory.",
     },
     "cm.download": {"ru": "Скачать свод CSV", "uk": "Завантажити зведення CSV", "en": "Download summary CSV"},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
@@ -1717,9 +1752,9 @@ TRANSLATIONS = {
     "cm.col.price_lm": {"ru": "Цена LM", "uk": "Ціна LM", "en": "Price LM"},
     "cm.col.stock_lm": {"ru": "Квота LM", "uk": "Квота LM", "en": "LM quota"},
     "cm.col.stock_lm_help": {
-        "ru": "Количество, выставленное на канал из мадридского склада",
-        "uk": "Кількість, виставлена на канал з мадридського складу",
-        "en": "Quantity listed on the channel out of the Madrid warehouse",
+        "ru": "Количество, выставленное на канал из местного склада",
+        "uk": "Кількість, виставлена на канал з місцевого складу",
+        "en": "Quantity listed on the channel out of the local warehouse",
     },
     "cm.col.price_gap": {"ru": "Разница цен", "uk": "Різниця цін", "en": "Price gap"},
     "cm.col.price_gap_help": {
@@ -1932,10 +1967,10 @@ TRANSLATIONS = {
         "uk": "Покриття рахується по тижнях уперед: із залишку віднімається прогноз продажів, "
               "додаються надходження. Коли залишок на складі Amazon закінчується, продажі "
               "не зупиняються — лістинг перемикається на відвантаження з Мадрида. Але "
-              "мадридський запас спільний на кілька країн, тому реальний строк коротший.",
+              "місцевий запас спільний на кілька країн, тому реальний строк коротший.",
         "en": "Coverage is projected week by week: the forecast is subtracted from stock and "
               "incoming shipments are added. When Amazon stock runs out, sales do not stop — "
-              "the listing switches to shipping from Madrid. But the Madrid stock is shared "
+              "the listing switches to shipping from Madrid. But the local stock is shared "
               "across several countries, so the real horizon is shorter than promised.",
     },
     "cov.filter.marketplace": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
@@ -1947,9 +1982,9 @@ TRANSLATIONS = {
     "cov.st.ok": {"ru": "В норме", "uk": "В нормі", "en": "OK"},
     "cov.kpi.critical": {"ru": "Критично", "uk": "Критично", "en": "Critical"},
     "cov.kpi.critical_help": {
-        "ru": "Товаров, которых хватит меньше чем на 4 недели с учётом мадридского запаса",
-        "uk": "Товарів, яких вистачить менш ніж на 4 тижні з урахуванням мадридського запасу",
-        "en": "Products with less than 4 weeks of cover including the Madrid stock",
+        "ru": "Товаров, которых хватит меньше чем на 4 недели с учётом местного запаса",
+        "uk": "Товарів, яких вистачить менш ніж на 4 тижні з урахуванням місцевого запасу",
+        "en": "Products with less than 4 weeks of cover including the local stock",
     },
     "cov.kpi.warning": {"ru": "Под вопросом", "uk": "Під питанням", "en": "At risk"},
     "cov.kpi.deficit_13": {"ru": "Дефицит в 13 недель", "uk": "Дефіцит у 13 тижнів", "en": "Shortage within 13 weeks"},
@@ -1958,19 +1993,19 @@ TRANSLATIONS = {
         "uk": "Товарів, у яких запас закінчиться в горизонті 13 тижнів",
         "en": "Products running out within a 13-week horizon",
     },
-    "cov.kpi.switch": {"ru": "Перейдут на Мадрид", "uk": "Перейдуть на Мадрид", "en": "Switching to Madrid"},
+    "cov.kpi.switch": {"ru": "Перейдут на местный склад", "uk": "Перейдуть на местный склад", "en": "Switching to the local warehouse"},
     "cov.kpi.switch_help": {
         "ru": "Товары, по которым запас Amazon кончится и отгрузка переключится на склад в Мадриде",
         "uk": "Товари, за якими запас Amazon закінчиться і відвантаження перемкнеться на склад у Мадриді",
-        "en": "Products where Amazon stock runs out and fulfilment switches to the Madrid warehouse",
+        "en": "Products where Amazon stock runs out and fulfilment switches to the local warehouse",
     },
     "cov.kpi.pool_risk": {"ru": "Прогноз завышен", "uk": "Прогноз завищений", "en": "Optimistic forecast"},
     "cov.kpi.pool_risk_help": {
-        "ru": "Товары, где мадридский запас делят несколько стран — общий спрос съест его "
+        "ru": "Товары, где местный запас делят несколько стран — общий спрос съест его "
               "раньше, чем показывает расчёт по каждой стране отдельно",
-        "uk": "Товари, де мадридський запас ділять кілька країн — спільний попит вичерпає його "
+        "uk": "Товари, де місцевий запас ділять кілька країн — спільний попит вичерпає його "
               "раніше, ніж показує розрахунок по кожній країні окремо",
-        "en": "Products where several countries share the Madrid stock — combined demand will "
+        "en": "Products where several countries share the local stock — combined demand will "
               "consume it sooner than the per-country calculation suggests",
     },
     "cov.tab.list": {"ru": "Список товаров", "uk": "Список товарів", "en": "Products"},
@@ -2004,33 +2039,33 @@ TRANSLATIONS = {
     },
     "cov.col.pool_weeks": {"ru": "Хватит пула", "uk": "Вистачить пулу", "en": "Pool lasts"},
     "cov.col.pool_weeks_help": {
-        "ru": "На сколько недель хватит мадридского запаса при суммарном спросе всех стран, "
+        "ru": "На сколько недель хватит местного запаса при суммарном спросе всех стран, "
               "которые его делят",
-        "uk": "На скільки тижнів вистачить мадридського запасу за сумарного попиту всіх країн, "
+        "uk": "На скільки тижнів вистачить місцевого запасу за сумарного попиту всіх країн, "
               "які його ділять",
-        "en": "How long the Madrid stock lasts against the combined demand of all countries "
+        "en": "How long the local stock lasts against the combined demand of all countries "
               "sharing it",
     },
     "cov.col.weeks_real": {"ru": "Реально недель", "uk": "Реально тижнів", "en": "Realistic weeks"},
     "cov.col.weeks_real_help": {
-        "ru": "Меньшее из двух: покрытие этой страны и срок жизни общего мадридского запаса",
-        "uk": "Менше з двох: покриття цієї країни і термін життя спільного мадридського запасу",
-        "en": "The lower of two: this country's cover and the life of the shared Madrid stock",
+        "ru": "Меньшее из двух: покрытие этой страны и срок жизни общего местного запаса",
+        "uk": "Менше з двох: покриття цієї країни і термін життя спільного місцевого запасу",
+        "en": "The lower of two: this country's cover and the life of the shared local stock",
     },
     "cov.col.first_deficit": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Shortage from"},
-    "cov.col.switch": {"ru": "Переход на Мадрид", "uk": "Перехід на Мадрид", "en": "Switch to Madrid"},
+    "cov.col.switch": {"ru": "Переход на местный склад", "uk": "Перехід на местный склад", "en": "Switch to the local warehouse"},
     "cov.col.switch_help": {
         "ru": "Неделя, когда склад Amazon опустеет и отгрузка пойдёт из Мадрида",
         "uk": "Тиждень, коли склад Amazon спорожніє і відвантаження піде з Мадрида",
-        "en": "The week when Amazon stock runs out and fulfilment moves to Madrid",
+        "en": "The week when Amazon stock runs out and fulfilment moves to the local warehouse",
     },
     "cov.col.status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "cov.list.pool_warn": {
-        "ru": "У {n} позиций прогноз завышен: мадридский запас делят несколько стран, "
+        "ru": "У {n} позиций прогноз завышен: местный запас делят несколько стран, "
               "и общий спрос съест его раньше срока, показанного в колонке «С Мадридом».",
-        "uk": "У {n} позицій прогноз завищений: мадридський запас ділять кілька країн, "
+        "uk": "У {n} позицій прогноз завищений: місцевий запас ділять кілька країн, "
               "і спільний попит вичерпає його раніше строку в колонці «З Мадридом».",
-        "en": "{n} items have an optimistic forecast: the Madrid stock is shared across "
+        "en": "{n} items have an optimistic forecast: the local stock is shared across "
               "countries, and combined demand will consume it before the date shown in "
               "the “With Madrid” column.",
     },
@@ -2050,11 +2085,11 @@ TRANSLATIONS = {
     "cov.col.shared": {"ru": "Общий запас", "uk": "Спільний запас", "en": "Shared stock"},
     "cov.col.shared_suffix": {"ru": "стран", "uk": "країн", "en": "countries"},
     "cov.col.shared_help": {
-        "ru": "Мадридский запас по этому товару делят несколько стран. Поэтому «Реально "
+        "ru": "Местный запас по этому товару делят несколько стран. Поэтому «Реально "
               "недель» меньше, чем «С Мадридом»: общий спрос израсходует запас быстрее.",
         "uk": "Мадридський запас за цим товаром ділять кілька країн. Тому «Реально тижнів» "
               "менше, ніж «З Мадридом»: спільний попит витратить запас швидше.",
-        "en": "Several countries share the Madrid stock for this product. That is why "
+        "en": "Several countries share the local stock for this product. That is why "
               "“Realistic weeks” is lower than “With Madrid” — combined demand drains it faster.",
     },
     "cov.proj.pool_line": {
@@ -2064,11 +2099,11 @@ TRANSLATIONS = {
     },
     "cov.detail.chart_note": {
         "ru": "График показывает только склад Amazon этой страны. Пунктирная линия — неделя, "
-              "когда закончится общий мадридский запас: после неё переключаться будет уже не на что.",
+              "когда закончится общий местный запас: после неё переключаться будет уже не на что.",
         "uk": "Графік показує лише склад Amazon цієї країни. Пунктирна лінія — тиждень, коли "
-              "закінчиться спільний мадридський запас: після нього перемикатися буде вже нема на що.",
+              "закінчиться спільний місцевий запас: після нього перемикатися буде вже нема на що.",
         "en": "The chart shows only this country's Amazon stock. The dashed line marks the week "
-              "the shared Madrid stock runs out — after that there is nothing to switch to.",
+              "the shared local stock runs out — after that there is nothing to switch to.",
     },
     "cov.go_reorder": {
         "ru": "Перейти к автозаказу",
@@ -2083,13 +2118,13 @@ TRANSLATIONS = {
         "en": "No week-by-week projection for this pair.",
     },
     "cov.detail.pool_warn": {
-        "ru": "Мадридский запас ({qty} шт) делят {n} стран, их суммарный спрос — "
+        "ru": "Местный запас ({qty} шт) делят {n} стран, их суммарный спрос — "
               "{demand:.0f} шт в неделю. Общего запаса хватит примерно на {pool_weeks} нед., "
               "а расчёт по этой стране обещает {promised}.",
         "uk": "Мадридський запас ({qty} шт) ділять {n} країн, їхній сумарний попит — "
               "{demand:.0f} шт на тиждень. Спільного запасу вистачить приблизно на "
               "{pool_weeks} тиж., а розрахунок по цій країні обіцяє {promised}.",
-        "en": "The Madrid stock ({qty} units) is shared by {n} countries with a combined "
+        "en": "The local stock ({qty} units) is shared by {n} countries with a combined "
               "demand of {demand:.0f} units per week. It will last roughly {pool_weeks} "
               "week(s), while this country's own calculation promises {promised}.",
     },
