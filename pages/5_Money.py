@@ -355,7 +355,8 @@ with tab_pnl:
             "acos_pct": st.column_config.NumberColumn("ACOS", format="%.1f%%",
                 help=t("money.col.acos_help")),
             "amazon_url": st.column_config.LinkColumn(
-                "ASIN", display_text="↗", width="small"),
+                "ASIN", display_text=r"/dp/([A-Z0-9]{10})", width="small",
+                help=t("money.col.asin_help")),
         },
     )
     st.caption(t("money.legend"))
