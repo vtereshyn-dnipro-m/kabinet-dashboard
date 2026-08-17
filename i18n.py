@@ -503,6 +503,21 @@ TRANSLATIONS = {
         "uk": "Нижче — стан на зараз, період вище на нього не впливає.",
         "en": "Below is the current state — the period selector above does not affect it.",
     },
+    "home.pulse.down": {
+        "ru": "Система не обновляет данные {h:.0f} ч. Всё, что показано ниже, устарело — "
+              "загрузчики не отрабатывают.",
+        "uk": "Система не оновлює дані {h:.0f} год. Усе, що показано нижче, застаріло — "
+              "завантажувачі не відпрацьовують.",
+        "en": "The system has not updated data for {h:.0f}h. Everything below is stale — "
+              "the loaders are not running.",
+    },
+    "home.pulse.partial": {
+        "ru": "{n} процесс(ов) не обновлялись больше суток: {jobs}. Часть цифр может быть "
+              "устаревшей.",
+        "uk": "{n} процес(ів) не оновлювались понад добу: {jobs}. Частина цифр може бути "
+              "застарілою.",
+        "en": "{n} process(es) have not run for over a day: {jobs}. Some figures may be stale.",
+    },
     "home.period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
     "home.period.custom": {"ru": "Свой период", "uk": "Свій період", "en": "Custom"},
     "home.period.range": {"ru": "Даты с и по", "uk": "Дати з і по", "en": "Date range"},
@@ -552,9 +567,18 @@ TRANSLATIONS = {
     },
     "home.kpi.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
     "home.kpi.revenue_help": {
-        "ru": "За последние {d} дней. Изменение — к предыдущим {d} дням",
-        "uk": "За останні {d} днів. Зміна — до попередніх {d} днів",
-        "en": "Last {d} days. Change compared with the previous {d} days",
+        "ru": "Выручка за вычетом возвратов, без комиссий площадки. За последние {d} дней, "
+              "изменение — к предыдущим {d} дням",
+        "uk": "Виручка за вирахуванням повернень, без комісій майданчика. За останні {d} днів, "
+              "зміна — до попередніх {d} днів",
+        "en": "Revenue net of returns, before channel fees. Last {d} days, change compared "
+              "with the previous {d} days",
+    },
+    "home.kpi.refunded": {"ru": "возврат", "uk": "повернення", "en": "returned"},
+    "home.kpi.units_help": {
+        "ru": "Заказано штук за период. Красным — сколько из них вернули",
+        "uk": "Замовлено штук за період. Червоним — скільки з них повернули",
+        "en": "Units ordered in the period. In red — how many were returned",
     },
     "home.kpi.margin": {"ru": "Маржа и её доля", "uk": "Маржа та її частка", "en": "Margin and its share"},
     "home.kpi.margin_help": {
@@ -1286,6 +1310,7 @@ TRANSLATIONS = {
 
     # --- 5_Money.py: выбор периода ---
     "money.period.label": {"ru": "Период", "uk": "Період", "en": "Period"},
+    "money.period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
     "money.period.custom": {"ru": "Свой", "uk": "Свій", "en": "Custom"},
     "money.period.range": {"ru": "Даты от–до", "uk": "Дати від–до", "en": "Date range"},
     "money.period.pick": {"ru": "Выбери обе даты периода", "uk": "Обери обидві дати періоду", "en": "Pick both dates"},
