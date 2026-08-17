@@ -101,8 +101,11 @@ def load_marketplaces() -> list:
 
 
 @st.cache_data(ttl=600)
-def load_sales(days: int) -> pd.DataFrame:
-    """Продажи по площадкам за период, SKU нормализован до базового кода."""
+def load_sales(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
+    """Продажи по площадкам за период, SKU нормализован до базового кода.
+    Даты передаются строками — так результат кешируется корректно."""
+    where = (f"sales_date BETWEEN '{d_from}' AND '{d_to}'" if d_from
+             else f"sales_date >= CURRENT_DATE - INTERVAL '{days} days'")
     conn = get_connection()
     try:
         return pd.read_sql(f"""
@@ -115,7 +118,7 @@ def load_sales(days: int) -> pd.DataFrame:
                    SUM(total_fees)                      AS fees,
                    SUM(COALESCE(cogs, 0) * units_ordered) AS cogs_total
             FROM kabinet_data.economics_summary
-            WHERE sales_date >= CURRENT_DATE - INTERVAL '{days} days'
+            WHERE {where}
               AND SUBSTRING(norm_sku FROM '([0-9]{{5,}})') IS NOT NULL
             GROUP BY 1, 2
         """, conn)
@@ -145,14 +148,16 @@ def load_stock() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_lm_health(days: int) -> pd.DataFrame:
+def load_lm_health(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     """Показатели канала. Берём все колонки — состав таблицы может меняться."""
     conn = get_connection()
     try:
+        where = (f"calc_date BETWEEN '{d_from}' AND '{d_to}'" if d_from
+                 else f"calc_date >= CURRENT_DATE - INTERVAL '{days} days'")
         df = pd.read_sql(f"""
             SELECT *
             FROM kabinet_data.lm_health_daily
-            WHERE calc_date >= CURRENT_DATE - INTERVAL '{days} days'
+            WHERE {where}
             ORDER BY calc_date
         """, conn)
     except Exception:
@@ -210,10 +215,12 @@ def load_incidents() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_returns(days: int) -> pd.DataFrame:
+def load_returns(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     """Возвраты за период. SKU нормализуем до базового кода, как везде."""
     if not table_exists("raw_amazon_returns"):
         return pd.DataFrame()
+    where = (f"return_date BETWEEN '{d_from}' AND '{d_to}'" if d_from
+             else f"return_date >= CURRENT_DATE - INTERVAL '{days} days'")
     conn = get_connection()
     try:
         return pd.read_sql(f"""
@@ -226,7 +233,7 @@ def load_returns(days: int) -> pd.DataFrame:
                    SUM(quantity)          AS qty,
                    SUM(refunded_amount)   AS refunded
             FROM kabinet_data.raw_amazon_returns
-            WHERE return_date >= CURRENT_DATE - INTERVAL '{days} days'
+            WHERE {where}
               AND SUBSTRING(sku FROM '([0-9]{{5,}})') IS NOT NULL
             GROUP BY 1, 2, 3, 4, 5
         """, conn)
@@ -251,6 +258,9 @@ def fmt_money(v) -> str:
 all_mp = load_marketplaces()
 countries = sorted({m for m in all_mp if m != LM_CODE})
 
+P_MONTH, P_CUSTOM = t("cm.period.month"), t("cm.period.custom")
+_opts = ["7", "30", "60", "90", P_MONTH, P_CUSTOM]
+
 f1, f2 = st.columns([2, 3])
 with f1:
     country = st.selectbox(
@@ -260,15 +270,40 @@ with f1:
     )
 with f2:
     period = st.segmented_control(
-        t("cm.filter.period"), options=["7", "30", "60", "90"], default="30")
-DAYS = int(period or 30)
+        t("cm.filter.period"), options=_opts, default="30")
+period = period or "30"
+
+_today = pd.Timestamp(datetime.now().date())
+date_from = date_to = None
+
+if period == P_MONTH:
+    date_from, date_to = _today.replace(day=1), _today
+    DAYS = (date_to - date_from).days + 1
+elif period == P_CUSTOM:
+    picked = st.date_input(
+        t("cm.period.range"),
+        value=(_today - pd.Timedelta(days=29), _today),
+        max_value=_today, format="DD.MM.YYYY", key="cm_range")
+    if isinstance(picked, (list, tuple)) and len(picked) == 2:
+        date_from, date_to = pd.Timestamp(picked[0]), pd.Timestamp(picked[1])
+    else:
+        date_from = date_to = _today
+    DAYS = max((date_to - date_from).days + 1, 1)
+else:
+    DAYS = int(period)
+
+# для произвольного диапазона грузим от его начала, а не за последние N дней
+D_FROM = date_from.strftime("%Y-%m-%d") if date_from is not None else ""
+D_TO = date_to.strftime("%Y-%m-%d") if date_to is not None else ""
+D_FROM_H = date_from.strftime("%d.%m") if date_from is not None else ""
+D_TO_H = date_to.strftime("%d.%m.%Y") if date_to is not None else ""
 
 is_all = country == t("cm.filter.all_countries")
 # Leroy Merlin работает только в Испании — показываем его вместе с ES
 mp_scope = all_mp if is_all else (
     [country, LM_CODE] if country == LM_COUNTRY else [country])
 
-sales = load_sales(DAYS)
+sales = load_sales(DAYS, D_FROM, D_TO)
 stock = load_stock()
 
 st.markdown(f"""
@@ -336,7 +371,7 @@ with tab_sum:
             wide[["stock_amazon", "stock_lm"]].fillna(0)
 
         # доля возвратов от проданного — сразу видно проблемные позиции
-        rets_all = load_returns(DAYS)
+        rets_all = load_returns(DAYS, D_FROM, D_TO)
         if not rets_all.empty:
             rq = (rets_all[rets_all["marketplace"].isin(mp_scope)]
                   .groupby("base_sku", as_index=False)["qty"].sum()
@@ -446,7 +481,7 @@ with tab_lm:
     if not table_exists("lm_health_daily"):
         st.info(t("cm.lm.no_table"))
     else:
-        lm = load_lm_health(DAYS)
+        lm = load_lm_health(DAYS, D_FROM, D_TO)
         if lm.empty:
             st.info(t("common.no_data"))
         else:
@@ -631,7 +666,7 @@ with tab_amz:
         st.caption(t("cm.amz.incidents_note"))
 
     # ---- возвраты ----
-    rets = load_returns(DAYS)
+    rets = load_returns(DAYS, D_FROM, D_TO)
     st.divider()
     st.markdown(f"**{t('cm.amz.returns_title')}**")
 
@@ -642,7 +677,9 @@ with tab_amz:
 
         r1, r2, r3 = st.columns(3)
         r1.metric(t("cm.amz.returns"), f"{int(scoped_ret['qty'].sum()):,}",
-                  help=t("cm.amz.returns_help").format(d=DAYS))
+                  help=(t("cm.amz.returns_range").format(f=D_FROM_H, to=D_TO_H)
+                        if date_from is not None
+                        else t("cm.amz.returns_help").format(d=DAYS)))
         r2.metric(t("cm.amz.refunded"), fmt_money(scoped_ret["refunded"].sum()))
         r3.metric(t("cm.amz.return_skus"), f"{scoped_ret['base_sku'].nunique():,}")
 
