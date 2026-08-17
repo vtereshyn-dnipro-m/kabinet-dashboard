@@ -14,8 +14,6 @@ init_lang()
 
 st.markdown("""
 <style>
-/* поджимаем верхний отступ: пустая полоса съедала десятую часть экрана */
-.block-container { padding-top: 2.2rem !important; }
 [data-testid="stMetric"] {
     border: 1px solid rgba(128, 128, 128, 0.35);
     border-radius: 12px;
@@ -29,12 +27,7 @@ hr { margin: 0.6rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-try:
-    _dark = st.context.theme.type == "dark"
-except Exception:
-    _dark = True
-st.image("logo_dark.png" if _dark else "logo_light.png", width=130)
-
+# логотип выводится в сайдбаре через st.logo — второй раз не нужен
 st.title(t("home.title"))
 st.caption(t("home.subtitle"))
 
@@ -479,4 +472,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table"))
+    st.markdown(t("home.roadmap_table")) 
