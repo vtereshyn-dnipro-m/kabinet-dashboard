@@ -487,6 +487,12 @@ TRANSLATIONS = {
         "ru": "Leroy Merlin: Испания {v:,.0f} €",
         "uk": "Leroy Merlin: Іспанія {v:,.0f} €",
         "en": "Leroy Merlin: Spain {v:,.0f} €"},
+    "home.sales.silent": {"ru": "нет продаж", "uk": "немає продажів", "en": "no sales"},
+    "home.sales.silent_hint": {
+        "ru": "За последние 90 дней в этой стране продажи были, а за выбранный период — нет",
+        "uk": "За останні 90 днів у цій країні продажі були, а за обраний період — ні",
+        "en": "This country had sales in the last 90 days but none in the selected period",
+    },
     "home.sales.rest": {"ru": "ещё {n}", "uk": "ще {n}", "en": "{n} more"},
     "home.platform.lm_short": {"ru": "LM Испания", "uk": "LM Іспанія", "en": "LM Spain"},
     "home.sales.others": {
@@ -2254,4 +2260,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
