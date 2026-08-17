@@ -322,17 +322,29 @@ else:
         amz = by_mp[by_mp["marketplace"] != "LM"]
         top_c = amz.head(4)
         rest = amz.iloc[4:]
-        parts = [f"{r['marketplace']} {r['revenue']:,.0f} €"
-                 for _, r in top_c.iterrows()]
+
+        def _chip(label: str, value: float, color: str) -> str:
+            return (f'<span style="display:inline-block;'
+                    f'background:{color}14;border:1px solid {color}33;'
+                    f'border-radius:6px;padding:2px 8px;margin:0 4px 5px 0;'
+                    f'font-size:0.78rem;white-space:nowrap;">'
+                    f'<span style="color:var(--text-secondary)">{label}</span> '
+                    f'<b style="color:{color}">{value:,.0f} €</b></span>')
+
+        chips = "".join(_chip(r["marketplace"], r["revenue"], BLUE)
+                        for _, r in top_c.iterrows())
         if len(rest):
-            parts.append(t("home.sales.others").format(
-                n=len(rest), v=rest["revenue"].sum()))
-        st.caption(t("home.sales.by_country") + " " + " · ".join(parts))
+            chips += _chip(t("home.sales.rest").format(n=len(rest)),
+                           float(rest["revenue"].sum()), GREY)
 
         lm_row = by_mp[by_mp["marketplace"] == "LM"]
         if len(lm_row):
-            st.caption(t("home.sales.lm_country").format(
-                v=float(lm_row["revenue"].iloc[0])))
+            chips += _chip(t("home.platform.lm_short"),
+                           float(lm_row["revenue"].iloc[0]), GREEN)
+
+        st.markdown(
+            f'<div style="margin-top:6px;line-height:1.9">{chips}</div>',
+            unsafe_allow_html=True)
 
     st.caption(t("home.sales.no_plan"))
     st.page_link("pages/5_Money.py", label=t("home.link.money"),
