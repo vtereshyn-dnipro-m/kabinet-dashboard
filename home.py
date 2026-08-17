@@ -72,7 +72,7 @@ def load_money(days: int = 30) -> pd.DataFrame:
                    SUM(net_proceeds_total)                AS net,
                    SUM(COALESCE(cogs, 0) * units_ordered) AS cogs
             FROM kabinet_data.economics_summary
-            WHERE sales_date >= CURRENT_DATE - INTERVAL '{days * 2} days'
+            WHERE sales_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
             GROUP BY 1, 2
         """, conn)
     except Exception:
@@ -250,16 +250,23 @@ if not money.empty:
     _last = pd.to_datetime(money["sales_date"]).max()
     _lag = (pd.Timestamp(datetime.now().date()) - _last).days
     if _lag >= 2:
+        _from = (_last - pd.Timedelta(days=DAYS - 1)).strftime("%d.%m")
         st.caption(t("home.sales.lag").format(
-            d=_last.strftime("%d.%m"), n=_lag))
+            d=_last.strftime("%d.%m"), n=_lag, f=_from))
 
 if money.empty:
     st.caption(t("home.sales.no_data"))
 else:
     money["sales_date"] = pd.to_datetime(money["sales_date"])
-    cur = money[money["sales_date"] >= today - pd.Timedelta(days=DAYS)]
-    prev = money[(money["sales_date"] < today - pd.Timedelta(days=DAYS))
-                 & (money["sales_date"] >= today - pd.Timedelta(days=DAYS * 2))]
+
+    # окно считаем от последней даты с данными, а не от сегодня.
+    # Amazon отдаёт отчёты с лагом в несколько дней, и если брать «сегодня
+    # минус 7», в текущем окне окажется 4-5 заполненных дней против семи
+    # в прошлом — сравнение покажет обвал, которого нет
+    anchor = money["sales_date"].max()
+    cur = money[money["sales_date"] > anchor - pd.Timedelta(days=DAYS)]
+    prev = money[(money["sales_date"] <= anchor - pd.Timedelta(days=DAYS))
+                 & (money["sales_date"] > anchor - pd.Timedelta(days=DAYS * 2))]
 
     rev_cur = float(cur["revenue"].sum())
     rev_prev = float(prev["revenue"].sum())
@@ -532,4 +539,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table")) 
+    st.markdown(t("home.roadmap_table"))
