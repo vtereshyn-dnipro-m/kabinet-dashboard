@@ -503,6 +503,19 @@ TRANSLATIONS = {
         "uk": "Нижче — стан на зараз, період вище на нього не впливає.",
         "en": "Below is the current state — the period selector above does not affect it.",
     },
+    "home.period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
+    "home.period.custom": {"ru": "Свой период", "uk": "Свій період", "en": "Custom"},
+    "home.period.range": {"ru": "Даты с и по", "uk": "Дати з і по", "en": "Date range"},
+    "home.sec.sales_range": {
+        "ru": "Продажи: {f} — {to}", "uk": "Продажі: {f} — {to}", "en": "Sales: {f} — {to}"},
+    "home.sales.lag_range": {
+        "ru": "Данные есть по {d} включительно — Amazon отдаёт отчёты с задержкой, "
+              "последние {n} дн. ещё не загружены. Конец выбранного периода пока пуст.",
+        "uk": "Дані є по {d} включно — Amazon віддає звіти із затримкою, останні {n} дн. "
+              "ще не завантажені. Кінець обраного періоду поки порожній.",
+        "en": "Data is available up to {d} — Amazon delivers reports with a delay and the "
+              "last {n} days are not loaded. The end of the selected range is still empty.",
+    },
     "home.period": {"ru": "Период, дней", "uk": "Період, днів", "en": "Period, days"},
     "home.sec.sales": {"ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
     "home.sec.stock": {"ru": "Запасы и обеспеченность", "uk": "Запаси та забезпеченість", "en": "Stock and coverage"},
@@ -1733,6 +1746,14 @@ TRANSLATIONS = {
     },
     "cm.filter.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
     "cm.filter.all_countries": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
+    "cm.period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
+    "cm.period.custom": {"ru": "Свой период", "uk": "Свій період", "en": "Custom"},
+    "cm.period.range": {"ru": "Даты с и по", "uk": "Дати з і по", "en": "Date range"},
+    "cm.amz.returns_range": {
+        "ru": "Единиц возвращено за период {f} — {to}",
+        "uk": "Одиниць повернено за період {f} — {to}",
+        "en": "Units returned between {f} and {to}",
+    },
     "cm.filter.period": {"ru": "Период", "uk": "Період", "en": "Period"},
     "cm.tab.summary": {"ru": "Свод по товарам", "uk": "Зведення за товарами", "en": "By product"},
     "cm.tab.lm_health": {"ru": "Leroy Merlin", "uk": "Leroy Merlin", "en": "Leroy Merlin"},
