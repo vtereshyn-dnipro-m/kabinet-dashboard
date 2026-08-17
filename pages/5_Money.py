@@ -85,22 +85,24 @@ def load_pnl(days: int, d_from=None, d_to=None):
          AND a.marketplace = e.marketplace
          AND a.norm_sku = e.norm_sku
         LEFT JOIN (
-            -- одна строка на SKU. Раньше GROUP BY стоял внутри каждой ветки,
-            -- а UNION ALL их складывал: SKU, известный и по остаткам, и по
-            -- заказам, давал две строки — и каждая строка экономики
-            -- удваивалась при соединении, завышая выручку почти вдвое
-            SELECT norm_sku, MAX(asin) AS asin
+            -- ASIN ищем по базовому коду товара: формы SKU расходятся
+            -- (S2_78713000_, 41324000-A, 22539000-FBA_), и обрезка только
+            -- по «-FBA» их не сводит — половина товаров оставалась без ссылки.
+            -- Группировка снаружи UNION ALL: иначе SKU, известный и по
+            -- остаткам, и по заказам, дал бы две строки и удвоил экономику
+            SELECT base_sku, MAX(asin) AS asin
             FROM (
-                SELECT REGEXP_REPLACE(sku,'-FBA.*$','') AS norm_sku, asin
+                SELECT SUBSTRING(sku FROM '([0-9]{{5,}})') AS base_sku, asin
                 FROM kabinet_data.stock_local
                 WHERE asin IS NOT NULL
                 UNION ALL
-                SELECT REGEXP_REPLACE(sku,'-FBA.*$','') AS norm_sku, asin
+                SELECT SUBSTRING(sku FROM '([0-9]{{5,}})') AS base_sku, asin
                 FROM kabinet_data.orders_history
                 WHERE asin IS NOT NULL
             ) u
-            GROUP BY norm_sku
-        ) s ON s.norm_sku = e.norm_sku
+            WHERE base_sku IS NOT NULL
+            GROUP BY base_sku
+        ) s ON s.base_sku = SUBSTRING(e.norm_sku FROM '([0-9]{{5,}})')
         WHERE {where}
     """, conn)
     conn.close()
@@ -168,6 +170,19 @@ else:
 if df.empty:
     st.info(t("money.empty"))
     st.stop()
+
+# показываем, за какие именно даты цифры, и предупреждаем о задержке —
+# иначе непонятно, что стоит за «17 дн»
+_dates = pd.to_datetime(df["sales_date"], errors="coerce")
+_first, _last = _dates.min(), _dates.max()
+if pd.notna(_first) and pd.notna(_last):
+    _ptitle = t("money.period_title").format(
+        f=_first.strftime("%d.%m"), to=_last.strftime("%d.%m.%Y"))
+    st.markdown(f"##### {_ptitle}")
+    _lag = (pd.Timestamp(pd.Timestamp.now().date()) - _last).days
+    if _lag >= 2:
+        st.caption(t("money.period_lag").format(
+            d=_last.strftime("%d.%m"), n=_lag))
 
 # сверяем с контрольной суммой: расхождение означает размножение строк
 _ctrl = (load_control_total(0, d_from, d_to) if (d_from and d_to)
@@ -494,4 +509,4 @@ with tab_alerts:
                 "details": st.column_config.TextColumn(t("money.alerts.col_details"), width="large"),
             },
         )
-        st.caption(t("money.alerts.note")) 
+        st.caption(t("money.alerts.note"))
