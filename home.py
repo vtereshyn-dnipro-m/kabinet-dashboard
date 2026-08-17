@@ -65,17 +65,31 @@ def load_money(days: int = 30) -> pd.DataFrame:
         return pd.DataFrame()
     conn = get_connection()
     try:
+        # экономику и рекламу агрегируем по отдельности и соединяем уже
+        # свёрнутыми — так строки не размножатся, что бы ни лежало в источниках
         return pd.read_sql(f"""
-            SELECT sales_date, marketplace,
-                   SUM(units_ordered)                     AS units,
-                   SUM(units_refunded)                    AS units_refunded,
-                   SUM(net_product_sales)                 AS revenue,
-                   SUM(ordered_product_sales)             AS gross_revenue,
-                   SUM(net_proceeds_total)                AS net,
-                   SUM(COALESCE(cogs, 0) * units_ordered) AS cogs
-            FROM kabinet_data.economics_summary
-            WHERE sales_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
-            GROUP BY 1, 2
+            WITH econ AS (
+                SELECT sales_date, marketplace,
+                       SUM(units_ordered)                     AS units,
+                       SUM(units_refunded)                    AS units_refunded,
+                       SUM(net_product_sales)                 AS revenue,
+                       SUM(ordered_product_sales)             AS gross_revenue,
+                       SUM(net_proceeds_total)                AS net,
+                       SUM(COALESCE(cogs, 0) * units_ordered) AS cogs
+                FROM kabinet_data.economics_summary
+                WHERE sales_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
+                GROUP BY 1, 2
+            ),
+            ads AS (
+                SELECT date AS sales_date, marketplace,
+                       SUM(total_spend) AS ads
+                FROM kabinet_data.ads_spend
+                WHERE date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
+                GROUP BY 1, 2
+            )
+            SELECT e.*, COALESCE(a.ads, 0) AS ads
+            FROM econ e
+            LEFT JOIN ads a USING (sales_date, marketplace)
         """, conn)
     except Exception:
         return pd.DataFrame()
@@ -350,7 +364,8 @@ else:
 
     rev_cur = float(cur["revenue"].sum())
     rev_prev = float(prev["revenue"].sum())
-    cm_cur = float(cur["net"].sum() - cur["cogs"].sum())
+    _ads = float(cur.get("ads", pd.Series(dtype=float)).sum() or 0)
+    cm_cur = float(cur["net"].sum() - cur["cogs"].sum() - _ads)
     cm_pct = round(cm_cur / rev_cur * 100, 1) if rev_cur else 0.0
     units_cur = int(cur["units"].sum())
     delta_pct = (round((rev_cur - rev_prev) / rev_prev * 100, 1)
