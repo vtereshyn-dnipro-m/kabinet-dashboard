@@ -13,13 +13,19 @@ init_lang()
 # ---------- стили ----------
 st.markdown("""
 <style>
+/* Streamlit оставляет сверху пустую полосу в десятую часть экрана —
+   поджимаем, чтобы таблица помещалась без прокрутки */
+.block-container { padding-top: 2.2rem !important; }
 [data-testid="stMetric"] {
     border: 1px solid rgba(128, 128, 128, 0.35);
     border-radius: 12px;
-    padding: 14px 18px;
+    padding: 12px 14px;
 }
-[data-testid="stMetricValue"] { font-size: 2rem; }
-h1 { margin-bottom: 0.2rem; }
+[data-testid="stMetricValue"] { font-size: 1.7rem; }
+[data-testid="stMetricLabel"] { font-size: 0.78rem; }
+h1 { margin-bottom: 0.1rem; font-size: 2rem; }
+[data-testid="stCaptionContainer"] { margin-top: -0.3rem; }
+hr { margin: 0.6rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -65,8 +71,8 @@ def load_coverage() -> pd.DataFrame:
         return pd.DataFrame()
     conn = get_connection()
     try:
-        return pd.read_sql("""
-            SELECT s.*, COALESCE(l.product_name, '—') AS product_name
+        df = pd.read_sql("""
+            SELECT s.*, l.product_name AS fallback_name
             FROM kabinet_data.coverage_summary s
             LEFT JOIN (
                 SELECT SUBSTRING(sku FROM '([0-9]{5,})') AS base_sku,
@@ -77,6 +83,14 @@ def load_coverage() -> pd.DataFrame:
             ) l ON l.base_sku = s.sku
             WHERE s.calc_date = (SELECT MAX(calc_date) FROM kabinet_data.coverage_summary)
         """, conn)
+        # имя приходит из расчёта, но у части позиций его нет —
+        # подстраховываемся остатками, иначе в списке выбора будут прочерки
+        if "product_name" not in df.columns:
+            df["product_name"] = None
+        df["product_name"] = (df["product_name"]
+                              .fillna(df.get("fallback_name"))
+                              .fillna("—").replace({"None": "—", "": "—"}))
+        return df.drop(columns=["fallback_name"], errors="ignore")
     except Exception:
         return pd.DataFrame()
     finally:
@@ -339,7 +353,8 @@ with tab_cov:
                   "total_coverage_weeks", "realistic_coverage_weeks",
                   "pool_exhaustion_weeks", "competing_marketplaces",
                   "pool_total_weekly_demand", "gaps_count", "gaps_total_qty",
-                  "overstock_qty", "overstock_weeks", "odoo_incoming_qty"):
+                  "overstock_qty", "overstock_weeks", "odoo_incoming_qty",
+                  "weeks_until_first_gap"):
             if c in cov.columns:
                 cov[c] = pd.to_numeric(cov[c], errors="coerce")
         cov["coverage_status"] = cov["coverage_status"].fillna("ok")
@@ -458,7 +473,8 @@ with tab_cov:
 
             st.dataframe(
                 cview[["sku", "product_name", "marketplace", "available_now",
-                       "coverage_weeks", "fbm_fallback_qty", "total_coverage_weeks",
+                       "weeks_until_first_gap", "coverage_weeks",
+                       "fbm_fallback_qty", "total_coverage_weeks",
                        "shared_note", "realistic_coverage_weeks",
                        "first_deficit_week", "gaps_count", "gaps_total_qty",
                        "odoo_incoming_qty", "overstock_qty", "status_label"]],
@@ -471,6 +487,9 @@ with tab_cov:
                         t("stock.cov.col_mp"), width="small"),
                     "available_now": st.column_config.NumberColumn(
                         t("stock.cov.col_stock"), width="small"),
+                    "weeks_until_first_gap": st.column_config.NumberColumn(
+                        t("stock.cov.col_until_gap"), width="small",
+                        help=t("stock.cov.col_until_gap_help")),
                     "coverage_weeks": st.column_config.NumberColumn(
                         t("stock.cov.col_weeks_fba"), width="small",
                         help=t("stock.cov.col_weeks_fba_help")),
