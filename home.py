@@ -31,6 +31,18 @@ hr { margin: 0.6rem 0 !important; }
 st.title(t("home.title"))
 st.caption(t("home.subtitle"))
 
+# состояние системы — первое, что видно: если данные перестали обновляться,
+# все цифры ниже устарели, и об этом надо знать до того, как их читать
+_pulse = load_pulse()
+if not _pulse.empty:
+    _stale = _pulse[_pulse["hours_ago"] > 26]
+    if len(_stale) == len(_pulse):
+        st.error(t("home.pulse.down").format(
+            h=float(_pulse["hours_ago"].min())))
+    elif len(_stale):
+        st.warning(t("home.pulse.partial").format(
+            n=len(_stale), jobs=", ".join(_stale["job_name"].head(3))))
+
 ACCENT = "#e8484d"
 BLUE = "#1f77b4"
 AMBER = "#f2b134"
@@ -68,7 +80,9 @@ def load_money(days: int = 30) -> pd.DataFrame:
         return pd.read_sql(f"""
             SELECT sales_date, marketplace,
                    SUM(units_ordered)                     AS units,
-                   SUM(ordered_product_sales)             AS revenue,
+                   SUM(units_refunded)                    AS units_refunded,
+                   SUM(net_product_sales)                 AS revenue,
+                   SUM(ordered_product_sales)             AS gross_revenue,
                    SUM(net_proceeds_total)                AS net,
                    SUM(COALESCE(cogs, 0) * units_ordered) AS cogs
             FROM kabinet_data.economics_summary
@@ -194,6 +208,29 @@ def load_reviews(days: int = 30) -> dict:
     finally:
         conn.close()
     return out
+
+
+@st.cache_data(ttl=120)
+def load_pulse() -> pd.DataFrame:
+    """Когда загрузчики последний раз отработали успешно.
+    Это внешняя точка контроля: если умрут и сторож, и загрузчики,
+    инциденты никто не создаст — но метка перестанет обновляться,
+    и человек увидит это здесь."""
+    if not table_exists("system_pulse"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        return pd.read_sql("""
+            SELECT job_name, last_success_at,
+                   ROUND(EXTRACT(EPOCH FROM (NOW() - last_success_at)) / 3600.0, 1)
+                       AS hours_ago
+            FROM kabinet_data.system_pulse
+            ORDER BY last_success_at
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
 
 
 def safe_div(a, b):
@@ -328,7 +365,11 @@ else:
               help=t("home.kpi.revenue_help").format(d=DAYS))
     s2.metric(t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
               help=t("home.kpi.margin_help"))
-    s3.metric(t("home.kpi.units"), f"{units_cur:,}")
+    _ref = int(cur.get("units_refunded", pd.Series(dtype=float)).sum() or 0)
+    s3.metric(t("home.kpi.units"), f"{units_cur:,}",
+              delta=(f"−{_ref} {t('home.kpi.refunded')}" if _ref else None),
+              delta_color="inverse" if _ref else "off",
+              help=t("home.kpi.units_help"))
     s4.metric(t("home.kpi.markets"), f"{cur['marketplace'].nunique()}")
 
     gl, gr = st.columns([1.6, 1])
@@ -582,4 +623,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table")) 
+    st.markdown(t("home.roadmap_table"))
