@@ -48,8 +48,6 @@ pages = st.navigation({
         st.Page("pages/3_Forecast.py", title=t("nav.forecast"), icon=":material/show_chart:"),
         st.Page("pages/7_Reviews.py", title=t("nav.reviews"),
                 icon=":material/rate_review:"),
-        st.Page("pages/9_Coverage.py", title=t("nav.coverage"),
-                icon=":material/calendar_month:"),
         st.Page("pages/8_CM_Dashboard.py", title=t("nav.cm"),
                 icon=":material/dashboard:"),
         st.Page("pages/6_Dictionaries.py", title=t("nav.dictionaries"),
