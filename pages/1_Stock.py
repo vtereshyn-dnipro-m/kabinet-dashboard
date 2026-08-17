@@ -13,9 +13,6 @@ init_lang()
 # ---------- стили ----------
 st.markdown("""
 <style>
-/* Streamlit оставляет сверху пустую полосу в десятую часть экрана —
-   поджимаем, чтобы таблица помещалась без прокрутки */
-.block-container { padding-top: 2.2rem !important; }
 [data-testid="stMetric"] {
     border: 1px solid rgba(128, 128, 128, 0.35);
     border-radius: 12px;
@@ -996,4 +993,4 @@ if SHOW_DRAFT_TABS:
             f.to_csv(index=False).encode("utf-8-sig"),
             file_name=f"stock_{f['snapshot_date'].max()}.csv",
             mime="text/csv",
-        )
+        ) 
