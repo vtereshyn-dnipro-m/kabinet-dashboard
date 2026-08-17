@@ -26,6 +26,12 @@ st.markdown(
     '[data-testid="stStatusWidget"]{visibility:hidden;}'
     "header{background:transparent !important;}"
     "footer{visibility:hidden !important;}"
+    # Streamlit оставляет сверху пустую полосу — заголовок проваливается
+    # ниже логотипа в сайдбаре. Поджимаем на всех страницах разом.
+    '[data-testid="stMainBlockContainer"]{padding-top:2rem !important;}'
+    ".block-container{padding-top:2rem !important;}"
+    '[data-testid="stHeader"]{height:0 !important;}'
+    "h1{margin-top:0 !important;padding-top:0 !important;}"
     "</style>",
     unsafe_allow_html=True,
 )
