@@ -72,7 +72,15 @@ def load_pnl(days: int, d_from=None, d_to=None):
                COALESCE(a.total_spend, 0) AS ads,
                s.asin
         FROM kabinet_data.economics_summary e
-        LEFT JOIN kabinet_data.ads_spend a
+        LEFT JOIN (
+            -- схлопываем рекламу до одной строки на ключ: иначе несколько
+            -- кампаний по одному SKU размножат строку экономики,
+            -- и выручка посчитается дважды
+            SELECT date, marketplace, norm_sku,
+                   SUM(total_spend) AS total_spend
+            FROM kabinet_data.ads_spend
+            GROUP BY 1, 2, 3
+        ) a
           ON a.date = e.sales_date
          AND a.marketplace = e.marketplace
          AND a.norm_sku = e.norm_sku
@@ -98,7 +106,8 @@ pc1, pc2 = st.columns([2, 2])
 with pc1:
     period = st.segmented_control(
         t("money.period.label"),
-        options=["7", "30", "60", "90", t("money.period.custom")],
+        options=["7", "30", "60", "90",
+                 t("money.period.month"), t("money.period.custom")],
         default="30",
     )
 with pc2:
@@ -108,11 +117,17 @@ with pc2:
         if len(rng) == 2:
             d_from, d_to = rng[0], rng[1]
 
-if period == t("money.period.custom"):
+if period == t("money.period.month"):
+    from datetime import date as _date
+    _today = _date.today()
+    d_from, d_to = _today.replace(day=1), _today
+    WINDOW = (d_to - d_from).days + 1
+    df = load_pnl(0, d_from, d_to)
+elif period == t("money.period.custom"):
     if not (d_from and d_to):
         st.info(t("money.period.pick"))
         st.stop()
-    WINDOW = (d_to - d_from).days
+    WINDOW = (d_to - d_from).days + 1
     df = load_pnl(0, d_from, d_to)
 else:
     WINDOW = int(period)
@@ -434,4 +449,4 @@ with tab_alerts:
                 "details": st.column_config.TextColumn(t("money.alerts.col_details"), width="large"),
             },
         )
-        st.caption(t("money.alerts.note")) 
+        st.caption(t("money.alerts.note"))
