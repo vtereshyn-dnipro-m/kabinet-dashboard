@@ -224,6 +224,9 @@ if str(DAYS) != _qp:
 
 try:
     money = load_money(DAYS)
+    # отдельно берём 90 дней: нужно понять, какие страны продавали раньше,
+    # но замолчали в выбранном периоде
+    money_wide = load_money(90) if DAYS < 90 else money
     cov = load_coverage()
     inc = load_incidents()
     transfers = load_transfers()
@@ -330,7 +333,17 @@ else:
 
         # у Amazon страна в коде маркетплейса, у Leroy Merlin — нет:
         # подписываем обе площадки одинаково, иначе LM читается как страна
-        def _chip(label: str, value: float, color: str) -> str:
+        def _chip(label: str, value: float, color: str,
+                  muted: bool = False) -> str:
+            if muted:
+                return (f'<span title="{t("home.sales.silent_hint")}" '
+                        f'style="display:inline-block;'
+                        f'background:{color}0f;border:1px dashed {color}55;'
+                        f'border-radius:6px;padding:3px 9px;margin:0 5px 6px 0;'
+                        f'font-size:0.78rem;white-space:nowrap;cursor:help;">'
+                        f'<span style="color:var(--text-secondary)">{label}</span>'
+                        f'&nbsp;&nbsp;<b style="color:{color}">'
+                        f'{t("home.sales.silent")}</b></span>')
             return (f'<span style="display:inline-block;'
                     f'background:{color}14;border:1px solid {color}33;'
                     f'border-radius:6px;padding:3px 9px;margin:0 5px 6px 0;'
@@ -347,6 +360,16 @@ else:
 
         chips = "".join(_chip(r["marketplace"], r["revenue"], BLUE)
                         for _, r in amz.iterrows())
+
+        # страна, которая продавала за 90 дней, но молчит в выбранном
+        # периоде — это сигнал, а не пустое место
+        silent = []
+        if not money_wide.empty:
+            had = set(money_wide.loc[money_wide["revenue"] > 0, "marketplace"])
+            silent = sorted(had - set(sold["marketplace"]) - {"LM"})
+        for mp in silent:
+            chips += _chip(mp, 0.0, ACCENT, muted=True)
+
         for _, r in lm.iterrows():
             chips += _chip(t("home.platform.lm_short"), r["revenue"], GREEN)
 
@@ -509,4 +532,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table"))
+    st.markdown(t("home.roadmap_table")) 
