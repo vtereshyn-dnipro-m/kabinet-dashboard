@@ -1116,6 +1116,19 @@ TRANSLATIONS = {
         "uk": "Юніт-економіка: скільки заробляємо, що з'їдають комісії",
         "en": "Unit economics: what we earn and what fees eat",
     },
+    "money.mismatch": {
+        "ru": "Цифры на странице завышены: считается {mine:,.0f} €, в данных {real:,.0f} € "
+              "(в {k:.1f} раза больше). Строк после соединений {rows} против {ctrl_rows} "
+              "в таблице — значит строки размножились при JOIN. Скорее всего развёрнутая "
+              "версия страницы отстала от репозитория.",
+        "uk": "Цифри на сторінці завищені: рахується {mine:,.0f} €, у даних {real:,.0f} € "
+              "(у {k:.1f} раза більше). Рядків після зʼєднань {rows} проти {ctrl_rows} "
+              "у таблиці — отже рядки розмножились при JOIN. Найімовірніше розгорнута "
+              "версія сторінки відстала від репозиторію.",
+        "en": "Figures on this page are inflated: computed {mine:,.0f} €, actual {real:,.0f} € "
+              "({k:.1f}× higher). {rows} rows after joins against {ctrl_rows} in the table — "
+              "rows were multiplied by a JOIN. The deployed version is likely behind the repo.",
+    },
     "money.empty": {
         "ru": "Данные экономики ещё не рассчитаны. Запусти агрегатор в пайплайне.",
         "uk": "Дані економіки ще не розраховані. Запусти агрегатор.",
