@@ -31,18 +31,6 @@ hr { margin: 0.6rem 0 !important; }
 st.title(t("home.title"))
 st.caption(t("home.subtitle"))
 
-# состояние системы — первое, что видно: если данные перестали обновляться,
-# все цифры ниже устарели, и об этом надо знать до того, как их читать
-_pulse = load_pulse()
-if not _pulse.empty:
-    _stale = _pulse[_pulse["hours_ago"] > 26]
-    if len(_stale) == len(_pulse):
-        st.error(t("home.pulse.down").format(
-            h=float(_pulse["hours_ago"].min())))
-    elif len(_stale):
-        st.warning(t("home.pulse.partial").format(
-            n=len(_stale), jobs=", ".join(_stale["job_name"].head(3))))
-
 ACCENT = "#e8484d"
 BLUE = "#1f77b4"
 AMBER = "#f2b134"
@@ -299,6 +287,18 @@ try:
 except Exception as e:
     st.error(f"{t('home.db_error')}: {e}")
     st.stop()
+
+# состояние системы: если загрузчики встали, все цифры ниже устарели —
+# об этом надо знать до того, как их читать
+_pulse = load_pulse()
+if not _pulse.empty:
+    _stale = _pulse[_pulse["hours_ago"] > 26]
+    if len(_stale) == len(_pulse):
+        st.error(t("home.pulse.down").format(
+            h=float(_pulse["hours_ago"].min())))
+    elif len(_stale):
+        st.warning(t("home.pulse.partial").format(
+            n=len(_stale), jobs=", ".join(_stale["job_name"].head(3))))
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -623,4 +623,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table")) 
+    st.markdown(t("home.roadmap_table"))
