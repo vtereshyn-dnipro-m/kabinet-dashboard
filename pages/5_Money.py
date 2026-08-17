@@ -494,4 +494,4 @@ with tab_alerts:
                 "details": st.column_config.TextColumn(t("money.alerts.col_details"), width="large"),
             },
         )
-        st.caption(t("money.alerts.note"))
+        st.caption(t("money.alerts.note")) 
