@@ -14,13 +14,18 @@ init_lang()
 
 st.markdown("""
 <style>
+/* поджимаем верхний отступ: пустая полоса съедала десятую часть экрана */
+.block-container { padding-top: 2.2rem !important; }
 [data-testid="stMetric"] {
     border: 1px solid rgba(128, 128, 128, 0.35);
     border-radius: 12px;
-    padding: 13px 16px;
+    padding: 12px 14px;
 }
-[data-testid="stMetricValue"] { font-size: 1.7rem; }
-[data-testid="stMetricLabel"] { font-size: 0.8rem; }
+[data-testid="stMetricValue"] { font-size: 1.6rem; }
+[data-testid="stMetricLabel"] { font-size: 0.78rem; }
+h1 { margin-bottom: 0.1rem; font-size: 2rem; }
+[data-testid="stCaptionContainer"] { margin-top: -0.3rem; }
+hr { margin: 0.6rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -154,10 +159,19 @@ def load_reviews(days: int = 30) -> dict:
             # охват скрапера растёт день ото дня, и общая сумма выросла бы
             # даже без единого нового отзыва
             df = pd.read_sql(f"""
-                WITH bounds AS (
-                    SELECT MIN(snapshot_date) AS d0, MAX(snapshot_date) AS d1
+                WITH per_day AS (
+                    SELECT snapshot_date, COUNT(*) AS n
                     FROM kabinet_data.asin_reviews_daily
                     WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+                      AND review_count IS NOT NULL
+                    GROUP BY 1
+                ),
+                bounds AS (
+                    -- первые дни сбора скрапер охватывал единицы товаров:
+                    -- берём начало периода там, где охват стал полным
+                    SELECT MIN(snapshot_date) AS d0, MAX(snapshot_date) AS d1
+                    FROM per_day
+                    WHERE n >= (SELECT MAX(n) * 0.5 FROM per_day)
                 ),
                 pairs AS (
                     SELECT a.asin, a.marketplace,
@@ -201,12 +215,19 @@ def fmt_money(v) -> str:
 # ЗАГРУЗКА
 # ═══════════════════════════════════════════════════════════════════
 
+# период держим в адресе — иначе он сбрасывается при переходе на другую
+# страницу и обратно
+_qp = st.query_params.get("d", "30")
+_default = _qp if _qp in ("7", "30", "90") else "30"
+
 pc1, _ = st.columns([1, 3])
 with pc1:
     period = st.segmented_control(
-        t("home.period"), options=["7", "30", "90"], default="30",
+        t("home.period"), options=["7", "30", "90"], default=_default,
         key="home_period")
 DAYS = int(period or 30)
+if str(DAYS) != _qp:
+    st.query_params["d"] = str(DAYS)
 
 try:
     money = load_money(DAYS)
@@ -242,13 +263,15 @@ else:
     units_cur = int(cur["units"].sum())
     delta_pct = (round((rev_cur - rev_prev) / rev_prev * 100, 1)
                  if rev_prev > 0 else None)
+    # период неполный или предыдущий пустой — сравнение обманет
+    if delta_pct is not None and abs(delta_pct) > 300:
+        delta_pct = None
 
     s1, s2, s3, s4 = st.columns(4)
     s1.metric(t("home.kpi.revenue"), fmt_money(rev_cur),
-              delta=(f"{delta_pct:+.0f}%" if delta_pct is not None else None),
+              delta=(f"{delta_pct:+.1f}%" if delta_pct is not None else None),
               help=t("home.kpi.revenue_help").format(d=DAYS))
-    s2.metric(t("home.kpi.margin"), fmt_money(cm_cur),
-              delta=f"{cm_pct:.0f}%", delta_color="off",
+    s2.metric(t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
               help=t("home.kpi.margin_help"))
     s3.metric(t("home.kpi.units"), f"{units_cur:,}")
     s4.metric(t("home.kpi.markets"), f"{cur['marketplace'].nunique()}")
@@ -291,13 +314,19 @@ else:
                 f"background:{color}'></div></div></div>",
                 unsafe_allow_html=True)
 
-        st.caption(t("home.sales.by_country"))
-        top_c = by_mp[by_mp["marketplace"] != "LM"].head(4)
-        cc = " · ".join(f"{r['marketplace']} {r['revenue']:,.0f} €"
-                        for _, r in top_c.iterrows())
-        st.caption(cc)
+        amz = by_mp[by_mp["marketplace"] != "LM"]
+        top_c = amz.head(4)
+        rest = amz.iloc[4:]
+        parts = [f"{r['marketplace']} {r['revenue']:,.0f} €"
+                 for _, r in top_c.iterrows()]
+        if len(rest):
+            parts.append(t("home.sales.others").format(
+                n=len(rest), v=rest["revenue"].sum()))
+        st.caption(t("home.sales.by_country") + " " + " · ".join(parts))
 
     st.caption(t("home.sales.no_plan"))
+    st.page_link("pages/5_Money.py", label=t("home.link.money"),
+                 icon=":material/euro:")
 
 st.divider()
 
@@ -307,6 +336,7 @@ st.divider()
 # ═══════════════════════════════════════════════════════════════════
 
 st.markdown(f"##### {t('home.sec.stock')}")
+st.caption(t("home.sec.stock_note"))
 
 cl, cr = st.columns([1.4, 1])
 
@@ -396,10 +426,22 @@ with il:
                   help=t("home.kpi.inc_oldest_help"))
 
         if len(open_inc):
-            by_type = (open_inc.groupby("incident_type", as_index=False)
+            TYPE_LABEL = {
+                "low_stock": t("home.inc.low_stock"),
+                "out_of_stock": t("home.inc.out_of_stock"),
+                "stale_data": t("home.inc.stale_data"),
+                "negative_stock": t("home.inc.negative_stock"),
+                "lm_order_not_accepted": t("home.inc.lm_not_accepted"),
+                "lm_offer_out_of_stock": t("home.inc.lm_offer_zero"),
+                "lm_health_degraded": t("home.inc.lm_degraded"),
+            }
+            open_inc = open_inc.copy()
+            open_inc["type_label"] = open_inc["incident_type"].map(
+                lambda v: TYPE_LABEL.get(v, v))
+            by_type = (open_inc.groupby("type_label", as_index=False)
                                .size().rename(columns={"size": "n"})
                                .sort_values("n", ascending=True).tail(5))
-            fig = px.bar(by_type, x="n", y="incident_type", orientation="h",
+            fig = px.bar(by_type, x="n", y="type_label", orientation="h",
                          text="n", color_discrete_sequence=[ACCENT])
             fig.update_layout(height=150, xaxis_title=None, yaxis_title=None,
                               margin=dict(l=0, r=10, t=6, b=0))
