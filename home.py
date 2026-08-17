@@ -291,15 +291,25 @@ else:
         by_mp["platform"] = np.where(by_mp["marketplace"] == "LM",
                                      t("home.platform.lm"),
                                      t("home.platform.amazon"))
+        # сколько стран стоит за каждой площадкой — чтобы «Leroy Merlin»
+        # не выглядел как ещё одна страна рядом с Amazon
+        countries = (by_mp.groupby("platform")["marketplace"]
+                          .nunique().to_dict())
         by_pl = by_mp.groupby("platform", as_index=False)["revenue"].sum()
 
         for _, r in by_pl.iterrows():
             share = r["revenue"] / rev_cur * 100 if rev_cur else 0
             color = GREEN if r["platform"] == t("home.platform.lm") else BLUE
+            n_c = countries.get(r["platform"], 0)
+            sub = (t("home.sales.n_countries").format(n=n_c)
+                   if r["platform"] == t("home.platform.amazon")
+                   else t("home.sales.lm_where"))
             st.markdown(
                 f"<div style='margin-bottom:8px'>"
                 f"<div style='display:flex;justify-content:space-between;"
-                f"font-size:0.85rem'><span>{r['platform']}</span>"
+                f"font-size:0.85rem'><span>{r['platform']} "
+                f"<span style='color:var(--text-muted);font-size:0.78rem'>"
+                f"{sub}</span></span>"
                 f"<b>{r['revenue']:,.0f} €</b></div>"
                 f"<div style='height:6px;border-radius:3px;"
                 f"background:rgba(128,128,128,0.18)'>"
@@ -307,6 +317,8 @@ else:
                 f"background:{color}'></div></div></div>",
                 unsafe_allow_html=True)
 
+        # у Amazon страна в коде маркетплейса, у Leroy Merlin — нет:
+        # подписываем обе площадки одинаково, иначе LM читается как страна
         amz = by_mp[by_mp["marketplace"] != "LM"]
         top_c = amz.head(4)
         rest = amz.iloc[4:]
@@ -316,6 +328,11 @@ else:
             parts.append(t("home.sales.others").format(
                 n=len(rest), v=rest["revenue"].sum()))
         st.caption(t("home.sales.by_country") + " " + " · ".join(parts))
+
+        lm_row = by_mp[by_mp["marketplace"] == "LM"]
+        if len(lm_row):
+            st.caption(t("home.sales.lm_country").format(
+                v=float(lm_row["revenue"].iloc[0])))
 
     st.caption(t("home.sales.no_plan"))
     st.page_link("pages/5_Money.py", label=t("home.link.money"),
@@ -472,4 +489,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table")) 
+    st.markdown(t("home.roadmap_table"))
