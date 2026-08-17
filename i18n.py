@@ -1237,6 +1237,11 @@ TRANSLATIONS = {
         "uk": "Позначка: у цифр цього товару є контекст (Vine, промо тощо)",
         "en": "Note: this product's numbers have context (Vine, promo, etc.)",
     },
+    "money.col.asin_help": {
+        "ru": "Нажми, чтобы открыть карточку товара на Amazon той страны, где он продаётся",
+        "uk": "Натисни, щоб відкрити картку товару на Amazon тієї країни, де він продається",
+        "en": "Click to open the product page on the Amazon marketplace where it sells",
+    },
     "money.col.flag": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "money.col.flag_help": {
         "ru": "Прибыльность товара за период",
