@@ -512,6 +512,14 @@ TRANSLATIONS = {
     "home.platform.lm": {"ru": "Leroy Merlin", "uk": "Leroy Merlin", "en": "Leroy Merlin"},
     "home.sales.by_country": {
         "ru": "Amazon по странам:", "uk": "Amazon за країнами:", "en": "Amazon by country:"},
+    "home.sales.lag": {
+        "ru": "Данные о продажах — по {d} включительно. Amazon отдаёт отчёты с задержкой, "
+              "последние {n} дн. ещё не загружены.",
+        "uk": "Дані про продажі — по {d} включно. Amazon віддає звіти із затримкою, "
+              "останні {n} дн. ще не завантажені.",
+        "en": "Sales data goes up to {d}. Amazon delivers reports with a delay — "
+              "the last {n} days are not loaded yet.",
+    },
     "home.sales.no_plan": {
         "ru": "Сравнение с планом появится, когда будет подключён прогноз продаж. "
               "Пока сравниваем с предыдущим периодом.",
