@@ -1328,6 +1328,16 @@ TRANSLATIONS = {
     },
 
     # --- 5_Money.py: выбор периода ---
+    "money.period_title": {
+        "ru": "Период: {f} — {to}", "uk": "Період: {f} — {to}", "en": "Period: {f} — {to}"},
+    "money.period_lag": {
+        "ru": "Данные есть по {d} включительно — Amazon отдаёт отчёты с задержкой, "
+              "последние {n} дн. ещё не загружены.",
+        "uk": "Дані є по {d} включно — Amazon віддає звіти із затримкою, останні {n} дн. "
+              "ще не завантажені.",
+        "en": "Data is available up to {d} — Amazon delivers reports with a delay, "
+              "the last {n} days are not loaded yet.",
+    },
     "money.period.label": {"ru": "Период", "uk": "Період", "en": "Period"},
     "money.period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
     "money.period.custom": {"ru": "Свой", "uk": "Свій", "en": "Custom"},
@@ -2328,4 +2338,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
