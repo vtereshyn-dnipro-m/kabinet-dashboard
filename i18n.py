@@ -1197,6 +1197,15 @@ TRANSLATIONS = {
     "money.low_margin": {"ru": "Низкая маржа (%)", "uk": "Низька маржа (%)", "en": "Low margin (%)"},
     "money.table_title": {"ru": "Все товары", "uk": "Всі товари", "en": "All products"},
     "money.col.units": {"ru": "Продано, шт", "uk": "Продано, шт", "en": "Units"},
+    "money.col.markets": {"ru": "Где продаётся", "uk": "Де продається", "en": "Markets"},
+    "money.col.markets_help": {
+        "ru": "Маркетплейсы, на которых товар продавался за выбранный период. "
+              "Цифры в строке — сумма по всем из них",
+        "uk": "Маркетплейси, на яких товар продавався за обраний період. "
+              "Цифри в рядку — сума за всіма з них",
+        "en": "Marketplaces where the product sold in the selected period. "
+              "Figures in the row are the total across all of them",
+    },
     "money.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "money.col.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
     "money.col.fees": {"ru": "Комиссии", "uk": "Комісії", "en": "Fees"},
