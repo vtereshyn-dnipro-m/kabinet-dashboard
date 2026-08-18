@@ -348,15 +348,37 @@ with tab_pnl:
     thin = by_sku[(by_sku["cm"] >= 0) & (by_sku["cm_pct"] < 5)
                   & (by_sku["revenue"] >= MIN_REV_ALERT * 5)]
 
+    # предупреждения работают как фильтр: нажал — в таблице остались
+    # только проблемные позиции, искать их глазами не нужно
+    if "pnl_quick" not in st.session_state:
+        st.session_state.pnl_quick = None
+
+    def _pnl_toggle(key: str):
+        st.session_state.pnl_quick = (
+            None if st.session_state.pnl_quick == key else key)
+
     if not losers.empty or not thin.empty:
-        alert_parts = []
+        al, ar = st.columns(2)
         if not losers.empty:
-            alert_parts.append(t("money.alert.losers").format(
-                n=len(losers), skus=", ".join(losers["sku_display"].head(5))))
+            with al:
+                st.warning(t("money.alert.losers").format(
+                    n=len(losers), skus=", ".join(losers["sku_display"].head(5))))
+                st.button(
+                    t("money.alert.show_losers").format(n=len(losers)),
+                    key="btn_losers", use_container_width=True,
+                    type=("primary" if st.session_state.pnl_quick == "losers"
+                          else "secondary"),
+                    on_click=_pnl_toggle, args=("losers",))
         if not thin.empty:
-            alert_parts.append(t("money.alert.thin").format(
-                n=len(thin), skus=", ".join(thin["sku_display"].head(5))))
-        st.warning("  \n".join(alert_parts))
+            with ar:
+                st.warning(t("money.alert.thin").format(
+                    n=len(thin), skus=", ".join(thin["sku_display"].head(5))))
+                st.button(
+                    t("money.alert.show_thin").format(n=len(thin)),
+                    key="btn_thin", use_container_width=True,
+                    type=("primary" if st.session_state.pnl_quick == "thin"
+                          else "secondary"),
+                    on_click=_pnl_toggle, args=("thin",))
 
     # ---------- Waterfall: как выручка превращается в прибыль ----------
     st.markdown(f"**{t('money.waterfall_title')}**")
@@ -381,6 +403,15 @@ with tab_pnl:
     st.caption(t("money.waterfall_caption"))
 
     st.markdown(f"**{t('money.pnl_table')}**")
+
+    _quick = st.session_state.pnl_quick
+    if _quick == "losers":
+        by_sku = by_sku[by_sku["sku_display"].isin(losers["sku_display"])]
+        st.caption(t("money.alert.filtered_losers").format(n=len(by_sku)))
+    elif _quick == "thin":
+        by_sku = by_sku[by_sku["sku_display"].isin(thin["sku_display"])]
+        st.caption(t("money.alert.filtered_thin").format(n=len(by_sku)))
+
     st.dataframe(
         by_sku[["flag_col", "ann_col", "sku_display", "product_name", "units", "revenue",
                 "net_proceeds", "cogs", "ads", "cm", "cm_pct", "acos_pct",
