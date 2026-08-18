@@ -303,8 +303,15 @@ with tab_pnl:
     by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
     by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
+    # страну для ссылки берём амазоновскую: если первым в списке оказался
+    # Leroy Merlin, домена Amazon для него нет и ссылка не построится,
+    # хотя сам товар на Amazon продаётся
+    _amz_mp = (f[f["marketplace"].isin(AMAZON_DOMAIN.keys())]
+                 .groupby("sku_display")["marketplace"].first())
+    by_sku["link_mp"] = by_sku["sku_display"].map(_amz_mp)
+
     by_sku["amazon_url"] = [
-        amazon_url(mp, a) for mp, a in zip(by_sku["marketplace"], by_sku["asin"])
+        amazon_url(mp, a) for mp, a in zip(by_sku["link_mp"], by_sku["asin"])
     ]
     # ASIN у Amazon общий на всю Европу: если по «своей» стране ссылка
     # не строится, ведём на испанский листинг — карточка та же
