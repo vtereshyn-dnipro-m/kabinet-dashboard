@@ -1401,9 +1401,9 @@ TRANSLATIONS = {
         "en": "The log is empty. Run the sender in the pipeline.",
     },
     "rev.health_ok": {
-        "ru": "Рассылка работает. Последняя отправка: {when} по Киеву",
-        "uk": "Розсилка працює. Остання відправка: {when} за Києвом",
-        "en": "Mailing is running. Last send: {when} Kyiv time",
+        "ru": "Рассылка работает. Последняя отправка: {when} по Мадриду",
+        "uk": "Розсилка працює. Остання відправка: {when} за Мадридом",
+        "en": "Mailing is running. Last send: {when} Madrid time",
     },
     "rev.health_stopped": {
         "ru": "Рассылка не работает {h:.0f} ч. Порог — 25 ч. Проверь расписание отправителя.",
@@ -1419,9 +1419,9 @@ TRANSLATIONS = {
     "rev.kpi.today": {"ru": "Сегодня", "uk": "Сьогодні", "en": "Today"},
     "rev.kpi.week": {"ru": "За неделю", "uk": "За тиждень", "en": "This week"},
     "rev.kpi.today_help": {
-        "ru": "Запросов отправлено с начала сегодняшнего дня по киевскому времени",
-        "uk": "Запитів надіслано з початку сьогоднішнього дня за київським часом",
-        "en": "Requests sent since the start of today, Kyiv time",
+        "ru": "Запросов отправлено с начала сегодняшнего дня по мадридскому времени",
+        "uk": "Запитів надіслано з початку сьогоднішнього дня за мадридським часом",
+        "en": "Requests sent since the start of today, Madrid time",
     },
     "rev.col.coverage_help": {
         "ru": "Доля заказов, по которым запрос реально ушёл: отправлено / заказов × 100",
@@ -1738,6 +1738,26 @@ TRANSLATIONS = {
     },
     "rev.age.axis": {"ru": "Дней с даты заказа", "uk": "Днів з дати замовлення", "en": "Days since order"},
     "rev.age.checked": {"ru": "Проверено", "uk": "Перевірено", "en": "Checked"},
+    "rev.hour.title": {
+        "ru": "Во сколько уходят запросы", "uk": "О котрій ідуть запити", "en": "When requests go out"},
+    "rev.hour.caption": {
+        "ru": "По местному времени маркетплейсов. Данные копятся: если когда-нибудь "
+              "разнесём отправку по разным часам, здесь станет видно, какое время "
+              "работает лучше.",
+        "uk": "За місцевим часом маркетплейсів. Дані накопичуються: якщо колись "
+              "рознесемо відправку по різних годинах, тут стане видно, який час "
+              "працює краще.",
+        "en": "In marketplace local time. Data accumulates: if we ever split sending "
+              "across different hours, this will show which time works better.",
+    },
+    "rev.hour.single": {
+        "ru": "Пока все запросы уходят в {h}:00 — сравнивать не с чем. Разброс появится, "
+              "только если разнести отправку по времени.",
+        "uk": "Поки всі запити йдуть о {h}:00 — порівнювати нема з чим. Розкид зʼявиться, "
+              "лише якщо рознести відправку за часом.",
+        "en": "All requests currently go out at {h}:00 — nothing to compare yet. A spread "
+              "will only appear if sending is split across times.",
+    },
     "rev.age.no_data": {
         "ru": "Данных о возрасте пока нет — появятся после первых прогонов.",
         "uk": "Даних про вік поки немає — зʼявляться після перших прогонів.",
