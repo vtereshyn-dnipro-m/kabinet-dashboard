@@ -43,8 +43,9 @@ PLOTLY_CFG = {"displayModeBar": False}
 # окно отправки: заказы 8–33 дней от даты покупки
 AGE_MIN, AGE_MAX = 8, 33
 
-# время в базе хранится в UTC — на странице показываем киевское
-TZ = ZoneInfo("Europe/Kyiv")
+# время в базе в UTC. Показываем по Мадриду: покупатели и маркетплейсы
+# европейские, и решения о времени отправки принимаются в их часовом поясе
+TZ = ZoneInfo("Europe/Madrid")
 
 # домены Amazon по каналу продаж — ссылка на листинг строится по стране
 CHANNEL_DOMAIN = {
@@ -83,8 +84,8 @@ def load_health() -> dict:
         df = pd.read_sql("""
             SELECT
               COUNT(*) FILTER (WHERE status='sent'
-                               AND (sent_at AT TIME ZONE 'Europe/Kyiv')::date
-                                   = (NOW() AT TIME ZONE 'Europe/Kyiv')::date) AS today,
+                               AND (sent_at AT TIME ZONE 'Europe/Madrid')::date
+                                   = (NOW() AT TIME ZONE 'Europe/Madrid')::date) AS today,
               COUNT(*) FILTER (WHERE status='sent'
                                AND sent_at >= NOW() - INTERVAL '7 days')      AS sent7,
               COUNT(*) FILTER (WHERE status='failed'
@@ -202,6 +203,29 @@ def load_age_stats() -> pd.DataFrame:
               AND status IN ('sent', 'no_action')
             GROUP BY 1 ORDER BY 1
         """, conn)
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_by_hour(days: int) -> pd.DataFrame:
+    """Во сколько уходили запросы — по местному времени маркетплейсов.
+    Пока все отправки в один час, но данные копятся: через месяц-другой
+    можно будет сравнивать, если появится разброс."""
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT EXTRACT(HOUR FROM sent_at AT TIME ZONE 'Europe/Madrid')::int
+                       AS hour,
+                   marketplace,
+                   COUNT(*) AS sent
+            FROM kabinet_data.review_request_log
+            WHERE status = 'sent'
+              AND sent_at >= NOW() - INTERVAL '{days} days'
+            GROUP BY 1, 2 ORDER BY 1
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
     finally:
         conn.close()
 
@@ -972,6 +996,26 @@ with tab_age:
             st.warning(t("rev.age.small_sample").format(n=total_checked))
         else:
             st.caption(t("rev.age.enough_sample").format(n=total_checked))
+
+        # ---- во сколько уходят запросы ----
+        st.divider()
+        st.markdown(f"**{t('rev.hour.title')}**")
+        st.caption(t("rev.hour.caption"))
+        by_hour = load_by_hour(DAYS)
+        if by_hour.empty:
+            st.info(t("common.no_data"))
+        else:
+            hh = (by_hour.groupby("hour", as_index=False)["sent"].sum()
+                         .sort_values("hour"))
+            hh["label"] = hh["hour"].astype(str) + ":00"
+            figh = px.bar(hh, x="label", y="sent", text="sent",
+                          color_discrete_sequence=[BLUE])
+            figh.update_layout(height=260, xaxis_title=None,
+                               yaxis_title=t("rev.col.sent"),
+                               margin=dict(l=10, r=10, t=10, b=10))
+            st.plotly_chart(figh, use_container_width=True, config=PLOTLY_CFG)
+            if len(hh) == 1:
+                st.caption(t("rev.hour.single").format(h=int(hh["hour"].iloc[0])))
 
         st.dataframe(
             age[["age", "checked", "sent", "hit_rate"]],
