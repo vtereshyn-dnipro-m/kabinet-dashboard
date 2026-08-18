@@ -692,20 +692,45 @@ with tab_cov:
         # ---- график: заказы против обработанных ----
         st.markdown(f"**{t('rev.chart.orders_vs_processed')}**")
         gd = by_day.sort_values("day")
+        # сегменты стопки рисуются со сдвигом base — и Plotly показывает
+        # в подсказке верхнюю границу стопки вместо самого сегмента.
+        # Поэтому значение передаём явно через customdata
+        for c in ("orders", "sent", "no_action", "skipped"):
+            gd[c] = pd.to_numeric(gd[c], errors="coerce").fillna(0)
+        gd["coverage"] = pd.to_numeric(gd["coverage"], errors="coerce").fillna(0)
+
         fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Bar(name=t("rev.col.orders"), x=gd["day"], y=gd["orders"],
-                             marker_color=BLUE, offsetgroup=0), secondary_y=False)
-        fig.add_trace(go.Bar(name=t("rev.col.sent"), x=gd["day"], y=gd["sent"],
-                             marker_color=GREEN, offsetgroup=1), secondary_y=False)
-        fig.add_trace(go.Bar(name=t("rev.col.no_action"), x=gd["day"], y=gd["no_action"],
-                             marker_color=GREY, offsetgroup=1, base=gd["sent"]),
-                      secondary_y=False)
-        fig.add_trace(go.Bar(name=t("rev.col.skipped"), x=gd["day"], y=gd["skipped"],
-                             marker_color=AMBER, offsetgroup=1,
-                             base=gd["sent"] + gd["no_action"]), secondary_y=False)
-        fig.add_trace(go.Scatter(name=t("rev.col.coverage"), x=gd["day"],
-                                 y=gd["coverage"], mode="lines+markers",
-                                 line=dict(color=ACCENT, width=2)), secondary_y=True)
+        fig.add_trace(go.Bar(
+            name=t("rev.col.orders"), x=gd["day"], y=gd["orders"],
+            marker_color=BLUE, offsetgroup=0,
+            customdata=gd["orders"],
+            hovertemplate="%{customdata:.0f}<extra></extra>"),
+            secondary_y=False)
+        fig.add_trace(go.Bar(
+            name=t("rev.col.sent"), x=gd["day"], y=gd["sent"],
+            marker_color=GREEN, offsetgroup=1,
+            customdata=gd["sent"],
+            hovertemplate="%{customdata:.0f}<extra></extra>"),
+            secondary_y=False)
+        fig.add_trace(go.Bar(
+            name=t("rev.col.no_action"), x=gd["day"], y=gd["no_action"],
+            marker_color=GREY, offsetgroup=1, base=gd["sent"],
+            customdata=gd["no_action"],
+            hovertemplate="%{customdata:.0f}<extra></extra>"),
+            secondary_y=False)
+        fig.add_trace(go.Bar(
+            name=t("rev.col.skipped"), x=gd["day"], y=gd["skipped"],
+            marker_color=AMBER, offsetgroup=1,
+            base=gd["sent"] + gd["no_action"],
+            customdata=gd["skipped"],
+            hovertemplate="%{customdata:.0f}<extra></extra>"),
+            secondary_y=False)
+        fig.add_trace(go.Scatter(
+            name=t("rev.col.coverage"), x=gd["day"], y=gd["coverage"],
+            mode="lines+markers", line=dict(color=ACCENT, width=2),
+            customdata=gd["coverage"],
+            hovertemplate="%{customdata:.0f}%<extra></extra>"),
+            secondary_y=True)
         fig.update_layout(barmode="group", height=360,
                           margin=dict(l=10, r=10, t=10, b=10),
                           hovermode="x unified",
