@@ -98,6 +98,26 @@ def load_money(days: int = 30) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
+def load_ordered_sales(days: int = 30) -> pd.DataFrame:
+    """Витринная выручка — то же число, что видно в Seller Central.
+    С НДС, по дате заказа, отменённые не вычитаются."""
+    if not table_exists("sales_traffic_daily"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT snapshot_date AS sales_date, marketplace,
+                   ordered_sales, units_ordered
+            FROM kabinet_data.sales_traffic_daily
+            WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=300)
 def load_coverage() -> pd.DataFrame:
     if not table_exists("coverage_summary"):
         return pd.DataFrame()
@@ -291,6 +311,7 @@ try:
     _load_days = (DAYS if date_from is None
                   else (today - date_from).days + DAYS + 10)
     money = load_money(_load_days)
+    ordered = load_ordered_sales(_load_days)
     # отдельно берём 90 дней: нужно понять, какие страны продавали раньше,
     # но замолчали в выбранном периоде
     money_wide = load_money(90) if DAYS < 90 else money
@@ -374,7 +395,22 @@ else:
     if delta_pct is not None and abs(delta_pct) > 300:
         delta_pct = None
 
-    s1, s2, s3, s4 = st.columns(4)
+    # витринная выручка за тот же период — то, что видно в Seller Central
+    ord_cur = None
+    if not ordered.empty:
+        ordered["sales_date"] = pd.to_datetime(ordered["sales_date"])
+        if date_from is not None:
+            _o = ordered[(ordered["sales_date"] >= date_from)
+                         & (ordered["sales_date"] <= date_to)]
+        else:
+            _oa = ordered["sales_date"].max()
+            _o = ordered[ordered["sales_date"] > _oa - pd.Timedelta(days=DAYS)]
+        ord_cur = float(_o["ordered_sales"].sum())
+
+    s0, s1, s2, s3, s4 = st.columns(5)
+    s0.metric(t("home.kpi.ordered"),
+              fmt_money(ord_cur) if ord_cur else "—",
+              help=t("home.kpi.ordered_help"))
     s1.metric(t("home.kpi.revenue"), fmt_money(rev_cur),
               delta=(f"{delta_pct:+.1f}%" if delta_pct is not None else None),
               help=t("home.kpi.revenue_help").format(d=DAYS))
@@ -483,6 +519,9 @@ else:
             f'<div style="margin-top:6px;line-height:2">{chips}</div>',
             unsafe_allow_html=True)
 
+    if ord_cur and rev_cur:
+        st.caption(t("home.sales.two_numbers").format(
+            gap=ord_cur - rev_cur, pct=(ord_cur - rev_cur) / ord_cur * 100))
     st.caption(t("home.sales.no_plan"))
     st.page_link("pages/5_Money.py", label=t("home.link.money"),
                  icon=":material/euro:")
@@ -638,4 +677,4 @@ st.divider()
 with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
-    st.markdown(t("home.roadmap_table")) 
+    st.markdown(t("home.roadmap_table"))
