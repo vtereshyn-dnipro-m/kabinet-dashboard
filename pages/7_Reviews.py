@@ -1098,17 +1098,31 @@ with tab_age:
         if by_hour.empty:
             st.info(t("common.no_data"))
         else:
-            hh = (by_hour.groupby("hour", as_index=False)["sent"].sum()
-                         .sort_values("hour"))
-            hh["label"] = hh["hour"].astype(str) + ":00"
-            figh = px.bar(hh, x="label", y="sent", text="sent",
-                          color_discrete_sequence=[BLUE])
-            figh.update_layout(height=260, xaxis_title=None,
+            by_hour["label"] = by_hour["hour"].astype(int).astype(str) + ":00"
+            by_hour = by_hour.sort_values("hour")
+
+            # разбивка по странам: в одном часе может уходить несколько
+            # маркетплейсов, и без разделения непонятно, чей это столбец
+            figh = px.bar(by_hour, x="label", y="sent", color="marketplace",
+                          text="sent",
+                          category_orders={"label": by_hour["label"].unique().tolist()})
+            figh.update_layout(height=280, xaxis_title=None, barmode="stack",
                                yaxis_title=t("rev.col.sent"),
-                               margin=dict(l=10, r=10, t=10, b=10))
+                               margin=dict(l=10, r=10, t=10, b=10),
+                               legend=dict(orientation="h", y=1.15, title=None))
+            figh.update_traces(textposition="inside")
             st.plotly_chart(figh, use_container_width=True, config=PLOTLY_CFG)
+
+            hh = by_hour.groupby("hour", as_index=False)["sent"].sum()
             if len(hh) == 1:
                 st.caption(t("rev.hour.single").format(h=int(hh["hour"].iloc[0])))
+            else:
+                # где какой маркетплейс — словами, чтобы не разбирать по цветам
+                pairs = (by_hour.groupby("hour")["marketplace"]
+                                .apply(lambda x: ", ".join(sorted(set(x))))
+                                .to_dict())
+                line = " · ".join(f"{h}:00 — {mp}" for h, mp in sorted(pairs.items()))
+                st.caption(t("rev.hour.split").format(s=line))
 
         # ---- сравнение расписаний ----
         slots = load_by_slot(DAYS)
