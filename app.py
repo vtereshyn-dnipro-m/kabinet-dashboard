@@ -30,8 +30,16 @@ st.markdown(
     # ниже логотипа в сайдбаре. Поджимаем на всех страницах разом.
     '[data-testid="stMainBlockContainer"]{padding-top:2rem !important;}'
     ".block-container{padding-top:2rem !important;}"
-    '[data-testid="stHeader"]{height:0 !important;}'
     "h1{margin-top:0 !important;padding-top:0 !important;}"
+    # шапку не схлопываем в ноль: вместе с ней исчезает кнопка раскрытия
+    # свёрнутого сайдбара, и вернуть его становится нечем
+    '[data-testid="stHeader"]{height:2.5rem !important;'
+    "background:transparent !important;pointer-events:none;}"
+    '[data-testid="stHeader"] [data-testid="stExpandSidebarButton"],'
+    '[data-testid="stHeader"] [data-testid="collapsedControl"],'
+    '[data-testid="stSidebarCollapsedControl"]'
+    "{pointer-events:auto !important;visibility:visible !important;"
+    "display:flex !important;z-index:1000;}"
     "</style>",
     unsafe_allow_html=True,
 )
