@@ -32,9 +32,21 @@ st.markdown(
     # Streamlit оставляет сверху пустую полосу — заголовок проваливается
     # ниже логотипа в сайдбаре. Поджимаем на всех страницах разом.
     '[data-testid="stHeader"]{background:transparent !important;}'
-    '[data-testid="stMainBlockContainer"]{padding-top:2.5rem !important;}'
-    ".block-container{padding-top:2.5rem !important;}"
+    '[data-testid="stMainBlockContainer"]{padding-top:1rem !important;}'
+    ".block-container{padding-top:1rem !important;}"
+    '[data-testid="stHeader"]{height:2.2rem !important;}'
+    '[data-testid="stAppViewContainer"] > .main{padding-top:0 !important;}'
+    '[data-testid="stMain"]{padding-top:0 !important;}'
     "h1{margin-top:0 !important;padding-top:0 !important;}"
+    # в сайдбаре между логотипом и пунктами меню остаётся пустая полоса —
+    # поджимаем, чтобы навигация начиналась сразу под лого
+    '[data-testid="stSidebarHeader"]{padding:0.6rem 1rem 0.2rem !important;}'
+    '[data-testid="stSidebarUserContent"]{padding-top:0.4rem !important;}'
+    '[data-testid="stSidebarNav"]{padding-top:0 !important;'
+    "margin-top:0 !important;}"
+    '[data-testid="stSidebarNav"] ul{padding-top:0 !important;}'
+    'section[data-testid="stSidebar"] [data-testid="stLogo"]'
+    "{margin-bottom:0.2rem !important;}"
     "</style>",
     unsafe_allow_html=True,
 )
