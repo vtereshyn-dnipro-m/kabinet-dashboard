@@ -312,7 +312,7 @@ TRANSLATIONS = {
                              "en": "Switch to local warehouse"},
     "stock.cov.kpi_switch_help": {
         "ru": "Товары, по которым запас Amazon кончится и отгрузка переключится на местный склад",
-        "uk": "Товари, за якими запас Amazon закінчиться і відвантаження перемкнеться на местный склад",
+        "uk": "Товари, за якими запас Amazon закінчиться і відвантаження перемкнеться на місцевий склад",
         "en": "Products where Amazon stock runs out and fulfilment switches to the local warehouse",
     },
     "stock.cov.kpi_pool": {"ru": "Прогноз завышен", "uk": "Прогноз завищений", "en": "Optimistic"},
@@ -2186,7 +2186,7 @@ TRANSLATIONS = {
         "uk": "Товарів, у яких запас закінчиться в горизонті 13 тижнів",
         "en": "Products running out within a 13-week horizon",
     },
-    "cov.kpi.switch": {"ru": "Перейдут на местный склад", "uk": "Перейдуть на местный склад", "en": "Switching to the local warehouse"},
+    "cov.kpi.switch": {"ru": "Перейдут на местный склад", "uk": "Перейдуть на місцевий склад", "en": "Switching to the local warehouse"},
     "cov.kpi.switch_help": {
         "ru": "Товары, по которым запас Amazon кончится и отгрузка переключится на склад в Мадриде",
         "uk": "Товари, за якими запас Amazon закінчиться і відвантаження перемкнеться на склад у Мадриді",
@@ -2246,7 +2246,7 @@ TRANSLATIONS = {
         "en": "The lower of two: this country's cover and the life of the shared local stock",
     },
     "cov.col.first_deficit": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Shortage from"},
-    "cov.col.switch": {"ru": "Переход на местный склад", "uk": "Перехід на местный склад", "en": "Switch to the local warehouse"},
+    "cov.col.switch": {"ru": "Переход на местный склад", "uk": "Перехід на місцевий склад", "en": "Switch to the local warehouse"},
     "cov.col.switch_help": {
         "ru": "Неделя, когда склад Amazon опустеет и отгрузка пойдёт из Мадрида",
         "uk": "Тиждень, коли склад Amazon спорожніє і відвантаження піде з Мадрида",
@@ -2280,8 +2280,8 @@ TRANSLATIONS = {
     "cov.col.shared_help": {
         "ru": "Местный запас по этому товару делят несколько стран. Поэтому «Реально "
               "недель» меньше, чем «С Мадридом»: общий спрос израсходует запас быстрее.",
-        "uk": "Мадридський запас за цим товаром ділять кілька країн. Тому «Реально тижнів» "
-              "менше, ніж «З Мадридом»: спільний попит витратить запас швидше.",
+        "uk": "Місцевий запас за цим товаром ділять кілька країн. Тому «Реально тижнів» "
+              "менше: спільний попит витратить запас швидше.",
         "en": "Several countries share the local stock for this product. That is why "
               "“Realistic weeks” is lower than “With Madrid” — combined demand drains it faster.",
     },
@@ -2314,7 +2314,7 @@ TRANSLATIONS = {
         "ru": "Местный запас ({qty} шт) делят {n} стран, их суммарный спрос — "
               "{demand:.0f} шт в неделю. Общего запаса хватит примерно на {pool_weeks} нед., "
               "а расчёт по этой стране обещает {promised}.",
-        "uk": "Мадридський запас ({qty} шт) ділять {n} країн, їхній сумарний попит — "
+        "uk": "Місцевий запас ({qty} шт) ділять {n} країн, їхній сумарний попит — "
               "{demand:.0f} шт на тиждень. Спільного запасу вистачить приблизно на "
               "{pool_weeks} тиж., а розрахунок по цій країні обіцяє {promised}.",
         "en": "The local stock ({qty} units) is shared by {n} countries with a combined "
@@ -2427,4 +2427,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun()
+        st.rerun() 
