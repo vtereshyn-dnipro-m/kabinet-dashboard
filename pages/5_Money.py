@@ -194,14 +194,20 @@ if df.empty:
     st.info(t("money.empty"))
     st.stop()
 
-# показываем, за какие именно даты цифры, и предупреждаем о задержке —
-# иначе непонятно, что стоит за «17 дн»
+# подпись периода — как на Обзоре: показываем выбранный диапазон,
+# а под ним предупреждаем, если данные за конец периода ещё не пришли
 _dates = pd.to_datetime(df["sales_date"], errors="coerce")
-_first, _last = _dates.min(), _dates.max()
-if pd.notna(_first) and pd.notna(_last):
+_last = _dates.max()
+
+if d_from and d_to:
     _ptitle = t("money.period_title").format(
-        f=_first.strftime("%d.%m"), to=_last.strftime("%d.%m.%Y"))
-    st.markdown(f"##### {_ptitle}")
+        f=pd.Timestamp(d_from).strftime("%d.%m"),
+        to=pd.Timestamp(d_to).strftime("%d.%m.%Y"))
+else:
+    _ptitle = t("money.period_days").format(d=WINDOW)
+st.markdown(f"##### {_ptitle}")
+
+if pd.notna(_last):
     _lag = (pd.Timestamp(pd.Timestamp.now().date()) - _last).days
     if _lag >= 2:
         st.caption(t("money.period_lag").format(
