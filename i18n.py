@@ -1774,14 +1774,21 @@ TRANSLATIONS = {
               "Maturing — order younger than 8 days, sending not possible yet.",
     },
     "rev.chart.no_action_note": {
-        "ru": "Серым — заказы, по которым Amazon не разрешил запрос: не доставлен, "
-              "запрос уже был или покупатель отказался от писем. Жёлтым — заказы с возвратом, "
-              "их пропускаем намеренно.",
-        "uk": "Сірим — замовлення, за якими Amazon не дозволив запит: не доставлено, "
-              "запит уже був або покупець відмовився від листів. Жовтим — замовлення з поверненням, "
-              "їх пропускаємо навмисно.",
-        "en": "Grey — orders Amazon did not allow: not delivered, already requested, or the buyer "
-              "opted out. Amber — orders with a return, deliberately skipped.",
+        "ru": "Синим — всего заказов за дату. Столбец рядом показывает, что с ними "
+              "сделано: зелёным — запрос отправлен, серым — Amazon отклонил (заказ не "
+              "доставлен, запрос уже был или покупатель отписался от писем), жёлтым — "
+              "заказ с возвратом, такие пропускаем намеренно. Три части в сумме дают "
+              "общее число заказов. Красная линия — доля отправленных.",
+        "uk": "Синім — усього замовлень за дату. Стовпець поруч показує, що з ними "
+              "зроблено: зеленим — запит надіслано, сірим — Amazon відхилив (замовлення "
+              "не доставлено, запит уже був або покупець відписався), жовтим — замовлення "
+              "з поверненням, такі пропускаємо навмисно. Три частини в сумі дають "
+              "загальне число замовлень. Червона лінія — частка надісланих.",
+        "en": "Blue — total orders for the date. The bar next to it shows what happened "
+              "to them: green — request sent, grey — Amazon declined (not delivered, "
+              "already requested, or the buyer opted out), amber — order with a return, "
+              "deliberately skipped. The three parts add up to the total. The red line "
+              "is the share sent.",
     },
     "rev.table.by_date_marketplace": {
         "ru": "Покрытие по датам и маркетплейсам",
