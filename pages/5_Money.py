@@ -85,24 +85,16 @@ def load_pnl(days: int, d_from=None, d_to=None):
          AND a.marketplace = e.marketplace
          AND a.norm_sku = e.norm_sku
         LEFT JOIN (
-            -- ASIN ищем по базовому коду товара: формы SKU расходятся
-            -- (S2_78713000_, 41324000-A, 22539000-FBA_), и обрезка только
-            -- по «-FBA» их не сводит — половина товаров оставалась без ссылки.
-            -- Группировка снаружи UNION ALL: иначе SKU, известный и по
-            -- остаткам, и по заказам, дал бы две строки и удвоил экономику
-            SELECT base_sku, MAX(asin) AS asin
-            FROM (
-                SELECT SUBSTRING(sku FROM '([0-9]{{5,}})') AS base_sku, asin
-                FROM kabinet_data.stock_local
-                WHERE asin IS NOT NULL
-                UNION ALL
-                SELECT SUBSTRING(sku FROM '([0-9]{{5,}})') AS base_sku, asin
-                FROM kabinet_data.orders_history
-                WHERE asin IS NOT NULL
-            ) u
-            WHERE base_sku IS NOT NULL
-            GROUP BY base_sku
-        ) s ON s.base_sku = SUBSTRING(e.norm_sku FROM '([0-9]{{5,}})')
+            -- ASIN берём из справочника соответствия товара и листинга.
+            -- Раньше собирали из остатков и заказов — там ASIN заполнен
+            -- не везде, и часть товаров оставалась без ссылки.
+            -- Одна строка на товар: ASIN общий на всю Европу, а страну
+            -- для ссылки определяем по маркетплейсу самой продажи
+            SELECT sku_group, MAX(asin) AS asin
+            FROM kabinet_data.sku_asin_map
+            WHERE asin IS NOT NULL
+            GROUP BY sku_group
+        ) s ON s.sku_group = SUBSTRING(e.norm_sku FROM '([0-9]{{5,}})')
         WHERE {where}
     """, conn)
     conn.close()
@@ -314,8 +306,8 @@ with tab_pnl:
     by_sku["amazon_url"] = [
         amazon_url(mp, a) for mp, a in zip(by_sku["marketplace"], by_sku["asin"])
     ]
-    # ASIN у Amazon общий на всю Европу — если по «своей» стране ссылки нет,
-    # ведём на испанский листинг, чтобы колонка не пустовала
+    # ASIN у Amazon общий на всю Европу: если по «своей» стране ссылка
+    # не строится, ведём на испанский листинг — карточка та же
     by_sku["amazon_url"] = [
         u if u else amazon_url("ES", a)
         for u, a in zip(by_sku["amazon_url"], by_sku["asin"])
