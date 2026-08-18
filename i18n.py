@@ -778,11 +778,98 @@ TRANSLATIONS = {
     },
 
     # --- 2_Incidents.py ---
+    "inc.stream.label": {"ru": "Кому смотреть", "uk": "Кому дивитись", "en": "Whose queue"},
+    "inc.stream.all": {"ru": "Всё", "uk": "Все", "en": "All"},
+    "inc.stream.supply": {"ru": "Снабжение", "uk": "Постачання", "en": "Supply"},
+    "inc.stream.sales": {"ru": "Продажи", "uk": "Продажі", "en": "Sales"},
+    "inc.type.low_stock": {"ru": "Мало остатка", "uk": "Мало залишку", "en": "Low stock"},
+    "inc.type.out_of_stock": {"ru": "Нет в наличии", "uk": "Немає в наявності", "en": "Out of stock"},
+    "inc.type.stale_data": {"ru": "Данные устарели", "uk": "Дані застаріли", "en": "Stale data"},
+    "inc.type.negative_stock": {"ru": "Отрицательный остаток", "uk": "Відʼємний залишок", "en": "Negative stock"},
+    "inc.type.job_health": {"ru": "Процесс не отработал", "uk": "Процес не відпрацював", "en": "Job did not run"},
+    "inc.type.lm_order_not_accepted": {
+        "ru": "Заказ без акцепта", "uk": "Замовлення без акцепту", "en": "Order not accepted"},
+    "inc.type.lm_offer_out_of_stock": {
+        "ru": "Оффер обнулён", "uk": "Оффер обнулено", "en": "Offer out of stock"},
+    "inc.type.lm_health_degraded": {
+        "ru": "Показатели канала просели", "uk": "Показники каналу просіли", "en": "Channel health down"},
+    "inc.status.open": {"ru": "Открыт", "uk": "Відкрито", "en": "Open"},
+    "inc.status.acknowledged": {"ru": "В работе", "uk": "В роботі", "en": "In progress"},
+    "inc.status.resolved": {"ru": "Закрыт", "uk": "Закрито", "en": "Resolved"},
+    "inc.sev.medium": {"ru": "Средний", "uk": "Середній", "en": "Medium"},
+    "inc.sev_help.medium": {
+        "ru": "Требует внимания, но не срочно.",
+        "uk": "Потребує уваги, але не терміново.",
+        "en": "Needs attention, but not urgent.",
+    },
+    "inc.tbl.col_warehouse": {"ru": "Склад", "uk": "Склад", "en": "Warehouse"},
+    "inc.tbl.col_warehouse_help": {
+        "ru": "Склад и страна, где возникла проблема",
+        "uk": "Склад і країна, де виникла проблема",
+        "en": "The warehouse and country where the problem occurred",
+    },
+    "inc.tbl.col_action": {"ru": "Что делать", "uk": "Що робити", "en": "What to do"},
+    "inc.tbl.col_action_help": {
+        "ru": "Подсказка по типу инцидента и данным покрытия: откуда взять товар "
+              "или что проверить. Не заменяет решение человека",
+        "uk": "Підказка за типом інциденту й даними покриття: звідки взяти товар "
+              "або що перевірити. Не замінює рішення людини",
+        "en": "A hint based on the incident type and coverage data: where to take stock "
+              "from or what to check. Does not replace a human decision",
+    },
+    "inc.act.transfer": {
+        "ru": "Есть {qty} шт на местном складе — перебросить",
+        "uk": "Є {qty} шт на місцевому складі — перекинути",
+        "en": "{qty} units in the local warehouse — transfer",
+    },
+    "inc.act.order_weeks": {
+        "ru": "Своего товара нет, хватит на {w} нед. — заказывать",
+        "uk": "Свого товару немає, вистачить на {w} тиж. — замовляти",
+        "en": "No own stock, {w} weeks left — place an order",
+    },
+    "inc.act.order": {
+        "ru": "Своего товара нет — заказывать",
+        "uk": "Свого товару немає — замовляти",
+        "en": "No own stock — place an order",
+    },
+    "inc.act.check_loader": {
+        "ru": "Проверить загрузчик — данные не обновляются",
+        "uk": "Перевірити завантажувач — дані не оновлюються",
+        "en": "Check the loader — data is not updating",
+    },
+    "inc.act.accept_order": {
+        "ru": "Принять заказ в кабинете Leroy Merlin, иначе отменится",
+        "uk": "Прийняти замовлення в кабінеті Leroy Merlin, інакше скасується",
+        "en": "Accept the order in Leroy Merlin, otherwise it will be cancelled",
+    },
+    "inc.act.refill_offer": {
+        "ru": "Выставить количество на канал — продажи остановлены",
+        "uk": "Виставити кількість на канал — продажі зупинені",
+        "en": "List a quantity on the channel — sales are stopped",
+    },
+    "inc.act.check_channel": {
+        "ru": "Разобрать просевшие показатели канала",
+        "uk": "Розібрати просілі показники каналу",
+        "en": "Review the channel's degraded metrics",
+    },
+    "inc.act.check_stock": {
+        "ru": "Сверить остаток с фактом — в данных отрицательное число",
+        "uk": "Звірити залишок з фактом — у даних відʼємне число",
+        "en": "Reconcile stock with reality — the data shows a negative number",
+    },
+    "inc.act.check_job": {
+        "ru": "Проверить, почему процесс перестал отрабатывать",
+        "uk": "Перевірити, чому процес перестав відпрацьовувати",
+        "en": "Check why the job stopped running",
+    },
     "inc.title": {"ru": "Инциденты", "uk": "Інциденти", "en": "Incidents"},
     "inc.caption": {
-        "ru": "Единый журнал проблем со всех разделов системы: что требует действия прямо сейчас. Источники: остатки (активно) · поставки и продажи (скоро)",
-        "uk": "Єдиний журнал проблем з усіх розділів системи: що потребує дії прямо зараз. Джерела: залишки (активно) · поставки та продажі (скоро)",
-        "en": "A unified log of problems from all sections of the system: what needs action right now. Sources: stock (active) · shipments and sales (soon)",
+        "ru": "Что требует действия прямо сейчас. Снабжение и продажи — два разных "
+              "потока: их смотрят разные люди, переключатель ниже разводит их",
+        "uk": "Що потребує дії прямо зараз. Постачання і продажі — два різні потоки: "
+              "їх дивляться різні люди, перемикач нижче розводить їх",
+        "en": "What needs action right now. Supply and sales are two separate streams "
+              "handled by different people — the switch below separates them",
     },
     "inc.how_title": {"ru": "ℹ️ Как это работает", "uk": "ℹ️ Як це працює", "en": "ℹ️ How this works"},
     "inc.how_body": {
@@ -1287,6 +1374,55 @@ TRANSLATIONS = {
         "uk": "Натисни, щоб відкрити картку товару на Amazon тієї країни, де він продається",
         "en": "Click to open the product page on the Amazon marketplace where it sells",
     },
+    "money.col.bsr": {"ru": "Место", "uk": "Місце", "en": "Rank"},
+    "money.col.bsr_help": {
+        "ru": "Позиция товара в своей категории Amazon. Чем меньше число, тем выше. "
+              "Зависит не только от наших продаж: конкурент вырос — мы опустились при "
+              "тех же продажах",
+        "uk": "Позиція товару у своїй категорії Amazon. Чим менше число, тим вище. "
+              "Залежить не лише від наших продажів: конкурент зріс — ми опустилися за "
+              "тих самих продажів",
+        "en": "The product's position in its Amazon category. Lower is better. It depends "
+              "on competitors too: if someone else grows, we drop at the same sales",
+    },
+    "money.col.bsr_delta": {"ru": "Сдвиг", "uk": "Зсув", "en": "Shift"},
+    "money.col.bsr_delta_help": {
+        "ru": "Насколько товар поднялся или опустился в категории за период. "
+              "Плюс — поднялся, минус — опустился. Падение при растущей рекламе значит, "
+              "что деньги уходят, а позиция теряется",
+        "uk": "Наскільки товар піднявся або опустився в категорії за період. "
+              "Плюс — піднявся, мінус — опустився. Падіння за зростаючої реклами означає, "
+              "що гроші йдуть, а позиція втрачається",
+        "en": "How far the product moved up or down its category over the period. "
+              "Plus means up. A drop while ad spend grows means money is going out and "
+              "position is being lost",
+    },
+    "rev.bsr.title": {
+        "ru": "Позиция в категории Amazon",
+        "uk": "Позиція в категорії Amazon",
+        "en": "Position in the Amazon category",
+    },
+    "rev.bsr.rank": {"ru": "Место в категории", "uk": "Місце в категорії", "en": "Category rank"},
+    "rev.bsr.axis": {"ru": "Место (выше — лучше)", "uk": "Місце (вище — краще)", "en": "Rank (higher is better)"},
+    "rev.bsr.note": {
+        "ru": "Медиана по {n} товарам, ось перевёрнута: линия вверх означает, что товары "
+              "поднялись в категории. Позиция зависит и от конкурентов — она может упасть "
+              "при тех же продажах, если кто-то другой вырос.",
+        "uk": "Медіана по {n} товарах, вісь перевернута: лінія вгору означає, що товари "
+              "піднялися в категорії. Позиція залежить і від конкурентів — вона може впасти "
+              "за тих самих продажів, якщо хтось інший зріс.",
+        "en": "Median across {n} products, axis inverted: the line going up means products "
+              "moved up in their category. Position also depends on competitors — it can "
+              "drop at the same sales if someone else grows.",
+    },
+    "rev.bsr.wait": {
+        "ru": "Позиция в категории собирается с сегодняшнего дня — динамика появится через "
+              "несколько дней, когда наберётся история.",
+        "uk": "Позиція в категорії збирається з сьогоднішнього дня — динаміка зʼявиться за "
+              "кілька днів, коли набереться історія.",
+        "en": "Category position tracking started today — the trend will appear in a few "
+              "days once history accumulates.",
+    },
     "money.col.flag": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "money.col.flag_help": {
         "ru": "Прибыльность товара за период",
@@ -1769,6 +1905,63 @@ TRANSLATIONS = {
     },
     "rev.age.axis": {"ru": "Дней с даты заказа", "uk": "Днів з дати замовлення", "en": "Days since order"},
     "rev.age.checked": {"ru": "Проверено", "uk": "Перевірено", "en": "Checked"},
+    "rev.slot.title": {
+        "ru": "Утро против вечера: сравнение расписаний",
+        "uk": "Ранок проти вечора: порівняння розкладів",
+        "en": "Morning vs evening: schedule comparison",
+    },
+    "rev.slot.caption": {
+        "ru": "С 19 августа Испания отправляет в 19:00 по Мадриду, остальные страны — "
+              "в 09:00 по Киеву. Сравниваем долю запросов, которые Amazon разрешил: "
+              "это видно сразу, в отличие от прироста отзывов.",
+        "uk": "З 19 серпня Іспанія надсилає о 19:00 за Мадридом, решта країн — "
+              "о 09:00 за Києвом. Порівнюємо частку запитів, які Amazon дозволив: "
+              "це видно одразу, на відміну від приросту відгуків.",
+        "en": "Since 19 August Spain sends at 19:00 Madrid time, other countries at "
+              "09:00 Kyiv time. We compare the share of requests Amazon allowed — that "
+              "is visible immediately, unlike review growth.",
+    },
+    "rev.slot.evening": {"ru": "Вечер · Испания", "uk": "Вечір · Іспанія", "en": "Evening · Spain"},
+    "rev.slot.morning": {"ru": "Утро · остальные", "uk": "Ранок · решта", "en": "Morning · others"},
+    "rev.slot.checked": {"ru": "{n} проверено", "uk": "{n} перевірено", "en": "{n} checked"},
+    "rev.slot.metric_help": {
+        "ru": "Доля заказов, по которым Amazon разрешил отправить запрос. Зависит от "
+              "того, доставлен ли заказ и не просили ли отзыв раньше — время отправки "
+              "на это влиять не должно, поэтому большая разница была бы неожиданной",
+        "uk": "Частка замовлень, за якими Amazon дозволив надіслати запит. Залежить від "
+              "того, чи доставлено замовлення і чи не просили відгук раніше — час "
+              "відправки на це впливати не має, тому велика різниця була б несподіваною",
+        "en": "Share of orders Amazon allowed a request for. It depends on whether the "
+              "order was delivered and whether a request was already made — send time "
+              "should not affect this, so a large gap would be surprising",
+    },
+    "rev.slot.axis": {"ru": "Разрешено, %", "uk": "Дозволено, %", "en": "Allowed, %"},
+    "rev.slot.small": {
+        "ru": "Наблюдений пока {n} — для выводов мало. Разница меньше нескольких "
+              "процентов на таких числах неотличима от случайности.",
+        "uk": "Спостережень поки {n} — для висновків замало. Різниця менша за кілька "
+              "відсотків на таких числах невідрізнима від випадковості.",
+        "en": "Only {n} observations so far — too few to conclude. A gap of a few percent "
+              "is indistinguishable from chance at this scale.",
+    },
+    "rev.slot.enough": {
+        "ru": "Наблюдений: {n}. Если линии идут рядом — время отправки на решение "
+              "Amazon не влияет, и это ожидаемо: письмо он ставит в очередь и "
+              "рассылает по своему расписанию.",
+        "uk": "Спостережень: {n}. Якщо лінії йдуть поруч — час відправки на рішення "
+              "Amazon не впливає, і це очікувано: лист він ставить у чергу і "
+              "розсилає за своїм розкладом.",
+        "en": "Observations: {n}. If the lines run together, send time does not affect "
+              "Amazon's decision — which is expected: it queues the email and delivers "
+              "on its own schedule.",
+    },
+    "rev.slot.wait": {
+        "ru": "Разделение расписаний запущено — сравнение появится, когда пройдут "
+              "первые прогоны по обоим.",
+        "uk": "Розділення розкладів запущено — порівняння зʼявиться, коли пройдуть "
+              "перші прогони по обох.",
+        "en": "Split schedules have started — the comparison will appear once both have run.",
+    },
     "rev.hour.title": {
         "ru": "Во сколько уходят запросы", "uk": "О котрій ідуть запити", "en": "When requests go out"},
     "rev.hour.caption": {
@@ -2427,4 +2620,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
