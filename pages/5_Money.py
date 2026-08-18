@@ -288,18 +288,37 @@ def safe_div(a, b):
 
 # ---------- P&L по товарам ----------
 with tab_pnl:
+    def _first_filled(x):
+        """Первое непустое значение. Товар продаётся в нескольких странах,
+        и если первой попалась строка без ASIN, ссылки не будет вовсе."""
+        v = x.dropna()
+        v = v[v.astype(str).str.strip().ne("") & v.astype(str).ne("None")]
+        return v.iloc[0] if len(v) else None
+
     by_sku = (f.groupby(["sku_display", "norm_sku"], as_index=False)
-                .agg(product_name=("product_name", "first"),
-                     asin=("asin", "first"),
-                     marketplace=("marketplace", "first"),
+                .agg(product_name=("product_name", _first_filled),
+                     asin=("asin", _first_filled),
+                     marketplace=("marketplace", _first_filled),
+                     markets=("marketplace", "nunique"),
                      units=("units", "sum"), revenue=("revenue", "sum"),
                      fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum"),
                      cogs=("cogs_total", "sum"), ads=("ads", "sum")))
+
+    # где товар продаётся: одна страна — её код, несколько — сколько их
+    _mk = (f.groupby("sku_display")["marketplace"]
+             .apply(lambda x: ", ".join(sorted(set(x.dropna())))))
+    by_sku["markets_label"] = by_sku["sku_display"].map(_mk).fillna("—")
     by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
     by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
     by_sku["amazon_url"] = [
         amazon_url(mp, a) for mp, a in zip(by_sku["marketplace"], by_sku["asin"])
+    ]
+    # ASIN у Amazon общий на всю Европу — если по «своей» стране ссылки нет,
+    # ведём на испанский листинг, чтобы колонка не пустовала
+    by_sku["amazon_url"] = [
+        u if u else amazon_url("ES", a)
+        for u, a in zip(by_sku["amazon_url"], by_sku["asin"])
     ]
 
     def flag(row):
@@ -413,7 +432,8 @@ with tab_pnl:
         st.caption(t("money.alert.filtered_thin").format(n=len(by_sku)))
 
     st.dataframe(
-        by_sku[["flag_col", "ann_col", "sku_display", "product_name", "units", "revenue",
+        by_sku[["flag_col", "ann_col", "sku_display", "product_name",
+                "markets_label", "units", "revenue",
                 "net_proceeds", "cogs", "ads", "cm", "cm_pct", "acos_pct",
                 "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
@@ -424,6 +444,9 @@ with tab_pnl:
                 help=t("money.col.ann_help")),
             "sku_display": st.column_config.TextColumn("SKU", width="small"),
             "product_name": st.column_config.TextColumn(t("money.col.product"), width="medium"),
+            "markets_label": st.column_config.TextColumn(
+                t("money.col.markets"), width="small",
+                help=t("money.col.markets_help")),
             "units": st.column_config.NumberColumn(t("money.col.units"), width="small"),
             "revenue": st.column_config.NumberColumn(t("money.col.revenue"), format="%.0f €"),
             "net_proceeds": st.column_config.NumberColumn(t("money.col.net"), format="%.0f €",
