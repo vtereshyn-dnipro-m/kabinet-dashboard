@@ -110,6 +110,29 @@ def load_pnl(days: int, d_from=None, d_to=None):
 
 
 @st.cache_data(ttl=600)
+def load_ordered_sales(days: int, d_from=None, d_to=None):
+    """Витринная выручка — то же число, что в Seller Central."""
+    if d_from and d_to:
+        where = f"snapshot_date BETWEEN '{d_from}' AND '{d_to}'"
+    else:
+        where = (f"snapshot_date >= (SELECT MAX(snapshot_date) - INTERVAL '{days} days' "
+                 f"FROM kabinet_data.sales_traffic_daily)")
+    conn = get_connection()
+    try:
+        r = pd.read_sql(f"""
+            SELECT COALESCE(SUM(ordered_sales), 0) AS ordered_sales,
+                   COALESCE(SUM(units_ordered), 0) AS units
+            FROM kabinet_data.sales_traffic_daily
+            WHERE {where}
+        """, conn)
+        return float(r["ordered_sales"].iloc[0])
+    except Exception:
+        return None
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
 def load_control_total(days: int, d_from=None, d_to=None):
     """Контрольная выручка прямо из таблицы, без соединений.
     Если основной запрос разойдётся с ней — значит строки размножились
@@ -226,8 +249,15 @@ tot_ads = f["ads"].sum()
 cm = tot_net - tot_cogs - tot_ads
 cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
 
-k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric(t("money.kpi.revenue").format(d=WINDOW), f"{tot_rev:,.0f} €")
+_ordered = (load_ordered_sales(0, d_from, d_to) if (d_from and d_to)
+            else load_ordered_sales(WINDOW))
+
+k0, k1, k2, k3, k4, k5 = st.columns(6)
+k0.metric(t("money.kpi.ordered"),
+          f"{_ordered:,.0f} €" if _ordered else "—",
+          help=t("money.kpi.ordered_help"))
+k1.metric(t("money.kpi.revenue").format(d=WINDOW), f"{tot_rev:,.0f} €",
+          help=t("money.kpi.revenue_help"))
 k2.metric(t("money.kpi.net"), f"{tot_net:,.0f} €", help=t("money.kpi.net_help"))
 k3.metric(t("money.kpi.cogs"), f"−{tot_cogs:,.0f} €", help=t("money.kpi.cogs_help"))
 k4.metric(t("money.kpi.ads"), f"−{tot_ads:,.0f} €", help=t("money.kpi.ads_help"))
