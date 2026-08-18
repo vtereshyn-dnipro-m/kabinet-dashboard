@@ -17,7 +17,10 @@ st.set_page_config(
 # за блок кода и печатает CSS текстом на странице.
 st.markdown(
     "<style>"
-    '[data-testid="stToolbar"]{display:none !important;}'
+    # Панель инструментов НЕ скрываем целиком: внутри неё живёт кнопка
+    # раскрытия свёрнутого сайдбара. display:none на предке выбрасывает
+    # всё поддерево, и вернуть кнопку правилами на ней самой невозможно.
+    # Гасим точечно только то, что действительно лишнее.
     '[data-testid="stToolbarActions"]{display:none !important;}'
     '[data-testid="stActionButtonIcon"]{display:none !important;}'
     '[data-testid="stAppDeployButton"]{display:none !important;}'
@@ -28,18 +31,10 @@ st.markdown(
     "footer{visibility:hidden !important;}"
     # Streamlit оставляет сверху пустую полосу — заголовок проваливается
     # ниже логотипа в сайдбаре. Поджимаем на всех страницах разом.
-    '[data-testid="stMainBlockContainer"]{padding-top:2rem !important;}'
-    ".block-container{padding-top:2rem !important;}"
+    '[data-testid="stHeader"]{background:transparent !important;}'
+    '[data-testid="stMainBlockContainer"]{padding-top:2.5rem !important;}'
+    ".block-container{padding-top:2.5rem !important;}"
     "h1{margin-top:0 !important;padding-top:0 !important;}"
-    # шапку не схлопываем в ноль: вместе с ней исчезает кнопка раскрытия
-    # свёрнутого сайдбара, и вернуть его становится нечем
-    '[data-testid="stHeader"]{height:2.5rem !important;'
-    "background:transparent !important;pointer-events:none;}"
-    '[data-testid="stHeader"] [data-testid="stExpandSidebarButton"],'
-    '[data-testid="stHeader"] [data-testid="collapsedControl"],'
-    '[data-testid="stSidebarCollapsedControl"]'
-    "{pointer-events:auto !important;visibility:visible !important;"
-    "display:flex !important;z-index:1000;}"
     "</style>",
     unsafe_allow_html=True,
 )
