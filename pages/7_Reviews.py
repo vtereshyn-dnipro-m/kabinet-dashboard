@@ -208,6 +208,51 @@ def load_age_stats() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
+def load_bsr_daily(days: int) -> pd.DataFrame:
+    """Средняя позиция в категории по дням. Считаем медиану, а не среднее:
+    один товар на 200-тысячном месте перекосил бы картину."""
+    if not table_exists("asin_bsr_daily"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT snapshot_date, COUNT(*) AS items,
+                   PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY rank) AS rank_median
+            FROM kabinet_data.asin_bsr_daily
+            WHERE rank IS NOT NULL
+              AND snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+            GROUP BY 1 ORDER BY 1
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_by_slot(days: int) -> pd.DataFrame:
+    """Сравнение расписаний отправки. Смотрим долю разрешённых запросов,
+    а не прирост отзывов: первое видно сразу, второе при нашем объёме
+    неотличимо от случайности."""
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT COALESCE(send_slot, 'morning_default') AS slot,
+                   checked_at::date AS day,
+                   COUNT(*)                                   AS checked,
+                   COUNT(*) FILTER (WHERE status = 'sent')     AS sent
+            FROM kabinet_data.review_request_log
+            WHERE checked_at >= CURRENT_DATE - INTERVAL '{days} days'
+              AND status IN ('sent', 'no_action')
+            GROUP BY 1, 2 ORDER BY 2
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
 def load_by_hour(days: int) -> pd.DataFrame:
     """Во сколько уходили запросы — по местному времени маркетплейсов.
     Пока все отправки в один час, но данные копятся: через месяц-другой
@@ -862,6 +907,29 @@ with tab_dyn:
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
             st.caption(t("rev.dyn.lag_note"))
 
+            # ---- позиция в категории ----
+            bsr = load_bsr_daily(DAYS)
+            if not bsr.empty and len(bsr) > 1:
+                st.markdown(f"**{t('rev.bsr.title')}**")
+                bsr["snapshot_date"] = pd.to_datetime(bsr["snapshot_date"])
+                bsr["label"] = bsr["snapshot_date"].dt.strftime("%d.%m")
+                figb = go.Figure()
+                figb.add_scatter(x=bsr["label"], y=bsr["rank_median"],
+                                 mode="lines+markers", name=t("rev.bsr.rank"),
+                                 line=dict(color=AMBER, width=2))
+                figb.update_layout(
+                    height=240, margin=dict(l=10, r=10, t=10, b=10),
+                    xaxis=dict(type="category"), showlegend=False,
+                    # чем меньше номер, тем выше товар — переворачиваем ось,
+                    # чтобы рост вверх означал улучшение
+                    yaxis=dict(autorange="reversed",
+                               title=t("rev.bsr.axis")))
+                st.plotly_chart(figb, use_container_width=True, config=PLOTLY_CFG)
+                st.caption(t("rev.bsr.note").format(
+                    n=int(bsr["items"].iloc[-1])))
+            elif not bsr.empty:
+                st.caption(t("rev.bsr.wait"))
+
             # ---- топ выросших товаров ----
             first_last = (stable.sort_values("snapshot_date")
                                 .groupby(["asin", "marketplace"])
@@ -1016,6 +1084,48 @@ with tab_age:
             st.plotly_chart(figh, use_container_width=True, config=PLOTLY_CFG)
             if len(hh) == 1:
                 st.caption(t("rev.hour.single").format(h=int(hh["hour"].iloc[0])))
+
+        # ---- сравнение расписаний ----
+        slots = load_by_slot(DAYS)
+        if not slots.empty and slots["slot"].nunique() > 1:
+            st.divider()
+            st.markdown(f"**{t('rev.slot.title')}**")
+            st.caption(t("rev.slot.caption"))
+
+            SLOT_LABEL = {"evening_es": t("rev.slot.evening"),
+                          "morning_default": t("rev.slot.morning")}
+            agg = (slots.groupby("slot", as_index=False)[["checked", "sent"]].sum())
+            agg["rate"] = np.round(safe_div(agg["sent"], agg["checked"]) * 100, 1)
+            agg["label"] = agg["slot"].map(lambda x: SLOT_LABEL.get(x, x))
+
+            scols = st.columns(len(agg))
+            for col, (_, r) in zip(scols, agg.iterrows()):
+                col.metric(r["label"], f"{r['rate']:.0f}%",
+                           delta=t("rev.slot.checked").format(n=int(r["checked"])),
+                           delta_color="off",
+                           help=t("rev.slot.metric_help"))
+
+            slots["day"] = pd.to_datetime(slots["day"])
+            slots["rate"] = np.round(
+                safe_div(slots["sent"], slots["checked"]) * 100, 1)
+            slots["label"] = slots["slot"].map(lambda x: SLOT_LABEL.get(x, x))
+            figs = px.line(slots.sort_values("day"), x="day", y="rate",
+                           color="label", markers=True,
+                           color_discrete_sequence=[ACCENT, BLUE])
+            figs.update_layout(height=260, xaxis_title=None,
+                               yaxis_title=t("rev.slot.axis"),
+                               margin=dict(l=10, r=10, t=10, b=10),
+                               legend=dict(orientation="h", y=1.15, title=None))
+            st.plotly_chart(figs, use_container_width=True, config=PLOTLY_CFG)
+
+            total = int(agg["checked"].sum())
+            if total < 400:
+                st.warning(t("rev.slot.small").format(n=total))
+            else:
+                st.caption(t("rev.slot.enough").format(n=total))
+        elif not slots.empty:
+            st.divider()
+            st.caption(t("rev.slot.wait"))
 
         st.dataframe(
             age[["age", "checked", "sent", "hit_rate"]],
