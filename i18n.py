@@ -565,6 +565,27 @@ TRANSLATIONS = {
         "en": "Plan comparison will appear once the sales forecast is connected. "
               "For now we compare with the previous period.",
     },
+    "home.kpi.ordered": {
+        "ru": "Продажи по заказам", "uk": "Продажі за замовленнями", "en": "Ordered sales"},
+    "home.kpi.ordered_help": {
+        "ru": "То же число, что видно в кабинете Amazon: цена с НДС и доставкой, "
+              "по дате заказа, отменённые не вычитаются. Это витрина, а не деньги на счёте",
+        "uk": "Те саме число, що видно в кабінеті Amazon: ціна з ПДВ і доставкою, "
+              "за датою замовлення, скасовані не віднімаються. Це вітрина, а не гроші на рахунку",
+        "en": "The same figure you see in Seller Central: buyer price with VAT and shipping, "
+              "by order date, cancellations not deducted. This is the storefront, not cash",
+    },
+    "home.sales.two_numbers": {
+        "ru": "Разница между двумя числами — {gap:,.0f} € ({pct:.0f}%): НДС уходит "
+              "государству, часть заказов отменяют и возвращают. Первое число сходится "
+              "с кабинетом Amazon, второе — то, с чего считается маржа.",
+        "uk": "Різниця між двома числами — {gap:,.0f} € ({pct:.0f}%): ПДВ іде державі, "
+              "частину замовлень скасовують і повертають. Перше число збігається з "
+              "кабінетом Amazon, друге — те, з чого рахується маржа.",
+        "en": "The gap between the two figures is {gap:,.0f} € ({pct:.0f}%): VAT goes to "
+              "the state, some orders are cancelled or returned. The first matches Seller "
+              "Central, the second is what margin is calculated from.",
+    },
     "home.kpi.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
     "home.kpi.revenue_help": {
         "ru": "Выручка за вычетом возвратов, без комиссий площадки. За последние {d} дней, "
@@ -1137,6 +1158,21 @@ TRANSLATIONS = {
     },
     "money.filter.search": {"ru": "Поиск по SKU", "uk": "Пошук за SKU", "en": "Search SKU"},
     "money.filter.search_ph": {"ru": "напр. 41324000", "uk": "напр. 41324000", "en": "e.g. 41324000"},
+    "money.kpi.ordered": {
+        "ru": "Продажи по заказам", "uk": "Продажі за замовленнями", "en": "Ordered sales"},
+    "money.kpi.ordered_help": {
+        "ru": "Как в кабинете Amazon: с НДС и доставкой, по дате заказа, отменённые "
+              "не вычитаются. Для сверки с Seller Central — маржа считается не отсюда",
+        "uk": "Як у кабінеті Amazon: з ПДВ і доставкою, за датою замовлення, скасовані "
+              "не віднімаються. Для звірки з Seller Central — маржа рахується не звідси",
+        "en": "As in Seller Central: with VAT and shipping, by order date, cancellations "
+              "not deducted. For reconciliation only — margin is not based on this",
+    },
+    "money.kpi.revenue_help": {
+        "ru": "Чистая выручка после возвратов, без НДС. С неё считается вся экономика ниже",
+        "uk": "Чиста виручка після повернень, без ПДВ. З неї рахується вся економіка нижче",
+        "en": "Net revenue after returns, excluding VAT. All economics below are based on it",
+    },
     "money.kpi.revenue": {"ru": "Выручка ({d} дн)", "uk": "Виручка ({d} дн)", "en": "Revenue ({d}d)"},
     "money.kpi.net": {"ru": "Чистыми", "uk": "Чистими", "en": "Net proceeds"},
     "money.kpi.net_help": {
