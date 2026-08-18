@@ -1364,6 +1364,8 @@ TRANSLATIONS = {
     },
 
     # --- 5_Money.py: выбор периода ---
+    "money.period_days": {
+        "ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
     "money.period_title": {
         "ru": "Период: {f} — {to}", "uk": "Період: {f} — {to}", "en": "Period: {f} — {to}"},
     "money.period_lag": {
