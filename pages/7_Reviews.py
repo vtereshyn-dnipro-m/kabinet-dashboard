@@ -592,6 +592,7 @@ k4.metric(t("rev.kpi.burning"), f"{pool_burning:,}", help=t("rev.kpi.burning_hel
 k5.metric(t("rev.kpi.skipped"), f"{int(health.get('skipped') or 0):,}",
           help=t("rev.kpi.skipped_help"))
 
+
 st.divider()
 
 tab_cov, tab_dyn, tab_mp, tab_age, tab_asin = st.tabs(
@@ -1224,4 +1225,4 @@ with tab_asin:
                         t("rev.col.no_action"), width="small"),
                     "url": st.column_config.LinkColumn("", display_text="↗", width="small"),
                 },
-            )
+            ) 
