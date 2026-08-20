@@ -137,13 +137,19 @@ def load_bsr(days: int) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_ordered_sales(days: int, d_from=None, d_to=None):
-    """Витринная выручка — то же число, что в Seller Central."""
+def load_ordered_sales(days: int, d_from=None, d_to=None, markets=""):
+    """Витринная выручка — то же число, что в Seller Central.
+    Маркетплейсы передаём строкой: список не кешируется."""
     if d_from and d_to:
         where = f"snapshot_date BETWEEN '{d_from}' AND '{d_to}'"
     else:
         where = (f"snapshot_date >= (SELECT MAX(snapshot_date) - INTERVAL '{days} days' "
                  f"FROM kabinet_data.sales_traffic_daily)")
+    # без фильтра карточка показывала сумму по всем странам,
+    # хотя остальные цифры на странице были по выбранной
+    if markets:
+        lst = ",".join(f"'{m}'" for m in markets.split("|") if m)
+        where += f" AND UPPER(marketplace) IN ({lst})"
     conn = get_connection()
     try:
         r = pd.read_sql(f"""
@@ -282,8 +288,10 @@ tot_ads = f["ads"].sum()
 cm = tot_net - tot_cogs - tot_ads
 cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
 
-_ordered = (load_ordered_sales(0, d_from, d_to) if (d_from and d_to)
-            else load_ordered_sales(WINDOW))
+# Leroy Merlin в витринную выручку не входит — там нет отчёта Amazon
+_mk = "|".join(sorted(m.upper() for m in mp_filter if m.upper() != "LM"))
+_ordered = (load_ordered_sales(0, d_from, d_to, _mk) if (d_from and d_to)
+            else load_ordered_sales(WINDOW, markets=_mk))
 
 k0, k1, k2, k3, k4, k5 = st.columns(6)
 k0.metric(t("money.kpi.ordered"),
