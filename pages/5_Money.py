@@ -611,6 +611,12 @@ with tab_alerts:
                     ads_spend DESC NULLS LAST
             """, conn)
         except Exception:
+            # первый запрос уронил транзакцию — до повтора её надо откатить,
+            # иначе Postgres откажет и здесь
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             # в старой версии таблицы колонки маркетплейса нет
             adf = pd.read_sql("""
                 SELECT sku, NULL AS marketplace, alert_type, units,
