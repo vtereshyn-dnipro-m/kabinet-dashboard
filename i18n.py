@@ -1538,6 +1538,17 @@ TRANSLATIONS = {
     "money.alerts.wasted_help": {"ru": "Дни с рекламой, но без заказов", "uk": "Дні з рекламою, але без замовлень", "en": "Days with ad spend but no orders"},
     "money.alerts.col_type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
     "money.alerts.col_details": {"ru": "Детали", "uk": "Деталі", "en": "Details"},
+    "money.alerts.window_note": {
+        "ru": "Алерты считаются за 30 дней и не зависят от выбранного выше периода. "
+              "Поэтому товар может числиться здесь, даже если сейчас снят с продажи — "
+              "расход был раньше.",
+        "uk": "Алерти рахуються за 30 днів і не залежать від обраного вище періоду. "
+              "Тому товар може значитись тут, навіть якщо зараз знятий з продажу — "
+              "витрата була раніше.",
+        "en": "Alerts are calculated over 30 days and do not depend on the period selected "
+              "above. So a product can appear here even if it is currently suppressed — "
+              "the spend happened earlier.",
+    },
     "money.alerts.note": {
         "ru": "Алерты пересчитываются ежедневно в 12:30 по данным рекламы (SP+SD) и P&L за 30 дней.",
         "uk": "Алерти перераховуються щодня о 12:30 за даними реклами та P&L за 30 днів.",
@@ -2710,4 +2721,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
