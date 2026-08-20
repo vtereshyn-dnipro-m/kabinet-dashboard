@@ -278,11 +278,20 @@ def load_bsr_totals(days: int) -> dict:
         conn.close()
 
 
+# расписание разнесли 19 августа: всё, что раньше, шло одним прогоном
+# и в сравнение не годится — там сидит разбор старых заказов с долей 3-21%
+SLOT_SPLIT_DATE = "2026-08-19"
+
+
 @st.cache_data(ttl=600)
 def load_by_slot(days: int) -> pd.DataFrame:
     """Сравнение расписаний отправки. Смотрим долю разрешённых запросов,
     а не прирост отзывов: первое видно сразу, второе при нашем объёме
-    неотличимо от случайности."""
+    неотличимо от случайности.
+
+    Считаем только с даты разделения расписаний. До неё все запросы шли
+    одним прогоном, и утренняя группа вобрала бы в себя две недели разбора
+    накопленного — сравнение показало бы разницу, которой нет."""
     conn = get_connection()
     try:
         return pd.read_sql(f"""
@@ -291,7 +300,9 @@ def load_by_slot(days: int) -> pd.DataFrame:
                    COUNT(*)                                   AS checked,
                    COUNT(*) FILTER (WHERE status = 'sent')     AS sent
             FROM kabinet_data.review_request_log
-            WHERE checked_at >= CURRENT_DATE - INTERVAL '{days} days'
+            WHERE checked_at >= GREATEST(
+                      CURRENT_DATE - INTERVAL '{days} days',
+                      DATE '{SLOT_SPLIT_DATE}')
               AND status IN ('sent', 'no_action')
             GROUP BY 1, 2 ORDER BY 2
         """, conn)
@@ -1225,8 +1236,10 @@ with tab_age:
             st.plotly_chart(figs, use_container_width=True, config=PLOTLY_CFG)
 
             total = int(agg["checked"].sum())
-            if total < 400:
-                st.warning(t("rev.slot.small").format(n=total))
+            mn = int(agg["checked"].min())
+            # смотрим на меньшую группу: 45 против 1086 — это не сравнение
+            if mn < 300:
+                st.warning(t("rev.slot.small").format(n=total, mn=mn))
             else:
                 st.caption(t("rev.slot.enough").format(n=total))
         elif not slots.empty:
@@ -1291,4 +1304,4 @@ with tab_asin:
                         t("rev.col.no_action"), width="small"),
                     "url": st.column_config.LinkColumn("", display_text="↗", width="small"),
                 },
-            ) 
+            )
