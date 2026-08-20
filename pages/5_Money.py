@@ -102,6 +102,41 @@ def load_pnl(days: int, d_from=None, d_to=None):
 
 
 @st.cache_data(ttl=600)
+def load_bsr(days: int) -> pd.DataFrame:
+    """Позиция товара в категории Amazon и её изменение за период.
+    Ранг зависит не только от наших продаж: конкурент вырос — мы опустились
+    при тех же продажах. Поэтому читаем как относительное положение."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql(f"""
+            WITH bounds AS (
+                SELECT MIN(snapshot_date) AS d0, MAX(snapshot_date) AS d1
+                FROM kabinet_data.asin_bsr_daily
+                WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+            )
+            SELECT b.asin,
+                   MAX(CASE WHEN b.snapshot_date = x.d1 THEN b.rank END)     AS rank_now,
+                   MAX(CASE WHEN b.snapshot_date = x.d0 THEN b.rank END)     AS rank_was,
+                   MAX(CASE WHEN b.snapshot_date = x.d1 THEN b.category END) AS category
+            FROM kabinet_data.asin_bsr_daily b
+            CROSS JOIN bounds x
+            WHERE b.rank IS NOT NULL
+              AND b.snapshot_date IN (x.d0, x.d1)
+            GROUP BY b.asin
+        """, conn)
+        if df.empty:
+            return df
+        # ранг меньше — значит выше в категории, поэтому знак переворачиваем:
+        # положительное число означает подъём
+        df["rank_delta"] = df["rank_was"] - df["rank_now"]
+        return df
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
 def load_ordered_sales(days: int, d_from=None, d_to=None):
     """Витринная выручка — то же число, что в Seller Central."""
     if d_from and d_to:
@@ -331,6 +366,14 @@ with tab_pnl:
 
     by_sku["flag_col"] = by_sku.apply(flag, axis=1)
 
+    _bsr = load_bsr(WINDOW)
+    if not _bsr.empty:
+        by_sku = by_sku.merge(_bsr[["asin", "rank_now", "rank_delta", "category"]],
+                              on="asin", how="left")
+    else:
+        by_sku["rank_now"] = None
+        by_sku["rank_delta"] = None
+
     @st.cache_data(ttl=600)
     def load_annotations():
         conn = get_connection()
@@ -434,7 +477,7 @@ with tab_pnl:
         by_sku[["flag_col", "ann_col", "sku_display", "product_name",
                 "markets_label", "units", "revenue",
                 "net_proceeds", "cogs", "ads", "cm", "cm_pct", "acos_pct",
-                "amazon_url"]],
+                "rank_now", "rank_delta", "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
         column_config={
             "flag_col": st.column_config.TextColumn(t("money.col.flag"), width="small",
@@ -458,6 +501,12 @@ with tab_pnl:
             "cm_pct": st.column_config.NumberColumn(t("money.col.cm_pct"), format="%.1f%%"),
             "acos_pct": st.column_config.NumberColumn("ACOS", format="%.1f%%",
                 help=t("money.col.acos_help")),
+            "rank_now": st.column_config.NumberColumn(
+                t("money.col.bsr"), format="%d", width="small",
+                help=t("money.col.bsr_help")),
+            "rank_delta": st.column_config.NumberColumn(
+                t("money.col.bsr_delta"), format="%+d", width="small",
+                help=t("money.col.bsr_delta_help")),
             "amazon_url": st.column_config.LinkColumn(
                 "ASIN", display_text=r"/dp/([A-Z0-9]{10})", width="small",
                 help=t("money.col.asin_help")),
@@ -547,21 +596,41 @@ with tab_fees:
 with tab_alerts:
     @st.cache_data(ttl=600)
     def load_ads_alerts():
+        """Алерты по рекламе. Маркетплейс тянем отдельно: без него фильтр
+        страны не работал и по Германии показывались алерты всех рынков."""
         conn = get_connection()
-        adf = pd.read_sql("""
-            SELECT sku, alert_type, units, ads_spend, cm, details
-            FROM kabinet_data.ads_alerts
-            WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.ads_alerts)
-            ORDER BY CASE alert_type
-                WHEN 'zero_sales' THEN 0
-                WHEN 'negative_cm' THEN 1
-                ELSE 2 END,
-                ads_spend DESC NULLS LAST
-        """, conn)
-        conn.close()
+        try:
+            adf = pd.read_sql("""
+                SELECT sku, marketplace, alert_type, units, ads_spend, cm, details
+                FROM kabinet_data.ads_alerts
+                WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.ads_alerts)
+                ORDER BY CASE alert_type
+                    WHEN 'zero_sales' THEN 0
+                    WHEN 'negative_cm' THEN 1
+                    ELSE 2 END,
+                    ads_spend DESC NULLS LAST
+            """, conn)
+        except Exception:
+            # в старой версии таблицы колонки маркетплейса нет
+            adf = pd.read_sql("""
+                SELECT sku, NULL AS marketplace, alert_type, units,
+                       ads_spend, cm, details
+                FROM kabinet_data.ads_alerts
+                WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.ads_alerts)
+            """, conn)
+        finally:
+            conn.close()
         return adf
 
     alerts = load_ads_alerts()
+
+    # применяем те же фильтры, что и ко всей странице
+    if not alerts.empty:
+        if mp_filter and alerts["marketplace"].notna().any():
+            alerts = alerts[alerts["marketplace"].isin(mp_filter)]
+        if search:
+            alerts = alerts[alerts["sku"].astype(str)
+                            .str.contains(search, case=False, na=False)]
     if alerts.empty:
         st.success(t("money.alerts.none"))
     else:
@@ -587,15 +656,19 @@ with tab_alerts:
         a3.metric(t("money.alerts.wasted"), len(w))
 
         st.dataframe(
-            alerts[["type_label", "sku_display", "units", "ads_spend", "cm", "details"]],
+            alerts[["type_label", "sku_display", "marketplace", "units",
+                    "ads_spend", "cm", "details"]],
             use_container_width=True, height=480, hide_index=True,
             column_config={
                 "type_label": st.column_config.TextColumn(t("money.alerts.col_type"), width="small"),
                 "sku_display": st.column_config.TextColumn("SKU", width="small"),
+                "marketplace": st.column_config.TextColumn(
+                    t("money.col.marketplace"), width="small"),
                 "units": st.column_config.NumberColumn(t("money.col.units"), width="small"),
                 "ads_spend": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €"),
                 "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €"),
                 "details": st.column_config.TextColumn(t("money.alerts.col_details"), width="large"),
             },
         )
-        st.caption(t("money.alerts.note")) 
+        st.caption(t("money.alerts.note"))
+        st.caption(t("money.alerts.window_note"))
