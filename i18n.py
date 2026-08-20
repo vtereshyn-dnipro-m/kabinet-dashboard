@@ -285,6 +285,293 @@ TRANSLATIONS = {
     },
     "stock.cov.header": {"ru": "Покрытие на {d}", "uk": "Покриття на {d}", "en": "Coverage as of {d}"},
     "stock.cov.how": {"ru": "Как читать", "uk": "Як читати", "en": "How to read"},
+    "stock.cov.show": {"ru": "Показать", "uk": "Показати", "en": "Show"},# i18n.py — переводы RU/UK/EN + переключатель языка
+import streamlit as st
+
+DEFAULT_LANG = "ru"
+LANG_LABELS = {"ru": "РУ", "uk": "УКР", "en": "EN"}
+
+# Ключ: {"ru": "...", "uk": "...", "en": "..."}
+TRANSLATIONS = {
+    # --- навигация / app.py ---
+    "app.page_title": {
+        "ru": "Кабинет Demand & Supply — Dnipro-M",
+        "uk": "Кабінет Demand & Supply — Dnipro-M",
+        "en": "Demand & Supply Cabinet — Dnipro-M",
+    },
+    "nav.section": {
+        "ru": "Кабинет Demand & Supply",
+        "uk": "Кабінет Demand & Supply",
+        "en": "Demand & Supply Cabinet",
+    },
+    "nav.home": {"ru": "Обзор", "uk": "Огляд", "en": "Overview"},
+    "nav.stock": {"ru": "Остатки", "uk": "Залишки", "en": "Stock"},
+    "nav.incidents": {"ru": "Инциденты", "uk": "Інциденти", "en": "Incidents"},
+    "nav.reorder": {"ru": "Автозаказ", "uk": "Автозамовлення", "en": "Reorder"},
+    "nav.forecast": {"ru": "Прогноз", "uk": "Прогноз", "en": "Forecast"},
+    "nav.money": {"ru": "Деньги", "uk": "Гроші", "en": "Money"},
+    "nav.dictionaries": {"ru": "Справочники", "uk": "Довідники", "en": "Dictionaries"},
+
+    # --- общие элементы ---
+    "common.loading": {"ru": "Загрузка данных...", "uk": "Завантаження даних...", "en": "Loading data..."},
+    "common.no_data": {"ru": "Нет данных", "uk": "Немає даних", "en": "No data"},
+    "common.refresh": {"ru": "Обновить", "uk": "Оновити", "en": "Refresh"},
+    "common.filter": {"ru": "Фильтр", "uk": "Фільтр", "en": "Filter"},
+    "common.all": {"ru": "Все", "uk": "Всі", "en": "All"},
+    "common.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "common.warehouse": {"ru": "Склад", "uk": "Склад", "en": "Warehouse"},
+    "common.sku": {"ru": "Артикул", "uk": "Артикул", "en": "SKU"},
+    "common.quantity": {"ru": "Количество", "uk": "Кількість", "en": "Quantity"},
+    "common.date": {"ru": "Дата", "uk": "Дата", "en": "Date"},
+    "common.status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "common.confirm": {"ru": "Подтвердить", "uk": "Підтвердити", "en": "Confirm"},
+    "common.cancel": {"ru": "Отмена", "uk": "Скасувати", "en": "Cancel"},
+    "common.language_label": {"ru": "Смена языка", "uk": "Зміна мови", "en": "Change language"},
+
+    # --- 1_Stock.py ---
+    "stock.title": {"ru": "Остатки", "uk": "Залишки", "en": "Stock"},
+    "stock.caption": {
+        "ru": "Консолидация по складам: Amazon FBA (по странам) + собственные/3PL",
+        "uk": "Консолідація по складах: Amazon FBA (по країнах) + власні/3PL",
+        "en": "Consolidated by warehouse: Amazon FBA (by country) + own/3PL",
+    },
+    "stock.other": {"ru": "Прочее", "uk": "Інше", "en": "Other"},
+    "stock.cat.amoladora": {"ru": "Amoladoras (болгарки)", "uk": "Amoladoras (кутові шліфмашини)", "en": "Amoladoras (angle grinders)"},
+    "stock.cat.martillo": {"ru": "Martillos (перфораторы)", "uk": "Martillos (перфоратори)", "en": "Martillos (rotary hammers)"},
+    "stock.cat.taladro": {"ru": "Taladros (дрели/шуруповёрты)", "uk": "Taladros (дрилі/шуруповерти)", "en": "Taladros (drills/drivers)"},
+    "stock.cat.destornillador": {"ru": "Destornilladores (отвёртки)", "uk": "Destornilladores (викрутки)", "en": "Destornilladores (screwdrivers)"},
+    "stock.cat.motosierra": {"ru": "Motosierras (пилы)", "uk": "Motosierras (пили)", "en": "Motosierras (chainsaws)"},
+    "stock.cat.sierra": {"ru": "Sierras (пилы)", "uk": "Sierras (пили)", "en": "Sierras (saws)"},
+    "stock.cat.soldador": {"ru": "Soldadores (сварка)", "uk": "Soldadores (зварювання)", "en": "Soldadores (welders)"},
+    "stock.cat.compresor": {"ru": "Compresores", "uk": "Compresores", "en": "Compresores (compressors)"},
+    "stock.cat.bateria": {"ru": "Baterías / зарядки", "uk": "Baterías / зарядні", "en": "Baterías / chargers"},
+    "stock.filter.warehouse": {"ru": "Склад (часть названия)", "uk": "Склад (частина назви)", "en": "Warehouse (partial name)"},
+    "stock.filter.sku": {"ru": "SKU / артикул", "uk": "SKU / артикул", "en": "SKU"},
+    "stock.filter.avail_status": {"ru": "Статус доступности", "uk": "Статус доступності", "en": "Availability status"},
+    "stock.filter.all": {"ru": "Все", "uk": "Всі", "en": "All"},
+    "stock.filter.country": {"ru": "Страна (FBA)", "uk": "Країна (FBA)", "en": "Country (FBA)"},
+    "stock.filter.country_placeholder": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
+    "stock.kpi.total_sku": {"ru": "Всего SKU", "uk": "Всього SKU", "en": "Total SKUs"},
+    "stock.kpi.countries": {"ru": "Стран (FBA)", "uk": "Країн (FBA)", "en": "Countries (FBA)"},
+    "stock.kpi.countries_help": {"ru": "Количество стран, где лежит товар на Amazon FBA", "uk": "Кількість країн, де лежить товар на Amazon FBA", "en": "Number of countries where the product sits in Amazon FBA"},
+    "stock.kpi.total_qty": {"ru": "Суммарный остаток", "uk": "Сумарний залишок", "en": "Total stock"},
+    "stock.kpi.median": {"ru": "Медиана на SKU", "uk": "Медіана на SKU", "en": "Median per SKU"},
+    "stock.kpi.low_stock": {"ru": "SKU с остатком ≤ 3", "uk": "SKU із залишком ≤ 3", "en": "SKUs with stock ≤ 3"},
+    "stock.kpi.low_stock_help": {"ru": "Кандидаты на пополнение (сумма по всем странам)", "uk": "Кандидати на поповнення (сума по всіх країнах)", "en": "Replenishment candidates (summed across all countries)"},
+    "stock.burn_title": {"ru": "🔥 Минимальные остатки — кандидаты на пополнение", "uk": "🔥 Мінімальні залишки — кандидати на поповнення", "en": "🔥 Minimum stock — replenishment candidates"},
+    "stock.burn_none": {"ru": "нет в наличии", "uk": "немає в наявності", "en": "out of stock"},
+    "stock.tab.overview": {"ru": "📊 Обзор", "uk": "📊 Огляд", "en": "📊 Overview"},
+    "stock.tab.abc": {"ru": "🅰️ ABC-анализ", "uk": "🅰️ ABC-аналіз", "en": "🅰️ ABC analysis"},
+    "stock.tab.categories": {"ru": "🧰 Категории", "uk": "🧰 Категорії", "en": "🧰 Categories"},
+    "stock.tab.countries": {"ru": "🌍 По странам", "uk": "🌍 По країнах", "en": "🌍 By country"},
+    "stock.tab.table": {"ru": "📋 Таблица", "uk": "📋 Таблиця", "en": "📋 Table"},
+    "stock.ov.top15_title": {"ru": "Топ-15 SKU по остатку (сумма по всем странам)", "uk": "Топ-15 SKU за залишком (сума по всіх країнах)", "en": "Top 15 SKUs by stock (summed across all countries)"},
+    "stock.ov.unit_short": {"ru": "шт", "uk": "шт", "en": "pcs"},
+    "stock.ov.by_status_title": {"ru": "Остаток по статусу доступности", "uk": "Залишок за статусом доступності", "en": "Stock by availability status"},
+    "stock.ov.dist_title": {"ru": "Распределение остатка по SKU", "uk": "Розподіл залишку за SKU", "en": "Stock distribution by SKU"},
+    "stock.ov.dist_xaxis": {"ru": "шт на SKU", "uk": "шт на SKU", "en": "pcs per SKU"},
+    "stock.abc.class_label": {"ru": "Класс {cls}", "uk": "Клас {cls}", "en": "Class {cls}"},
+    "stock.abc.sku_count": {"ru": "{n} SKU", "uk": "{n} SKU", "en": "{n} SKUs"},
+    "stock.abc.pct_of_stock": {"ru": "{pct:.0f}% остатка", "uk": "{pct:.0f}% залишку", "en": "{pct:.0f}% of stock"},
+    "stock.abc.pareto_title": {"ru": "Парето: вклад SKU в суммарный остаток", "uk": "Парето: внесок SKU у сумарний залишок", "en": "Pareto: SKU contribution to total stock"},
+    "stock.abc.qty_legend": {"ru": "Остаток, шт", "uk": "Залишок, шт", "en": "Stock, pcs"},
+    "stock.abc.cum_pct_legend": {"ru": "Накопленный %", "uk": "Накопичений %", "en": "Cumulative %"},
+    "stock.abc.hover_click_hint": {"ru": "Кликни — карточка товара со ссылкой", "uk": "Клікни — картка товару з посиланням", "en": "Click — product card with link"},
+    "stock.abc.stock_word": {"ru": "Остаток", "uk": "Залишок", "en": "Stock"},
+    "stock.abc.yaxis_pct": {"ru": "накопленный %", "uk": "накопичений %", "en": "cumulative %"},
+    "stock.abc.xaxis": {"ru": "SKU (по убыванию остатка)", "uk": "SKU (за спаданням залишку)", "en": "SKU (descending stock)"},
+    "stock.abc.total_stock": {"ru": "Остаток (всего)", "uk": "Залишок (всього)", "en": "Stock (total)"},
+    "stock.abc.class_word": {"ru": "Класс", "uk": "Клас", "en": "Class"},
+    "stock.abc.open_amazon": {"ru": "Открыть на Amazon ↗", "uk": "Відкрити на Amazon ↗", "en": "Open on Amazon ↗"},
+    "stock.abc.by_country_prefix": {"ru": "По странам:", "uk": "По країнах:", "en": "By country:"},
+    "stock.abc.click_hint": {"ru": "💡 Кликни по столбику — появится карточка товара со ссылкой на листинг", "uk": "💡 Клікни по стовпчику — з'явиться картка товару з посиланням на лістинг", "en": "💡 Click a bar — a product card with a listing link will appear"},
+    "stock.abc.footer_note": {
+        "ru": "A — SKU, дающие 80% остатка; B — следующие 15%; C — хвост. Когда подключим продажи, пересчитаем ABC по velocity — это будет честнее.",
+        "uk": "A — SKU, що дають 80% залишку; B — наступні 15%; C — хвіст. Коли підключимо продажі, перерахуємо ABC за velocity — це буде чесніше.",
+        "en": "A — SKUs contributing 80% of stock; B — next 15%; C — the tail. Once sales data is connected, we'll recompute ABC by velocity for a fairer split.",
+    },
+    "stock.cat.treemap_title": {"ru": "Остаток по категориям инструмента", "uk": "Залишок за категоріями інструменту", "en": "Stock by tool category"},
+    "stock.cat.sku_word": {"ru": "SKU", "uk": "SKU", "en": "SKU"},
+    "stock.cat.power_scatter_title": {"ru": "Мощность (W) vs остаток — где сидит сток", "uk": "Потужність (W) vs залишок — де сидить сток", "en": "Power (W) vs stock — where stock sits"},
+    "stock.cat.power_xaxis": {"ru": "Мощность, W", "uk": "Потужність, W", "en": "Power, W"},
+    "stock.cat.qty_yaxis": {"ru": "Остаток, шт", "uk": "Залишок, шт", "en": "Stock, pcs"},
+    "stock.ctr.by_country_title": {"ru": "Остаток по странам FBA", "uk": "Залишок по країнах FBA", "en": "Stock by FBA country"},
+    "stock.ctr.metric_help": {"ru": "{n} SKU", "uk": "{n} SKU", "en": "{n} SKUs"},
+    "stock.ctr.bar_title": {"ru": "Остаток по странам", "uk": "Залишок по країнах", "en": "Stock by country"},
+    "stock.ctr.country_axis": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "stock.ctr.matrix_title": {"ru": "Матрица SKU × страна (топ-20 по остатку)", "uk": "Матриця SKU × країна (топ-20 за залишком)", "en": "SKU × country matrix (top 20 by stock)"},
+    "stock.ctr.click_hint": {"ru": "💡 Кликни по ячейке — увидишь товар целиком и остаток по всем странам", "uk": "💡 Клікні по комірці — побачиш товар цілком і залишок по всіх країнах", "en": "💡 Click a cell — see the full product and stock across all countries"},
+    "stock.ctr.map_note": {
+        "ru": "Пусто/светлое = товара нет или мало в этой стране. Топ-20 — для наглядности карты. Полная таблица со всеми SKU — ниже.",
+        "uk": "Порожньо/світле = товару немає або мало в цій країні. Топ-20 — для наочності карти. Повна таблиця з усіма SKU — нижче.",
+        "en": "Empty/light = no or little stock in that country. Top 20 is for map clarity. The full table with all SKUs is below.",
+    },
+    "stock.ctr.full_table_title": {"ru": "Полная таблица: все SKU × страны", "uk": "Повна таблиця: всі SKU × країни", "en": "Full table: all SKUs × countries"},
+    "stock.ctr.col_sku": {"ru": "SKU", "uk": "SKU", "en": "SKU"},
+    "stock.ctr.col_product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
+    "stock.ctr.col_total": {"ru": "Всего", "uk": "Всього", "en": "Total"},
+    "stock.ctr.total_row": {"ru": "ИТОГО", "uk": "РАЗОМ", "en": "TOTAL"},
+    "stock.ctr.download_matrix": {"ru": "⬇️ Скачать полную матрицу CSV", "uk": "⬇️ Завантажити повну матрицю CSV", "en": "⬇️ Download full matrix CSV"},
+
+    # --- дефекты / возвраты ---
+    "stock.ctr.defects_title": {"ru": "⚠️ Дефекты / возвраты", "uk": "⚠️ Дефекти / повернення", "en": "⚠️ Defects / returns"},
+    "stock.ctr.defects_caption": {
+        "ru": "Позиции с браком или возвратом (Amazon removal/grade). Не в остатках и не в автозаказе.",
+        "uk": "Позиції з браком або поверненням (Amazon removal/grade). Не в залишках і не в автозамовленні.",
+        "en": "Damaged or returned items (Amazon removal/grade). Excluded from stock and reorder.",
+    },
+    "stock.ctr.defects_download": {"ru": "⬇️ Скачать дефекты CSV", "uk": "⬇️ Завантажити дефекти CSV", "en": "⬇️ Download defects CSV"},
+    "stock.tbl.view_mode": {"ru": "Вид таблицы", "uk": "Вигляд таблиці", "en": "Table view"},
+    "stock.tbl.view_by_product": {"ru": "По товару (сумма по странам)", "uk": "За товаром (сума по країнах)", "en": "By product (summed across countries)"},
+    "stock.tbl.view_by_product_country": {"ru": "По товару и стране (детально)", "uk": "За товаром і країною (детально)", "en": "By product and country (detailed)"},
+    "stock.tbl.col_total_stock": {"ru": "Остаток (всего)", "uk": "Залишок (всього)", "en": "Stock (total)"},
+    "stock.tbl.col_countries": {"ru": "Стран", "uk": "Країн", "en": "Countries"},
+    "stock.tbl.col_countries_help": {"ru": "В скольких странах FBA лежит товар", "uk": "У скількох країнах FBA лежить товар", "en": "In how many FBA countries the product sits"},
+    "stock.tbl.col_listing": {"ru": "Листинг", "uk": "Лістинг", "en": "Listing"},
+    "stock.tbl.col_listing_text": {"ru": "Открыть ↗", "uk": "Відкрити ↗", "en": "Open ↗"},
+    "stock.tbl.col_category": {"ru": "Категория", "uk": "Категорія", "en": "Category"},
+    "stock.tbl.col_stock": {"ru": "Остаток", "uk": "Залишок", "en": "Stock"},
+    "stock.tbl.col_country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "stock.tbl.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "stock.tbl.col_snapshot": {"ru": "Снапшот", "uk": "Знімок", "en": "Snapshot"},
+    "stock.tbl.download_detail": {"ru": "⬇️ Скачать CSV (детально, по странам)", "uk": "⬇️ Завантажити CSV (детально, по країнах)", "en": "⬇️ Download CSV (detailed, by country)"},
+    # --- 1_Stock.py: квоты, выделенные на каналы продаж ---
+    "stock.kpi.total_qty_help": {
+        "ru": "Физический остаток на складах. Квоты, выделенные на каналы продаж, не входят.",
+        "uk": "Фізичний залишок на складах. Квоти, виділені на канали продажів, не входять.",
+        "en": "Physical stock in warehouses. Quotas allocated to sales channels are excluded.",
+    },
+    "stock.channels.title": {
+        "ru": "📤 Выделено на каналы продаж ({n} шт)",
+        "uk": "📤 Виділено на канали продажів ({n} шт)",
+        "en": "📤 Allocated to sales channels ({n} pcs)",
+    },
+    "stock.channels.caption": {
+        "ru": "Квота, выставленная на канал из складского остатка (например, офферы Leroy Merlin — "
+              "часть складского остатка). Это не дополнительный товар: он уже учтён в остатках складов выше.",
+        "uk": "Квота, виставлена на канал зі складського залишку (наприклад, оффери Leroy Merlin — "
+              "частина складського залишку). Це не додатковий товар: він уже врахований у залишках складів вище.",
+        "en": "Quantity listed on a channel out of existing warehouse stock (e.g. Leroy Merlin offers are "
+              "part of the local stock). This is not additional goods — it's already counted above.",
+    },
+    "stock.channels.col_channel": {"ru": "Канал", "uk": "Канал", "en": "Channel"},
+    "stock.channels.col_qty": {"ru": "Выделено, шт", "uk": "Виділено, шт", "en": "Allocated, pcs"},
+    "stock.channels.download": {
+        "ru": "⬇️ Скачать квоты каналов CSV",
+        "uk": "⬇️ Завантажити квоти каналів CSV",
+        "en": "⬇️ Download channel quotas CSV",
+    },
+    "stock.only_channels": {
+        "ru": "В последнем снапшоте только квоты каналов, физических остатков нет. Показаны квоты.",
+        "uk": "В останньому знімку лише квоти каналів, фізичних залишків немає. Показані квоти.",
+        "en": "The latest snapshot contains only channel quotas, no physical stock. Showing quotas.",
+    },
+    "stock.tab.coverage": {"ru": "📅 Покрытие", "uk": "📅 Покриття", "en": "📅 Coverage"},
+    "stock.abc.no_data": {
+        "ru": "Недостаточно данных для ABC-анализа по текущему фильтру.",
+        "uk": "Недостатньо даних для ABC-аналізу за поточним фільтром.",
+        "en": "Not enough data for ABC analysis with the current filter.",
+    },
+    "stock.cov.no_data": {
+        "ru": "Расчёт покрытия ещё не выполнялся.",
+        "uk": "Розрахунок покриття ще не виконувався.",
+        "en": "The coverage calculation has not run yet.",
+    },
+    "stock.cov.as_of": {"ru": "Расчёт на {d}", "uk": "Розрахунок на {d}", "en": "Calculated on {d}"},
+    "stock.cov.intro": {
+        "ru": "Покрытие считается по неделям вперёд: из остатка вычитается прогноз продаж, "
+              "добавляются поступления. Когда склад Amazon пустеет, продажи не встают — "
+              "листинг переключается на отгрузку с местного склада. Но этот запас общий на "
+              "несколько стран, поэтому реальный срок короче обещанного.",
+        "uk": "Покриття рахується по тижнях уперед: із залишку віднімається прогноз продажів, "
+              "додаються надходження. Коли склад Amazon порожніє, продажі не зупиняються — "
+              "лістинг перемикається на відвантаження з місцевого складу. Але цей запас "
+              "спільний на кілька країн, тому реальний строк коротший за обіцяний.",
+        "en": "Coverage is projected week by week: the forecast is subtracted from stock and "
+              "incoming shipments are added. When Amazon stock runs out, sales do not stop — "
+              "the listing switches to shipping from the local warehouse. But that stock is "
+              "shared across countries, so the real horizon is shorter than promised.",
+    },
+    "stock.cov.horizon_note": {
+        "ru": "**Насколько можно верить горизонту.** В расчёте учтены только подтверждённые "
+              "поставки — товар, который уже в пути. Это примерно неделя вперёд. Заказы "
+              "поставщику и производственные планы в систему пока не заведены, поэтому "
+              "дефицит после первой недели означает «поставок не запланировано в известных "
+              "нам данных», а не «товара точно не будет».",
+        "uk": "**Наскільки можна вірити горизонту.** У розрахунку враховані лише підтверджені "
+              "поставки — товар, який уже в дорозі. Це приблизно тиждень уперед. Замовлення "
+              "постачальнику й виробничі плани в систему поки не заведені, тому дефіцит після "
+              "першого тижня означає «поставок не заплановано у відомих нам даних», а не "
+              "«товару точно не буде».",
+        "en": "**How far the horizon can be trusted.** The calculation only includes confirmed "
+              "shipments — stock already in transit, roughly a week ahead. Purchase orders and "
+              "production plans are not in the system yet, so a shortage beyond the first week "
+              "means “no shipments planned in the data we have”, not “there will be no stock”.",
+    },
+    "stock.cov.col_odoo": {"ru": "Ожидается, шт", "uk": "Очікується, шт", "en": "Expected, units"},
+    "stock.cov.col_odoo_help": {
+        "ru": "Товар, который числится в системе как заказанный или в производстве. "
+              "Дата прибытия неизвестна, поэтому в расчёт покрытия он не входит",
+        "uk": "Товар, що числиться в системі як замовлений або у виробництві. "
+              "Дата прибуття невідома, тому в розрахунок покриття він не входить",
+        "en": "Stock recorded as ordered or in production. The arrival date is unknown, "
+              "so it is not included in the coverage calculation",
+    },
+    "stock.cov.odoo_note": {
+        "ru": "По этому товару ожидается ещё {qty} шт — заказано или в производстве. "
+              "Дата прибытия в системе не зафиксирована, поэтому в расчёт выше он не вошёл.",
+        "uk": "За цим товаром очікується ще {qty} шт — замовлено або у виробництві. "
+              "Дата прибуття в системі не зафіксована, тому в розрахунок вище він не увійшов.",
+        "en": "Another {qty} units are expected for this item — ordered or in production. "
+              "No arrival date is recorded, so it is not part of the calculation above.",
+    },
+    "stock.cov.kpi_overstock": {"ru": "Излишек", "uk": "Надлишок", "en": "Overstock"},
+    "stock.cov.kpi_overstock_help": {
+        "ru": "Позиции, где товар остаётся даже после того, как весь прогноз на год исчерпан",
+        "uk": "Позиції, де товар залишається навіть після того, як увесь прогноз на рік вичерпано",
+        "en": "Items with stock left over after the entire year's forecast is consumed",
+    },
+    "stock.cov.col_gaps": {"ru": "Разрывов", "uk": "Розривів", "en": "Gaps"},
+    "stock.cov.col_gaps_help": {
+        "ru": "Сколько раз товар закончится на горизонте расчёта. Поставка закрывает один "
+              "разрыв, после неё может открыться следующий",
+        "uk": "Скільки разів товар закінчиться на горизонті розрахунку. Поставка закриває один "
+              "розрив, після неї може відкритися наступний",
+        "en": "How many times the item runs out over the horizon. A shipment closes one gap, "
+              "another may open after it",
+    },
+    "stock.cov.col_gaps_qty": {"ru": "Не покроем, шт", "uk": "Не покриємо, шт", "en": "Unmet, units"},
+    "stock.cov.col_gaps_qty_help": {
+        "ru": "Сколько единиц спроса останется без товара за все разрывы вместе",
+        "uk": "Скільки одиниць попиту залишиться без товару за всі розриви разом",
+        "en": "Total demand left unserved across all gaps",
+    },
+    "stock.cov.col_overstock": {"ru": "Излишек, шт", "uk": "Надлишок, шт", "en": "Overstock, units"},
+    "stock.cov.col_overstock_help": {
+        "ru": "Товар, который остаётся после того, как весь годовой прогноз продан",
+        "uk": "Товар, що залишається після того, як увесь річний прогноз продано",
+        "en": "Stock remaining after the full year's forecast is sold",
+    },
+    "stock.cov.gaps_found": {"ru": "Разрывов на горизонте", "uk": "Розривів на горизонті", "en": "Gaps ahead"},
+    "stock.cov.gaps_qty": {"ru": "Спроса без товара", "uk": "Попиту без товару", "en": "Demand unserved"},
+    "stock.cov.gaps_qty_help": {
+        "ru": "Суммарно по всем разрывам, единиц",
+        "uk": "Сумарно за всіма розривами, одиниць",
+        "en": "Total across all gaps, units",
+    },
+    "stock.cov.gap_from": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Gap from"},
+    "stock.cov.gap_to": {"ru": "по", "uk": "по", "en": "to"},
+    "stock.cov.gap_qty": {"ru": "Не покроем, шт", "uk": "Не покриємо, шт", "en": "Unmet, units"},
+    "stock.cov.overstock_note": {
+        "ru": "Излишек: {qty} шт останется после того, как весь годовой прогноз будет продан — "
+              "это примерно {weeks} недель продаж сверх горизонта.",
+        "uk": "Надлишок: {qty} шт залишиться після того, як увесь річний прогноз буде продано — "
+              "це приблизно {weeks} тижнів продажів понад горизонт.",
+        "en": "Overstock: {qty} units remain after the entire year's forecast is sold — "
+              "roughly {weeks} weeks of sales beyond the horizon.",
+    },
+    "stock.cov.header": {"ru": "Покрытие на {d}", "uk": "Покриття на {d}", "en": "Coverage as of {d}"},
+    "stock.cov.how": {"ru": "Как читать", "uk": "Як читати", "en": "How to read"},
     "stock.cov.show": {"ru": "Показать", "uk": "Показати", "en": "Show"},
     "stock.cov.st_critical": {"ru": "Дефицит в ближайшие 4 недели",
                               "uk": "Дефіцит у найближчі 4 тижні",
@@ -1958,12 +2245,17 @@ TRANSLATIONS = {
     },
     "rev.slot.axis": {"ru": "Разрешено, %", "uk": "Дозволено, %", "en": "Allowed, %"},
     "rev.slot.small": {
-        "ru": "Наблюдений пока {n} — для выводов мало. Разница меньше нескольких "
-              "процентов на таких числах неотличима от случайности.",
-        "uk": "Спостережень поки {n} — для висновків замало. Різниця менша за кілька "
-              "відсотків на таких числах невідрізнима від випадковості.",
-        "en": "Only {n} observations so far — too few to conclude. A gap of a few percent "
-              "is indistinguishable from chance at this scale.",
+        "ru": "Всего {n} наблюдений, в меньшей группе {mn}. Для выводов мало: пока "
+              "группы отличаются по размеру в разы, разница между ними говорит о "
+              "разном составе заказов, а не о времени отправки. Нужно хотя бы по "
+              "300 в каждой.",
+        "uk": "Всього {n} спостережень, у меншій групі {mn}. Для висновків замало: поки "
+              "групи відрізняються за розміром у рази, різниця між ними говорить про "
+              "різний склад замовлень, а не про час відправки. Потрібно хоча б по "
+              "300 у кожній.",
+        "en": "{n} observations in total, {mn} in the smaller group. Too few to conclude: "
+              "while the groups differ in size by several times over, any gap reflects a "
+              "different mix of orders rather than send time. At least 300 in each is needed.",
     },
     "rev.slot.enough": {
         "ru": "Наблюдений: {n}. Если линии идут рядом — время отправки на решение "
@@ -2705,4 +2997,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
