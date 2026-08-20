@@ -209,22 +209,71 @@ def load_age_stats() -> pd.DataFrame:
 
 @st.cache_data(ttl=600)
 def load_bsr_daily(days: int) -> pd.DataFrame:
-    """Средняя позиция в категории по дням. Считаем медиану, а не среднее:
-    один товар на 200-тысячном месте перекосил бы картину."""
+    """Сколько товаров поднялось и опустилось в категории за каждый день.
+    Медиану по всем не считаем: один товар взлетел с 900 места на 8, другой
+    рухнул, а усреднённая линия почти не шевельнулась бы."""
     if not table_exists("asin_bsr_daily"):
         return pd.DataFrame()
     conn = get_connection()
     try:
         return pd.read_sql(f"""
-            SELECT snapshot_date, COUNT(*) AS items,
-                   PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY rank) AS rank_median
-            FROM kabinet_data.asin_bsr_daily
-            WHERE rank IS NOT NULL
-              AND snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+            WITH d AS (
+                SELECT asin, marketplace, snapshot_date, rank,
+                       LAG(rank) OVER (PARTITION BY asin, marketplace
+                                       ORDER BY snapshot_date) AS rank_prev
+                FROM kabinet_data.asin_bsr_daily
+                WHERE rank IS NOT NULL
+                  AND snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+            )
+            SELECT snapshot_date,
+                   -- меньше номер значит выше в категории
+                   COUNT(*) FILTER (WHERE rank < rank_prev) AS moved_up,
+                   COUNT(*) FILTER (WHERE rank > rank_prev) AS moved_down,
+                   COUNT(*) FILTER (WHERE rank = rank_prev) AS unchanged,
+                   COUNT(*)                                 AS items
+            FROM d
+            WHERE rank_prev IS NOT NULL
             GROUP BY 1 ORDER BY 1
         """, conn)
     except Exception:
         return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_bsr_totals(days: int) -> dict:
+    """Итог за период: сколько поднялось, опустилось, и по скольким
+    товарам Amazon вообще даёт место в категории."""
+    if not table_exists("asin_bsr_daily"):
+        return {}
+    conn = get_connection()
+    try:
+        df = pd.read_sql(f"""
+            WITH bounds AS (
+                SELECT MIN(snapshot_date) AS d0, MAX(snapshot_date) AS d1
+                FROM kabinet_data.asin_bsr_daily
+                WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+            ),
+            pairs AS (
+                SELECT b.asin, b.marketplace,
+                       MAX(CASE WHEN b.snapshot_date = x.d0 THEN b.rank END) AS r0,
+                       MAX(CASE WHEN b.snapshot_date = x.d1 THEN b.rank END) AS r1
+                FROM kabinet_data.asin_bsr_daily b
+                CROSS JOIN bounds x
+                WHERE b.rank IS NOT NULL
+                  AND b.snapshot_date IN (x.d0, x.d1)
+                GROUP BY 1, 2
+            )
+            SELECT COUNT(*) FILTER (WHERE r1 < r0) AS up,
+                   COUNT(*) FILTER (WHERE r1 > r0) AS down,
+                   COUNT(*)                        AS tracked
+            FROM pairs
+            WHERE r0 IS NOT NULL AND r1 IS NOT NULL
+        """, conn)
+        return df.iloc[0].to_dict() if not df.empty else {}
+    except Exception:
+        return {}
     finally:
         conn.close()
 
@@ -933,27 +982,44 @@ with tab_dyn:
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
             st.caption(t("rev.dyn.lag_note"))
 
-            # ---- позиция в категории ----
+            # ---- движение в категории ----
             bsr = load_bsr_daily(DAYS)
             if not bsr.empty and len(bsr) > 1:
+                st.divider()
                 st.markdown(f"**{t('rev.bsr.title')}**")
+
+                tot = load_bsr_totals(DAYS)
+                if tot:
+                    b1, b2, b3 = st.columns(3)
+                    b1.metric(t("rev.bsr.up"), f"{int(tot.get('up', 0)):,}")
+                    b2.metric(t("rev.bsr.down"), f"{int(tot.get('down', 0)):,}")
+                    b3.metric(t("rev.bsr.tracked"),
+                              f"{int(tot.get('tracked', 0)):,}",
+                              help=t("rev.bsr.tracked_help"))
+
                 bsr["snapshot_date"] = pd.to_datetime(bsr["snapshot_date"])
                 bsr["label"] = bsr["snapshot_date"].dt.strftime("%d.%m")
+
                 figb = go.Figure()
-                figb.add_scatter(x=bsr["label"], y=bsr["rank_median"],
-                                 mode="lines+markers", name=t("rev.bsr.rank"),
-                                 line=dict(color=AMBER, width=2))
+                figb.add_bar(name=t("rev.bsr.up"), x=bsr["label"],
+                             y=bsr["moved_up"], marker_color=GREEN)
+                # опустившиеся вниз от нуля — перевес виден с одного взгляда
+                figb.add_bar(name=t("rev.bsr.down"), x=bsr["label"],
+                             y=-bsr["moved_down"], marker_color=ACCENT,
+                             customdata=bsr["moved_down"],
+                             hovertemplate="%{customdata}<extra></extra>")
                 figb.update_layout(
-                    height=240, margin=dict(l=10, r=10, t=10, b=10),
-                    xaxis=dict(type="category"), showlegend=False,
-                    # чем меньше номер, тем выше товар — переворачиваем ось,
-                    # чтобы рост вверх означал улучшение
-                    yaxis=dict(autorange="reversed",
-                               title=t("rev.bsr.axis")))
+                    barmode="relative", height=260,
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    hovermode="x unified",
+                    legend=dict(orientation="h", y=1.15, title=None),
+                    xaxis=dict(type="category"),
+                    yaxis=dict(title=t("rev.bsr.axis")))
                 st.plotly_chart(figb, use_container_width=True, config=PLOTLY_CFG)
                 st.caption(t("rev.bsr.note").format(
-                    n=int(bsr["items"].iloc[-1])))
+                    n=int(tot.get("tracked", 0)) if tot else 0))
             elif not bsr.empty:
+                st.divider()
                 st.caption(t("rev.bsr.wait"))
 
             # ---- топ выросших товаров ----
@@ -1225,4 +1291,4 @@ with tab_asin:
                         t("rev.col.no_action"), width="small"),
                     "url": st.column_config.LinkColumn("", display_text="↗", width="small"),
                 },
-            ) 
+            )
