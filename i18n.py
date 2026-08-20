@@ -1398,22 +1398,33 @@ TRANSLATIONS = {
               "position is being lost",
     },
     "rev.bsr.title": {
-        "ru": "Позиция в категории Amazon",
-        "uk": "Позиція в категорії Amazon",
-        "en": "Position in the Amazon category",
+        "ru": "Движение в категории Amazon",
+        "uk": "Рух у категорії Amazon",
+        "en": "Movement in the Amazon category",
+    },
+    "rev.bsr.up": {"ru": "Поднялись", "uk": "Піднялися", "en": "Moved up"},
+    "rev.bsr.down": {"ru": "Опустились", "uk": "Опустилися", "en": "Moved down"},
+    "rev.bsr.tracked": {"ru": "Под наблюдением", "uk": "Під спостереженням", "en": "Tracked"},
+    "rev.bsr.tracked_help": {
+        "ru": "Товары, которым Amazon присваивает место в категории. Остальным он его "
+              "не даёт — для этого нужен минимальный объём продаж",
+        "uk": "Товари, яким Amazon присвоює місце в категорії. Іншим він його не дає — "
+              "для цього потрібен мінімальний обсяг продажів",
+        "en": "Products Amazon assigns a category rank to. It doesn't rank the rest — "
+              "that requires a minimum sales volume",
     },
     "rev.bsr.rank": {"ru": "Место в категории", "uk": "Місце в категорії", "en": "Category rank"},
-    "rev.bsr.axis": {"ru": "Место (выше — лучше)", "uk": "Місце (вище — краще)", "en": "Rank (higher is better)"},
+    "rev.bsr.axis": {"ru": "Товаров", "uk": "Товарів", "en": "Products"},
     "rev.bsr.note": {
-        "ru": "Медиана по {n} товарам, ось перевёрнута: линия вверх означает, что товары "
-              "поднялись в категории. Позиция зависит и от конкурентов — она может упасть "
-              "при тех же продажах, если кто-то другой вырос.",
-        "uk": "Медіана по {n} товарах, вісь перевернута: лінія вгору означає, що товари "
-              "піднялися в категорії. Позиція залежить і від конкурентів — вона може впасти "
-              "за тих самих продажів, якщо хтось інший зріс.",
-        "en": "Median across {n} products, axis inverted: the line going up means products "
-              "moved up in their category. Position also depends on competitors — it can "
-              "drop at the same sales if someone else grows.",
+        "ru": "По {n} товарам, которым Amazon присваивает место в категории. Вверх — "
+              "поднялись, вниз — опустились. Позиция зависит и от конкурентов: товар "
+              "может опуститься при тех же продажах, если кто-то другой вырос.",
+        "uk": "По {n} товарах, яким Amazon присвоює місце в категорії. Вгору — "
+              "піднялися, вниз — опустилися. Позиція залежить і від конкурентів: товар "
+              "може опуститися за тих самих продажів, якщо хтось інший зріс.",
+        "en": "Across {n} products Amazon ranks. Up means they moved up in the category, "
+              "down means they dropped. Position also depends on competitors — a product "
+              "can fall at the same sales if someone else grows.",
     },
     "rev.bsr.wait": {
         "ru": "Позиция в категории собирается с сегодняшнего дня — динамика появится через "
@@ -2691,4 +2702,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun() 
+        st.rerun()
