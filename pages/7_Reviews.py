@@ -1291,4 +1291,4 @@ with tab_asin:
                         t("rev.col.no_action"), width="small"),
                     "url": st.column_config.LinkColumn("", display_text="↗", width="small"),
                 },
-            )
+            ) 
