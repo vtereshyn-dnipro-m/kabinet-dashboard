@@ -1427,12 +1427,15 @@ TRANSLATIONS = {
               "can fall at the same sales if someone else grows.",
     },
     "rev.bsr.wait": {
-        "ru": "Позиция в категории собирается с сегодняшнего дня — динамика появится через "
-              "несколько дней, когда наберётся история.",
-        "uk": "Позиція в категорії збирається з сьогоднішнього дня — динаміка зʼявиться за "
-              "кілька днів, коли набереться історія.",
-        "en": "Category position tracking started today — the trend will appear in a few "
-              "days once history accumulates.",
+        "ru": "Движение в категории считается сравнением с предыдущим днём, а сбор "
+              "начался только что — сравнивать пока не с чем. Первые столбцы появятся "
+              "завтра, читаемая картина через три-четыре дня.",
+        "uk": "Рух у категорії рахується порівнянням із попереднім днем, а збір "
+              "почався щойно — порівнювати поки нема з чим. Перші стовпці зʼявляться "
+              "завтра, читабельна картина за три-чотири дні.",
+        "en": "Category movement is measured against the previous day, and collection has "
+              "only just started — there is nothing to compare yet. The first bars appear "
+              "tomorrow, a readable picture in three or four days.",
     },
     "money.col.flag": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "money.col.flag_help": {
@@ -2702,4 +2705,4 @@ def language_toggle(location=None):
     new_lang = order[[LANG_LABELS[l] for l in order].index(choice)]
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
-        st.rerun()
+        st.rerun() 
