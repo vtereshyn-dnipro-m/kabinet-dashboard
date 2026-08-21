@@ -1,0 +1,13 @@
+# Секреты — никогда не коммитить
+.streamlit/secrets.toml
+.env
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# macOS
+.DS_Store
