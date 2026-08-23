@@ -1686,6 +1686,25 @@ TRANSLATIONS = {
     },
     "rev.dyn.new_reviews": {"ru": "Новых отзывов", "uk": "Нових відгуків", "en": "New reviews"},
     "rev.dyn.launch": {"ru": "Старт рассылки", "uk": "Старт розсилки", "en": "Mailing started"},
+    "rev.dyn.gap_note": {
+        "ru": "Сборщик не отработал {n} дн. ({days}) — в эти дни данных нет, "
+              "линия прироста разорвана. Это пропуск сбора, а не отсутствие отзывов.",
+        "uk": "Збирач не відпрацював {n} дн. ({days}) — у ці дні даних немає, "
+              "лінія приросту розірвана. Це пропуск збору, а не відсутність відгуків.",
+        "en": "The collector did not run for {n} day(s) ({days}) — no data for those "
+              "days, so the growth line is broken. A collection gap, not missing reviews.",
+    },
+    "rev.dyn.filtered_note": {
+        "ru": "В таблице есть данные по {raw}, но свежие дни не прошли отбор "
+              "стабильности и на графике показано по {shown}. Обычно это значит, "
+              "что сборщик вернул другой набор товаров — стоит проверить его логи.",
+        "uk": "У таблиці є дані по {raw}, але свіжі дні не пройшли відбір "
+              "стабільності і на графіку показано по {shown}. Зазвичай це означає, "
+              "що збирач повернув інший набір товарів — варто перевірити його логи.",
+        "en": "The table has data through {raw}, but the most recent days did not pass "
+              "the stability filter, so the chart shows data through {shown}. Usually "
+              "this means the collector returned a different product set — check its logs.",
+    },
     "rev.dyn.lag_note": {
         "ru": "Отзыв появляется не сразу: покупатель получает письмо, пишет отзыв, "
               "Amazon его публикует — обычно проходит 3–5 дней. Поэтому всплеск отзывов "

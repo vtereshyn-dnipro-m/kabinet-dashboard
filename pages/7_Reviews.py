@@ -393,25 +393,35 @@ def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
     df["snapshot_date"] = pd.to_datetime(df["snapshot_date"])
 
     # первые дни сбора скрапер трекал единицы товаров — такие даты
-    # исказят картину, поэтому берём период, где охват уже стабилен
+    # исказят картину. Обрезаем только «разгон» в начале: неполный охват
+    # в середине или в конце окна — это сбой сборщика, а не повод выкинуть
+    # день целиком.
+    #
+    # Раньше порог считался от МАКСИМУМА за окно, и это молча съедало
+    # свежие дни: набор отслеживаемых ASIN сократился — новый день не
+    # добирает половину исторического пика и исчезает вместе со всей
+    # правой частью графика. Медиана к такому устойчива.
     per_day = df.groupby("snapshot_date")["asin"].count()
     if len(per_day) > 3:
-        threshold = per_day.max() * 0.5
-        good_days = per_day[per_day >= threshold].index
-        if len(good_days) >= 3:
-            df = df[df["snapshot_date"].isin(good_days)]
+        ok = per_day[per_day >= per_day.median() * 0.5]
+        if len(ok) >= 3:
+            df = df[df["snapshot_date"] >= ok.index.min()]
 
     if df.empty:
         return df
 
-    # пара должна присутствовать почти во все дни периода: требовать все
-    # 100% слишком строго — один пропуск скрапера выбрасывает товар целиком
-    dates = df["snapshot_date"].nunique()
-    need = max(2, int(dates * 0.8))
-    full = (df.groupby(["asin", "marketplace"])["snapshot_date"]
-              .nunique().reset_index(name="n"))
-    full = full[full["n"] >= need][["asin", "marketplace"]]
-    df = df.merge(full, on=["asin", "marketplace"])
+    # пара должна присутствовать почти во все дни, что её вообще собирают.
+    # Считать долю от длины всего окна нельзя: товар, добавленный в сбор
+    # неделю назад, физически не наберёт 80% тридцатидневного окна — он
+    # отсеется и утащит за собой день, в котором кроме него ничего нет
+    all_dates = np.sort(df["snapshot_date"].unique())
+    span = (df.groupby(["asin", "marketplace"])["snapshot_date"]
+              .agg(first="min", last="max", n="nunique").reset_index())
+    span["expected"] = (np.searchsorted(all_dates, span["last"], "right")
+                        - np.searchsorted(all_dates, span["first"], "left"))
+    need = np.maximum(2, (span["expected"] * 0.8).astype(int))
+    df = df.merge(span.loc[span["n"] >= need, ["asin", "marketplace"]],
+                  on=["asin", "marketplace"])
     if df.empty:
         return df
 
@@ -423,6 +433,29 @@ def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
     df = df.merge(amp[["asin", "marketplace", "stable"]],
                   on=["asin", "marketplace"])
     return df
+
+
+@st.cache_data(ttl=600)
+def load_reviews_last_snapshot() -> pd.Timestamp | None:
+    """Самая свежая дата в asin_reviews_daily — как есть, без фильтров.
+    Нужна, чтобы поймать обратный случай: данные в таблице есть, но их
+    съели фильтры стабильности. Тогда график молча обрывается, и человек
+    видит «свежих данных нет» там, где на самом деле «данные не прошли
+    отбор» — это разные проблемы и чинятся они по-разному."""
+    if not table_exists("asin_reviews_daily"):
+        return None
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT MAX(snapshot_date) "
+                    "FROM kabinet_data.asin_reviews_daily "
+                    "WHERE review_count IS NOT NULL")
+        row = cur.fetchone()
+        return pd.Timestamp(row[0]) if row and row[0] else None
+    except Exception:
+        return None
+    finally:
+        conn.close()
 
 
 @st.cache_data(ttl=600)
@@ -910,13 +943,24 @@ with tab_dyn:
                 "snapshot_date": grid.index,
                 "review_count": grid.sum(axis=1).values,
             })
+
+            # дни, когда сборщик молчал, должны остаться дырой. Без этого
+            # ось «схлопывает» пропуск — 16-е и 22-е становятся соседями,
+            # а прирост за все пропущенные дни садится одной точкой и
+            # читается как всплеск. Пустой день рвёт линию, это честнее
+            span_idx = pd.date_range(daily["snapshot_date"].min(),
+                                     daily["snapshot_date"].max(), freq="D")
+            gap_days = span_idx.difference(daily["snapshot_date"])
+            daily = (daily.set_index("snapshot_date").reindex(span_idx)
+                          .rename_axis("snapshot_date").reset_index())
             daily["delta"] = daily["review_count"].diff()
 
-            first_val = float(daily["review_count"].iloc[0])
-            last_val = float(daily["review_count"].iloc[-1])
+            have = daily.dropna(subset=["review_count"])
+            first_val = float(have["review_count"].iloc[0])
+            last_val = float(have["review_count"].iloc[-1])
             total_growth = last_val - first_val
-            days_span = max((daily["snapshot_date"].iloc[-1]
-                             - daily["snapshot_date"].iloc[0]).days, 1)
+            days_span = max((have["snapshot_date"].iloc[-1]
+                             - have["snapshot_date"].iloc[0]).days, 1)
 
             # день первой отправки — граница «до» и «после»
             sent = load_sent_by_day(DAYS)
@@ -927,8 +971,8 @@ with tab_dyn:
 
             before_rate = after_rate = None
             if launch is not None:
-                b = daily[daily["snapshot_date"] < launch]
-                a = daily[daily["snapshot_date"] >= launch]
+                b = have[have["snapshot_date"] < launch]
+                a = have[have["snapshot_date"] >= launch]
                 if len(b) > 1:
                     before_rate = ((float(b["review_count"].iloc[-1])
                                     - float(b["review_count"].iloc[0]))
@@ -961,36 +1005,52 @@ with tab_dyn:
                 sent.rename(columns={"day": "snapshot_date"}),
                 on="snapshot_date", how="left")
             merged["sent"] = merged["sent"].fillna(0)
-            merged["label"] = merged["snapshot_date"].dt.strftime("%d.%m")
 
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(go.Bar(
-                name=t("rev.col.sent"), x=merged["label"], y=merged["sent"],
-                marker_color=BLUE, opacity=0.55), secondary_y=False)
+                name=t("rev.col.sent"), x=merged["snapshot_date"],
+                y=merged["sent"], marker_color=BLUE, opacity=0.55),
+                secondary_y=False)
             fig.add_trace(go.Scatter(
-                name=t("rev.dyn.new_reviews"), x=merged["label"],
+                name=t("rev.dyn.new_reviews"), x=merged["snapshot_date"],
                 y=merged["delta"], mode="lines+markers",
-                line=dict(color=GREEN, width=2)), secondary_y=True)
+                line=dict(color=GREEN, width=2),
+                connectgaps=False), secondary_y=True)
             if launch is not None:
-                lidx = merged.index[merged["snapshot_date"] >= launch]
-                if len(lidx):
-                    i = int(lidx[0])
+                lday = merged.loc[merged["snapshot_date"] >= launch,
+                                  "snapshot_date"]
+                if len(lday):
+                    x0 = lday.iloc[0]
                     fig.add_shape(type="line", xref="x", yref="paper",
-                                  x0=i, x1=i, y0=0, y1=1,
+                                  x0=x0, x1=x0, y0=0, y1=1,
                                   line=dict(color=ACCENT, width=2, dash="dash"),
                                   opacity=0.7)
-                    fig.add_annotation(xref="x", yref="paper", x=i, y=1.04,
+                    fig.add_annotation(xref="x", yref="paper", x=x0, y=1.04,
                                        text=t("rev.dyn.launch"), showarrow=False,
                                        font=dict(color=ACCENT, size=11),
                                        xanchor="left")
             fig.update_layout(height=360, margin=dict(l=10, r=10, t=30, b=10),
                               hovermode="x unified",
                               legend=dict(orientation="h", y=1.16),
-                              xaxis=dict(type="category"))
+                              xaxis=dict(type="date", tickformat="%d.%m",
+                                         dtick=86400000.0 * max(
+                                             1, len(merged) // 15)))
             fig.update_yaxes(title_text=t("rev.col.sent"), secondary_y=False)
             fig.update_yaxes(title_text=t("rev.dyn.new_reviews"),
                              showgrid=False, secondary_y=True)
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+            raw_last = load_reviews_last_snapshot()
+            shown_last = daily.dropna(subset=["review_count"])["snapshot_date"].max()
+            if raw_last is not None and raw_last > shown_last:
+                st.warning(t("rev.dyn.filtered_note").format(
+                    raw=raw_last.strftime("%d.%m"),
+                    shown=shown_last.strftime("%d.%m")))
+            if len(gap_days):
+                st.caption(t("rev.dyn.gap_note").format(
+                    n=len(gap_days),
+                    days=", ".join(d.strftime("%d.%m")
+                                   for d in gap_days[:8])
+                          + ("…" if len(gap_days) > 8 else "")))
             st.caption(t("rev.dyn.lag_note"))
 
             # ---- движение в категории ----
