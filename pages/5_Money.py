@@ -54,13 +54,46 @@ WINDOW_DEFAULT = 30
 
 
 @st.cache_data(ttl=600)
-def load_pnl(days: int, d_from=None, d_to=None):
+def load_marketplaces() -> list:
+    """Список рынков для фильтра — из фактических данных, а не из справочника.
+    Каналы вне Amazon (LM) в v_marketplace_map отсутствуют, и построенный
+    по нему фильтр их бы не показал. DISTINCT по двум таблицам берёт всё,
+    что реально продавалось, включая Mirakl."""
+    conn = get_connection()
+    try:
+        r = pd.read_sql("""
+            SELECT DISTINCT marketplace FROM kabinet_data.economics_summary
+            WHERE marketplace IS NOT NULL
+            UNION
+            SELECT DISTINCT marketplace FROM kabinet_data.sales_traffic_daily
+            WHERE marketplace IS NOT NULL
+        """, conn)
+        return sorted(r["marketplace"].dropna().astype(str).str.strip().unique())
+    except Exception:
+        return []
+    finally:
+        conn.close()
+
+
+def _mk_clause(markets, col: str = "marketplace") -> tuple:
+    """Условие фильтра по рынкам. Пустой выбор — все рынки.
+    Сравниваем через UPPER с обеих сторон: economics_summary и
+    sales_traffic_daily заполняются разными загрузчиками, и регистр
+    кода рынка между ними может расходиться."""
+    if not markets:
+        return "", []
+    return f" AND UPPER({col}) = ANY(%s)", [[m.upper() for m in markets]]
+
+
+@st.cache_data(ttl=600)
+def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = ()):
     conn = get_connection()
     if d_from and d_to:
         where = f"e.sales_date BETWEEN '{d_from}' AND '{d_to}'"
     else:
         where = f"""e.sales_date >= (SELECT MAX(sales_date) - INTERVAL '{days} days'
                                FROM kabinet_data.economics_summary)"""
+    mk_sql, mk_params = _mk_clause(markets, "e.marketplace")
     df = pd.read_sql(f"""
         SELECT e.norm_sku, e.product_name, e.marketplace, e.sales_date,
                e.units_ordered      AS units,
@@ -68,7 +101,11 @@ def load_pnl(days: int, d_from=None, d_to=None):
                e.net_product_sales  AS revenue,
                e.total_fees         AS fees,
                e.net_proceeds_total AS net_proceeds,
-               COALESCE(e.cogs, 0)  AS cogs_unit,
+               -- COGS без COALESCE: ноль и «не загружено» это разные вещи.
+               -- Раньше пустая себестоимость превращалась в 0 и давала
+               -- прибыль, равную выручке — по этим SKU показываем прочерк
+               e.cogs               AS cogs_unit,
+               e.commission_fee     AS commission,
                COALESCE(a.total_spend, 0) AS ads,
                s.asin
         FROM kabinet_data.economics_summary e
@@ -95,8 +132,8 @@ def load_pnl(days: int, d_from=None, d_to=None):
             WHERE asin IS NOT NULL
             GROUP BY sku_group
         ) s ON s.sku_group = SUBSTRING(e.norm_sku FROM '([0-9]{{5,}})')
-        WHERE {where}
-    """, conn)
+        WHERE {where}{mk_sql}
+    """, conn, params=mk_params or None)
     conn.close()
     return df
 
@@ -137,27 +174,23 @@ def load_bsr(days: int) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_ordered_sales(days: int, d_from=None, d_to=None, markets=""):
+def load_ordered_sales(days: int, d_from=None, d_to=None, markets: tuple = ()):
     """Витринная выручка — то же число, что в Seller Central.
-    Маркетплейсы передаём строкой: список не кешируется."""
+    Рынки передаём кортежем: он хешируется и попадает в ключ кеша."""
     if d_from and d_to:
         where = f"snapshot_date BETWEEN '{d_from}' AND '{d_to}'"
     else:
         where = (f"snapshot_date >= (SELECT MAX(snapshot_date) - INTERVAL '{days} days' "
                  f"FROM kabinet_data.sales_traffic_daily)")
-    # без фильтра карточка показывала сумму по всем странам,
-    # хотя остальные цифры на странице были по выбранной
-    if markets:
-        lst = ",".join(f"'{m}'" for m in markets.split("|") if m)
-        where += f" AND UPPER(marketplace) IN ({lst})"
+    mk_sql, mk_params = _mk_clause(markets)
     conn = get_connection()
     try:
         r = pd.read_sql(f"""
             SELECT COALESCE(SUM(ordered_sales), 0) AS ordered_sales,
                    COALESCE(SUM(units_ordered), 0) AS units
             FROM kabinet_data.sales_traffic_daily
-            WHERE {where}
-        """, conn)
+            WHERE {where}{mk_sql}
+        """, conn, params=mk_params or None)
         return float(r["ordered_sales"].iloc[0])
     except Exception:
         return None
@@ -166,7 +199,33 @@ def load_ordered_sales(days: int, d_from=None, d_to=None, markets=""):
 
 
 @st.cache_data(ttl=600)
-def load_control_total(days: int, d_from=None, d_to=None):
+def load_period_bounds(days: int, d_from=None, d_to=None) -> tuple:
+    """Границы периода — общий якорь для всех карточек. Витринная выручка
+    лежит в другой таблице, и без якоря она считалась от MAX(snapshot_date)
+    своей, а остальные карточки — от MAX(sales_date) своей. Загрузчики
+    отрабатывают не синхронно, поэтому окна разъезжались на день, и
+    карточки на одной странице показывали разные периоды."""
+    if d_from and d_to:
+        return d_from, d_to
+    conn = get_connection()
+    try:
+        r = pd.read_sql(f"""
+            SELECT MAX(sales_date) - INTERVAL '{days} days' AS d0,
+                   MAX(sales_date)                          AS d1
+            FROM kabinet_data.economics_summary
+        """, conn)
+        d0, d1 = r["d0"].iloc[0], r["d1"].iloc[0]
+        if pd.isna(d0) or pd.isna(d1):
+            return None, None
+        return pd.Timestamp(d0).date(), pd.Timestamp(d1).date()
+    except Exception:
+        return None, None
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = ()):
     """Контрольная выручка прямо из таблицы, без соединений.
     Если основной запрос разойдётся с ней — значит строки размножились
     при JOIN, и цифры на странице завышены. Такое уже случалось."""
@@ -175,6 +234,7 @@ def load_control_total(days: int, d_from=None, d_to=None):
     else:
         where = (f"sales_date >= (SELECT MAX(sales_date) - INTERVAL '{days} days' "
                  f"FROM kabinet_data.economics_summary)")
+    mk_sql, mk_params = _mk_clause(markets)
     conn = get_connection()
     try:
         r = pd.read_sql(f"""
@@ -182,8 +242,8 @@ def load_control_total(days: int, d_from=None, d_to=None):
                    COALESCE(SUM(units_ordered), 0)     AS units,
                    COUNT(*)                            AS rows
             FROM kabinet_data.economics_summary
-            WHERE {where}
-        """, conn)
+            WHERE {where}{mk_sql}
+        """, conn, params=mk_params or None)
         return r.iloc[0].to_dict()
     except Exception:
         return {}
@@ -207,21 +267,39 @@ with pc2:
         if len(rng) == 2:
             d_from, d_to = rng[0], rng[1]
 
+# ---------- фильтры ----------
+# Объявляем до загрузки: рынок теперь режется в SQL, а не в pandas, поэтому
+# его значение нужно знать раньше, чем уйдёт запрос. Заодно фильтр виден
+# даже когда выборка пустая — иначе из состояния «ничего не нашлось»
+# нельзя было выйти, не перезагрузив страницу
+c1, c2 = st.columns([1, 2])
+with c1:
+    mp_filter = st.multiselect(
+        t("money.filter.marketplace"),
+        load_marketplaces(),
+        placeholder=t("money.filter.marketplace_ph"),
+    )
+with c2:
+    search = st.text_input(t("money.filter.search"),
+                           placeholder=t("money.filter.search_ph"))
+
+MK = tuple(sorted(mp_filter))
+
 if period == t("money.period.month"):
     from datetime import date as _date
     _today = _date.today()
     d_from, d_to = _today.replace(day=1), _today
     WINDOW = (d_to - d_from).days + 1
-    df = load_pnl(0, d_from, d_to)
+    df = load_pnl(0, d_from, d_to, MK)
 elif period == t("money.period.custom"):
     if not (d_from and d_to):
         st.info(t("money.period.pick"))
         st.stop()
     WINDOW = (d_to - d_from).days + 1
-    df = load_pnl(0, d_from, d_to)
+    df = load_pnl(0, d_from, d_to, MK)
 else:
     WINDOW = int(period)
-    df = load_pnl(WINDOW)
+    df = load_pnl(WINDOW, markets=MK)
 
 if df.empty:
     st.info(t("money.empty"))
@@ -247,8 +325,8 @@ if pd.notna(_last):
             d=_last.strftime("%d.%m"), n=_lag))
 
 # сверяем с контрольной суммой: расхождение означает размножение строк
-_ctrl = (load_control_total(0, d_from, d_to) if (d_from and d_to)
-         else load_control_total(WINDOW))
+_ctrl = (load_control_total(0, d_from, d_to, MK) if (d_from and d_to)
+         else load_control_total(WINDOW, markets=MK))
 if _ctrl and _ctrl.get("rows"):
     _mine = float(pd.to_numeric(df["revenue"], errors="coerce").fillna(0).sum())
     _real = float(_ctrl["revenue"])
@@ -259,51 +337,71 @@ if _ctrl and _ctrl.get("rows"):
             rows=int(len(df)), ctrl_rows=int(_ctrl["rows"])))
 
 df["sku_display"] = df["norm_sku"].apply(clean_sku)
-for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "cogs_unit", "ads"]:
+for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "ads"]:
     df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+# себестоимость и комиссию НЕ заполняем нулём: пустое значение означает
+# «не загружено», и ноль на его месте даёт фейковую прибыль
+for c in ["cogs_unit", "commission"]:
+    df[c] = pd.to_numeric(df[c], errors="coerce")
 df["cogs_total"] = df["cogs_unit"] * df["units"]
 
-# ---------- фильтры ----------
-c1, c2 = st.columns([1, 2])
-with c1:
-    mp_filter = st.multiselect(
-        t("money.filter.marketplace"),
-        sorted(df["marketplace"].dropna().unique().tolist()),
-        placeholder=t("money.filter.marketplace_ph"),
-    )
-with c2:
-    search = st.text_input(t("money.filter.search"), placeholder=t("money.filter.search_ph"))
-
+# рынок уже отфильтрован в SQL, здесь остаётся только поиск по SKU
 f = df.copy()
-if mp_filter:
-    f = f[f["marketplace"].isin(mp_filter)]
 if search:
     f = f[f["sku_display"].str.contains(search, case=False, na=False)]
 
 # ---------- KPI: полная воронка P&L ----------
 tot_rev = f["revenue"].sum()
 tot_net = f["net_proceeds"].sum()
-tot_cogs = f["cogs_total"].sum()
 tot_ads = f["ads"].sum()
-cm = tot_net - tot_cogs - tot_ads
-cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
+# min_count=1 оставляет NaN, если по выборке не известна ни одна строка:
+# обычный sum() вернул бы 0 и был бы неотличим от честного нуля
+tot_cogs = f["cogs_total"].sum(min_count=1)
+tot_comm = f["commission"].sum(min_count=1)
 
-# Leroy Merlin в витринную выручку не входит — там нет отчёта Amazon
-_mk = "|".join(sorted(m.upper() for m in mp_filter if m.upper() != "LM"))
-_ordered = (load_ordered_sales(0, d_from, d_to, _mk) if (d_from and d_to)
-            else load_ordered_sales(WINDOW, markets=_mk))
+# прибыль считаем только там, где себестоимость известна: иначе по SKU
+# без COGS вся выручка засчиталась бы в прибыль
+known = f[pd.notna(f["cogs_total"])]
+cm = (known["net_proceeds"].sum() - known["cogs_total"].sum()
+      - known["ads"].sum() - known["commission"].fillna(0).sum())
+cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
+sku_all = f["norm_sku"].nunique()
+sku_known = known["norm_sku"].nunique()
+
+# Витринная выручка есть только по Amazon: sales_traffic_daily — отчёт
+# Seller Central, каналов Mirakl в нём нет, поэтому LM из списка убираем.
+# Важно различать два пустых состояния: «ничего не выбрано» = все рынки,
+# и «выбран только LM» = амазоновских строк в выборке нет вовсе. Раньше оба
+# сводились к пустой строке, WHERE не доходил до запроса, и карточка
+# показывала сумму по всем странам при любом фильтре
+_amz = tuple(sorted({m.upper() for m in mp_filter if m.upper() != "LM"}))
+if mp_filter and not _amz:
+    _ordered = None
+else:
+    _b0, _b1 = load_period_bounds(WINDOW, d_from, d_to)
+    _ordered = (load_ordered_sales(0, _b0, _b1, _amz) if (_b0 and _b1)
+                else load_ordered_sales(WINDOW, markets=_amz))
 
 k0, k1, k2, k3, k4, k5 = st.columns(6)
 k0.metric(t("money.kpi.ordered"),
-          f"{_ordered:,.0f} €" if _ordered else "—",
+          "—" if pd.isna(_ordered) else f"{_ordered:,.0f} €",
           help=t("money.kpi.ordered_help"))
 k1.metric(t("money.kpi.revenue").format(d=WINDOW), f"{tot_rev:,.0f} €",
           help=t("money.kpi.revenue_help"))
 k2.metric(t("money.kpi.net"), f"{tot_net:,.0f} €", help=t("money.kpi.net_help"))
-k3.metric(t("money.kpi.cogs"), f"−{tot_cogs:,.0f} €", help=t("money.kpi.cogs_help"))
+k3.metric(t("money.kpi.cogs"),
+          "—" if pd.isna(tot_cogs) else f"−{tot_cogs:,.0f} €",
+          help=(t("money.kpi.cogs_missing") if pd.isna(tot_cogs)
+                else t("money.kpi.cogs_help")))
 k4.metric(t("money.kpi.ads"), f"−{tot_ads:,.0f} €", help=t("money.kpi.ads_help"))
-k5.metric(t("money.kpi.cm"), f"{cm:,.0f} €", delta=f"{cm_pct:.1f}%",
+k5.metric(t("money.kpi.cm"),
+          "—" if pd.isna(tot_cogs) else f"{cm:,.0f} €",
+          delta=None if pd.isna(tot_cogs) else f"{cm_pct:.1f}%",
           help=t("money.kpi.cm_help"))
+
+if sku_known < sku_all:
+    st.caption(t("money.cogs_partial").format(
+        n=sku_known, total=sku_all, miss=sku_all - sku_known))
 
 st.divider()
 
@@ -337,13 +435,18 @@ with tab_pnl:
                      markets=("marketplace", "nunique"),
                      units=("units", "sum"), revenue=("revenue", "sum"),
                      fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum"),
-                     cogs=("cogs_total", "sum"), ads=("ads", "sum")))
+                     cogs=("cogs_total", lambda x: x.sum(min_count=1)),
+                     commission=("commission", lambda x: x.sum(min_count=1)),
+                     ads=("ads", "sum")))
 
     # где товар продаётся: одна страна — её код, несколько — сколько их
     _mk = (f.groupby("sku_display")["marketplace"]
              .apply(lambda x: ", ".join(sorted(set(x.dropna())))))
     by_sku["markets_label"] = by_sku["sku_display"].map(_mk).fillna("—")
-    by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
+    # комиссия площадки вычитается отдельной строкой, а не подмешивается
+    # в рекламу: на Mirakl нет PPC, и ноль в рекламе по LM — это правда
+    by_sku["cm"] = (by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
+                    - by_sku["commission"].fillna(0))
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
     by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
     # страну для ссылки берём амазоновскую: если первым в списке оказался
@@ -364,6 +467,8 @@ with tab_pnl:
     ]
 
     def flag(row):
+        if pd.isna(row["cm"]):
+            return "⚪"
         if row["cm"] < 0:
             return "🔴"
         if row["cm_pct"] < 5:
@@ -484,7 +589,7 @@ with tab_pnl:
     st.dataframe(
         by_sku[["flag_col", "ann_col", "sku_display", "product_name",
                 "markets_label", "units", "revenue",
-                "net_proceeds", "cogs", "ads", "cm", "cm_pct", "acos_pct",
+                "net_proceeds", "cogs", "commission", "ads", "cm", "cm_pct", "acos_pct",
                 "rank_now", "rank_delta", "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
         column_config={
@@ -503,6 +608,9 @@ with tab_pnl:
                 help=t("money.col.net_help")),
             "cogs": st.column_config.NumberColumn("COGS", format="%.0f €",
                 help=t("money.col.cogs_help")),
+            "commission": st.column_config.NumberColumn(
+                t("money.col.commission"), format="%.0f €",
+                help=t("money.col.commission_help")),
             "ads": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €"),
             "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €",
                 help=t("money.col.cm_help")),
@@ -534,17 +642,22 @@ with tab_country:
     by_c = (f.groupby("marketplace", as_index=False)
               .agg(units=("units", "sum"), revenue=("revenue", "sum"),
                    net_proceeds=("net_proceeds", "sum"),
-                   cogs=("cogs_total", "sum"), ads=("ads", "sum")))
-    by_c["cm"] = by_c["net_proceeds"] - by_c["cogs"] - by_c["ads"]
+                   cogs=("cogs_total", lambda x: x.sum(min_count=1)),
+                   commission=("commission", lambda x: x.sum(min_count=1)),
+                   ads=("ads", "sum")))
+    by_c["cm"] = (by_c["net_proceeds"] - by_c["cogs"] - by_c["ads"]
+                  - by_c["commission"].fillna(0))
     by_c["cm_pct"] = np.round(safe_div(by_c["cm"], by_c["revenue"]) * 100, 1)
     by_c = by_c.sort_values("cm", ascending=False)
 
     cc = st.columns(min(len(by_c), 5) or 1)
     for i, (_, r) in enumerate(by_c.iterrows()):
         with cc[i % len(cc)]:
-            st.metric(r["marketplace"], f"{r['cm']:,.0f} €",
-                     delta=f"{r['cm_pct']:.0f}%",
-                     help=t("money.country_metric_help"))
+            st.metric(r["marketplace"],
+                     "—" if pd.isna(r["cm"]) else f"{r['cm']:,.0f} €",
+                     delta=None if pd.isna(r["cm"]) else f"{r['cm_pct']:.0f}%",
+                     help=(t("money.kpi.cogs_missing") if pd.isna(r["cm"])
+                           else t("money.country_metric_help")))
 
     melt = by_c.melt(id_vars="marketplace",
                      value_vars=["cm", "cogs", "ads"],
@@ -559,7 +672,8 @@ with tab_country:
     st.plotly_chart(fig, use_container_width=True)
 
     st.dataframe(
-        by_c[["marketplace", "units", "revenue", "net_proceeds", "cogs", "ads", "cm", "cm_pct"]],
+        by_c[["marketplace", "units", "revenue", "net_proceeds", "cogs",
+              "commission", "ads", "cm", "cm_pct"]],
         use_container_width=True, hide_index=True,
         column_config={
             "marketplace": st.column_config.TextColumn(t("money.col.marketplace")),
@@ -567,6 +681,9 @@ with tab_country:
             "revenue": st.column_config.NumberColumn(t("money.col.revenue"), format="%.0f €"),
             "net_proceeds": st.column_config.NumberColumn(t("money.col.net"), format="%.0f €"),
             "cogs": st.column_config.NumberColumn("COGS", format="%.0f €"),
+            "commission": st.column_config.NumberColumn(
+                t("money.col.commission"), format="%.0f €",
+                help=t("money.col.commission_help")),
             "ads": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €"),
             "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €"),
             "cm_pct": st.column_config.NumberColumn(t("money.col.cm_pct"), format="%.1f%%"),
@@ -577,14 +694,19 @@ with tab_country:
 with tab_fees:
     st.markdown(f"**{t('money.struct_title')}**")
     total_rev = f["revenue"].sum()
+    # «Комиссия площадки» — отдельная строка P&L. Для Amazon она уже сидит
+    # внутри total_fees, поэтому там пусто; для LM приходит отдельным полем
     parts = pd.DataFrame({
         "part": [t("money.col.cm"), "COGS", t("money.col.ads"),
-                 t("money.struct.fees")],
-        "value": [max(cm, 0), tot_cogs, tot_ads, f["fees"].sum()],
+                 t("money.struct.fees"), t("money.struct.commission")],
+        "value": [max(cm, 0), 0 if pd.isna(tot_cogs) else tot_cogs, tot_ads,
+                  f["fees"].sum(), 0 if pd.isna(tot_comm) else tot_comm],
     })
+    parts = parts[parts["value"] > 0]
     fig = px.pie(parts, names="part", values="value", hole=0.5,
                  title=t("money.struct_pie_title"),
-                 color_discrete_sequence=[GREEN, "#9aa4b2", ACCENT, "#f2b134"])
+                 color_discrete_sequence=[GREEN, "#9aa4b2", ACCENT,
+                                          "#f2b134", "#7e57c2"])
     fig.update_layout(height=380, margin=dict(l=10, r=10, t=50, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
