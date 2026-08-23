@@ -1248,17 +1248,29 @@ TRANSLATIONS = {
     "money.kpi.ordered": {
         "ru": "Продажи по заказам", "uk": "Продажі за замовленнями", "en": "Ordered sales"},
     "money.kpi.ordered_help": {
-        "ru": "Как в кабинете Amazon: с НДС и доставкой, по дате заказа, отменённые "
-              "не вычитаются. Для сверки с Seller Central — маржа считается не отсюда",
-        "uk": "Як у кабінеті Amazon: з ПДВ і доставкою, за датою замовлення, скасовані "
-              "не віднімаються. Для звірки з Seller Central — маржа рахується не звідси",
-        "en": "As in Seller Central: with VAT and shipping, by order date, cancellations "
-              "not deducted. For reconciliation only — margin is not based on this",
+        "ru": "ВСЕ заказы за период, включая ожидающие отгрузку и ещё не отгруженные. "
+              "Как в кабинете Amazon: с НДС и доставкой, по дате заказа, отменённые не "
+              "вычитаются. Только Amazon — на Mirakl такого отчёта нет, при фильтре «LM» "
+              "показывается прочерк. Для сверки с Seller Central: маржа считается не отсюда",
+        "uk": "УСІ замовлення за період, включно з тими, що чекають на відвантаження. "
+              "Як у кабінеті Amazon: з ПДВ і доставкою, за датою замовлення, скасовані не "
+              "віднімаються. Лише Amazon — на Mirakl такого звіту немає, за фільтром «LM» "
+              "показується прочерк. Для звірки з Seller Central: маржа рахується не звідси",
+        "en": "ALL orders in the period, including those still awaiting shipment. As in "
+              "Seller Central: with VAT and shipping, by order date, cancellations not "
+              "deducted. Amazon only — Mirakl has no such report, so the «LM» filter shows "
+              "a dash. For reconciliation: margin is not based on this",
     },
     "money.kpi.revenue_help": {
-        "ru": "Чистая выручка после возвратов, без НДС. С неё считается вся экономика ниже",
-        "uk": "Чиста виручка після повернень, без ПДВ. З неї рахується вся економіка нижче",
-        "en": "Net revenue after returns, excluding VAT. All economics below are based on it",
+        "ru": "Только ОТГРУЖЕННЫЕ заказы: чистая выручка после возвратов, без НДС. "
+              "Поэтому она всегда меньше «Продаж по заказам» — там сидят и те заказы, "
+              "которые ещё не уехали. С этой строки считается вся экономика ниже",
+        "uk": "Лише ВІДВАНТАЖЕНІ замовлення: чиста виручка після повернень, без ПДВ. "
+              "Тому вона завжди менша за «Продажі за замовленнями» — там є й ті "
+              "замовлення, які ще не поїхали. З цього рядка рахується вся економіка нижче",
+        "en": "SHIPPED orders only: net revenue after returns, excluding VAT. It is always "
+              "lower than «Ordered sales», which also counts orders not yet shipped. "
+              "All economics below are based on this line",
     },
     "money.kpi.revenue": {"ru": "Выручка ({d} дн)", "uk": "Виручка ({d} дн)", "en": "Revenue ({d}d)"},
     "money.kpi.net": {"ru": "Чистыми", "uk": "Чистими", "en": "Net proceeds"},
@@ -1339,9 +1351,46 @@ TRANSLATIONS = {
     },
     "money.kpi.cm": {"ru": "Прибыль (CM)", "uk": "Прибуток (CM)", "en": "Profit (CM)"},
     "money.kpi.cm_help": {
-        "ru": "Contribution Margin = выручка − комиссии − себестоимость − реклама. Без логистики.",
-        "uk": "Contribution Margin = виручка − комісії − собівартість − реклама. Без логістики.",
-        "en": "Contribution Margin = revenue − fees − COGS − ads. Logistics not included.",
+        "ru": "Contribution Margin = выручка − комиссии − себестоимость − реклама − "
+              "комиссия площадки. Без логистики. Считается только по SKU с загруженной "
+              "себестоимостью.",
+        "uk": "Contribution Margin = виручка − комісії − собівартість − реклама − "
+              "комісія майданчика. Без логістики. Рахується лише за SKU із завантаженою "
+              "собівартістю.",
+        "en": "Contribution Margin = revenue − fees − COGS − ads − marketplace commission. "
+              "Logistics not included. Computed only over SKUs that have COGS loaded.",
+    },
+    "money.kpi.cogs_missing": {
+        "ru": "Себестоимость не загружена — показываем прочерк, а не ноль: ноль на этом "
+              "месте дал бы прибыль, равную выручке",
+        "uk": "Собівартість не завантажена — показуємо прочерк, а не нуль: нуль тут дав "
+              "би прибуток, що дорівнює виручці",
+        "en": "COGS not loaded — showing a dash rather than zero: a zero here would make "
+              "profit equal to revenue",
+    },
+    "money.cogs_partial": {
+        "ru": "Прибыль посчитана по {n} SKU из {total}: по остальным {miss} себестоимость "
+              "не загружена, и в расчёт они не вошли. Выручка и «Чистыми» — по всем.",
+        "uk": "Прибуток пораховано за {n} SKU з {total}: за рештою {miss} собівартість не "
+              "завантажена, і в розрахунок вони не увійшли. Виручка і «Чистими» — за всіма.",
+        "en": "Profit computed over {n} of {total} SKUs: the remaining {miss} have no COGS "
+              "loaded and were excluded. Revenue and net proceeds cover all of them.",
+    },
+    "money.struct.commission": {
+        "ru": "Комиссия площадки", "uk": "Комісія майданчика",
+        "en": "Marketplace commission"},
+    "money.col.commission": {
+        "ru": "Комиссия площадки", "uk": "Комісія майданчика", "en": "Commission"},
+    "money.col.commission_help": {
+        "ru": "Комиссия маркетплейса отдельной строкой (commission_fee). Заполнена для "
+              "Leroy Merlin; у Amazon она уже сидит внутри общих комиссий, поэтому пусто. "
+              "В рекламу не подмешивается: на Mirakl нет PPC, и ноль в рекламе там — правда",
+        "uk": "Комісія маркетплейсу окремим рядком (commission_fee). Заповнена для "
+              "Leroy Merlin; в Amazon вона вже всередині загальних комісій, тому порожньо. "
+              "До реклами не домішується: на Mirakl немає PPC, і нуль у рекламі там — правда",
+        "en": "Marketplace commission as its own line (commission_fee). Populated for "
+              "Leroy Merlin; for Amazon it is already inside total fees, so it stays empty. "
+              "Not folded into ads: Mirakl has no PPC, so zero ad spend there is the truth",
     },
     "money.tab.pnl": {"ru": "💰 P&L по товарам", "uk": "💰 P&L за товарами", "en": "💰 P&L by product"},
     "money.top_cm": {"ru": "Топ по прибыли (CM, €)", "uk": "Топ за прибутком (CM, €)", "en": "Top by profit (CM, €)"},
