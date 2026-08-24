@@ -367,6 +367,80 @@ def load_by_asin(days: int) -> pd.DataFrame:
         conn.close()
 
 
+# Опорное окно для состава корзины и пороги «скачка». Состав считается по
+# нему и НЕ зависит от периода, выбранного на странице: иначе метрики
+# перестают быть сравнимыми между периодами
+BASKET_DAYS = 90
+JUMP_TOL = 0.25   # доля от медианы, выше которой суточное изменение — подмена набора
+JUMP_MIN = 5      # абсолютный пол, чтобы не ловить шум на товарах с единицами отзывов
+
+
+@st.cache_data(ttl=600)
+def load_reviews_basket() -> pd.DataFrame:
+    """Состав корзины и текущее число отзывов по каждой паре ASIN+маркетплейс.
+
+    Считается по опорному окну и не зависит от выбранного периода. Раньше
+    состав пересчитывался под каждый период, и метрики переставали быть
+    сравнимыми: «Отзывов всего» за 30 дней выходило МЕНЬШЕ, чем за 14.
+
+    Причина была в критерии стабильности. Он смотрел на размах за окно:
+    размах больше 20% от максимума — ряд считался скачущим. Но за месяц
+    нормальный товар прибавляет больше 20%, поэтому на длинном окне из
+    корзины вылетали именно здоровые растущие позиции, и сумма падала.
+
+    Здесь признак подмены набора — СУТОЧНЫЙ скачок, а не рост за период.
+    Amazon показывает то отзывы страны, то все европейские, и число прыгает
+    в разы за день; обычный товар набирает единицы отзывов в сутки."""
+    if not table_exists("asin_reviews_daily"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        df = pd.read_sql(f"""
+            SELECT asin, marketplace, snapshot_date, review_count
+            FROM kabinet_data.asin_reviews_daily
+            WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{BASKET_DAYS} days'
+              AND review_count IS NOT NULL
+            ORDER BY asin, marketplace, snapshot_date
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+    if df.empty:
+        return pd.DataFrame()
+
+    df["snapshot_date"] = pd.to_datetime(df["snapshot_date"])
+    df["review_count"] = pd.to_numeric(df["review_count"], errors="coerce")
+    df = df.dropna(subset=["review_count"])
+    if df.empty:
+        return pd.DataFrame()
+
+    keys = [df["asin"], df["marketplace"]]
+    g = df.groupby(["asin", "marketplace"], sort=False)
+
+    jump = df.groupby(["asin", "marketplace"], sort=False)["review_count"].diff()
+    jump = jump.abs().groupby(keys).max()
+    med = g["review_count"].median()
+    steady = jump.fillna(0) <= np.maximum(JUMP_MIN, med * JUMP_TOL)
+
+    # пара должна присутствовать почти во все дни, что её вообще собирают:
+    # долю считаем от её собственного срока наблюдения, иначе товар,
+    # добавленный неделю назад, не наберёт 80% опорного окна
+    dates = np.sort(df["snapshot_date"].unique())
+    span = g["snapshot_date"].agg(first="min", last="max", n="nunique")
+    expected = (np.searchsorted(dates, span["last"], "right")
+                - np.searchsorted(dates, span["first"], "left"))
+    present = span["n"] >= np.maximum(2, (expected * 0.8).astype(int))
+
+    out = (g.tail(1)
+            .set_index(["asin", "marketplace"])[["snapshot_date", "review_count"]]
+            .rename(columns={"snapshot_date": "last_date",
+                             "review_count": "last_count"}))
+    out = out[present.reindex(out.index).fillna(False).to_numpy()]
+    out["stable"] = steady.reindex(out.index).fillna(False).to_numpy()
+    return out.reset_index()
+
+
 @st.cache_data(ttl=600)
 def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
     """История количества отзывов по ASIN. Нестабильные ряды отсеиваем:
@@ -410,27 +484,14 @@ def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
     if df.empty:
         return df
 
-    # пара должна присутствовать почти во все дни, что её вообще собирают.
-    # Считать долю от длины всего окна нельзя: товар, добавленный в сбор
-    # неделю назад, физически не наберёт 80% тридцатидневного окна — он
-    # отсеется и утащит за собой день, в котором кроме него ничего нет
-    all_dates = np.sort(df["snapshot_date"].unique())
-    span = (df.groupby(["asin", "marketplace"])["snapshot_date"]
-              .agg(first="min", last="max", n="nunique").reset_index())
-    span["expected"] = (np.searchsorted(all_dates, span["last"], "right")
-                        - np.searchsorted(all_dates, span["first"], "left"))
-    need = np.maximum(2, (span["expected"] * 0.8).astype(int))
-    df = df.merge(span.loc[span["n"] >= need, ["asin", "marketplace"]],
-                  on=["asin", "marketplace"])
-    if df.empty:
-        return df
-
-    # отсев скачущих: размах больше 20% от максимума — признак того,
-    # что Amazon показывал то локальные отзывы, то общеевропейские
-    amp = (df.groupby(["asin", "marketplace"])["review_count"]
-             .agg(["min", "max"]).reset_index())
-    amp["stable"] = (amp["max"] - amp["min"]) <= amp["max"] * 0.2
-    df = df.merge(amp[["asin", "marketplace", "stable"]],
+    # Состав корзины и признак стабильности берём готовыми из опорного окна.
+    # Внутри выбранного периода их считать нельзя: и присутствие, и размах
+    # зависят от длины окна, а значит метрики перестают быть сравнимыми
+    # между периодами — ровно этим «Отзывов всего» и убывало при расширении
+    basket = load_reviews_basket()
+    if basket.empty:
+        return pd.DataFrame()
+    df = df.merge(basket[["asin", "marketplace", "stable"]],
                   on=["asin", "marketplace"])
     return df
 
@@ -959,6 +1020,18 @@ with tab_dyn:
             first_val = float(have["review_count"].iloc[0])
             last_val = float(have["review_count"].iloc[-1])
             total_growth = last_val - first_val
+
+            # «Отзывов всего» — величина накопительная, к выбранному периоду
+            # отношения не имеет. Берём последний снимок каждой позиции из
+            # корзины, а не сумму по последнему дню окна: в окне часть позиций
+            # может отсутствовать (сборщик молчал, товар добавлен позже), и
+            # тотал проседал бы тем сильнее, чем шире окно
+            _basket = load_reviews_basket()
+            _live = (_basket[_basket["stable"]] if not _basket.empty
+                     else _basket)
+            total_now = (float(_live["last_count"].sum()) if not _live.empty
+                         else float("nan"))
+            as_of = _live["last_date"].max() if not _live.empty else None
             days_span = max((have["snapshot_date"].iloc[-1]
                              - have["snapshot_date"].iloc[0]).days, 1)
 
@@ -985,8 +1058,13 @@ with tab_dyn:
                                          - a["snapshot_date"].iloc[0]).days, 1))
 
             d1, d2, d3, d4 = st.columns(4)
-            d1.metric(t("rev.dyn.total"), f"{int(last_val):,}",
-                      help=t("rev.dyn.total_help").format(n=n_pairs))
+            d1.metric(t("rev.dyn.total"),
+                      "—" if pd.isna(total_now) else f"{int(total_now):,}",
+                      help=t("rev.dyn.total_help").format(
+                          n=len(_live),
+                          d=("—" if as_of is None
+                             else pd.Timestamp(as_of).strftime("%d.%m.%Y")),
+                          w=BASKET_DAYS))
             d2.metric(t("rev.dyn.growth"), f"+{int(total_growth):,}",
                       help=t("rev.dyn.growth_help").format(d=days_span))
             d3.metric(t("rev.dyn.before"),

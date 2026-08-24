@@ -1719,15 +1719,33 @@ TRANSLATIONS = {
     },
     "rev.dyn.total": {"ru": "Отзывов всего", "uk": "Відгуків всього", "en": "Reviews total"},
     "rev.dyn.total_help": {
-        "ru": "Сумма отзывов по {n} позициям, за которыми ведётся наблюдение",
-        "uk": "Сума відгуків по {n} позиціях, за якими ведеться спостереження",
-        "en": "Total reviews across {n} tracked items",
+        "ru": "Сумма отзывов по {n} позициям на последний снимок каждой — данные "
+              "на {d}. Величина накопительная: от выбранного периода не зависит, "
+              "период влияет на «Прибавилось» и на график. Состав позиций один и "
+              "тот же для всех периодов, берётся по наблюдению за {w} дней; "
+              "позиции со скачущим счётчиком в сумму не входят.",
+        "uk": "Сума відгуків по {n} позиціях на останній знімок кожної — дані "
+              "на {d}. Величина накопичувальна: від обраного періоду не залежить, "
+              "період впливає на «Додалося» і на графік. Склад позицій той самий "
+              "для всіх періодів, береться за спостереженням у {w} днів; позиції "
+              "зі стрибучим лічильником у суму не входять.",
+        "en": "Total reviews across {n} items at each item's latest snapshot — data "
+              "as of {d}. This is a cumulative figure: it does not depend on the "
+              "selected period, which affects «Added» and the chart instead. The set "
+              "of items is the same for every period, derived from {w} days of "
+              "tracking; items with a jumping counter are excluded.",
     },
     "rev.dyn.growth": {"ru": "Прибавилось", "uk": "Додалося", "en": "Added"},
     "rev.dyn.growth_help": {
-        "ru": "Прирост за {d} дней наблюдения",
-        "uk": "Приріст за {d} днів спостереження",
-        "en": "Growth over {d} days of tracking",
+        "ru": "Прирост за {d} дней наблюдения — по тем же позициям, что и «Отзывов "
+              "всего». Зависит от периода и с его расширением только растёт: если "
+              "за 30 дней прибавка меньше, чем за 14, это ошибка, а не данные.",
+        "uk": "Приріст за {d} днів спостереження — по тих самих позиціях, що й "
+              "«Відгуків всього». Залежить від періоду і з його розширенням лише "
+              "зростає: якщо за 30 днів приріст менший, ніж за 14, це помилка.",
+        "en": "Growth over {d} days of tracking, across the same items as «Reviews "
+              "total». It depends on the period and can only increase as the period "
+              "widens: if 30 days shows less growth than 14, that is a bug, not data.",
     },
     "rev.dyn.before": {"ru": "В день до", "uk": "На день до", "en": "Per day before"},
     "rev.dyn.before_help": {
