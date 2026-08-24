@@ -360,13 +360,22 @@ tot_cogs = f["cogs_total"].sum(min_count=1)
 tot_comm = f["commission"].sum(min_count=1)
 
 # прибыль считаем только там, где себестоимость известна: иначе по SKU
-# без COGS вся выручка засчиталась бы в прибыль
+# без COGS вся выручка засчиталась бы в прибыль.
+#
+# Комиссия площадки отдельным слагаемым НЕ вычитается: у LM commission_fee
+# и total_fees — одно и то же поле, а не два разных, и «Чистыми» её уже
+# не содержит. Вычесть ещё раз означало бы посчитать комиссию дважды
 known = f[pd.notna(f["cogs_total"])]
 cm = (known["net_proceeds"].sum() - known["cogs_total"].sum()
-      - known["ads"].sum() - known["commission"].fillna(0).sum())
+      - known["ads"].sum())
 cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
 sku_all = f["norm_sku"].nunique()
 sku_known = known["norm_sku"].nunique()
+# доля выручки, покрытая известной себестоимостью. Считать надо именно её,
+# а не долю SKU: 73 позиции из 124 могут быть и девяноста процентами
+# выручки, и третью, и процент маржи читается совершенно по-разному
+rev_known = float(known["revenue"].sum())
+rev_share = (rev_known / tot_rev * 100) if tot_rev > 0 else 0.0
 
 # Витринная выручка есть только по Amazon: sales_traffic_daily — отчёт
 # Seller Central, каналов Mirakl в нём нет, поэтому LM из списка убираем.
@@ -401,7 +410,8 @@ k5.metric(t("money.kpi.cm"),
 
 if sku_known < sku_all:
     st.caption(t("money.cogs_partial").format(
-        n=sku_known, total=sku_all, miss=sku_all - sku_known))
+        n=sku_known, total=sku_all, miss=sku_all - sku_known,
+        pct=f"{rev_share:.0f}", rev=f"{rev_known:,.0f}"))
 
 st.divider()
 
@@ -443,10 +453,11 @@ with tab_pnl:
     _mk = (f.groupby("sku_display")["marketplace"]
              .apply(lambda x: ", ".join(sorted(set(x.dropna())))))
     by_sku["markets_label"] = by_sku["sku_display"].map(_mk).fillna("—")
-    # комиссия площадки вычитается отдельной строкой, а не подмешивается
-    # в рекламу: на Mirakl нет PPC, и ноль в рекламе по LM — это правда
-    by_sku["cm"] = (by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
-                    - by_sku["commission"].fillna(0))
+    # комиссия площадки — справочная колонка, в прибыль отдельно не входит:
+    # «Чистыми» уже за вычетом комиссий, а у LM commission_fee и total_fees
+    # это одно поле. В рекламу её тоже не подмешиваем: на Mirakl нет PPC,
+    # и ноль в рекламе по LM — правда, а не пропуск данных
+    by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
     by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
     # страну для ссылки берём амазоновскую: если первым в списке оказался
@@ -645,8 +656,7 @@ with tab_country:
                    cogs=("cogs_total", lambda x: x.sum(min_count=1)),
                    commission=("commission", lambda x: x.sum(min_count=1)),
                    ads=("ads", "sum")))
-    by_c["cm"] = (by_c["net_proceeds"] - by_c["cogs"] - by_c["ads"]
-                  - by_c["commission"].fillna(0))
+    by_c["cm"] = by_c["net_proceeds"] - by_c["cogs"] - by_c["ads"]
     by_c["cm_pct"] = np.round(safe_div(by_c["cm"], by_c["revenue"]) * 100, 1)
     by_c = by_c.sort_values("cm", ascending=False)
 
@@ -694,21 +704,28 @@ with tab_country:
 with tab_fees:
     st.markdown(f"**{t('money.struct_title')}**")
     total_rev = f["revenue"].sum()
-    # «Комиссия площадки» — отдельная строка P&L. Для Amazon она уже сидит
-    # внутри total_fees, поэтому там пусто; для LM приходит отдельным полем
+    # Комиссии в круге ровно один раз — куском «Комиссии маркетплейса».
+    # Отдельного куска «Комиссия площадки» здесь нет: у LM это то же самое
+    # поле, и вторым сегментом те же деньги посчитались бы дважды.
+    # Как справочная величина комиссия осталась колонкой в таблицах ниже
     parts = pd.DataFrame({
         "part": [t("money.col.cm"), "COGS", t("money.col.ads"),
-                 t("money.struct.fees"), t("money.struct.commission")],
+                 t("money.struct.fees")],
         "value": [max(cm, 0), 0 if pd.isna(tot_cogs) else tot_cogs, tot_ads,
-                  f["fees"].sum(), 0 if pd.isna(tot_comm) else tot_comm],
+                  f["fees"].sum()],
     })
     parts = parts[parts["value"] > 0]
     fig = px.pie(parts, names="part", values="value", hole=0.5,
                  title=t("money.struct_pie_title"),
-                 color_discrete_sequence=[GREEN, "#9aa4b2", ACCENT,
-                                          "#f2b134", "#7e57c2"])
+                 color_discrete_sequence=[GREEN, "#9aa4b2", ACCENT, "#f2b134"])
     fig.update_layout(height=380, margin=dict(l=10, r=10, t=50, b=10))
     st.plotly_chart(fig, use_container_width=True)
+    # справочно: сколько из этих комиссий приходится на комиссию площадки.
+    # Отдельным куском в круге её нет — это те же деньги, что и «Комиссии
+    # маркетплейса», просто у Mirakl они приходят одним понятным полем
+    if not pd.isna(tot_comm) and tot_comm > 0:
+        st.caption(t("money.struct.commission_note").format(
+            v=f"{tot_comm:,.0f}"))
 
     fee_share = (f.groupby("marketplace", as_index=False)
                    .agg(revenue=("revenue", "sum"), fees=("fees", "sum")))

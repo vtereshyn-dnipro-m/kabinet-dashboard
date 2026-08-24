@@ -1364,14 +1364,18 @@ TRANSLATIONS = {
     },
     "money.kpi.cm": {"ru": "Прибыль (CM)", "uk": "Прибуток (CM)", "en": "Profit (CM)"},
     "money.kpi.cm_help": {
-        "ru": "Contribution Margin = выручка − комиссии − себестоимость − реклама − "
-              "комиссия площадки. Без логистики. Считается только по SKU с загруженной "
-              "себестоимостью.",
-        "uk": "Contribution Margin = виручка − комісії − собівартість − реклама − "
-              "комісія майданчика. Без логістики. Рахується лише за SKU із завантаженою "
-              "собівартістю.",
-        "en": "Contribution Margin = revenue − fees − COGS − ads − marketplace commission. "
-              "Logistics not included. Computed only over SKUs that have COGS loaded.",
+        "ru": "Contribution Margin = выручка − комиссии − себестоимость − реклама. "
+              "Комиссия площадки отдельно не вычитается: она уже внутри комиссий. "
+              "Без логистики. Считается только по SKU с загруженной себестоимостью, "
+              "доля выручки указана под карточками.",
+        "uk": "Contribution Margin = виручка − комісії − собівартість − реклама. "
+              "Комісія майданчика окремо не віднімається: вона вже всередині комісій. "
+              "Без логістики. Рахується лише за SKU із завантаженою собівартістю, "
+              "частка виручки вказана під картками.",
+        "en": "Contribution Margin = revenue − fees − COGS − ads. The marketplace "
+              "commission is not deducted separately: it is already inside the fees. "
+              "Logistics not included. Computed only over SKUs that have COGS loaded; "
+              "the share of revenue covered is shown under the cards.",
     },
     "money.kpi.cogs_missing": {
         "ru": "Себестоимость не загружена — показываем прочерк, а не ноль: ноль на этом "
@@ -1382,12 +1386,18 @@ TRANSLATIONS = {
               "profit equal to revenue",
     },
     "money.cogs_partial": {
-        "ru": "Прибыль посчитана по {n} SKU из {total}: по остальным {miss} себестоимость "
-              "не загружена, и в расчёт они не вошли. Выручка и «Чистыми» — по всем.",
-        "uk": "Прибуток пораховано за {n} SKU з {total}: за рештою {miss} собівартість не "
-              "завантажена, і в розрахунок вони не увійшли. Виручка і «Чистими» — за всіма.",
-        "en": "Profit computed over {n} of {total} SKUs: the remaining {miss} have no COGS "
-              "loaded and were excluded. Revenue and net proceeds cover all of them.",
+        "ru": "Прибыль и процент маржи посчитаны по {n} SKU из {total} — это {pct}% "
+              "выручки ({rev} €). По остальным {miss} себестоимость не загружена, в "
+              "расчёт они не вошли. Выручка и «Чистыми» — по всем. Процент маржи "
+              "относится к посчитанной части, а не ко всему обороту.",
+        "uk": "Прибуток і відсоток маржі пораховано за {n} SKU з {total} — це {pct}% "
+              "виручки ({rev} €). За рештою {miss} собівартість не завантажена, у "
+              "розрахунок вони не увійшли. Виручка і «Чистими» — за всіма. Відсоток "
+              "маржі стосується порахованої частини, а не всього обороту.",
+        "en": "Profit and margin percentage are computed over {n} of {total} SKUs — that "
+              "is {pct}% of revenue ({rev} €). The remaining {miss} have no COGS loaded "
+              "and were excluded. Revenue and net proceeds cover all of them. The margin "
+              "percentage refers to the computed part, not to the whole turnover.",
     },
     "money.struct.commission": {
         "ru": "Комиссия площадки", "uk": "Комісія майданчика",
@@ -1395,15 +1405,32 @@ TRANSLATIONS = {
     "money.col.commission": {
         "ru": "Комиссия площадки", "uk": "Комісія майданчика", "en": "Commission"},
     "money.col.commission_help": {
-        "ru": "Комиссия маркетплейса отдельной строкой (commission_fee). Заполнена для "
-              "Leroy Merlin; у Amazon она уже сидит внутри общих комиссий, поэтому пусто. "
-              "В рекламу не подмешивается: на Mirakl нет PPC, и ноль в рекламе там — правда",
-        "uk": "Комісія маркетплейсу окремим рядком (commission_fee). Заповнена для "
-              "Leroy Merlin; в Amazon вона вже всередині загальних комісій, тому порожньо. "
-              "До реклами не домішується: на Mirakl немає PPC, і нуль у рекламі там — правда",
-        "en": "Marketplace commission as its own line (commission_fee). Populated for "
-              "Leroy Merlin; for Amazon it is already inside total fees, so it stays empty. "
-              "Not folded into ads: Mirakl has no PPC, so zero ad spend there is the truth",
+        "ru": "Справочная колонка. Для Leroy Merlin комиссия площадки и есть все комиссии: "
+              "commission_fee и total_fees — одно поле, а не два. У Amazon прочерк: там "
+              "комиссия внутри общих комиссий и отдельно не выделяется, так устроен SP-API. "
+              "Из прибыли отдельно НЕ вычитается — «Чистыми» уже за вычетом комиссий, "
+              "второе вычитание посчитало бы те же деньги дважды.",
+        "uk": "Довідкова колонка. Для Leroy Merlin комісія майданчика і є всі комісії: "
+              "commission_fee і total_fees — одне поле, а не два. В Amazon прочерк: там "
+              "комісія всередині загальних комісій і окремо не виділяється, так влаштовано "
+              "SP-API. З прибутку окремо НЕ віднімається — «Чистими» вже за вирахуванням "
+              "комісій, друге віднімання порахувало б ті самі гроші двічі.",
+        "en": "Reference column. For Leroy Merlin the marketplace commission IS the whole "
+              "fee: commission_fee and total_fees are one field, not two. Amazon shows a "
+              "dash — there the commission sits inside total fees and is not broken out, "
+              "by SP-API design. It is NOT deducted from profit separately: net proceeds "
+              "are already after fees, so deducting again would count the same money twice.",
+    },
+    "money.struct.commission_note": {
+        "ru": "Справочно: из них комиссия площадки — {v} €. Отдельным сегментом в круге "
+              "её нет, это те же деньги, что и «Комиссии маркетплейса»: у Mirakl они "
+              "приходят одним полем, у Amazon отдельно не выделяются.",
+        "uk": "Довідково: з них комісія майданчика — {v} €. Окремим сегментом у колі її "
+              "немає, це ті самі гроші, що й «Комісії маркетплейсу»: у Mirakl вони "
+              "приходять одним полем, в Amazon окремо не виділяються.",
+        "en": "For reference: {v} € of this is the marketplace commission. It has no "
+              "separate slice in the chart — it is the same money as «Marketplace fees»: "
+              "Mirakl reports it as a single field, Amazon does not break it out at all.",
     },
     "money.tab.pnl": {"ru": "💰 P&L по товарам", "uk": "💰 P&L за товарами", "en": "💰 P&L by product"},
     "money.top_cm": {"ru": "Топ по прибыли (CM, €)", "uk": "Топ за прибутком (CM, €)", "en": "Top by profit (CM, €)"},
