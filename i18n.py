@@ -503,6 +503,19 @@ TRANSLATIONS = {
         "uk": "Нижче — стан на зараз, період вище на нього не впливає.",
         "en": "Below is the current state — the period selector above does not affect it.",
     },
+    "home.refresh": {
+        "ru": "Обновить данные", "uk": "Оновити дані", "en": "Refresh data"},
+    "home.refresh_help": {
+        "ru": "Сбросить кеш и перечитать всё из базы. Пригодится, когда видно, "
+              "что загрузчик уже отработал, а плашка ещё висит: сама она гаснет "
+              "в течение минуты, кнопка делает это сразу.",
+        "uk": "Скинути кеш і перечитати все з бази. Знадобиться, коли видно, що "
+              "завантажувач уже відпрацював, а плашка ще висить: сама вона гасне "
+              "протягом хвилини, кнопка робить це одразу.",
+        "en": "Drop the cache and re-read everything from the database. Useful when "
+              "the loader has clearly finished but the banner is still up: it clears "
+              "on its own within a minute, this button does it now.",
+    },
     "home.pulse.down": {
         "ru": "Система не обновляет данные {h:.0f} ч. Всё, что показано ниже, устарело — "
               "загрузчики не отрабатывают.",

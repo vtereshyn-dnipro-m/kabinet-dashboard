@@ -37,7 +37,9 @@ def sev_rank(s: str) -> int:
 def sev_label(s: str) -> str:
     return t(f"inc.sev.{s}") if f"inc.sev.{s}" in t.__globals__.get("TRANSLATIONS", {}) else s.capitalize()
 
-@st.cache_data(ttl=300)
+# ttl=60: инциденты — сигнал «прямо сейчас», и страница открыта ради
+# реакции на них. Остальные загрузчики на своих 300 с
+@st.cache_data(ttl=60)
 def load_incidents() -> pd.DataFrame:
     conn = get_connection()
     df = pd.read_sql("""
