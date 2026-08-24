@@ -1,4 +1,6 @@
 # home.py — Обзор: сводка для руководителя
+import inspect
+import time
 from datetime import datetime
 
 import numpy as np
@@ -30,6 +32,53 @@ hr { margin: 0.6rem 0 !important; }
 # логотип выводится в сайдбаре через st.logo — второй раз не нужен
 st.title(t("home.title"))
 st.caption(t("home.subtitle"))
+
+# Как часто Обзор обновляет себя сам и как часто перепроверяется свежесть.
+# Плашка устаревания живёт отдельно от остальной страницы: её запрос дешёвый
+# (одна таблица), а висеть после того, как загрузчики отработали, она не должна
+AUTO_REFRESH_SEC = 300
+PULSE_REFRESH_SEC = 30
+
+
+def _has_fragment_run_every() -> bool:
+    """Умеет ли установленный Streamlit перезапускать отдельный фрагмент.
+    st.fragment(run_every=...) обновляет только свой кусок страницы и не
+    трогает виджеты вокруг — на многостраничном дашборде это важно."""
+    frag = getattr(st, "fragment", None)
+    if frag is None:
+        return False
+    try:
+        return "run_every" in inspect.signature(frag).parameters
+    except (TypeError, ValueError):
+        return False
+
+
+_FRAGMENT_OK = _has_fragment_run_every()
+
+try:
+    from streamlit_autorefresh import st_autorefresh
+except ImportError:
+    st_autorefresh = None
+
+
+def _fragment_every(seconds: int):
+    """Декоратор самообновляющегося фрагмента. Если версия Streamlit его не
+    поддерживает, возвращает функцию как есть: страница остаётся статичной,
+    но рабочей — кнопка «Обновить данные» никуда не девается."""
+    if _FRAGMENT_OK:
+        return st.fragment(run_every=seconds)
+    return lambda fn: fn
+
+
+def _rerun_app():
+    """Полный перезапуск скрипта. Из фрагмента нужен явный scope, иначе
+    перезапустится только сам фрагмент, а цифры на странице считаются
+    на верхнем уровне и останутся старыми."""
+    if _FRAGMENT_OK:
+        st.rerun(scope="app")
+    else:
+        st.rerun()
+
 
 ACCENT = "#e8484d"
 BLUE = "#1f77b4"
@@ -135,7 +184,10 @@ def load_coverage() -> pd.DataFrame:
         conn.close()
 
 
-@st.cache_data(ttl=300)
+# ttl=60: инциденты и пульс — сигналы «прямо сейчас», их держат ради
+# реакции, а не ради экономии запросов. Остальные загрузчики оставлены
+# на своих 300 с: они тянут агрегаты за месяц, там минута роли не играет
+@st.cache_data(ttl=60)
 def load_incidents() -> pd.DataFrame:
     conn = get_connection()
     try:
@@ -232,7 +284,7 @@ def load_reviews(days: int = 30) -> dict:
     return out
 
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=60)
 def load_pulse() -> pd.DataFrame:
     """Когда загрузчики последний раз отработали успешно.
     Это внешняя точка контроля: если умрут и сторож, и загрузчики,
@@ -324,16 +376,46 @@ except Exception as e:
     st.stop()
 
 # состояние системы: если загрузчики встали, все цифры ниже устарели —
-# об этом надо знать до того, как их читать
-_pulse = load_pulse()
-if not _pulse.empty:
-    _stale = _pulse[_pulse["hours_ago"] > 26]
-    if len(_stale) == len(_pulse):
-        st.error(t("home.pulse.down").format(
-            h=float(_pulse["hours_ago"].min())))
-    elif len(_stale):
-        st.warning(t("home.pulse.partial").format(
-            n=len(_stale), jobs=", ".join(_stale["job_name"].head(3))))
+# об этом надо знать до того, как их читать.
+# Блок вынесен в отдельный фрагмент с минутным интервалом: перечитывается
+# только он, остальная страница и выставленный период не трогаются
+@_fragment_every(PULSE_REFRESH_SEC)
+def render_system_status():
+    # Кеш здесь только мешает: интервал фрагмента и есть период опроса, а при
+    # ttl=60 момент истечения записи и момент тика разъезжаются — плашка
+    # переживала загрузчик на 78 с (замерено), худший случай ttl + интервал.
+    # Сбрасываем запись перед чтением: тогда задержку задаёт один интервал
+    # фрагмента, а не сумма двух таймеров. Запрос — одна строка из
+    # system_pulse, раз в полминуты это ничто.
+    # ttl=60 на самой функции оставлен: он страхует от повторного чтения
+    # внутри одного прогона скрипта
+    load_pulse.clear()
+    pulse = load_pulse()
+    if pulse.empty:
+        return
+    stale = pulse[pulse["hours_ago"] > 26]
+    if not len(stale):
+        return
+
+    msg_col, btn_col = st.columns([6, 1])
+    with msg_col:
+        if len(stale) == len(pulse):
+            st.error(t("home.pulse.down").format(
+                h=float(pulse["hours_ago"].min())))
+        else:
+            st.warning(t("home.pulse.partial").format(
+                n=len(stale), jobs=", ".join(stale["job_name"].head(3))))
+    with btn_col:
+        # ждать минуту, когда уже видно, что загрузчик отработал, незачем
+        if st.button(t("home.refresh"), key="btn_refresh_data",
+                     help=t("home.refresh_help"), use_container_width=True):
+            # только кеш данных: cache_resource держит клиент Databricks,
+            # и сбрасывать его — это лишний раунд авторизации на ровном месте
+            st.cache_data.clear()
+            _rerun_app()
+
+
+render_system_status()
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -678,3 +760,32 @@ with st.expander(t("home.how_title")):
     st.markdown(t("home.how_body"))
 with st.expander(t("home.roadmap_title")):
     st.markdown(t("home.roadmap_table"))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# АВТООБНОВЛЕНИЕ
+# ═══════════════════════════════════════════════════════════════════
+
+# Обзор перечитывает себя раз в пять минут. Только Обзор: это страница,
+# на которую смотрят, не трогая, — её держат открытой на втором мониторе.
+# На остальных страницах человек работает руками, и перезапуск посреди
+# работы сбросил бы выставленные фильтры и поиск.
+@_fragment_every(AUTO_REFRESH_SEC)
+def _auto_refresh_tick():
+    # фрагмент выполняется и при первой отрисовке страницы, поэтому нужна
+    # отметка времени: без неё первый же вызов ушёл бы в бесконечный rerun,
+    # а после перезапуска — в следующий, и страница залипла бы намертво
+    now = time.monotonic()
+    last = st.session_state.get("_overview_tick_at")
+    if last is None or now - last >= AUTO_REFRESH_SEC:
+        st.session_state["_overview_tick_at"] = now
+        if last is not None:
+            _rerun_app()
+
+
+if _FRAGMENT_OK:
+    _auto_refresh_tick()
+elif st_autorefresh is not None:
+    # запасной путь для старых версий Streamlit: перезапускает страницу
+    # целиком, фильтров на Обзоре нет, терять нечего
+    st_autorefresh(interval=AUTO_REFRESH_SEC * 1000, key="overview_autorefresh")
