@@ -1825,6 +1825,53 @@ TRANSLATIONS = {
         "uk": "Надіслані запити та нові відгуки за днями",
         "en": "Requests sent and new reviews by day",
     },
+    "rev.dyn.delta": {
+        "ru": "Изменение за день", "uk": "Зміна за день", "en": "Daily change"},
+    "rev.dyn.negative_note": {
+        "ru": "Минус в ряду — не ошибка: Amazon снимает часть отзывов, и за день "
+              "их может стать меньше. Ряд показывает чистое изменение, а не только "
+              "прибавку. Отдельно выбрасывать такие позиции не стали: убрать товар "
+              "целиком ради минус двух отзывов значит исказить сумму сильнее, чем на "
+              "эти два.",
+        "uk": "Мінус у ряду — не помилка: Amazon знімає частину відгуків, і за день "
+              "їх може стати менше. Ряд показує чисту зміну, а не лише приріст. Окремо "
+              "викидати такі позиції не стали: прибрати товар цілком заради мінус двох "
+              "відгуків означає спотворити суму сильніше, ніж на ці два.",
+        "en": "A minus here is not an error: Amazon removes some reviews, so a day can "
+              "end lower than it started. The line shows the net change, not additions "
+              "only. Such items are not dropped from the basket: removing a product "
+              "entirely over minus two reviews would distort the total by more than two.",
+    },
+    "rev.dyn.data_through": {
+        "ru": "Данные по {d} включительно — сборщик отзывов отстаёт на {n} дн. "
+              "Сегодняшнего дня на графике нет, потому что снимка за него ещё нет, "
+              "а не потому что график его обрезал.",
+        "uk": "Дані по {d} включно — збирач відгуків відстає на {n} дн. Сьогоднішнього "
+              "дня на графіку немає, бо знімка за нього ще немає, а не тому що графік "
+              "його обрізав.",
+        "en": "Data through {d} — the review collector is {n} day(s) behind. Today is "
+              "missing because there is no snapshot for it yet, not because the chart "
+              "cut it off.",
+    },
+    "rev.dyn.history_limit": {
+        "ru": "Сбор отзывов начался {d}, накоплено {n} дн. Окна шире этого срока "
+              "показывают то же самое: истории глубже просто нет.",
+        "uk": "Збір відгуків почався {d}, накопичено {n} дн. Вікна ширші за цей строк "
+              "показують те саме: історії глибше просто немає.",
+        "en": "Review collection started on {d}, {n} day(s) accumulated. Wider windows "
+              "show the same figures — there is no history beyond that point.",
+    },
+    "rev.sum.all_maturing": {
+        "ru": "За выбранные {d} дн. ни один заказ ещё не дозрел: запрос на отзыв "
+              "Amazon разрешает только с {n}-го дня после покупки. Мерить покрытие "
+              "не на чем — это не остановка рассылки. Возьмите период от 14 дней.",
+        "uk": "За обрані {d} дн. жодне замовлення ще не дозріло: запит на відгук "
+              "Amazon дозволяє лише з {n}-го дня після покупки. Міряти покриття немає "
+              "на чому — це не зупинка розсилки. Візьміть період від 14 днів.",
+        "en": "In the selected {d} days no order has matured yet: Amazon allows a review "
+              "request only from day {n} after purchase. There is nothing to measure "
+              "coverage on — this is not a halted mailing. Pick a period of 14 days or more.",
+    },
     "rev.dyn.new_reviews": {"ru": "Новых отзывов", "uk": "Нових відгуків", "en": "New reviews"},
     "rev.dyn.launch": {"ru": "Старт рассылки", "uk": "Старт розсилки", "en": "Mailing started"},
     "rev.dyn.gap_note": {
