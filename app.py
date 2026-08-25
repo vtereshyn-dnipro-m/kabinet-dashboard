@@ -47,6 +47,11 @@ st.markdown(
     '[data-testid="stSidebarNav"] ul{padding-top:0 !important;}'
     'section[data-testid="stSidebar"] [data-testid="stLogo"]'
     "{margin-bottom:0.2rem !important;}"
+    # Подсказка «?» по умолчанию тянется до 672px и привязана к иконке.
+    # У метрики в правой колонке такая ширина уезжает за левый край экрана,
+    # и половина текста не читается. Узкая подсказка переносится по строкам
+    # и помещается при любой ширине окна.
+    '[data-testid="stTooltipContent"]{max-width:340px !important;}'
     "</style>",
     unsafe_allow_html=True,
 )
