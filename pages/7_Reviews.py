@@ -492,11 +492,9 @@ def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
     # свежие дни: набор отслеживаемых ASIN сократился — новый день не
     # добирает половину исторического пика и исчезает вместе со всей
     # правой частью графика. Медиана к такому устойчива.
-    per_day = df.groupby("snapshot_date")["asin"].count()
-    if len(per_day) > 3:
-        ok = per_day[per_day >= per_day.median() * 0.5]
-        if len(ok) >= 3:
-            df = df[df["snapshot_date"] >= ok.index.min()]
+    ramp = load_ramp_up_end()
+    if ramp is not None:
+        df = df[df["snapshot_date"] >= ramp]
 
     if df.empty:
         return df
@@ -511,6 +509,62 @@ def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
     df = df.merge(basket[["asin", "marketplace", "stable"]],
                   on=["asin", "marketplace"])
     return df
+
+
+@st.cache_data(ttl=600)
+def load_reviews_span() -> tuple:
+    """Первая и последняя дата с данными в asin_reviews_daily, как есть.
+
+    Первая нужна, чтобы честно сказать: окно шире накопленной истории
+    ничего не добавляет. Последняя — чтобы отличить «график обрезал»
+    от «сборщик ещё не отработал за сегодня»."""
+    if not table_exists("asin_reviews_daily"):
+        return None, None
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT MIN(snapshot_date), MAX(snapshot_date) "
+                    "FROM kabinet_data.asin_reviews_daily "
+                    "WHERE review_count IS NOT NULL")
+        row = cur.fetchone()
+        if not row or row[0] is None:
+            return None, None
+        return pd.Timestamp(row[0]), pd.Timestamp(row[1])
+    except Exception:
+        return None, None
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_ramp_up_end() -> pd.Timestamp | None:
+    """С какой даты охват сбора стал полным.
+
+    Считается по опорному окну и НЕ зависит от выбранного периода. Раньше
+    «разгон» искали внутри выбранного окна, и это съедало дни: на семи днях
+    первый же день с неполным охватом оказывался началом окна, обрезался
+    вместе с медианой, посчитанной по четырём точкам, и от недели
+    оставалось три дня."""
+    if not table_exists("asin_reviews_daily"):
+        return None
+    conn = get_connection()
+    try:
+        df = pd.read_sql(f"""
+            SELECT snapshot_date, COUNT(*) AS n
+            FROM kabinet_data.asin_reviews_daily
+            WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{BASKET_DAYS} days'
+              AND review_count IS NOT NULL
+            GROUP BY 1 ORDER BY 1
+        """, conn)
+    except Exception:
+        return None
+    finally:
+        conn.close()
+    if df.empty or len(df) <= 3:
+        return None
+    per_day = df.set_index(pd.to_datetime(df["snapshot_date"]))["n"]
+    ok = per_day[per_day >= per_day.median() * 0.5]
+    return ok.index.min() if len(ok) >= 3 else None
 
 
 @st.cache_data(ttl=600)
@@ -815,11 +869,26 @@ with tab_cov:
         m_cov = round(m_processed / m_orders * 100, 1) if m_orders else 0.0
         m_missed = int(by_day.loc[by_day["st"] == "missed", "pending"].sum())
 
+        # Сводка считается только по дозревшим дням: пока заказу меньше
+        # AGE_MIN дней, запрос отправить нельзя, и «не покрыт» он не по
+        # нашей вине. Но если ВСЕ дни окна ещё зреют — а так всегда бывает
+        # на окне короче AGE_MIN, — то четыре нуля выглядят как «рассылка
+        # стоит», хотя мерить просто нечего. Говорим об этом прямо
+        all_maturing = matured.empty
+        if all_maturing:
+            st.info(t("rev.sum.all_maturing").format(n=AGE_MIN, d=DAYS))
+
         s1, s2, s3, s4 = st.columns(4)
-        s1.metric(t("rev.sum.orders"), f"{m_orders:,}", help=t("rev.sum.matured_only"))
-        s2.metric(t("rev.sum.processed"), f"{m_processed:,}")
-        s3.metric(t("rev.sum.coverage"), f"{m_cov:.1f}%")
-        s4.metric(t("rev.sum.missed"), f"{m_missed:,}", help=t("rev.sum.missed_help"))
+        s1.metric(t("rev.sum.orders"),
+                  "—" if all_maturing else f"{m_orders:,}",
+                  help=t("rev.sum.matured_only"))
+        s2.metric(t("rev.sum.processed"),
+                  "—" if all_maturing else f"{m_processed:,}")
+        s3.metric(t("rev.sum.coverage"),
+                  "—" if all_maturing else f"{m_cov:.1f}%")
+        s4.metric(t("rev.sum.missed"),
+                  "—" if all_maturing else f"{m_missed:,}",
+                  help=t("rev.sum.missed_help"))
 
         # ---- воронка: где теряются запросы ----
         f_orders = m_orders
@@ -1107,7 +1176,7 @@ with tab_dyn:
                 y=merged["sent"], marker_color=BLUE, opacity=0.55),
                 secondary_y=False)
             fig.add_trace(go.Scatter(
-                name=t("rev.dyn.new_reviews"), x=merged["snapshot_date"],
+                name=t("rev.dyn.delta"), x=merged["snapshot_date"],
                 y=merged["delta"], mode="lines+markers",
                 line=dict(color=GREEN, width=2),
                 connectgaps=False), secondary_y=True)
@@ -1131,9 +1200,31 @@ with tab_dyn:
                                          dtick=86400000.0 * max(
                                              1, len(merged) // 15)))
             fig.update_yaxes(title_text=t("rev.col.sent"), secondary_y=False)
-            fig.update_yaxes(title_text=t("rev.dyn.new_reviews"),
+            fig.update_yaxes(title_text=t("rev.dyn.delta"),
                              showgrid=False, secondary_y=True)
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+            # минус в ряду возможен: Amazon снимает отзывы. Отдельно
+            # фильтровать такие пары нельзя — выбросив пару целиком ради
+            # минус двух, мы исказим тотал сильнее, чем на эти два
+            if (merged["delta"] < 0).any():
+                st.caption(t("rev.dyn.negative_note"))
+
+            first_seen, last_seen = load_reviews_span()
+            # п.1: «графика нет за вчера» и «сборщик не отработал за вчера» —
+            # разные вещи, и раньше их было не различить
+            if last_seen is not None:
+                _lag = (pd.Timestamp(datetime.now(TZ).date()) - last_seen).days
+                if _lag >= 1:
+                    st.caption(t("rev.dyn.data_through").format(
+                        d=last_seen.strftime("%d.%m"), n=_lag))
+            # п.4: за пределами накопленной истории окна перестают отличаться
+            if first_seen is not None:
+                _covered = (pd.Timestamp(datetime.now(TZ).date())
+                            - first_seen).days
+                if DAYS > _covered:
+                    st.caption(t("rev.dyn.history_limit").format(
+                        d=first_seen.strftime("%d.%m.%Y"), n=_covered))
+
             raw_last = load_reviews_last_snapshot()
             shown_last = daily.dropna(subset=["review_count"])["snapshot_date"].max()
             if raw_last is not None and raw_last > shown_last:
