@@ -52,6 +52,18 @@ st.markdown(
     # и половина текста не читается. Узкая подсказка переносится по строкам
     # и помещается при любой ширине окна.
     '[data-testid="stTooltipContent"]{max-width:340px !important;}'
+    # Неактивная вкладка получает display:none, и всё внутри неё имеет
+    # нулевую ширину. st.dataframe считает ширины колонок один раз при
+    # монтировании — то есть по нулю — и кэширует их. При переходе на
+    # вкладку canvas растягивается, а колонки остаются схлопнутыми, и
+    # таблица выглядит одной колонкой, пока ресайз окна не заставит
+    # пересчитать. Держим скрытые панели выложенными и полной ширины,
+    # но убранными с экрана: тогда ширины считаются сразу правильно.
+    '[data-testid="stTabs"]{position:relative !important;}'
+    '[data-testid="stTabPanel"][inert]{display:block !important;'
+    "position:absolute !important;left:-99999px !important;top:0 !important;"
+    "width:100% !important;visibility:hidden !important;"
+    "pointer-events:none !important;}"
     "</style>",
     unsafe_allow_html=True,
 )

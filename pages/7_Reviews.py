@@ -1439,10 +1439,23 @@ with tab_asin:
 
         a1, a2 = st.columns([1, 1])
         with a1:
-            top = by_asin.nlargest(15, "sent").sort_values("sent")
+            top = by_asin.nlargest(15, "sent").sort_values("sent").copy()
+            # на оси — название товара: сырой ASIN ни о чём не говорит.
+            # Значением категории ASIN остаётся, подписи подменяем через
+            # ticktext — иначе два товара с одинаковым названием склеились
+            # бы в одну полосу. Нет названия — показываем ASIN, это лучше
+            # пустой подписи
+            top["label"] = [
+                str(a) if pd.isna(n) or str(n).strip() in ("", "—", "None")
+                else (str(n)[:38] + "…" if len(str(n)) > 38 else str(n))
+                for n, a in zip(top["product_name"], top["asin"])
+            ]
             fig = px.bar(top, x="sent", y="asin", orientation="h",
                          title=t("rev.asin.top"), text="sent",
+                         hover_data={"asin": True, "product_name": True},
                          color_discrete_sequence=[GREEN])
+            fig.update_yaxes(tickmode="array", tickvals=top["asin"],
+                             ticktext=top["label"])
             fig.update_layout(height=max(320, 26 * len(top)),
                               yaxis_title=None, xaxis_title=None,
                               margin=dict(l=10, r=10, t=50, b=10))
