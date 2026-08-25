@@ -1465,26 +1465,40 @@ TRANSLATIONS = {
     },
     "money.col.bsr": {"ru": "Место", "uk": "Місце", "en": "Rank"},
     "money.col.bsr_help": {
-        "ru": "Позиция товара в своей категории Amazon. Чем меньше число, тем выше. "
+        "ru": "Best Sellers Rank: место товара в рейтинге продаж своей подкатегории "
+              "Amazon. Чем меньше число, тем выше товар — первое место лучше сотого. "
               "Зависит не только от наших продаж: конкурент вырос — мы опустились при "
-              "тех же продажах",
-        "uk": "Позиція товару у своїй категорії Amazon. Чим менше число, тим вище. "
+              "тех же продажах. Источник: asin_bsr_daily, поле rank.",
+        "uk": "Best Sellers Rank: місце товару в рейтингу продажів своєї підкатегорії "
+              "Amazon. Чим менше число, тим вище товар — перше місце краще за соте. "
               "Залежить не лише від наших продажів: конкурент зріс — ми опустилися за "
-              "тих самих продажів",
-        "en": "The product's position in its Amazon category. Lower is better. It depends "
-              "on competitors too: if someone else grows, we drop at the same sales",
+              "тих самих продажів. Джерело: asin_bsr_daily, поле rank.",
+        "en": "Best Sellers Rank: the product's place in the sales ranking of its Amazon "
+              "subcategory. The lower the number, the higher the product — rank 1 beats "
+              "rank 100. It depends on competitors too: if someone else grows, we drop at "
+              "the same sales. Source: asin_bsr_daily, field rank.",
     },
     "money.col.bsr_delta": {"ru": "Сдвиг", "uk": "Зсув", "en": "Shift"},
     "money.col.bsr_delta_help": {
-        "ru": "Насколько товар поднялся или опустился в категории за период. "
-              "Плюс — поднялся, минус — опустился. Падение при растущей рекламе значит, "
-              "что деньги уходят, а позиция теряется",
-        "uk": "Наскільки товар піднявся або опустився в категорії за період. "
-              "Плюс — піднявся, мінус — опустився. Падіння за зростаючої реклами означає, "
-              "що гроші йдуть, а позиція втрачається",
-        "en": "How far the product moved up or down its category over the period. "
-              "Plus means up. A drop while ad spend grows means money is going out and "
-              "position is being lost",
+        "ru": "На сколько позиций товар сместился в подкатегории за ВЫБРАННЫЙ период — "
+              "от первого дня с данными до последнего. При периоде «7» это неделя, при "
+              "«30» — месяц. Знак перевёрнут относительно самого места: подъём в "
+              "рейтинге — это уменьшение номера, но в этой колонке он показан ПЛЮСОМ. "
+              "Плюс — товар поднялся, минус — опустился. Падение при растущей рекламе "
+              "значит, что деньги уходят, а позиция теряется.",
+        "uk": "На скільки позицій товар змістився в підкатегорії за ОБРАНИЙ період — від "
+              "першого дня з даними до останнього. За періоду «7» це тиждень, за «30» — "
+              "місяць. Знак перевернуто відносно самого місця: підйом у рейтингу — це "
+              "зменшення номера, але в цій колонці він показаний ПЛЮСОМ. Плюс — товар "
+              "піднявся, мінус — опустився. Падіння за зростаючої реклами означає, що "
+              "гроші йдуть, а позиція втрачається.",
+        "en": "How many places the product moved within its subcategory over the SELECTED "
+              "period — from the first day with data to the last. With period «7» that is "
+              "a week, with «30» a month. The sign is inverted relative to the rank "
+              "itself: moving up the ranking means a smaller number, but this column "
+              "shows it as a PLUS. Plus means the product rose, minus means it fell. "
+              "A drop while ad spend grows means money is going out and position is "
+              "being lost.",
     },
     "rev.bsr.title": {
         "ru": "Движение в категории Amazon",
