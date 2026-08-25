@@ -2078,9 +2078,9 @@ TRANSLATIONS = {
     },
     "rev.download": {"ru": "Скачать покрытие CSV", "uk": "Завантажити покриття CSV", "en": "Download coverage CSV"},
     "rev.mp.metric_help": {
-        "ru": "Отправлено запросов и общее покрытие по маркетплейсу",
-        "uk": "Надіслано запитів і загальне покриття за маркетплейсом",
-        "en": "Requests sent and overall coverage for this marketplace",
+        "ru": "{mp} — отправлено запросов и общее покрытие по маркетплейсу",
+        "uk": "{mp} — надіслано запитів і загальне покриття за маркетплейсом",
+        "en": "{mp} — requests sent and overall coverage for this marketplace",
     },
     "rev.age.title": {
         "ru": "Когда Amazon чаще разрешает запрос",
@@ -2103,15 +2103,21 @@ TRANSLATIONS = {
         "en": "Morning vs evening: schedule comparison",
     },
     "rev.slot.caption": {
-        "ru": "С 19 августа Испания отправляет в 19:00 по Мадриду, остальные страны — "
-              "в 09:00 по Киеву. Сравниваем долю запросов, которые Amazon разрешил: "
-              "это видно сразу, в отличие от прироста отзывов.",
-        "uk": "З 19 серпня Іспанія надсилає о 19:00 за Мадридом, решта країн — "
-              "о 09:00 за Києвом. Порівнюємо частку запитів, які Amazon дозволив: "
-              "це видно одразу, на відміну від приросту відгуків.",
-        "en": "Since 19 August Spain sends at 19:00 Madrid time, other countries at "
-              "09:00 Kyiv time. We compare the share of requests Amazon allowed — that "
-              "is visible immediately, unlike review growth.",
+        "ru": "С 19 августа Испания отправляет в 19:00, остальные страны — в 08:00. "
+              "Время мадридское, как и везде на этой странице; в настройках расписания "
+              "второй слот записан как 09:00 по Киеву — это то же самое время. "
+              "Сравниваем долю запросов, которые Amazon разрешил: это видно сразу, "
+              "в отличие от прироста отзывов.",
+        "uk": "З 19 серпня Іспанія надсилає о 19:00, решта країн — о 08:00. Час "
+              "мадридський, як і всюди на цій сторінці; у налаштуваннях розкладу другий "
+              "слот записаний як 09:00 за Києвом — це той самий час. Порівнюємо частку "
+              "запитів, які Amazon дозволив: це видно одразу, на відміну від приросту "
+              "відгуків.",
+        "en": "Since 19 August Spain sends at 19:00 and the other countries at 08:00. "
+              "Times are Madrid time, as everywhere on this page; the schedule config "
+              "records the second slot as 09:00 Kyiv, which is the same moment. We "
+              "compare the share of requests Amazon allowed — that is visible "
+              "immediately, unlike review growth.",
     },
     "rev.slot.evening": {"ru": "Вечер · Испания", "uk": "Вечір · Іспанія", "en": "Evening · Spain"},
     "rev.slot.morning": {"ru": "Утро · остальные", "uk": "Ранок · решта", "en": "Morning · others"},

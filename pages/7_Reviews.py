@@ -48,6 +48,23 @@ AGE_MIN, AGE_MAX = 8, 33
 TZ = ZoneInfo("Europe/Madrid")
 
 # домены Amazon по каналу продаж — ссылка на листинг строится по стране
+# Короткий код рынка для карточек. «Amazon.com.be» в узкую карточку не
+# влезает и обрезается до «Amaz…» — по такой подписи страну не опознать.
+# Полное название уходит в подсказку карточки
+CHANNEL_CODE = {
+    "Amazon.es": "ES", "Amazon.de": "DE", "Amazon.fr": "FR", "Amazon.it": "IT",
+    "Amazon.nl": "NL", "Amazon.com.be": "BE", "Amazon.se": "SE",
+    "Amazon.pl": "PL", "Amazon.co.uk": "UK", "Amazon.ie": "IE",
+}
+
+
+def channel_code(ch) -> str:
+    """Короткий код рынка. Незнакомый канал отдаём как есть — лучше
+    длинная подпись, чем потерянная строка."""
+    key = str(ch or "").strip()
+    return CHANNEL_CODE.get(key, key or "—")
+
+
 CHANNEL_DOMAIN = {
     "Amazon.es": "amazon.es", "Amazon.de": "amazon.de", "Amazon.fr": "amazon.fr",
     "Amazon.it": "amazon.it", "Amazon.nl": "amazon.nl", "Amazon.com.be": "amazon.com.be",
@@ -1228,14 +1245,19 @@ with tab_mp:
             safe_div(by_mp["processed"], by_mp["orders"]) * 100, 1)
         by_mp["hit_rate"] = np.round(
             safe_div(by_mp["sent"], by_mp["sent"] + by_mp["no_action"]) * 100, 1)
-        by_mp = by_mp.sort_values("orders", ascending=False)
+        # сортируем по тому же числу, которое стоит в карточке. Раньше
+        # порядок задавали заказы, а показывали отправки — и карточки шли
+        # вразнобой: 5 оказывалось перед 6
+        by_mp = by_mp.sort_values("sent", ascending=False)
 
         cc = st.columns(min(len(by_mp), 5) or 1)
         for i, (_, r) in enumerate(by_mp.iterrows()):
             with cc[i % len(cc)]:
-                st.metric(r["sales_channel"], f"{int(r['sent']):,}",
+                st.metric(channel_code(r["sales_channel"]),
+                          f"{int(r['sent']):,}",
                           delta=f"{r['coverage']:.0f}%",
-                          help=t("rev.mp.metric_help"))
+                          help=t("rev.mp.metric_help").format(
+                              mp=r["sales_channel"]))
 
         plot_mp = by_mp.rename(columns={
             "sent": t("rev.col.sent"),
@@ -1417,10 +1439,23 @@ with tab_asin:
 
         a1, a2 = st.columns([1, 1])
         with a1:
-            top = by_asin.nlargest(15, "sent").sort_values("sent")
+            top = by_asin.nlargest(15, "sent").sort_values("sent").copy()
+            # на оси — название товара: сырой ASIN ни о чём не говорит.
+            # Значением категории ASIN остаётся, подписи подменяем через
+            # ticktext — иначе два товара с одинаковым названием склеились
+            # бы в одну полосу. Нет названия — показываем ASIN, это лучше
+            # пустой подписи
+            top["label"] = [
+                str(a) if pd.isna(n) or str(n).strip() in ("", "—", "None")
+                else (str(n)[:38] + "…" if len(str(n)) > 38 else str(n))
+                for n, a in zip(top["product_name"], top["asin"])
+            ]
             fig = px.bar(top, x="sent", y="asin", orientation="h",
                          title=t("rev.asin.top"), text="sent",
+                         hover_data={"asin": True, "product_name": True},
                          color_discrete_sequence=[GREEN])
+            fig.update_yaxes(tickmode="array", tickvals=top["asin"],
+                             ticktext=top["label"])
             fig.update_layout(height=max(320, 26 * len(top)),
                               yaxis_title=None, xaxis_title=None,
                               margin=dict(l=10, r=10, t=50, b=10))
