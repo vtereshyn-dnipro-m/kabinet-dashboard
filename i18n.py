@@ -1464,6 +1464,23 @@ TRANSLATIONS = {
         "en": "Click to open the product page on the Amazon marketplace where it sells",
     },
     "money.col.bsr": {"ru": "Место", "uk": "Місце", "en": "Rank"},
+    "money.bsr_legend": {
+        "ru": "**Место** — позиция товара в рейтинге продаж своей подкатегории Amazon "
+              "(BSR): чем меньше число, тем выше товар. **Рост позиции** — на сколько "
+              "позиций он сместился за выбранный период: плюс — поднялся, минус — "
+              "опустился. Знак перевёрнут относительно самого места намеренно, чтобы "
+              "плюс всегда означал улучшение.",
+        "uk": "**Місце** — позиція товару в рейтингу продажів своєї підкатегорії Amazon "
+              "(BSR): чим менше число, тим вище товар. **Зростання позиції** — на скільки "
+              "позицій він змістився за обраний період: плюс — піднявся, мінус — "
+              "опустився. Знак перевернуто відносно самого місця навмисно, щоб плюс "
+              "завжди означав покращення.",
+        "en": "**Rank** — the product's place in the sales ranking of its Amazon "
+              "subcategory (BSR): the lower the number, the higher the product. "
+              "**Positions gained** — how many places it moved over the selected period: "
+              "plus means it rose, minus means it fell. The sign is deliberately inverted "
+              "relative to the rank itself so that plus always means improvement.",
+    },
     "money.col.bsr_help": {
         "ru": "Best Sellers Rank: место товара в рейтинге продаж своей подкатегории "
               "Amazon. Чем меньше число, тем выше товар — первое место лучше сотого. "
@@ -1478,7 +1495,10 @@ TRANSLATIONS = {
               "rank 100. It depends on competitors too: if someone else grows, we drop at "
               "the same sales. Source: asin_bsr_daily, field rank.",
     },
-    "money.col.bsr_delta": {"ru": "Сдвиг", "uk": "Зсув", "en": "Shift"},
+    # «Сдвиг» не говорил, в какую сторону: плюс читался как «номер места
+    # вырос», то есть наоборот. Название с «ростом» снимает вопрос само
+    "money.col.bsr_delta": {
+        "ru": "Рост позиции", "uk": "Зростання позиції", "en": "Positions gained"},
     "money.col.bsr_delta_help": {
         "ru": "На сколько позиций товар сместился в подкатегории за ВЫБРАННЫЙ период — "
               "от первого дня с данными до последнего. При периоде «7» это неделя, при "

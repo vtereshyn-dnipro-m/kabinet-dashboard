@@ -632,7 +632,7 @@ with tab_pnl:
                 t("money.col.bsr"), format="%d", width="small",
                 help=t("money.col.bsr_help")),
             "rank_delta": st.column_config.NumberColumn(
-                t("money.col.bsr_delta"), format="%+d", width="small",
+                t("money.col.bsr_delta"), format="%+d", width="medium",
                 help=t("money.col.bsr_delta_help")),
             "amazon_url": st.column_config.LinkColumn(
                 "ASIN", display_text=r"/dp/([A-Z0-9]{10})", width="small",
@@ -640,6 +640,9 @@ with tab_pnl:
         },
     )
     st.caption(t("money.legend"))
+    # подсказку в заголовке колонки Streamlit прячет за знаком вопроса, и его
+    # не замечают — то же самое повторяем текстом там, где на него смотрят
+    st.caption(t("money.bsr_legend"))
     st.caption(t("money.pnl_note"))
 
     st.download_button(
