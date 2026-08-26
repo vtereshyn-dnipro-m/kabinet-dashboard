@@ -1,5 +1,5 @@
 """
-6_Dictionaries.py — раздел «📚 Справочники» Кабинета Demand & Supply.
+6_Dictionaries.py — раздел «📚 Справочники» Кабинета Sales, Demand & Supply.
 
 Табы:
   🏭 Склады            kabinet_data.warehouses

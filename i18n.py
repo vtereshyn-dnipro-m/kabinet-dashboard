@@ -8,14 +8,14 @@ LANG_LABELS = {"ru": "РУ", "uk": "УКР", "en": "EN"}
 TRANSLATIONS = {
     # --- навигация / app.py ---
     "app.page_title": {
-        "ru": "Кабинет Demand & Supply — Dnipro-M",
-        "uk": "Кабінет Demand & Supply — Dnipro-M",
-        "en": "Demand & Supply Cabinet — Dnipro-M",
+        "ru": "Кабинет Sales, Demand & Supply — Dnipro-M",
+        "uk": "Кабінет Sales, Demand & Supply — Dnipro-M",
+        "en": "Sales, Demand & Supply Cabinet — Dnipro-M",
     },
     "nav.section": {
-        "ru": "Кабинет Demand & Supply",
-        "uk": "Кабінет Demand & Supply",
-        "en": "Demand & Supply Cabinet",
+        "ru": "Кабинет Sales, Demand & Supply",
+        "uk": "Кабінет Sales, Demand & Supply",
+        "en": "Sales, Demand & Supply Cabinet",
     },
     "nav.home": {"ru": "Обзор", "uk": "Огляд", "en": "Overview"},
     "nav.stock": {"ru": "Остатки", "uk": "Залишки", "en": "Stock"},
@@ -438,7 +438,7 @@ TRANSLATIONS = {
     "stock.no_data_warning": {"ru": "Нет данных в kabinet_data.stock_local", "uk": "Немає даних у kabinet_data.stock_local", "en": "No data in kabinet_data.stock_local"},
 
     # --- home.py ---
-    "home.title": {"ru": "Кабинет Demand & Supply", "uk": "Кабінет Demand & Supply", "en": "Demand & Supply Cabinet"},
+    "home.title": {"ru": "Кабинет Sales, Demand & Supply", "uk": "Кабінет Sales, Demand & Supply", "en": "Sales, Demand & Supply Cabinet"},
     "home.subtitle": {
         "ru": "Система сама находит проблемы и приносит их вам",
         "uk": "Система сама знаходить проблеми і приносить їх вам",
@@ -502,34 +502,6 @@ TRANSLATIONS = {
         "ru": "Ниже — состояние на сейчас, период выше на него не влияет.",
         "uk": "Нижче — стан на зараз, період вище на нього не впливає.",
         "en": "Below is the current state — the period selector above does not affect it.",
-    },
-    "home.refresh": {
-        "ru": "Обновить данные", "uk": "Оновити дані", "en": "Refresh data"},
-    "home.refresh_help": {
-        "ru": "Сбросить кеш и перечитать всё из базы. Пригодится, когда видно, "
-              "что загрузчик уже отработал, а плашка ещё висит: сама она гаснет "
-              "в течение минуты, кнопка делает это сразу.",
-        "uk": "Скинути кеш і перечитати все з бази. Знадобиться, коли видно, що "
-              "завантажувач уже відпрацював, а плашка ще висить: сама вона гасне "
-              "протягом хвилини, кнопка робить це одразу.",
-        "en": "Drop the cache and re-read everything from the database. Useful when "
-              "the loader has clearly finished but the banner is still up: it clears "
-              "on its own within a minute, this button does it now.",
-    },
-    "home.pulse.down": {
-        "ru": "Система не обновляет данные {h:.0f} ч. Всё, что показано ниже, устарело — "
-              "загрузчики не отрабатывают.",
-        "uk": "Система не оновлює дані {h:.0f} год. Усе, що показано нижче, застаріло — "
-              "завантажувачі не відпрацьовують.",
-        "en": "The system has not updated data for {h:.0f}h. Everything below is stale — "
-              "the loaders are not running.",
-    },
-    "home.pulse.partial": {
-        "ru": "{n} процесс(ов) не обновлялись больше суток: {jobs}. Часть цифр может быть "
-              "устаревшей.",
-        "uk": "{n} процес(ів) не оновлювались понад добу: {jobs}. Частина цифр може бути "
-              "застарілою.",
-        "en": "{n} process(es) have not run for over a day: {jobs}. Some figures may be stale.",
     },
     "home.period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
     "home.period.custom": {"ru": "Свой период", "uk": "Свій період", "en": "Custom"},

@@ -37,7 +37,6 @@ st.caption(t("home.subtitle"))
 # Плашка устаревания живёт отдельно от остальной страницы: её запрос дешёвый
 # (одна таблица), а висеть после того, как загрузчики отработали, она не должна
 AUTO_REFRESH_SEC = 300
-PULSE_REFRESH_SEC = 30
 
 
 def _has_fragment_run_every() -> bool:
@@ -284,29 +283,6 @@ def load_reviews(days: int = 30) -> dict:
     return out
 
 
-@st.cache_data(ttl=60)
-def load_pulse() -> pd.DataFrame:
-    """Когда загрузчики последний раз отработали успешно.
-    Это внешняя точка контроля: если умрут и сторож, и загрузчики,
-    инциденты никто не создаст — но метка перестанет обновляться,
-    и человек увидит это здесь."""
-    if not table_exists("system_pulse"):
-        return pd.DataFrame()
-    conn = get_connection()
-    try:
-        return pd.read_sql("""
-            SELECT job_name, last_success_at,
-                   ROUND(EXTRACT(EPOCH FROM (NOW() - last_success_at)) / 3600.0, 1)
-                       AS hours_ago
-            FROM kabinet_data.system_pulse
-            ORDER BY last_success_at
-        """, conn)
-    except Exception:
-        return pd.DataFrame()
-    finally:
-        conn.close()
-
-
 def safe_div(a, b):
     return np.where(b > 0, a / np.where(b > 0, b, 1), 0.0)
 
@@ -375,47 +351,6 @@ except Exception as e:
     st.error(f"{t('home.db_error')}: {e}")
     st.stop()
 
-# состояние системы: если загрузчики встали, все цифры ниже устарели —
-# об этом надо знать до того, как их читать.
-# Блок вынесен в отдельный фрагмент с минутным интервалом: перечитывается
-# только он, остальная страница и выставленный период не трогаются
-@_fragment_every(PULSE_REFRESH_SEC)
-def render_system_status():
-    # Кеш здесь только мешает: интервал фрагмента и есть период опроса, а при
-    # ttl=60 момент истечения записи и момент тика разъезжаются — плашка
-    # переживала загрузчик на 78 с (замерено), худший случай ttl + интервал.
-    # Сбрасываем запись перед чтением: тогда задержку задаёт один интервал
-    # фрагмента, а не сумма двух таймеров. Запрос — одна строка из
-    # system_pulse, раз в полминуты это ничто.
-    # ttl=60 на самой функции оставлен: он страхует от повторного чтения
-    # внутри одного прогона скрипта
-    load_pulse.clear()
-    pulse = load_pulse()
-    if pulse.empty:
-        return
-    stale = pulse[pulse["hours_ago"] > 26]
-    if not len(stale):
-        return
-
-    msg_col, btn_col = st.columns([6, 1])
-    with msg_col:
-        if len(stale) == len(pulse):
-            st.error(t("home.pulse.down").format(
-                h=float(pulse["hours_ago"].min())))
-        else:
-            st.warning(t("home.pulse.partial").format(
-                n=len(stale), jobs=", ".join(stale["job_name"].head(3))))
-    with btn_col:
-        # ждать минуту, когда уже видно, что загрузчик отработал, незачем
-        if st.button(t("home.refresh"), key="btn_refresh_data",
-                     help=t("home.refresh_help"), use_container_width=True):
-            # только кеш данных: cache_resource держит клиент Databricks,
-            # и сбрасывать его — это лишний раунд авторизации на ровном месте
-            st.cache_data.clear()
-            _rerun_app()
-
-
-render_system_status()
 
 
 # ═══════════════════════════════════════════════════════════════════
