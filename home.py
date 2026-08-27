@@ -283,6 +283,37 @@ def load_reviews(days: int = 30) -> dict:
     return out
 
 
+@st.cache_data(ttl=600)
+def load_channels() -> pd.DataFrame:
+    """Справочник рынков: код рынка и канал, к которому он относится.
+
+    Канал берём из данных, а не из кода. Раньше площадка определялась
+    сравнением `marketplace == "LM"`, и каждый новый канал требовал правки
+    здесь: столбец `marketplace` в витринах совмещает две разные вещи —
+    у Amazon там страна (ES, DE), у остальных площадок код канала.
+
+    Читаем через `v_marketplaces`: вью отдаёт `marketplace_code` уже
+    в верхнем регистре и сводит расхождения вроде co.uk и GB. Джойнить
+    справочник с витриной напрямую нельзя — регистр кодов не совпадает,
+    и джойн молча не сматчится ни по одной строке.
+
+    Берём `SELECT *`: состав колонок вью может отличаться от справочника,
+    и жёсткий список полей сломал бы загрузку целиком из-за одной."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("SELECT * FROM kabinet_data.v_marketplaces", conn)
+    except Exception:
+        return pd.DataFrame(columns=["marketplace_code", "channel"])
+    finally:
+        conn.close()
+    if df.empty or not {"marketplace_code", "channel"} <= set(df.columns):
+        return pd.DataFrame(columns=["marketplace_code", "channel"])
+    out = df[["marketplace_code", "channel"]].copy()
+    out["marketplace_code"] = out["marketplace_code"].astype(str).str.strip().str.upper()
+    out["channel"] = out["channel"].astype(str).str.strip()
+    return out[out["channel"].ne("") & out["channel"].ne("None")].drop_duplicates()
+
+
 def safe_div(a, b):
     return np.where(b > 0, a / np.where(b > 0, b, 1), 0.0)
 
@@ -455,43 +486,68 @@ else:
         st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
     with gr:
-        # Leroy Merlin — отдельная площадка, а не ещё одна страна Amazon:
-        # свои комиссии, своя логистика, свой контракт
+        # Канал — это площадка (Amazon, Leroy Merlin, ManoMano, Carrefour),
+        # а не страна. Раньше он выводился сравнением с литералом "LM", и
+        # каждая новая площадка требовала правки здесь. Теперь берём из
+        # справочника — следующая появится сама
+        ch_map = load_channels()
+        _ch_lookup = dict(zip(ch_map["marketplace_code"], ch_map["channel"]))
+
+        def _channel_of(code) -> str:
+            return _ch_lookup.get(str(code or "").strip().upper(),
+                                  t("home.sales.channel_other"))
+
         by_mp = (cur.groupby("marketplace", as_index=False)["revenue"].sum()
                     .sort_values("revenue", ascending=False))
-        by_mp["platform"] = np.where(by_mp["marketplace"] == "LM",
-                                     t("home.platform.lm"),
-                                     t("home.platform.amazon"))
-        # сколько стран стоит за каждой площадкой — чтобы «Leroy Merlin»
-        # не выглядел как ещё одна страна рядом с Amazon.
-        # считаем только те, где выручка ненулевая: иначе подпись обещает
-        # больше стран, чем показано плашками ниже
-        countries = (by_mp[by_mp["revenue"] > 0]
-                     .groupby("platform")["marketplace"].nunique().to_dict())
-        by_pl = by_mp.groupby("platform", as_index=False)["revenue"].sum()
+        by_mp["channel"] = by_mp["marketplace"].map(_channel_of)
 
-        for _, r in by_pl.iterrows():
+        by_ch = (by_mp.groupby("channel", as_index=False)["revenue"].sum())
+
+        # канал без продаж за период не прячем: молчащая площадка иначе
+        # неотличима от несуществующей, а это разные вещи
+        quiet = sorted(set(ch_map["channel"]) - set(by_ch["channel"]))
+        if quiet:
+            by_ch = pd.concat(
+                [by_ch, pd.DataFrame({"channel": quiet, "revenue": 0.0})],
+                ignore_index=True)
+        by_ch = by_ch.sort_values("revenue", ascending=False)
+
+        # цвет закрепляем за каналом по порядку оборота: список каналов
+        # заранее не известен, поэтому палитра циклическая
+        PALETTE = [BLUE, GREEN, AMBER, "#7e57c2", "#26a69a", "#ef6c00"]
+        color_of = {c: PALETTE[i % len(PALETTE)]
+                    for i, c in enumerate(by_ch["channel"])}
+
+        sold_mp = by_mp[by_mp["revenue"] > 0]
+
+        for _, r in by_ch.iterrows():
             share = r["revenue"] / rev_cur * 100 if rev_cur else 0
-            color = GREEN if r["platform"] == t("home.platform.lm") else BLUE
-            n_c = countries.get(r["platform"], 0)
-            sub = (t("home.sales.n_countries").format(n=n_c)
-                   if r["platform"] == t("home.platform.amazon")
-                   else t("home.sales.lm_where"))
+            codes = sorted(sold_mp.loc[sold_mp["channel"] == r["channel"],
+                                       "marketplace"])
+            if not codes:
+                sub = ""
+            elif len(codes) <= 2:
+                sub = ", ".join(codes)
+            else:
+                sub = t("home.sales.n_countries").format(n=len(codes))
+            value = (t("home.sales.silent") if r["revenue"] <= 0
+                     else f"{r['revenue']:,.0f} €")
             st.markdown(
                 f"<div style='margin-bottom:8px'>"
                 f"<div style='display:flex;justify-content:space-between;"
-                f"font-size:0.85rem'><span>{r['platform']} "
+                f"font-size:0.85rem'><span>{r['channel']} "
                 f"<span style='color:var(--text-muted);font-size:0.78rem'>"
                 f"{sub}</span></span>"
-                f"<b>{r['revenue']:,.0f} €</b></div>"
+                f"<b>{value}</b></div>"
                 f"<div style='height:6px;border-radius:3px;"
                 f"background:rgba(128,128,128,0.18)'>"
                 f"<div style='height:6px;border-radius:3px;width:{share:.0f}%;"
-                f"background:{color}'></div></div></div>",
+                f"background:{color_of[r['channel']]}'></div></div></div>",
                 unsafe_allow_html=True)
 
-        # у Amazon страна в коде маркетплейса, у Leroy Merlin — нет:
-        # подписываем обе площадки одинаково, иначе LM читается как страна
+        # у Amazon страна в коде рынка, у остальных площадок — сам код
+        # площадки: подписываем плашки кодом как есть, а группируем цветом
+        # по каналу, чтобы «MM_ES» не читался как страна Amazon
         def _chip(label: str, value: float, color: str,
                   muted: bool = False) -> str:
             if muted:
@@ -510,27 +566,23 @@ else:
                     f'<span style="color:var(--text-secondary)">{label}</span>'
                     f'&nbsp;&nbsp;<b style="color:{color}">{value:,.0f} €</b></span>')
 
-        # стран немного — показываем все, чтобы не гадать, кто скрыт за «ещё N».
-        # Leroy Merlin ставим последним: иначе он вклинивается в середину
-        # списка стран Amazon и выглядит как одна из них
-        sold = by_mp[by_mp["revenue"] > 0]
-        amz = sold[sold["marketplace"] != "LM"]
-        lm = sold[sold["marketplace"] == "LM"]
-
-        chips = "".join(_chip(r["marketplace"], r["revenue"], BLUE)
-                        for _, r in amz.iterrows())
-
-        # страна, которая продавала за 90 дней, но молчит в выбранном
+        # рынок, который продавал за 90 дней, но молчит в выбранном
         # периоде — это сигнал, а не пустое место
-        silent = []
+        silent_by_ch = {}
         if not money_wide.empty:
             had = set(money_wide.loc[money_wide["revenue"] > 0, "marketplace"])
-            silent = sorted(had - set(sold["marketplace"]) - {"LM"})
-        for mp in silent:
-            chips += _chip(mp, 0.0, ACCENT, muted=True)
+            for code in sorted(had - set(sold_mp["marketplace"])):
+                silent_by_ch.setdefault(_channel_of(code), []).append(code)
 
-        for _, r in lm.iterrows():
-            chips += _chip(t("home.platform.lm_short"), r["revenue"], GREEN)
+        # плашки идут в том же порядке, что и строки каналов выше
+        chips = ""
+        for _, r in by_ch.iterrows():
+            col = color_of[r["channel"]]
+            mine = sold_mp[sold_mp["channel"] == r["channel"]]
+            for _, m in mine.sort_values("revenue", ascending=False).iterrows():
+                chips += _chip(m["marketplace"], m["revenue"], col)
+            for code in silent_by_ch.get(r["channel"], []):
+                chips += _chip(code, 0.0, ACCENT, muted=True)
 
         st.markdown(
             f'<div style="margin-top:6px;line-height:2">{chips}</div>',
