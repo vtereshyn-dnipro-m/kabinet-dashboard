@@ -481,12 +481,12 @@ TRANSLATIONS = {
         "ru": "· продажи в {n} странах",
         "uk": "· продажі в {n} країнах",
         "en": "· sales in {n} countries"},
-    "home.sales.lm_where": {
-        "ru": "· Испания", "uk": "· Іспанія", "en": "· Spain"},
     "home.sales.lm_country": {
         "ru": "Leroy Merlin: Испания {v:,.0f} €",
         "uk": "Leroy Merlin: Іспанія {v:,.0f} €",
         "en": "Leroy Merlin: Spain {v:,.0f} €"},
+    "home.sales.channel_other": {
+        "ru": "Прочее", "uk": "Інше", "en": "Other"},
     "home.sales.silent": {"ru": "нет продаж", "uk": "немає продажів", "en": "no sales"},
     "home.sales.silent_hint": {
         "ru": "За последние 90 дней в этой стране продажи были, а за выбранный период — нет",
@@ -494,7 +494,6 @@ TRANSLATIONS = {
         "en": "This country had sales in the last 90 days but none in the selected period",
     },
     "home.sales.rest": {"ru": "ещё {n}", "uk": "ще {n}", "en": "{n} more"},
-    "home.platform.lm_short": {"ru": "LM Испания", "uk": "LM Іспанія", "en": "LM Spain"},
     "home.sales.others": {
         "ru": "и ещё {n}: {v:,.0f} €", "uk": "і ще {n}: {v:,.0f} €", "en": "and {n} more: {v:,.0f} €"},
     "home.link.money": {"ru": "Деньги и маржа", "uk": "Гроші та маржа", "en": "Money and margin"},
@@ -568,8 +567,6 @@ TRANSLATIONS = {
         "uk": "Дані про продажі поки не завантажені.",
         "en": "Sales data is not loaded yet.",
     },
-    "home.platform.amazon": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
-    "home.platform.lm": {"ru": "Leroy Merlin", "uk": "Leroy Merlin", "en": "Leroy Merlin"},
     "home.sales.by_country": {
         "ru": "Amazon по странам:", "uk": "Amazon за країнами:", "en": "Amazon by country:"},
     "home.sales.lag": {
@@ -1276,16 +1273,19 @@ TRANSLATIONS = {
     "money.kpi.ordered_help": {
         "ru": "ВСЕ заказы за период, включая ожидающие отгрузку и ещё не отгруженные. "
               "Как в кабинете Amazon: с НДС и доставкой, по дате заказа, отменённые не "
-              "вычитаются. Только Amazon — на Mirakl такого отчёта нет, при фильтре «LM» "
-              "показывается прочерк. Для сверки с Seller Central: маржа считается не отсюда",
+              "вычитаются. Только Amazon: витринного отчёта по другим площадкам не существует, "
+              "и если в фильтре не осталось ни одного амазоновского рынка, показывается "
+              "прочерк. Для сверки с Seller Central: маржа считается не отсюда",
         "uk": "УСІ замовлення за період, включно з тими, що чекають на відвантаження. "
               "Як у кабінеті Amazon: з ПДВ і доставкою, за датою замовлення, скасовані не "
-              "віднімаються. Лише Amazon — на Mirakl такого звіту немає, за фільтром «LM» "
-              "показується прочерк. Для звірки з Seller Central: маржа рахується не звідси",
+              "віднімаються. Лише Amazon: вітринного звіту за іншими майданчиками не існує, "
+              "і якщо у фільтрі не лишилося жодного амазонівського ринку, показується "
+              "прочерк. Для звірки з Seller Central: маржа рахується не звідси",
         "en": "ALL orders in the period, including those still awaiting shipment. As in "
               "Seller Central: with VAT and shipping, by order date, cancellations not "
-              "deducted. Amazon only — Mirakl has no such report, so the «LM» filter shows "
-              "a dash. For reconciliation: margin is not based on this",
+              "deducted. Amazon only: no such report exists for the other marketplaces, so when "
+              "the filter leaves no Amazon market the card shows a dash. For "
+              "reconciliation: margin is not based on this",
     },
     "money.kpi.revenue_help": {
         "ru": "Только ОТГРУЖЕННЫЕ заказы: чистая выручка после возвратов, без НДС. "

@@ -199,6 +199,33 @@ def load_ordered_sales(days: int, d_from=None, d_to=None, markets: tuple = ()):
 
 
 @st.cache_data(ttl=600)
+def load_amazon_codes() -> tuple:
+    """Коды рынков, относящихся к Amazon.
+
+    Витринная выручка живёт в sales_traffic_daily — это отчёт Seller
+    Central, других площадок в нём нет. Раньше их отсеивал литерал
+    `!= "LM"`, и с появлением ManoMano и Carrefour это сломалось бы молча:
+    выбранный фильтром MM_ES прошёл бы за амазоновский, запрос вернул бы
+    ноль, и карточка показала бы «0 €» вместо прочерка — тот же баг, что
+    чинили для LM, только в новом составе.
+
+    Признак берём из справочника: channel = 'Amazon'. Не по заполненности
+    amazon_id — это техническое поле, и у новой страны его могут не
+    заполнить, тогда она молча уедет не в тот канал."""
+    conn = get_connection()
+    try:
+        r = pd.read_sql("""
+            SELECT marketplace_code
+            FROM kabinet_data.v_marketplaces
+            WHERE UPPER(channel) = 'AMAZON'
+        """, conn)
+        return tuple(sorted(r["marketplace_code"].dropna().astype(str)
+                             .str.strip().str.upper().unique()))
+    except Exception:
+        return ()
+
+
+@st.cache_data(ttl=600)
 def load_period_bounds(days: int, d_from=None, d_to=None) -> tuple:
     """Границы периода — общий якорь для всех карточек. Витринная выручка
     лежит в другой таблице, и без якоря она считалась от MAX(snapshot_date)
@@ -383,8 +410,17 @@ rev_share = (rev_known / tot_rev * 100) if tot_rev > 0 else 0.0
 # и «выбран только LM» = амазоновских строк в выборке нет вовсе. Раньше оба
 # сводились к пустой строке, WHERE не доходил до запроса, и карточка
 # показывала сумму по всем странам при любом фильтре
-_amz = tuple(sorted({m.upper() for m in mp_filter if m.upper() != "LM"}))
-if mp_filter and not _amz:
+_amz_all = load_amazon_codes()
+if _amz_all:
+    _amz = tuple(sorted({m.upper() for m in mp_filter if m.upper() in _amz_all}))
+    _no_amazon = bool(mp_filter) and not _amz
+else:
+    # справочник недоступен — не выдумываем состав каналов, отдаём выбор
+    # как есть. Лучше прежнее поведение, чем прочерк на каждом фильтре
+    _amz = tuple(sorted({m.upper() for m in mp_filter}))
+    _no_amazon = False
+
+if _no_amazon:
     _ordered = None
 else:
     _b0, _b1 = load_period_bounds(WINDOW, d_from, d_to)
