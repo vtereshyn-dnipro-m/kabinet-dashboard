@@ -86,6 +86,37 @@ def table_exists(name: str) -> bool:
 
 
 @st.cache_data(ttl=600)
+def load_market_map() -> pd.DataFrame:
+    """Код рынка → канал и страна, из справочника.
+
+    Раньше страна выводилась из самого кода: у Amazon код и есть страна,
+    а всё, что не равно "LM", считалось Amazon. С появлением ManoMano и
+    Carrefour это ломается дважды — селектор начинает предлагать MM_ES как
+    страну, а выбор Испании не подтягивает испанские продажи этих площадок.
+
+    Берём через v_marketplaces: код там уже приведён к верхнему регистру,
+    иначе джойн со витриной не сматчился бы. SELECT * потому, что состав
+    колонок вью может отличаться, и жёсткий список сломал бы загрузку
+    целиком из-за одного отсутствующего поля."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("SELECT * FROM kabinet_data.v_marketplaces", conn)
+    except Exception:
+        return pd.DataFrame(columns=["marketplace_code", "channel", "country"])
+    finally:
+        conn.close()
+    if df.empty or not {"marketplace_code", "channel"} <= set(df.columns):
+        return pd.DataFrame(columns=["marketplace_code", "channel", "country"])
+    out = pd.DataFrame({
+        "marketplace_code": df["marketplace_code"].astype(str).str.strip().str.upper(),
+        "channel": df["channel"].astype(str).str.strip(),
+        "country": (df["country"].astype(str).str.strip().str.upper()
+                    if "country" in df.columns else ""),
+    })
+    return out[out["channel"].ne("") & out["channel"].ne("None")].drop_duplicates()
+
+
+@st.cache_data(ttl=600)
 def load_marketplaces() -> list:
     conn = get_connection()
     try:
@@ -256,7 +287,23 @@ def fmt_money(v) -> str:
 # ═══════════════════════════════════════════════════════════════════
 
 all_mp = load_marketplaces()
-countries = sorted({m for m in all_mp if m != LM_CODE})
+
+# страну берём из справочника, а не из кода рынка: код MM_ES — это не
+# страна, и в списке стран ему делать нечего
+_mkt = load_market_map()
+_code2country = {}
+_code2channel = {}
+if not _mkt.empty:
+    _code2channel = dict(zip(_mkt["marketplace_code"], _mkt["channel"]))
+    _code2country = {c: v for c, v in zip(_mkt["marketplace_code"], _mkt["country"])
+                     if v}
+
+if _code2country:
+    countries = sorted({_code2country.get(str(m).upper(), "")
+                        for m in all_mp} - {""})
+else:
+    # справочник недоступен — прежнее поведение, а не пустой список
+    countries = sorted({m for m in all_mp if m != LM_CODE})
 
 P_MONTH, P_CUSTOM = t("cm.period.month"), t("cm.period.custom")
 _opts = ["7", "30", "60", "90", P_MONTH, P_CUSTOM]
@@ -299,9 +346,17 @@ D_FROM_H = date_from.strftime("%d.%m") if date_from is not None else ""
 D_TO_H = date_to.strftime("%d.%m.%Y") if date_to is not None else ""
 
 is_all = country == t("cm.filter.all_countries")
-# Leroy Merlin работает только в Испании — показываем его вместе с ES
-mp_scope = all_mp if is_all else (
-    [country, LM_CODE] if country == LM_COUNTRY else [country])
+# выбранная страна тянет за собой все площадки, работающие в ней: Испания
+# это и Amazon.es, и Leroy Merlin, и ManoMano, и Carrefour. Раньше список
+# был жёстким и знал только про LM, поэтому испанские продажи новых
+# площадок в выборку не попадали
+if is_all:
+    mp_scope = all_mp
+elif _code2country:
+    mp_scope = [m for m in all_mp
+                if _code2country.get(str(m).upper(), "") == country]
+else:
+    mp_scope = [country, LM_CODE] if country == LM_COUNTRY else [country]
 
 sales = load_sales(DAYS, D_FROM, D_TO)
 stock = load_stock()
@@ -332,11 +387,36 @@ tab_sum, tab_lm, tab_amz, tab_all = st.tabs(
 with tab_sum:
     scoped = sales[sales["marketplace"].isin(mp_scope)].copy()
 
+    # Эта таблица сравнивает товар на ДВУХ площадках: колонки, остатки и
+    # разница цен построены под Amazon и Leroy Merlin, а квота канала
+    # берётся из mirakl-offers. Третья площадка сюда не помещается — это
+    # устройство таблицы, а не литерал, который можно заменить.
+    #
+    # Но раньше «не LM» означало «Amazon», и ManoMano с Carrefour молча
+    # легли бы в амазоновскую колонку, завысив её. Берём в сравнение только
+    # те две площадки, под которые оно построено, а остальные называем под
+    # таблицей: потерять их молча нельзя
+    _lm_ch = _code2channel.get(LM_CODE, "")
+    _pair = {c for c in ("Amazon", _lm_ch) if c}
+    _dropped = []
+    if _code2channel and len(_pair) == 2 and not scoped.empty:
+        _ch_of = scoped["marketplace"].map(
+            lambda m: _code2channel.get(str(m).upper(), "Amazon"))
+        _dropped = sorted(set(_ch_of[~_ch_of.isin(_pair)]))
+        scoped = scoped[_ch_of.isin(_pair)].copy()
+
     if scoped.empty:
         st.info(t("common.no_data"))
     else:
+        # площадку определяем по каналу из справочника, а не сравнением
+        # кода с литералом: у Leroy Merlin может появиться вторая страна
         scoped["platform"] = np.where(
-            scoped["marketplace"] == LM_CODE, "lm", "amazon")
+            scoped["marketplace"].map(
+                lambda m: _code2channel.get(str(m).upper(), "Amazon")) == "Amazon",
+            "amazon", "lm")
+        if _dropped:
+            st.caption(t("cm.pair.excluded").format(
+                ch=", ".join(_dropped)))
 
         agg = (scoped.groupby(["base_sku", "platform"], as_index=False)
                      .agg(product_name=("product_name", "first"),
@@ -723,8 +803,11 @@ with tab_all:
         by_mp["cm"] = by_mp["net"] - by_mp["cogs"]
         by_mp["cm_pct"] = np.round(safe_div(by_mp["cm"], by_mp["revenue"]) * 100, 1)
         by_mp["fees_pct"] = np.round(safe_div(by_mp["fees"], by_mp["revenue"]) * 100, 1)
-        by_mp["platform"] = np.where(by_mp["marketplace"] == LM_CODE,
-                                     t("cm.platform.lm"), t("cm.platform.amazon"))
+        # площадку берём из справочника: сравнение с литералом красило
+        # любую неамазоновскую площадку в цвета Amazon
+        by_mp["platform"] = by_mp["marketplace"].map(
+            lambda m: _code2channel.get(str(m).upper(),
+                                        t("cm.platform.amazon")))
         by_mp = by_mp.sort_values("revenue", ascending=False)
 
         cc = st.columns(min(len(by_mp), 5) or 1)
@@ -736,8 +819,8 @@ with tab_all:
 
         fig = px.bar(by_mp, x="marketplace", y="revenue", color="platform",
                      title=t("cm.all.chart"), text="revenue",
-                     color_discrete_map={t("cm.platform.amazon"): BLUE,
-                                         t("cm.platform.lm"): GREEN})
+                     color_discrete_sequence=[BLUE, GREEN, AMBER, "#7e57c2",
+                                              "#26a69a", "#ef6c00"])
         fig.update_traces(texttemplate="%{text:.0f}")
         fig.update_layout(height=360, xaxis_title=None,
                           yaxis_title="€", margin=dict(l=10, r=10, t=50, b=10),

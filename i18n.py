@@ -2619,6 +2619,21 @@ TRANSLATIONS = {
     "cm.col.severity": {"ru": "Уровень", "uk": "Рівень", "en": "Severity"},
     "cm.col.type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
     "cm.col.description": {"ru": "Описание", "uk": "Опис", "en": "Description"},
+    "cm.pair.excluded": {
+        "ru": "В это сравнение не вошли: {ch}. Таблица построена на сопоставлении двух "
+              "площадок — колонки, остатки и разница цен рассчитаны под Amazon и Leroy "
+              "Merlin. Продажи остальных каналов есть на вкладке по маркетплейсам и в "
+              "«Деньгах»; сюда они не добавлены, чтобы не попасть в чужую колонку.",
+        "uk": "У це порівняння не увійшли: {ch}. Таблиця побудована на зіставленні двох "
+              "майданчиків — колонки, залишки та різниця цін розраховані під Amazon і "
+              "Leroy Merlin. Продажі інших каналів є на вкладці за маркетплейсами і в "
+              "«Грошах»; сюди їх не додано, щоб не потрапити в чужу колонку.",
+        "en": "Not included in this comparison: {ch}. The table is built around two "
+              "marketplaces — its columns, stock and price gap are computed for Amazon "
+              "and Leroy Merlin. Sales of the other channels appear on the marketplace "
+              "tab and in Money; they are left out here so they do not land in the "
+              "wrong column.",
+    },
     "cm.platform.amazon": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
     "cm.platform.lm": {"ru": "Leroy Merlin", "uk": "Leroy Merlin", "en": "Leroy Merlin"},
     "cm.all.metric_help": {
