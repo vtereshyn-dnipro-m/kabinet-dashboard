@@ -166,7 +166,36 @@ def load_ordered_sales(days: int = 30) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
+def coverage_diag() -> dict:
+    """Почему свод покрытия пуст: таблицы нет, строк нет или запрос упал.
+    Раньше все три случая давали одинаково пустой блок на экране."""
+    out = {"table": False, "rows": None, "last_calc": None, "error": None}
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'kabinet_data'
+              AND table_name = 'coverage_summary'
+        """)
+        out["table"] = cur.fetchone() is not None
+        if out["table"]:
+            cur.execute("SELECT COUNT(*), MAX(calc_date) "
+                        "FROM kabinet_data.coverage_summary")
+            row = cur.fetchone()
+            out["rows"] = int(row[0] or 0)
+            out["last_calc"] = row[1]
+    except Exception as e:
+        out["error"] = f"{type(e).__name__}: {e}"
+    finally:
+        conn.close()
+    return out
+
+
+@st.cache_data(ttl=300)
 def load_coverage() -> pd.DataFrame:
+    # фильтр по дате самореферентный: MAX(calc_date) из этой же таблицы,
+    # а не CURRENT_DATE. Часовой пояс метки на него не влияет
     if not table_exists("coverage_summary"):
         return pd.DataFrame()
     conn = get_connection()
@@ -177,7 +206,8 @@ def load_coverage() -> pd.DataFrame:
             FROM kabinet_data.coverage_summary
             WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.coverage_summary)
         """, conn)
-    except Exception:
+    except Exception as e:
+        st.session_state["_cov_error"] = f"{type(e).__name__}: {e}"
         return pd.DataFrame()
     finally:
         conn.close()
@@ -557,6 +587,19 @@ cl, cr = st.columns([1.4, 1])
 
 with cl:
     if cov.empty:
+        d = coverage_diag()
+        err = d["error"] or st.session_state.get("_cov_error")
+        if err:
+            st.error(t("cov.err.query").format(e=err))
+        elif not d["table"]:
+            st.error(t("cov.err.no_table"))
+        elif not d["rows"]:
+            st.warning(t("cov.err.no_rows"))
+        else:
+            st.warning(t("cov.err.no_match").format(
+                n=d["rows"],
+                d=("—" if pd.isna(pd.Timestamp(d["last_calc"]))
+                   else pd.Timestamp(d["last_calc"]).strftime("%d.%m.%Y %H:%M"))))
         st.caption(t("home.cov.no_data"))
     else:
         cov["realistic_coverage_weeks"] = pd.to_numeric(
