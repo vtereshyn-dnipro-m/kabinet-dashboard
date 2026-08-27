@@ -518,6 +518,47 @@ TRANSLATIONS = {
     },
     "home.period": {"ru": "Период, дней", "uk": "Період, днів", "en": "Period, days"},
     "home.sec.sales": {"ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
+    "cov.err.no_table": {
+        "ru": "Таблицы расчёта покрытия нет в базе, к которой подключён дашборд. "
+              "Расчёт мог отработать в Databricks, но до Lakebase не доехать — это "
+              "разные хранилища.",
+        "uk": "Таблиці розрахунку покриття немає в базі, до якої підключений дашборд. "
+              "Розрахунок міг відпрацювати в Databricks, але до Lakebase не доїхати — "
+              "це різні сховища.",
+        "en": "The coverage table is missing from the database the dashboard is "
+              "connected to. The job may have run in Databricks without reaching "
+              "Lakebase — these are different stores.",
+    },
+    "cov.err.no_rows": {
+        "ru": "Таблица расчёта покрытия есть, но она пустая. Расчёт до этой базы не "
+              "доехал: смотреть надо загрузчик, а не дашборд.",
+        "uk": "Таблиця розрахунку покриття є, але вона порожня. Розрахунок до цієї бази "
+              "не доїхав: дивитися треба завантажувач, а не дашборд.",
+        "en": "The coverage table exists but is empty. The calculation has not reached "
+              "this database — check the loader, not the dashboard.",
+    },
+    "cov.err.no_match": {
+        "ru": "В таблице {n} строк, последний расчёт — {d}, но выборка на эту дату "
+              "пустая. Значит метки calc_date в строках расходятся между собой: запрос "
+              "берёт максимум и требует точного совпадения. Покажите эту строку тому, "
+              "кто ведёт расчёт.",
+        "uk": "У таблиці {n} рядків, останній розрахунок — {d}, але вибірка на цю дату "
+              "порожня. Отже мітки calc_date у рядках розходяться між собою: запит бере "
+              "максимум і вимагає точного збігу. Покажіть цей рядок тому, хто веде "
+              "розрахунок.",
+        "en": "The table holds {n} rows, the latest calculation is {d}, yet the selection "
+              "for that date is empty. So the calc_date stamps differ between rows: the "
+              "query takes the maximum and requires an exact match. Show this line to "
+              "whoever owns the calculation.",
+    },
+    "cov.err.query": {
+        "ru": "Запрос расчёта покрытия упал: {e}. Это ошибка дашборда или схемы, "
+              "а не отсутствие данных.",
+        "uk": "Запит розрахунку покриття впав: {e}. Це помилка дашборда або схеми, "
+              "а не відсутність даних.",
+        "en": "The coverage query failed: {e}. This is a dashboard or schema error, "
+              "not missing data.",
+    },
     "home.sec.stock": {"ru": "Запасы и обеспеченность", "uk": "Запаси та забезпеченість", "en": "Stock and coverage"},
     "home.sec.reorder": {"ru": "Пополнение", "uk": "Поповнення", "en": "Replenishment"},
     "home.sec.incidents": {"ru": "Что требует внимания", "uk": "Що потребує уваги", "en": "Needs attention"},

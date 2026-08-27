@@ -62,8 +62,49 @@ def table_exists(name: str) -> bool:
 
 
 @st.cache_data(ttl=600)
+def coverage_diag() -> dict:
+    """Почему свод покрытия пуст.
+
+    Три разных случая — таблицы нет в Lakebase, строк нет, запрос упал —
+    раньше сводились к одному пустому DataFrame, и страница показывала
+    одинаковую пустоту. Отличить «расчёт не доехал» от «запрос сломался»
+    было нельзя ни с экрана, ни из логов: `except Exception` глотал текст
+    ошибки целиком.
+
+    Спрашиваем у базы напрямую: есть ли таблица, сколько в ней строк и
+    какая дата расчёта последняя. Этого хватает, чтобы человек за минуту
+    понял, на чьей стороне проблема."""
+    out = {"table": False, "rows": None, "last_calc": None, "error": None}
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'kabinet_data'
+              AND table_name = 'coverage_summary'
+        """)
+        out["table"] = cur.fetchone() is not None
+        if out["table"]:
+            cur.execute("SELECT COUNT(*), MAX(calc_date) "
+                        "FROM kabinet_data.coverage_summary")
+            row = cur.fetchone()
+            out["rows"] = int(row[0] or 0)
+            out["last_calc"] = row[1]
+    except Exception as e:
+        out["error"] = f"{type(e).__name__}: {e}"
+    finally:
+        conn.close()
+    return out
+
+
+@st.cache_data(ttl=600)
 def load_coverage() -> pd.DataFrame:
-    """Свод покрытия на последнюю дату расчёта."""
+    """Свод покрытия на последнюю дату расчёта.
+
+    Фильтр по дате самореферентный: сравниваем с MAX(calc_date) из этой же
+    таблицы, а не с CURRENT_DATE. Часовой пояс на него не влияет — какой бы
+    ни была метка, максимум берётся из тех же строк. Пустой результат здесь
+    означает, что строк нет вовсе или запрос упал, а не что дата разошлась."""
     if not table_exists("coverage_summary"):
         return pd.DataFrame()
     conn = get_connection()
@@ -88,7 +129,10 @@ def load_coverage() -> pd.DataFrame:
                               .fillna(df.get("fallback_name"))
                               .fillna("—").replace({"None": "—", "": "—"}))
         return df.drop(columns=["fallback_name"], errors="ignore")
-    except Exception:
+    except Exception as e:
+        # текст ошибки нужен на экране: без него «пусто» и «сломалось»
+        # выглядят одинаково, и разбор начинается с чтения кода
+        st.session_state["_cov_error"] = f"{type(e).__name__}: {e}"
         return pd.DataFrame()
     finally:
         conn.close()
@@ -344,7 +388,23 @@ if SHOW_DRAFT_TABS:
 with tab_cov:
     cov = load_coverage()
     if cov.empty:
-        st.info(t("stock.cov.no_data"))
+        d = coverage_diag()
+        err = d["error"] or st.session_state.get("_cov_error")
+        if err:
+            st.error(t("cov.err.query").format(e=err))
+        elif not d["table"]:
+            st.error(t("cov.err.no_table"))
+        elif not d["rows"]:
+            st.warning(t("cov.err.no_rows"))
+        else:
+            # строки есть, а выборка пуста — значит разошлись calc_date
+            # в запросе и в таблице. Показываем обе стороны, чтобы не
+            # гадать: расчёт не доехал или сматчился не с тем днём
+            st.warning(t("cov.err.no_match").format(
+                n=d["rows"],
+                d=("—" if pd.isna(pd.Timestamp(d["last_calc"]))
+                   else pd.Timestamp(d["last_calc"]).strftime("%d.%m.%Y %H:%M"))))
+        st.caption(t("stock.cov.no_data"))
     else:
         for c in ("available_now", "coverage_weeks", "fbm_fallback_qty",
                   "total_coverage_weeks", "realistic_coverage_weeks",
