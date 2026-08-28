@@ -334,20 +334,39 @@ if df.empty:
 
 # подпись периода — как на Обзоре: показываем выбранный диапазон,
 # а под ним предупреждаем, если данные за конец периода ещё не пришли
-_dates = pd.to_datetime(df["sales_date"], errors="coerce")
-_last = _dates.max()
+# Граница данных считается по КАЖДОМУ маркетплейсу отдельно, а берётся
+# минимальная. Data Kiosk отдаёт отчёты с разной задержкой по странам:
+# max по всей выборке обещал бы данные до самой свежей из них, хотя по
+# остальным их нет. Раньше стоял именно max, и при нескольких странах
+# подпись называла дату, которой по части из них не существует
+_by_mp = (df.assign(_d=pd.to_datetime(df["sales_date"], errors="coerce"))
+            .groupby("marketplace")["_d"].max().dropna())
+_last = _by_mp.min() if len(_by_mp) else pd.NaT
+_behind = sorted(_by_mp[_by_mp == _last].index) if len(_by_mp) else []
+_ahead = _by_mp[_by_mp > _last] if len(_by_mp) else _by_mp
 
+# заголовок пишет фактическую границу, а не запрошенную: показывать
+# «01.08 — 28.08», когда данных нет после 25-го, значит обещать три дня,
+# которых в цифрах ниже нет
+_to_eff = (min(pd.Timestamp(d_to), _last) if (d_to and pd.notna(_last))
+           else (pd.Timestamp(d_to) if d_to else None))
 if d_from and d_to:
     _ptitle = t("money.period_title").format(
         f=pd.Timestamp(d_from).strftime("%d.%m"),
-        to=pd.Timestamp(d_to).strftime("%d.%m.%Y"))
+        to=_to_eff.strftime("%d.%m.%Y"))
 else:
     _ptitle = t("money.period_days").format(d=WINDOW)
 st.markdown(f"##### {_ptitle}")
 
 if pd.notna(_last):
     _lag = (pd.Timestamp(pd.Timestamp.now().date()) - _last).days
-    if _lag >= 2:
+    if len(_ahead):
+        # границы по странам разошлись — называем и отстающую, и остальные
+        st.caption(t("money.period_lag_mixed").format(
+            d=_last.strftime("%d.%m"), mp=", ".join(_behind),
+            more=", ".join(sorted(_ahead.index)),
+            dmax=_ahead.max().strftime("%d.%m")))
+    elif _lag >= 2:
         st.caption(t("money.period_lag").format(
             d=_last.strftime("%d.%m"), n=_lag))
 
@@ -424,6 +443,12 @@ if _no_amazon:
     _ordered = None
 else:
     _b0, _b1 = load_period_bounds(WINDOW, d_from, d_to)
+    # sales_traffic_daily приходит через Ads/SP-API и опережает Data Kiosk
+    # на несколько дней. Без обрезки «Продажи по заказам» считались за 28
+    # дней, а «Выручка» рядом — за 25, и разницу между ними подпись ниже
+    # объясняла НДС и возвратами, хотя часть её была просто разным периодом
+    if _b1 and pd.notna(_last):
+        _b1 = min(pd.Timestamp(_b1), _last).date()
     _ordered = (load_ordered_sales(0, _b0, _b1, _amz) if (_b0 and _b1)
                 else load_ordered_sales(WINDOW, markets=_amz))
 

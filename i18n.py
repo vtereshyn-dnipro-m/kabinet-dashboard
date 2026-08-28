@@ -1275,17 +1275,23 @@ TRANSLATIONS = {
               "Как в кабинете Amazon: с НДС и доставкой, по дате заказа, отменённые не "
               "вычитаются. Только Amazon: витринного отчёта по другим площадкам не существует, "
               "и если в фильтре не осталось ни одного амазоновского рынка, показывается "
-              "прочерк. Для сверки с Seller Central: маржа считается не отсюда",
+              "прочерк. Окно обрезано по последнему дню, за который пришли отчёты о "
+              "продажах, чтобы это число и «Выручка» считались за одни и те же дни. "
+              "Для сверки с Seller Central: маржа считается не отсюда",
         "uk": "УСІ замовлення за період, включно з тими, що чекають на відвантаження. "
               "Як у кабінеті Amazon: з ПДВ і доставкою, за датою замовлення, скасовані не "
               "віднімаються. Лише Amazon: вітринного звіту за іншими майданчиками не існує, "
               "і якщо у фільтрі не лишилося жодного амазонівського ринку, показується "
-              "прочерк. Для звірки з Seller Central: маржа рахується не звідси",
+              "прочерк. Вікно обрізано за останнім днем, за який прийшли звіти про "
+              "продажі, щоб це число і «Виручка» рахувалися за ті самі дні. "
+              "Для звірки з Seller Central: маржа рахується не звідси",
         "en": "ALL orders in the period, including those still awaiting shipment. As in "
               "Seller Central: with VAT and shipping, by order date, cancellations not "
               "deducted. Amazon only: no such report exists for the other marketplaces, so when "
-              "the filter leaves no Amazon market the card shows a dash. For "
-              "reconciliation: margin is not based on this",
+              "the filter leaves no Amazon market the card shows a dash. The window is "
+              "trimmed to the last day for which sales reports have arrived, so this "
+              "figure and Revenue cover the same days. For reconciliation: margin is "
+              "not based on this",
     },
     "money.kpi.revenue_help": {
         "ru": "Только ОТГРУЖЕННЫЕ заказы: чистая выручка после возвратов, без НДС. "
@@ -1696,6 +1702,21 @@ TRANSLATIONS = {
         "ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
     "money.period_title": {
         "ru": "Период: {f} — {to}", "uk": "Період: {f} — {to}", "en": "Period: {f} — {to}"},
+    "money.period_lag_mixed": {
+        "ru": "Данные по {d} включительно — по {mp} отчёты приходят позже остальных. "
+              "По {more} есть уже по {dmax}, но период выровнен по самой отстающей "
+              "стране: иначе страны нельзя сравнивать между собой. Amazon отдаёт "
+              "отчёты о продажах с задержкой в несколько дней, и задержка по странам "
+              "разная.",
+        "uk": "Дані по {d} включно — по {mp} звіти приходять пізніше за інші. По {more} "
+              "є вже по {dmax}, але період вирівняно за найвідсталішою країною: інакше "
+              "країни не можна порівнювати між собою. Amazon віддає звіти про продажі "
+              "із затримкою в кілька днів, і затримка по країнах різна.",
+        "en": "Data through {d} — reports for {mp} arrive later than the rest. {more} "
+              "already has data through {dmax}, but the period is aligned to the most "
+              "delayed country, otherwise countries cannot be compared. Amazon delivers "
+              "sales reports with a lag of several days, and the lag differs by country.",
+    },
     "money.period_lag": {
         "ru": "Данные есть по {d} включительно — Amazon отдаёт отчёты с задержкой, "
               "последние {n} дн. ещё не загружены.",
