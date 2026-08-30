@@ -1559,46 +1559,6 @@ TRANSLATIONS = {
               "A drop while ad spend grows means money is going out and position is "
               "being lost.",
     },
-    "rev.bsr.title": {
-        "ru": "Движение в категории Amazon",
-        "uk": "Рух у категорії Amazon",
-        "en": "Movement in the Amazon category",
-    },
-    "rev.bsr.up": {"ru": "Поднялись", "uk": "Піднялися", "en": "Moved up"},
-    "rev.bsr.down": {"ru": "Опустились", "uk": "Опустилися", "en": "Moved down"},
-    "rev.bsr.tracked": {"ru": "Под наблюдением", "uk": "Під спостереженням", "en": "Tracked"},
-    "rev.bsr.tracked_help": {
-        "ru": "Товары, которым Amazon присваивает место в категории. Остальным он его "
-              "не даёт — для этого нужен минимальный объём продаж",
-        "uk": "Товари, яким Amazon присвоює місце в категорії. Іншим він його не дає — "
-              "для цього потрібен мінімальний обсяг продажів",
-        "en": "Products Amazon assigns a category rank to. It doesn't rank the rest — "
-              "that requires a minimum sales volume",
-    },
-    "rev.bsr.rank": {"ru": "Место в категории", "uk": "Місце в категорії", "en": "Category rank"},
-    "rev.bsr.axis": {"ru": "Товаров", "uk": "Товарів", "en": "Products"},
-    "rev.bsr.note": {
-        "ru": "По {n} товарам, которым Amazon присваивает место в категории. Вверх — "
-              "поднялись, вниз — опустились. Позиция зависит и от конкурентов: товар "
-              "может опуститься при тех же продажах, если кто-то другой вырос.",
-        "uk": "По {n} товарах, яким Amazon присвоює місце в категорії. Вгору — "
-              "піднялися, вниз — опустилися. Позиція залежить і від конкурентів: товар "
-              "може опуститися за тих самих продажів, якщо хтось інший зріс.",
-        "en": "Across {n} products Amazon ranks. Up means they moved up in the category, "
-              "down means they dropped. Position also depends on competitors — a product "
-              "can fall at the same sales if someone else grows.",
-    },
-    "rev.bsr.wait": {
-        "ru": "Движение в категории считается сравнением с предыдущим днём, а сбор "
-              "начался только что — сравнивать пока не с чем. Первые столбцы появятся "
-              "завтра, читаемая картина через три-четыре дня.",
-        "uk": "Рух у категорії рахується порівнянням із попереднім днем, а збір "
-              "почався щойно — порівнювати поки нема з чим. Перші стовпці зʼявляться "
-              "завтра, читабельна картина за три-чотири дні.",
-        "en": "Category movement is measured against the previous day, and collection has "
-              "only just started — there is nothing to compare yet. The first bars appear "
-              "tomorrow, a readable picture in three or four days.",
-    },
     "money.col.flag": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "money.col.flag_help": {
         "ru": "Прибыльность товара за период",
@@ -1926,8 +1886,6 @@ TRANSLATIONS = {
               "request only from day {n} after purchase. There is nothing to measure "
               "coverage on — this is not a halted mailing. Pick a period of 14 days or more.",
     },
-    "rev.dyn.new_reviews": {"ru": "Новых отзывов", "uk": "Нових відгуків", "en": "New reviews"},
-    "rev.dyn.launch": {"ru": "Старт рассылки", "uk": "Старт розсилки", "en": "Mailing started"},
     "rev.dyn.gap_note": {
         "ru": "Сборщик не отработал {n} дн. ({days}) — в эти дни данных нет, "
               "линия прироста разорвана. Это пропуск сбора, а не отсутствие отзывов.",
@@ -2011,15 +1969,9 @@ TRANSLATIONS = {
         "uk": "Замовлення та обробка за датами",
         "en": "Orders and processing by date",
     },
-    "rev.chart.by_marketplace": {
-        "ru": "Результат обработки по маркетплейсам",
-        "uk": "Результат обробки за маркетплейсами",
-        "en": "Processing outcome by marketplace",
-    },
     "rev.table.by_date": {"ru": "Покрытие по датам заказа", "uk": "Покриття за датами замовлення", "en": "Coverage by order date"},
     "rev.col.date": {"ru": "Дата заказа", "uk": "Дата замовлення", "en": "Order date"},
     "rev.col.orders": {"ru": "Заказов", "uk": "Замовлень", "en": "Orders"},
-    "rev.col.processed": {"ru": "Обработано", "uk": "Оброблено", "en": "Processed"},
     "rev.col.sent": {"ru": "Отправлено", "uk": "Надіслано", "en": "Sent"},
     "rev.col.no_action": {"ru": "Amazon отказал", "uk": "Amazon відмовив", "en": "Declined"},
     "rev.col.no_action_help": {
@@ -2075,11 +2027,6 @@ TRANSLATIONS = {
               "already requested, or the buyer opted out), amber — order with a return, "
               "deliberately skipped. The three parts add up to the total. The red line "
               "is the share sent.",
-    },
-    "rev.table.by_date_marketplace": {
-        "ru": "Покрытие по датам и маркетплейсам",
-        "uk": "Покриття за датами та маркетплейсами",
-        "en": "Coverage by date and marketplace",
     },
     "rev.table.marketplace_filter": {
         "ru": "Маркетплейсы в таблице",
@@ -2156,6 +2103,8 @@ TRANSLATIONS = {
         "uk": "Розбити за маркетплейсами",
         "en": "Split by marketplace",
     },
+    "rev.table.all_dates": {
+        "ru": "За период", "uk": "За період", "en": "Period total"},
     "rev.table.all_marketplaces": {"ru": "Все", "uk": "Всі", "en": "All"},
     "rev.legend.ok_short": {
         "ru": "покрытие 90% и выше",
@@ -2178,11 +2127,6 @@ TRANSLATIONS = {
         "en": "order younger than {min} days",
     },
     "rev.download": {"ru": "Скачать покрытие CSV", "uk": "Завантажити покриття CSV", "en": "Download coverage CSV"},
-    "rev.mp.metric_help": {
-        "ru": "{mp} — отправлено запросов и общее покрытие по маркетплейсу",
-        "uk": "{mp} — надіслано запитів і загальне покриття за маркетплейсом",
-        "en": "{mp} — requests sent and overall coverage for this marketplace",
-    },
     "rev.age.title": {
         "ru": "Когда Amazon чаще разрешает запрос",
         "uk": "Коли Amazon частіше дозволяє запит",
@@ -2198,6 +2142,87 @@ TRANSLATIONS = {
     },
     "rev.age.axis": {"ru": "Дней с даты заказа", "uk": "Днів з дати замовлення", "en": "Days since order"},
     "rev.age.checked": {"ru": "Проверено", "uk": "Перевірено", "en": "Checked"},
+    "rev.sched.title": {
+        "ru": "Когда уходят запросы", "uk": "Коли йдуть запити",
+        "en": "When requests are sent"},
+    "rev.sched.caption": {
+        "ru": "Фактическое расписание за выбранный период — во сколько запросы реально "
+              "уходили, по мадридскому времени. Показываем факт, а не настройку: конфиг "
+              "крона может расходиться с тем, что произошло, а здесь видно произошедшее.",
+        "uk": "Фактичний розклад за обраний період — о котрій запити справді йшли, за "
+              "мадридським часом. Показуємо факт, а не налаштування: конфіг крона може "
+              "розходитися з тим, що сталося, а тут видно те, що сталося.",
+        "en": "The actual schedule for the selected period — when requests really went "
+              "out, Madrid time. This is what happened, not what is configured: the cron "
+              "config can drift from reality, this table cannot.",
+    },
+    "rev.sched.main_hour": {
+        "ru": "Основной час", "uk": "Основна година", "en": "Main hour"},
+    "rev.sched.main_hour_help": {
+        "ru": "Час, на который пришлось больше всего отправок. Рядом — какая доля всех "
+              "запросов этого маркетплейса ушла именно в него.",
+        "uk": "Година, на яку припало найбільше відправок. Поруч — яка частка всіх "
+              "запитів цього маркетплейсу пішла саме в неї.",
+        "en": "The hour with the most sends. Next to it — what share of this "
+              "marketplace's requests went out in that hour.",
+    },
+    "rev.sched.share": {"ru": "Доля", "uk": "Частка", "en": "Share"},
+    "rev.sched.all_hours": {
+        "ru": "Все часы отправки", "uk": "Усі години відправки",
+        "en": "All send hours"},
+    "rev.slot.reviews_gap": {
+        "ru": "Здесь сравнивается доля запросов, которые Amazon разрешил, а не прирост "
+              "отзывов после них. Связать конкретный отзыв с конкретным запросом данные "
+              "не позволяют: известно только число отзывов у товара по дням, а запросы по "
+              "одному товару могли уходить в оба слота. Отношение «отзывы к запросам» на "
+              "нынешних объёмах вышло бы неотличимым от случайности — по этому показателю "
+              "нужен отдельный разговор о методике.",
+        "uk": "Тут порівнюється частка запитів, які Amazon дозволив, а не приріст відгуків "
+              "після них. Повʼязати конкретний відгук із конкретним запитом дані не "
+              "дозволяють: відоме лише число відгуків у товару по днях, а запити за одним "
+              "товаром могли йти в обидва слоти. Відношення «відгуки до запитів» на "
+              "нинішніх обсягах було б невідрізняним від випадковості.",
+        "en": "This compares the share of requests Amazon allowed, not the review growth "
+              "that followed. The data cannot link a specific review to a specific "
+              "request: we only know a product's review count per day, and requests for "
+              "one product may have gone out in both slots. A reviews-to-requests ratio "
+              "would be indistinguishable from noise at current volumes.",
+    },
+    "rev.asin.weak": {
+        "ru": "Отдача на запрос по товарам", "uk": "Віддача на запит за товарами",
+        "en": "Return per request by product"},
+    "rev.asin.weak_caption": {
+        "ru": "Сколько запросов ушло и сколько отзывов прибавилось за период. Сверху те, "
+              "кто принёс больше отзывов, внутри — с наименьшей отдачей на запрос.",
+        "uk": "Скільки запитів пішло і скільки відгуків додалося за період. Зверху ті, хто "
+              "приніс більше відгуків, усередині — з найменшою віддачею на запит.",
+        "en": "How many requests went out and how many reviews were added over the period. "
+              "Sorted by most reviews first, then by the weakest return per request.",
+    },
+    "rev.asin.got_reviews": {
+        "ru": "Отзывов", "uk": "Відгуків", "en": "Reviews"},
+    "rev.asin.to_requests": {
+        "ru": "% к запросам", "uk": "% до запитів", "en": "% of requests"},
+    "rev.asin.to_requests_help": {
+        "ru": "Прирост отзывов за период, делённый на число отправленных запросов. Это "
+              "соседство во времени, а не доказанная связь: отзыв мог появиться и без "
+              "запроса. Считается по тем же позициям, что и «Динамика», — позиции со "
+              "скачущим счётчиком в расчёт не входят.",
+        "uk": "Приріст відгуків за період, поділений на число надісланих запитів. Це "
+              "сусідство в часі, а не доведений звʼязок: відгук міг зʼявитися і без "
+              "запиту. Рахується за тими самими позиціями, що й «Динаміка».",
+        "en": "Review growth over the period divided by the number of requests sent. This "
+              "is co-occurrence in time, not a proven link: a review may appear without a "
+              "request. Computed over the same basket as the Growth tab.",
+    },
+    "rev.dyn.moved_note": {
+        "ru": "Разбор по конкретным товарам — во вкладке «По товарам»: там и отдача на "
+              "запрос, и где отзывов прибавилось больше всего.",
+        "uk": "Розбір за конкретними товарами — у вкладці «За товарами»: там і віддача на "
+              "запит, і де відгуків додалося найбільше.",
+        "en": "Per-product detail lives in the «By product» tab: return per request and "
+              "where reviews grew the most.",
+    },
     "rev.slot.title": {
         "ru": "Утро против вечера: сравнение расписаний",
         "uk": "Ранок проти вечора: порівняння розкладів",
@@ -2266,32 +2291,6 @@ TRANSLATIONS = {
               "перші прогони по обох.",
         "en": "Split schedules have started — the comparison will appear once both have run.",
     },
-    "rev.hour.title": {
-        "ru": "Во сколько уходят запросы", "uk": "О котрій ідуть запити", "en": "When requests go out"},
-    "rev.hour.caption": {
-        "ru": "По местному времени маркетплейсов, с разбивкой по странам. С 19 августа "
-              "Испания отправляет вечером, остальные утром — сравнение результата "
-              "ниже, под этим графиком.",
-        "uk": "За місцевим часом маркетплейсів, з розбивкою за країнами. З 19 серпня "
-              "Іспанія надсилає ввечері, решта вранці — порівняння результату "
-              "нижче, під цим графіком.",
-        "en": "In marketplace local time, split by country. Since 19 August Spain sends "
-              "in the evening and the others in the morning — the outcome comparison "
-              "is below this chart.",
-    },
-    "rev.hour.split": {
-        "ru": "Кто когда отправляет: {s}",
-        "uk": "Хто коли надсилає: {s}",
-        "en": "Who sends when: {s}",
-    },
-    "rev.hour.single": {
-        "ru": "Пока все запросы уходят в {h}:00 — сравнивать не с чем. Разброс появится, "
-              "только если разнести отправку по времени.",
-        "uk": "Поки всі запити йдуть о {h}:00 — порівнювати нема з чим. Розкид зʼявиться, "
-              "лише якщо рознести відправку за часом.",
-        "en": "All requests currently go out at {h}:00 — nothing to compare yet. A spread "
-              "will only appear if sending is split across times.",
-    },
     "rev.age.no_data": {
         "ru": "Данных о возрасте пока нет — появятся после первых прогонов.",
         "uk": "Даних про вік поки немає — зʼявляться після перших прогонів.",
@@ -2311,7 +2310,6 @@ TRANSLATIONS = {
         "en": "Observations: {n}. Enough data to discuss the send window boundaries.",
     },
     "rev.asin.top": {"ru": "Топ товаров по отправкам", "uk": "Топ товарів за відправками", "en": "Top products by requests sent"},
-    "rev.asin.table": {"ru": "Все товары", "uk": "Всі товари", "en": "All products"},
     "rev.asin.no_data": {
         "ru": "По товарам данных пока нет.",
         "uk": "За товарами даних поки немає.",
