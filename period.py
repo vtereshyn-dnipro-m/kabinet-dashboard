@@ -22,7 +22,12 @@ import streamlit as st
 from i18n import t
 
 P_7, P_30, P_90 = "7", "30", "90"
+# Ключ памяти и ключ виджета обязаны быть РАЗНЫМИ. Streamlit запрещает
+# присваивать session_state[k], если k — ключ уже отрисованного виджета,
+# и на одном ключе страница падала с StreamlitAPIException ещё до того,
+# как успевала что-нибудь показать
 STATE = "kab_period"        # выбранный вариант, переживает смену страницы
+WIDGET = "kab_period_pick"  # ключ самого переключателя
 STATE_RANGE = "kab_range"   # границы своего периода
 QP = "d"                    # тот же период в адресе страницы
 
@@ -81,7 +86,7 @@ class Period:
         return t("period.title_days").format(d=self.days)
 
 
-def control(*, key: str = STATE, columns=None) -> Period:
+def control(*, key: str = WIDGET, columns=None) -> Period:
     """Селектор периода. Возвращает окно, а не строку выбора."""
     opts = options()
     saved = st.query_params.get(QP) or st.session_state.get(STATE)
