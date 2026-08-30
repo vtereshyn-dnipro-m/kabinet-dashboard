@@ -2517,9 +2517,9 @@ TRANSLATIONS = {
     "nav.cm": {"ru": "Площадки", "uk": "Майданчики", "en": "Channels"},
     "cm.title": {"ru": "Площадки", "uk": "Майданчики", "en": "Channels"},
     "cm.caption": {
-        "ru": "Amazon и Leroy Merlin в одной картине: продажи, цены, остатки, здоровье каналов",
-        "uk": "Amazon і Leroy Merlin в одній картині: продажі, ціни, залишки, здоров'я каналів",
-        "en": "Amazon and Leroy Merlin side by side: sales, prices, stock, channel health",
+        "ru": "Все площадки в одной картине: продажи, цены, остатки, здоровье каналов",
+        "uk": "Усі майданчики в одній картині: продажі, ціни, залишки, здоров’я каналів",
+        "en": "Every channel in one picture: sales, prices, stock, channel health",
     },
     "cm.intro.title": {
         "ru": "Зачем эта страница",
@@ -2527,27 +2527,9 @@ TRANSLATIONS = {
         "en": "What this page is for",
     },
     "cm.intro.body": {
-        "ru": "Amazon и Leroy Merlin продают один и тот же товар, но данные по ним лежат "
-              "в разных местах — сопоставить цены и остатки было негде. Здесь один товар "
-              "занимает одну строку, обе площадки рядом. Смотреть в первую очередь на две "
-              "колонки: разница цен (где на площадках расходится больше чем на 10%) и "
-              "возвраты (где возвращают больше 15% проданного). Остаток Leroy Merlin — это "
-              "не отдельный товар, а квота, выставленная на канал из местного склада: "
-              "складывать её с амазоновским остатком нельзя.",
-        "uk": "Amazon і Leroy Merlin продають один і той самий товар, але дані по них лежать "
-              "у різних місцях — зіставити ціни й залишки не було де. Тут один товар займає "
-              "один рядок, обидва майданчики поруч. Дивитись насамперед на дві колонки: "
-              "різниця цін (де на майданчиках розходиться більш ніж на 10%) і повернення "
-              "(де повертають понад 15% проданого). Залишок Leroy Merlin — це не окремий "
-              "товар, а квота, виставлена на канал з місцевого складу: складати її з "
-              "амазонівським залишком не можна.",
-        "en": "Amazon and Leroy Merlin sell the same products, but their data lives in "
-              "separate places — there was nowhere to compare prices and stock. Here one "
-              "product is one row with both channels side by side. Watch two columns first: "
-              "the price gap (where channels differ by more than 10%) and returns (where more "
-              "than 15% of units sold come back). Leroy Merlin stock is not separate "
-              "inventory — it is a quota listed on the channel out of the local warehouse, "
-              "so it must not be added to the Amazon figure.",
+        "ru": "Amazon, Leroy Merlin, ManoMano и Carrefour продают один и тот же товар, но данные по ним лежат в разных местах — сопоставить цены и остатки было негде. Здесь один товар занимает одну строку, все каналы рядом. Смотреть в первую очередь на две колонки: разброс цен (где между каналами расходится больше чем на 10%) и возвраты (где возвращают больше 15% проданного). Остаток на площадках Mirakl — это не отдельный товар, а квота, выставленная на канал из местного склада: складывать её с амазоновским остатком нельзя.",
+        "uk": "Amazon, Leroy Merlin, ManoMano і Carrefour продають той самий товар, але дані по них лежать у різних місцях — зіставити ціни й залишки не було де. Тут один товар займає один рядок, усі канали поруч. Дивитися насамперед на дві колонки: розкид цін (де між каналами розходиться більше ніж на 10%) і повернення (де повертають більше 15% проданого). Залишок на майданчиках Mirakl — це не окремий товар, а квота, виставлена на канал із місцевого складу: додавати її з амазонівським залишком не можна.",
+        "en": "Amazon, Leroy Merlin, ManoMano and Carrefour sell the same goods, but their data lives in different places, so prices and stock could not be compared anywhere. Here one product takes one row, with every channel side by side. Two columns matter most: the price spread (where channels differ by more than 10%) and returns (where more than 15% of units come back). Stock on Mirakl storefronts is not separate goods but a quota listed on the channel from the local warehouse: it must not be added to the Amazon figure.",
     },
     "cm.filter.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
     "cm.filter.all_countries": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
@@ -2561,13 +2543,11 @@ TRANSLATIONS = {
     "cm.tab.amazon_health": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
     "cm.tab.all_countries": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
     "cm.kpi.skus": {"ru": "Товаров", "uk": "Товарів", "en": "Products"},
-    "cm.kpi.revenue_amazon": {"ru": "Выручка Amazon", "uk": "Виручка Amazon", "en": "Amazon revenue"},
-    "cm.kpi.revenue_lm": {"ru": "Выручка LM", "uk": "Виручка LM", "en": "LM revenue"},
     "cm.kpi.price_alerts": {"ru": "Расхождения цен", "uk": "Розбіжності цін", "en": "Price gaps"},
     "cm.kpi.price_alerts_help": {
-        "ru": "Товары, где средняя цена на площадках отличается больше чем на 10%",
-        "uk": "Товари, де середня ціна на майданчиках відрізняється більш ніж на 10%",
-        "en": "Products where the average price differs by more than 10% between channels",
+        "ru": "Товары, где между каналами цена расходится больше чем на 10%. Товары с ценой на одном канале сюда не попадают.",
+        "uk": "Товари, де між каналами ціна розходиться більше ніж на 10%. Товари з ціною на одному каналі сюди не потрапляють.",
+        "en": "Products whose price differs by more than 10% across channels. Products priced on a single channel are not counted.",
     },
     "cm.summary.only_alerts": {
         "ru": "Только расхождения цен",
@@ -2580,12 +2560,9 @@ TRANSLATIONS = {
         "en": "No price gaps above 10% found.",
     },
     "cm.summary.note": {
-        "ru": "Остаток Amazon — физический товар на складах FBA. Остаток LM — квота, "
-              "выставленная на канал из местного склада, это не отдельный запас.",
-        "uk": "Залишок Amazon — фізичний товар на складах FBA. Залишок LM — квота, "
-              "виставлена на канал з місцевого складу, це не окремий запас.",
-        "en": "Amazon stock is physical inventory in FBA. LM stock is a quota listed on the "
-              "channel out of the local warehouse — not separate inventory.",
+        "ru": "Остаток Amazon — физический товар на складе. Остаток площадок Mirakl — квота, выставленная на канал из того же склада: это не отдельный запас, и складывать квоты между каналами и с амазоновским остатком нельзя.",
+        "uk": "Залишок Amazon — фізичний товар на складі. Залишок майданчиків Mirakl — квота, виставлена на канал із того самого складу: це не окремий запас, і додавати квоти між каналами та з амазонівським залишком не можна.",
+        "en": "Amazon stock is physical goods in the warehouse. Mirakl storefront stock is a quota listed on the channel from that same warehouse: it is not separate stock, and quotas must not be added up across channels or to the Amazon figure.",
     },
     "cm.download": {"ru": "Скачать свод CSV", "uk": "Завантажити зведення CSV", "en": "Download summary CSV"},
     "period.label": {"ru": "Период", "uk": "Період", "en": "Period"},
@@ -2607,30 +2584,30 @@ TRANSLATIONS = {
     },
     "period.snapshot": {"ru": "Это снимок на {d}, а не расчёт за период: выбранный период на эту вкладку не влияет.", "uk": "Це знімок на {d}, а не розрахунок за період: обраний період на цю вкладку не впливає.", "en": "This is a snapshot as of {d}, not a calculation over a period: the selected period does not affect this tab."},
     "period.snapshot_now": {"ru": "Это снимок на сегодня, а не расчёт за период: выбранный период на эту вкладку не влияет.", "uk": "Це знімок на сьогодні, а не розрахунок за період: обраний період на цю вкладку не впливає.", "en": "This is a snapshot of today, not a calculation over a period: the selected period does not affect this tab."},
+    "cm.kpi.revenue_by_channel": {"ru": "Выручка по каналам", "uk": "Виручка за каналами", "en": "Revenue by channel"},
+    "cm.kpi.revenue_ch_help": {"ru": "Выручка канала за выбранный период по товарам, попавшим в свод.", "uk": "Виручка каналу за обраний період за товарами, що потрапили у зведення.", "en": "Channel revenue for the selected period, over the products in this table."},
+    "cm.col.ch_units": {"ru": "{ch} · шт", "uk": "{ch} · шт", "en": "{ch} · units"},
+    "cm.col.ch_revenue": {"ru": "{ch} · €", "uk": "{ch} · €", "en": "{ch} · €"},
+    "cm.col.ch_price": {"ru": "{ch} · цена", "uk": "{ch} · ціна", "en": "{ch} · price"},
+    "cm.col.ch_price_help": {"ru": "Средняя цена продажи за период: выручка канала делённая на штуки. Прочерк — на этом канале товар не продавался, и цены за период просто нет.", "uk": "Середня ціна продажу за період: виручка каналу поділена на штуки. Прочерк — на цьому каналі товар не продавався, і ціни за період просто немає.", "en": "Average selling price for the period: channel revenue divided by units. A dash means the product did not sell on this channel, so there is no price for the period."},
+    "cm.col.ch_stock": {"ru": "{ch} · остаток", "uk": "{ch} · залишок", "en": "{ch} · stock"},
+    "cm.col.ch_stock_help": {"ru": "Физический остаток на складе.", "uk": "Фізичний залишок на складі.", "en": "Physical stock in the warehouse."},
+    "cm.col.ch_quota": {"ru": "{ch} · квота", "uk": "{ch} · квота", "en": "{ch} · quota"},
+    "cm.col.ch_quota_help": {"ru": "Количество, выставленное на этот канал из местного склада. Это не отдельный запас: один и тот же товар выставлен на каждую витрину целиком, поэтому складывать квоты между каналами и с остатком Amazon нельзя.", "uk": "Кількість, виставлена на цей канал із місцевого складу. Це не окремий запас: той самий товар виставлено на кожну вітрину повністю, тому додавати квоти між каналами та із залишком Amazon не можна.", "en": "The quantity listed on this channel from the local warehouse. It is not separate stock: the same goods are listed in full on every storefront, so quotas must not be added up across channels or to the Amazon stock."},
+    "cm.col.quota_shared": {"ru": "Квота Mirakl", "uk": "Квота Mirakl", "en": "Mirakl quota"},
+    "cm.col.quota_shared_help": {"ru": "Количество, выставленное на площадки Mirakl из местного склада, одним числом на все каналы: в данных склада канал не указан, разделить нечем. Это не отдельный запас и не сумма по каналам.", "uk": "Кількість, виставлена на майданчики Mirakl із місцевого складу, одним числом на всі канали: у даних складу канал не вказано, розділити нічим. Це не окремий запас і не сума за каналами.", "en": "The quantity listed on Mirakl storefronts from the local warehouse, as one number for all channels: the warehouse data does not name the channel, so there is nothing to split it by. It is not separate stock, and not a sum across channels."},
+    "cm.summary.quota_merged": {"ru": "Квоты Mirakl показаны одним числом: в данных склада не указано, на какой канал выставлена строка. Как только канал появится в выгрузке, колонка разделится по площадкам сама.", "uk": "Квоти Mirakl показані одним числом: у даних складу не вказано, на який канал виставлено рядок. Щойно канал з’явиться у вивантаженні, колонка розділиться за майданчиками сама.", "en": "Mirakl quotas are shown as a single number: the warehouse data does not say which channel a row is listed on. Once the channel appears in the export, the column will split by storefront on its own."},
+    "cm.summary.quota_none": {"ru": "Квот Mirakl в остатках за этот день нет — колонка не показана. Выручка каналов при этом считается: она приходит из экономики, а не со склада.", "uk": "Квот Mirakl у залишках за цей день немає — колонку не показано. Виручка каналів при цьому рахується: вона надходить з економіки, а не зі складу.", "en": "There are no Mirakl quotas in this day's stock, so the column is hidden. Channel revenue is still counted: it comes from the economics data, not from the warehouse."},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
-    "cm.col.units_amazon": {"ru": "Продано AMZ", "uk": "Продано AMZ", "en": "Units AMZ"},
-    "cm.col.revenue_amazon": {"ru": "Выручка AMZ", "uk": "Виручка AMZ", "en": "Revenue AMZ"},
-    "cm.col.price_amazon": {"ru": "Цена AMZ", "uk": "Ціна AMZ", "en": "Price AMZ"},
-    "cm.col.stock_amazon": {"ru": "Остаток AMZ", "uk": "Залишок AMZ", "en": "Stock AMZ"},
-    "cm.col.stock_amazon_help": {
-        "ru": "Физический остаток на складах FBA",
-        "uk": "Фізичний залишок на складах FBA",
-        "en": "Physical stock in FBA warehouses",
+    "cm.col.price_gap": {
+        "ru": "Разброс цен",
+        "uk": "Розкид цін",
+        "en": "Price spread",
     },
-    "cm.col.units_lm": {"ru": "Продано LM", "uk": "Продано LM", "en": "Units LM"},
-    "cm.col.revenue_lm": {"ru": "Выручка LM", "uk": "Виручка LM", "en": "Revenue LM"},
-    "cm.col.price_lm": {"ru": "Цена LM", "uk": "Ціна LM", "en": "Price LM"},
-    "cm.col.stock_lm": {"ru": "Квота LM", "uk": "Квота LM", "en": "LM quota"},
-    "cm.col.stock_lm_help": {
-        "ru": "Количество, выставленное на канал из местного склада",
-        "uk": "Кількість, виставлена на канал з місцевого складу",
-        "en": "Quantity listed on the channel out of the local warehouse",
-    },
-    "cm.col.price_gap": {"ru": "Разница цен", "uk": "Різниця цін", "en": "Price gap"},
     "cm.col.price_gap_help": {
-        "ru": "Насколько цена на LM выше или ниже цены на Amazon",
-        "uk": "Наскільки ціна на LM вища або нижча за ціну на Amazon",
-        "en": "How much the LM price is above or below the Amazon price",
+        "ru": "На сколько процентов самая высокая цена товара выше самой низкой среди каналов, где он продавался. С четырьмя каналами вопрос «выше или ниже, чем на Amazon» перестал отвечать сам себе, а разброс отвечает. Прочерк — цена известна только на одном канале, сравнивать не с чем.",
+        "uk": "На скільки відсотків найвища ціна товару вища за найнижчу серед каналів, де він продавався. З чотирма каналами питання «вище чи нижче, ніж на Amazon» перестало відповідати саме собі, а розкид відповідає. Прочерк — ціна відома лише на одному каналі, порівнювати нема з чим.",
+        "en": "How many percent the highest price for the product exceeds the lowest across the channels where it sold. With four channels, asking whether it is above or below Amazon no longer answers the question; the spread does. A dash means the price is known on one channel only, so there is nothing to compare.",
     },
     "cm.lm.no_table": {
         "ru": "Мониторинг Leroy Merlin ещё не запущен — таблица показателей не создана.",
@@ -2776,23 +2753,7 @@ TRANSLATIONS = {
     "cm.col.severity": {"ru": "Уровень", "uk": "Рівень", "en": "Severity"},
     "cm.col.type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
     "cm.col.description": {"ru": "Описание", "uk": "Опис", "en": "Description"},
-    "cm.pair.excluded": {
-        "ru": "В это сравнение не вошли: {ch}. Таблица построена на сопоставлении двух "
-              "площадок — колонки, остатки и разница цен рассчитаны под Amazon и Leroy "
-              "Merlin. Продажи остальных каналов есть на вкладке по маркетплейсам и в "
-              "«Деньгах»; сюда они не добавлены, чтобы не попасть в чужую колонку.",
-        "uk": "У це порівняння не увійшли: {ch}. Таблиця побудована на зіставленні двох "
-              "майданчиків — колонки, залишки та різниця цін розраховані під Amazon і "
-              "Leroy Merlin. Продажі інших каналів є на вкладці за маркетплейсами і в "
-              "«Грошах»; сюди їх не додано, щоб не потрапити в чужу колонку.",
-        "en": "Not included in this comparison: {ch}. The table is built around two "
-              "marketplaces — its columns, stock and price gap are computed for Amazon "
-              "and Leroy Merlin. Sales of the other channels appear on the marketplace "
-              "tab and in Money; they are left out here so they do not land in the "
-              "wrong column.",
-    },
     "cm.platform.amazon": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
-    "cm.platform.lm": {"ru": "Leroy Merlin", "uk": "Leroy Merlin", "en": "Leroy Merlin"},
     "cm.all.metric_help": {
         "ru": "Выручка и маржа за выбранный период",
         "uk": "Виручка і маржа за обраний період",
