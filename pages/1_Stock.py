@@ -98,24 +98,12 @@ def coverage_diag() -> dict:
     return out
 
 
-def _pick(df: pd.DataFrame, *cands):
-    """Имя колонки по списку кандидатов: сначала точное совпадение, потом
-    вхождение подстроки. Схема таблиц FBA заранее не зафиксирована, а
-    падать из-за одного переименованного поля нельзя — лучше вернуть None
-    и сказать на экране, чего не хватило."""
-    low = {str(c).lower(): c for c in df.columns}
-    for c in cands:
-        if c in low:
-            return low[c]
-    for c in cands:
-        for k, orig in low.items():
-            # «fulfillable» входит в «unfulfillable», и по подстроке
-            # «Доступно» могло прочитать колонку неликвида. Отрицающие
-            # приставки отсекаем явно
-            if c in k and not any(
-                    p + c in k for p in ("un", "non", "not_", "no_")):
-                return orig
-    return None
+INV_INBOUND = ["inb_working", "inb_shipped", "inb_receiving"]
+INV_NUM = ["available", "reserved", "unsellable"] + INV_INBOUND
+# Переброска между центрами: в журнале это отдельный тип события, а не
+# совпадение даты и товара. Остальные типы — Shipments, Adjustments,
+# VendorReturns, CustomerReturns, Receipts — перемещениями не являются
+EVT_TRANSFER = "WhseTransfers"
 
 
 @st.cache_data(ttl=600)
@@ -125,91 +113,61 @@ def load_fba_centers() -> pd.DataFrame:
         return pd.DataFrame()
     conn = get_connection()
     try:
-        df = pd.read_sql(
-            "SELECT * FROM kabinet_data.fba_fulfillment_centers", conn)
+        df = pd.read_sql("""
+            SELECT UPPER(TRIM(fc_code))     AS fc_code,
+                   TRIM(city)               AS city,
+                   TRIM(country_code)       AS country_code,
+                   TRIM(country_name)       AS country_name,
+                   fc_type,
+                   latitude                 AS lat,
+                   longitude                AS lon
+            FROM kabinet_data.fba_fulfillment_centers
+        """, conn)
     except Exception:
         return pd.DataFrame()
     finally:
         conn.close()
     if df.empty:
         return df
-    c_code = _pick(df, "fc_code", "code", "center")
-    c_lat = _pick(df, "lat", "latitude")
-    c_lon = _pick(df, "lon", "lng", "longitude")
-    if not (c_code and c_lat and c_lon):
-        return pd.DataFrame()
-    out = pd.DataFrame({
-        "fc_code": df[c_code].astype(str).str.strip().str.upper(),
-        "lat": pd.to_numeric(df[c_lat], errors="coerce"),
-        "lon": pd.to_numeric(df[c_lon], errors="coerce"),
-    })
-    c_city = _pick(df, "city", "town")
-    c_country = _pick(df, "country", "country_code")
-    c_sort = _pick(df, "is_sort_center", "sort_center", "is_sort")
-    out["city"] = df[c_city].astype(str).str.strip() if c_city else ""
-    out["country"] = df[c_country].astype(str).str.strip() if c_country else ""
-    out["is_sort"] = (df[c_sort].fillna(False).astype(bool) if c_sort else False)
-    return out.dropna(subset=["lat", "lon"]).drop_duplicates("fc_code")
-
-
-@st.cache_data(ttl=600)
-def _fba_ledger_columns() -> list:
-    """Имена колонок ledger. Нужны, чтобы построить фильтр по дате в SQL:
-    имя поля даты заранее не зафиксировано, а тянуть таблицу целиком ради
-    того, чтобы отфильтровать её потом в pandas, — плохой размен."""
-    if not table_exists("fba_ledger_detail"):
-        return []
-    conn = get_connection()
-    try:
-        return list(pd.read_sql(
-            "SELECT * FROM kabinet_data.fba_ledger_detail LIMIT 0", conn).columns)
-    except Exception:
-        return []
-    finally:
-        conn.close()
+    df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
+    df["lon"] = pd.to_numeric(df["lon"], errors="coerce")
+    # В фильтре показываем название страны, а не код: «Испания» ищется
+    # глазами, «ES» — нет. Код остаётся запасным именем для центров,
+    # у которых название в справочнике не заполнено
+    df["country"] = (df["country_name"].fillna("").astype(str).str.strip()
+                     .replace("", pd.NA).fillna(df["country_code"]))
+    return df.dropna(subset=["lat", "lon"]).drop_duplicates("fc_code")
 
 
 @st.cache_data(ttl=600)
 def load_fba_ledger(days: int) -> pd.DataFrame:
-    """Движения по центрам за период, приведённые к общей схеме.
+    """Движения по центрам за период.
 
     Разрез по ЦЕНТРАМ, а не по маркетплейсам: при Pan-EU один и тот же
     запас виден в нескольких странах, и сумма по рынкам физический склад
     не описывает. Ledger отвечает на вопрос «где лежит», рынки — «где
     продаётся»."""
-    cols = _fba_ledger_columns()
-    if not cols:
-        return pd.DataFrame()
-    probe = pd.DataFrame(columns=cols)
-    c_date = _pick(probe, "date", "event_date", "ledger_date", "snapshot_date")
-    c_fc = _pick(probe, "fulfillment_center", "fc_code", "center")
-    c_qty = _pick(probe, "quantity", "qty", "units")
-    if not (c_date and c_fc and c_qty):
+    if not table_exists("fba_ledger_detail"):
         return pd.DataFrame()
     conn = get_connection()
     try:
-        df = pd.read_sql(f'''
-            SELECT * FROM kabinet_data.fba_ledger_detail
-            WHERE "{c_date}" >= CURRENT_DATE - INTERVAL '{days} days'
-        ''', conn)
+        df = pd.read_sql(f"""
+            SELECT event_date                       AS day,
+                   UPPER(TRIM(fulfillment_center))  AS fc_code,
+                   asin, msku, title, event_type    AS event,
+                   quantity                         AS qty
+            FROM kabinet_data.fba_ledger_detail
+            WHERE event_date >= CURRENT_DATE - INTERVAL '{days} days'
+        """, conn)
     except Exception:
         return pd.DataFrame()
     finally:
         conn.close()
     if df.empty:
-        return pd.DataFrame()
-    c_asin = _pick(probe, "asin")
-    c_sku = _pick(probe, "sku", "msku", "seller_sku")
-    c_evt = _pick(probe, "event_type", "event", "reason", "disposition")
-    out = pd.DataFrame({
-        "day": pd.to_datetime(df[c_date], errors="coerce"),
-        "fc_code": df[c_fc].astype(str).str.strip().str.upper(),
-        "qty": pd.to_numeric(df[c_qty], errors="coerce").fillna(0),
-    })
-    out["asin"] = df[c_asin].astype(str) if c_asin else ""
-    out["sku"] = df[c_sku].astype(str) if c_sku else ""
-    out["event"] = df[c_evt].astype(str) if c_evt else ""
-    return out.dropna(subset=["day"])
+        return df
+    df["day"] = pd.to_datetime(df["day"], errors="coerce")
+    df["qty"] = pd.to_numeric(df["qty"], errors="coerce").fillna(0)
+    return df.dropna(subset=["day"])
 
 
 @st.cache_data(ttl=600)
@@ -218,47 +176,68 @@ def load_fba_center_stock() -> pd.DataFrame:
 
     Окно периода сюда не применяется: за семь дней получилось бы не
     «сколько лежит», а «на сколько изменилось». Агрегируем на стороне
-    базы — 36 строк вместо всего журнала."""
-    cols = _fba_ledger_columns()
-    if not cols:
-        return pd.DataFrame()
-    probe = pd.DataFrame(columns=cols)
-    c_fc = _pick(probe, "fulfillment_center", "fc_code", "center")
-    c_qty = _pick(probe, "quantity", "qty", "units")
-    if not (c_fc and c_qty):
+    базы — три десятка строк вместо всего журнала."""
+    if not table_exists("fba_ledger_detail"):
         return pd.DataFrame()
     conn = get_connection()
     try:
-        df = pd.read_sql(f'''
-            SELECT "{c_fc}" AS fc_code, SUM("{c_qty}") AS qty
+        df = pd.read_sql("""
+            SELECT UPPER(TRIM(fulfillment_center)) AS fc_code,
+                   SUM(quantity)                   AS qty
             FROM kabinet_data.fba_ledger_detail
             GROUP BY 1
-        ''', conn)
+        """, conn)
     except Exception:
         return pd.DataFrame()
     finally:
         conn.close()
     if df.empty:
         return df
-    df["fc_code"] = df["fc_code"].astype(str).str.strip().str.upper()
     df["qty"] = pd.to_numeric(df["qty"], errors="coerce").fillna(0)
     return df[df["qty"] > 0]
 
 
 @st.cache_data(ttl=600)
 def load_fba_inventory() -> pd.DataFrame:
-    """Остатки FBA с разбивкой на пулы eu и uk. Британия после Brexit —
-    отдельный склад, складывать её с европейским запасом нельзя."""
+    """Остатки FBA: одна строка на товар в пуле.
+
+    Два места, где число легко удвоить. Первое — snapshot_date: таблица
+    хранит снимки за разные дни, и без отбора последнего складываются
+    вчера и сегодня. Второе — source_marketplace: при Pan-EU один и тот же
+    физический запас приходит строкой на каждый рынок, где товар виден.
+    Строки зеркальные, поэтому по рынкам берём максимум, а не сумму —
+    складывать их значит считать один поддон столько раз, на скольких
+    витринах он выставлен.
+
+    Британия после Brexit — отдельный пул: её запас в европейский не
+    переливается, поэтому pool остаётся в разрезе."""
     if not table_exists("fba_inventory_deduped"):
         return pd.DataFrame()
     conn = get_connection()
     try:
-        return pd.read_sql(
-            "SELECT * FROM kabinet_data.fba_inventory_deduped", conn)
+        df = pd.read_sql("""
+            SELECT pool, asin, sku, MAX(product_name) AS product_name,
+                   MAX(afn_fulfillable_qty)        AS available,
+                   MAX(afn_reserved_qty)           AS reserved,
+                   MAX(afn_unsellable_qty)         AS unsellable,
+                   MAX(afn_inbound_working_qty)    AS inb_working,
+                   MAX(afn_inbound_shipped_qty)    AS inb_shipped,
+                   MAX(afn_inbound_receiving_qty)  AS inb_receiving
+            FROM kabinet_data.fba_inventory_deduped
+            WHERE snapshot_date = (SELECT MAX(snapshot_date)
+                                   FROM kabinet_data.fba_inventory_deduped)
+            GROUP BY pool, asin, sku
+        """, conn)
     except Exception:
         return pd.DataFrame()
     finally:
         conn.close()
+    if df.empty:
+        return df
+    for c in INV_NUM:
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+    df["asin"] = df["asin"].astype(str).str.strip()
+    return df
 
 
 @st.cache_data(ttl=600)
@@ -273,9 +252,9 @@ def load_sales_by_asin(days: int = 30) -> pd.DataFrame:
     try:
         return pd.read_sql(f"""
             SELECT s.asin,
-                   SUM(e.units_ordered)                    AS units,
-                   COUNT(DISTINCT e.sales_date)            AS days_with_sales,
-                   MAX(e.sales_date)                       AS last_sale
+                   SUM(e.units_ordered)         AS units,
+                   COUNT(DISTINCT e.sales_date) AS days_with_sales,
+                   MAX(e.sales_date)            AS last_sale
             FROM kabinet_data.economics_summary e
             JOIN (
                 SELECT sku_group, MAX(asin) AS asin
@@ -302,23 +281,15 @@ def load_zero_since() -> pd.DataFrame:
     нарастающим итогом и ищем последний день, когда баланс был больше
     нуля. Агрегируем по дням на стороне базы — построчный журнал сюда
     тащить незачем."""
-    cols = _fba_ledger_columns()
-    if not cols:
-        return pd.DataFrame()
-    probe = pd.DataFrame(columns=cols)
-    c_date = _pick(probe, "date", "event_date", "ledger_date", "snapshot_date")
-    c_asin = _pick(probe, "asin")
-    c_qty = _pick(probe, "quantity", "qty", "units")
-    if not (c_date and c_asin and c_qty):
+    if not table_exists("fba_ledger_detail"):
         return pd.DataFrame()
     conn = get_connection()
     try:
-        df = pd.read_sql(f'''
-            SELECT "{c_asin}" AS asin, "{c_date}"::date AS day,
-                   SUM("{c_qty}") AS qty
+        df = pd.read_sql("""
+            SELECT asin, event_date::date AS day, SUM(quantity) AS qty
             FROM kabinet_data.fba_ledger_detail
             GROUP BY 1, 2 ORDER BY 1, 2
-        ''', conn)
+        """, conn)
     except Exception:
         return pd.DataFrame()
     finally:
@@ -1306,150 +1277,104 @@ with tab_map:
     if _centers.empty or _stock.empty:
         st.info(t("stock.map.no_data"))
     else:
-        # ---- карточки пулов ----
-        # Британия после Brexit — отдельный склад: европейский запас туда
-        # не переливается, и складывать их в одно число нельзя
+        # ---- кончился на складе ----
+        # Товар с нулём и живым спросом теряет деньги каждый день, поэтому
+        # блок стоит выше карточек и карты
         _inv = load_fba_inventory()
-        if not _inv.empty:
-            c_pool = _pick(_inv, "pool")
-            # Inbound у Amazon разложен на несколько корзин — working,
-            # shipped, receiving. Одна колонка по подстроке давала первую
-            # из них, а она часто пустая: «В пути» показывало 0 при живых
-            # поставках. Складываем ВСЕ колонки, похожие на inbound
-            _inb_cols = [c for c in _inv.columns
-                         if any(k in str(c).lower()
-                                for k in ("inbound", "in_transit", "transit"))]
-            cols = {k: _pick(_inv, *v) for k, v in {
-                "avail": ("available", "fulfillable"),
-                "res": ("reserved",),
-                "dead": ("unfulfillable", "unsellable", "defective"),
-            }.items()}
-            c_sku = _pick(_inv, "asin", "sku", "msku")
-            # Один и тот же физический запас приходит несколькими строками:
-            # у товара есть листинг FBA и листинг FBM, и оба несут одно
-            # количество. Суммирование удваивало «Доступно» и «Резерв».
-            # Схлопываем до одной строки на товар в пуле, беря максимум:
-            # строки зеркальные, а не части одного числа
-            _rows_before = len(_inv)
-            _inv_raw = _inv
-            _num_cols = [c for c in _inv.columns
-                         if pd.api.types.is_numeric_dtype(_inv[c])]
-            if c_sku and c_pool and _num_cols:
-                _inv = (_inv.groupby([c_sku, c_pool], as_index=False)[_num_cols]
-                            .max())
-            _rows_after = len(_inv)
-
-            # ---- кончился на складе ----
-            # Товар с нулём и живым спросом — самое срочное на странице,
-            # поэтому блок стоит выше карточек и карты
-            _c_av = cols.get("avail")
-            _c_asin = _pick(_inv_raw, "asin")
-            _sales = load_sales_by_asin(30)
+        _sales = load_sales_by_asin(30)
+        if not _inv.empty and not _sales.empty:
+            # Ноль по пулам — максимум, а не сумма: EU и UK физически
+            # разные склады, и запас в Британии не спасает европейский
+            # листинг. Максимум читается как «нет нигде»
+            _z = (_inv.assign(inbound=_inv[INV_INBOUND].sum(axis=1))
+                      .groupby("asin", as_index=False)
+                      .agg(avail=("available", "max"),
+                           inb_working=("inb_working", "sum"),
+                           inb_shipped=("inb_shipped", "sum"),
+                           inb_receiving=("inb_receiving", "sum"),
+                           inbound=("inbound", "sum"),
+                           product=("product_name", "max")))
+            _z = _z[_z["avail"] <= 0].merge(_sales, on="asin", how="inner")
+        else:
+            _z = pd.DataFrame()
+        if not _z.empty:
+            _today = pd.Timestamp.today().normalize()
+            _start = _today - pd.Timedelta(days=30)
             _zero = load_zero_since()
-            if _c_av and _c_asin and not _sales.empty:
-                _z = _inv.copy()
-                _z["asin"] = _z[_c_asin].astype(str).str.strip()
-                _z["avail"] = pd.to_numeric(_z[_c_av],
-                                            errors="coerce").fillna(0)
-                _z["inbound"] = (_z[[c for c in _inb_cols if c in _z]]
-                                 .apply(pd.to_numeric, errors="coerce")
-                                 .fillna(0).sum(axis=1) if _inb_cols else 0)
-                # По пулам берём максимум, а не сумму: EU и UK — физически
-                # разные склады, складывать их запас нельзя. Ноль по
-                # максимуму значит «нет нигде», а это и есть кончился
-                _z = _z.groupby("asin", as_index=False).agg(
-                    avail=("avail", "max"), inbound=("inbound", "sum"))
-                _z = _z[_z["avail"] <= 0].merge(_sales, on="asin", how="inner")
+            if _zero.empty:
+                _z["zero_since"] = pd.NaT
             else:
-                _z = pd.DataFrame()
-            if not _z.empty:
-                _start = pd.Timestamp.today().normalize() - pd.Timedelta(days=30)
-                if not _zero.empty:
-                    _z = _z.merge(_zero, on="asin", how="left")
-                else:
-                    _z["zero_since"] = pd.NaT
-                _z["zero_since"] = pd.to_datetime(_z["zero_since"],
-                                                  errors="coerce")
-                _z["days_zero"] = (pd.Timestamp.today().normalize()
-                                   - _z["zero_since"]).dt.days
-                # Скорость считаем по дням, когда запас ещё был: делить
-                # продажи на все 30 дней у товара, кончившегося три недели
-                # назад, — занизить спрос втрое и не заметить дыру
-                _live = ((_z["zero_since"] - _start).dt.days
-                         .clip(lower=1, upper=30).fillna(30))
-                _z["per_day"] = (pd.to_numeric(_z["units"], errors="coerce")
-                                 .fillna(0) / _live).round(2)
-                _c_name = _pick(_inv_raw, "product_name", "title", "name",
-                                "item_name")
-                _z["product"] = (_z["asin"].map(dict(zip(
-                    _inv_raw[_c_asin].astype(str).str.strip(),
-                    _inv_raw[_c_name].astype(str)))) if _c_name else None)
-                _z["product"] = _z["product"].fillna(_z["asin"])
-                _c_eta = _pick(_inv_raw, "eta", "expected_arrival", "arrival",
-                               "expected_date")
-                _z["eta"] = (pd.to_datetime(_z["asin"].map(dict(zip(
-                    _inv_raw[_c_asin].astype(str).str.strip(),
-                    _inv_raw[_c_eta]))), errors="coerce")
-                    if _c_eta else pd.NaT)
-                _z = _z.sort_values("per_day", ascending=False)
+                _z = _z.merge(_zero, on="asin", how="left")
+            _z["zero_since"] = pd.to_datetime(_z["zero_since"], errors="coerce")
+            _z["days_zero"] = (_today - _z["zero_since"]).dt.days
+            # Скорость считаем по дням, когда запас ещё был: делить продажи
+            # на все 30 дней у товара, кончившегося три недели назад, —
+            # занизить спрос втрое и увезти самую срочную строку вниз
+            _live = ((_z["zero_since"] - _start).dt.days
+                     .clip(lower=1, upper=30).fillna(30))
+            _z["per_day"] = (pd.to_numeric(_z["units"], errors="coerce")
+                             .fillna(0) / _live).round(2)
+            _z["product"] = _z["product"].fillna(_z["asin"])
+            # Даты прибытия в данных нет вообще — только корзины inbound.
+            # Пустые корзины гасим в прочерк: ноль во всех трёх читался бы
+            # как «поставка на ноль штук», а её просто нет
+            _none = _z[INV_INBOUND].sum(axis=1) <= 0
+            _z.loc[_none, INV_INBOUND] = pd.NA
+            _z = _z.sort_values("per_day", ascending=False)
 
-                _blind = _z[_z["inbound"] <= 0]
-                if not _blind.empty:
-                    st.error(t("stock.map.out_blind").format(
-                        n=len(_blind), per=f"{_blind['per_day'].sum():.1f}",
-                        skus=", ".join(_blind["product"].astype(str)
-                                       .str.slice(0, 40).head(3))))
-                st.markdown(f"**{t('stock.map.out_title')}**")
-                st.caption(t("stock.map.out_caption").format(n=len(_z)))
-                st.dataframe(
-                    _z[["product", "asin", "per_day", "days_zero",
-                        "inbound", "eta"]],
-                    use_container_width=True, hide_index=True,
-                    column_config={
-                        "product": st.column_config.TextColumn(
-                            t("stock.map.out_product"), width="large"),
-                        "asin": st.column_config.TextColumn(
-                            "ASIN", width="small"),
-                        "per_day": st.column_config.NumberColumn(
-                            t("stock.map.out_rate"), format="%.2f",
-                            help=t("stock.map.out_rate_help")),
-                        "days_zero": st.column_config.NumberColumn(
-                            t("stock.map.out_days"),
-                            help=t("stock.map.out_days_help")),
-                        "inbound": st.column_config.NumberColumn(
-                            t("stock.map.out_inbound"),
-                            help=t("stock.map.out_inbound_help")),
-                        "eta": st.column_config.DateColumn(
-                            t("stock.map.out_eta"), format="DD.MM.YYYY",
-                            help=t("stock.map.out_eta_help")),
-                    },
-                )
-                st.divider()
+            _blind = _z[_none.reindex(_z.index, fill_value=False)]
+            if not _blind.empty:
+                st.error(t("stock.map.out_blind").format(
+                    n=len(_blind), per=f"{_blind['per_day'].sum():.1f}",
+                    skus=", ".join(_blind["product"].astype(str)
+                                   .str.slice(0, 40).head(3))))
+            st.markdown(f"**{t('stock.map.out_title')}**")
+            st.caption(t("stock.map.out_caption").format(n=len(_z)))
+            st.dataframe(
+                _z[["product", "asin", "per_day", "days_zero"] + INV_INBOUND],
+                use_container_width=True, hide_index=True,
+                column_config={
+                    "product": st.column_config.TextColumn(
+                        t("stock.map.out_product"), width="large"),
+                    "asin": st.column_config.TextColumn("ASIN", width="small"),
+                    "per_day": st.column_config.NumberColumn(
+                        t("stock.map.out_rate"), format="%.2f",
+                        help=t("stock.map.out_rate_help")),
+                    "days_zero": st.column_config.NumberColumn(
+                        t("stock.map.out_days"),
+                        help=t("stock.map.out_days_help")),
+                    "inb_working": st.column_config.NumberColumn(
+                        t("stock.map.inb_working"),
+                        help=t("stock.map.inb_working_help")),
+                    "inb_shipped": st.column_config.NumberColumn(
+                        t("stock.map.inb_shipped"),
+                        help=t("stock.map.inb_shipped_help")),
+                    "inb_receiving": st.column_config.NumberColumn(
+                        t("stock.map.inb_receiving"),
+                        help=t("stock.map.inb_receiving_help")),
+                },
+            )
+            st.divider()
 
+        # ---- карточки пулов ----
+        if not _inv.empty:
             pools = st.columns(2)
             for i, (pool, key) in enumerate((("eu", "stock.map.pool_eu"),
                                              ("uk", "stock.map.pool_uk"))):
-                part = (_inv[_inv[c_pool].astype(str).str.lower() == pool]
-                        if c_pool else _inv.iloc[0:0])
+                part = _inv[_inv["pool"].astype(str).str.lower() == pool]
                 if part.empty:
                     continue
-                n_sku = int(part[c_sku].nunique()) if c_sku else 0
+                n_sku = int(part["asin"].nunique())
                 n_fc = int(_centers.merge(
                     _stock, on="fc_code")["fc_code"].nunique()) if pool == "eu" else 0
                 n_net = int(_centers["fc_code"].nunique())
-
-                def _sum(col_or_cols):
-                    if not col_or_cols:
-                        return None
-                    cc = ([col_or_cols] if isinstance(col_or_cols, str)
-                          else list(col_or_cols))
-                    return int(sum(pd.to_numeric(part[c], errors="coerce")
-                                     .fillna(0).sum() for c in cc))
-
-                vals = [(t("stock.map.available"), _sum(cols.get("avail"))),
-                        (t("stock.map.reserved"), _sum(cols.get("res"))),
-                        (t("stock.map.inbound"), _sum(_inb_cols)),
-                        (t("stock.map.dead"), _sum(cols.get("dead")))]
+                vals = [
+                    (t("stock.map.available"), int(part["available"].sum())),
+                    (t("stock.map.reserved"), int(part["reserved"].sum())),
+                    (t("stock.map.inbound"),
+                     int(part[INV_INBOUND].sum().sum())),
+                    (t("stock.map.dead"), int(part["unsellable"].sum())),
+                ]
                 # Четыре st.metric в половинной колонке резали подписи до
                 # «Доступ…» и «Нелик…». Верстаем строкой: занимает меньше
                 # места и не обрезается ни на одном языке
@@ -1457,8 +1382,7 @@ with tab_map:
                     f'<div style="min-width:96px"><div style="font-size:0.78rem;'
                     f'color:var(--text-secondary)">{lbl}</div>'
                     f'<div style="font-size:1.35rem;font-weight:600">'
-                    f'{"—" if v is None else f"{v:,}"}</div></div>'
-                    for lbl, v in vals)
+                    f'{v:,}</div></div>' for lbl, v in vals)
                 with pools[i]:
                     st.markdown(
                         f'<div style="border:1px solid var(--border);'
@@ -1470,10 +1394,6 @@ with tab_map:
                         f'{cells}</div></div>',
                         unsafe_allow_html=True)
 
-        if _rows_before != _rows_after:
-            st.caption(t("stock.map.dedup_note").format(
-                a=_rows_after, b=_rows_before))
-
         # ---- период, товар, страна ----
         f1, f2, f3 = st.columns([2, 2, 2])
         with f1:
@@ -1483,13 +1403,13 @@ with tab_map:
         _days = int(_p or 7)
         _moves = load_fba_ledger(_days)
         with f2:
-            _skus = (sorted(_moves["sku"].dropna().unique().tolist())
+            _skus = (sorted(_moves["msku"].dropna().unique().tolist())
                      if not _moves.empty else [])
             _sku_pick = st.multiselect(
                 t("stock.map.product"), options=_skus,
                 placeholder=t("stock.map.all_products"), key="map_sku")
         if _sku_pick and not _moves.empty:
-            _moves = _moves[_moves["sku"].isin(_sku_pick)]
+            _moves = _moves[_moves["msku"].isin(_sku_pick)]
         with f3:
             _countries = sorted(c for c in _centers["country"].dropna().unique()
                                 if str(c).strip())
@@ -1504,12 +1424,16 @@ with tab_map:
                 _moves = _moves[_moves["fc_code"].isin(_centers["fc_code"])]
 
         # ---- перемещения между центрами ----
-        # В журнале переброска — это две строки на одну дату и SKU: минус в
-        # отдающем центре и плюс в принимающем. Пары восстанавливаем внутри
-        # (дата, SKU) жадно: точной ссылки «откуда куда» в данных нет
+        # Переброска — это отдельный тип события WhseTransfers, две строки
+        # на одну дату и товар: минус в отдающем центре, плюс в
+        # принимающем. Пара всегда совпадает по asin, msku и дате, поэтому
+        # ищем её строго внутри этой тройки, а не по совпадению дня и SKU:
+        # раньше в пару могли попасть отгрузка клиенту и приёмка поставки
         arcs = []
         if not _moves.empty:
-            for (_d, _s), grp in _moves.groupby(["day", "sku"], sort=False):
+            _tr = _moves[_moves["event"].astype(str).str.strip()
+                         == EVT_TRANSFER]
+            for _, grp in _tr.groupby(["day", "asin", "msku"], sort=False):
                 src = grp[grp["qty"] < 0].copy()
                 dst = grp[grp["qty"] > 0].copy()
                 if src.empty or dst.empty:
@@ -1523,7 +1447,8 @@ with tab_map:
                             continue
                         arcs.append({"from": src.at[si, "fc_code"],
                                      "to": dst.at[di, "fc_code"],
-                                     "qty": float(take), "sku": _s})
+                                     "qty": float(take),
+                                     "sku": grp["msku"].iloc[0]})
                         src.at[si, "left"] -= take
                         dst.at[di, "left"] -= take
                         if src.at[si, "left"] <= 0:
@@ -1604,7 +1529,7 @@ with tab_map:
             tbl = (_moves.groupby("fc_code", as_index=False)
                          .agg(shipped=("qty", lambda x: int(-x[x < 0].sum())),
                               net=("qty", "sum"),
-                              goods=("sku", "nunique")))
+                              goods=("msku", "nunique")))
             tbl["net"] = tbl["net"].astype(int)
             tbl = tbl.merge(_centers[["fc_code", "city"]], on="fc_code",
                             how="left").sort_values("shipped", ascending=False)
