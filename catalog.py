@@ -59,6 +59,13 @@ def asin_by_sku() -> dict:
     return dict(zip(df["sku_group"].astype(str), df["asin"].astype(str)))
 
 
+@st.cache_data(ttl=600)
+def sku_by_asin() -> dict:
+    """ASIN → артикул. Нужен поиску: человек ищет тем кодом, который у
+    него в буфере, и это чаще артикул, чем ASIN."""
+    return {a: s for s, a in asin_by_sku().items()}
+
+
 def url_series(skus=None, asins=None, markets=None) -> list:
     """Ссылки на карточки для колонки таблицы.
 
