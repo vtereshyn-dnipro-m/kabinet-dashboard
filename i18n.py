@@ -570,15 +570,18 @@ TRANSLATIONS = {
     "home.sales.by_country": {
         "ru": "Amazon по странам:", "uk": "Amazon за країнами:", "en": "Amazon by country:"},
     "home.sales.lag": {
-        "ru": "Период: {f} — {d}. Amazon отдаёт отчёты с задержкой, последние {n} дн. "
-              "ещё не загружены — поэтому окно отсчитывается от последнего дня с данными, "
-              "а не от сегодня.",
-        "uk": "Період: {f} — {d}. Amazon віддає звіти із затримкою, останні {n} дн. "
-              "ще не завантажені — тому вікно відлічується від останнього дня з даними, "
-              "а не від сьогодні.",
-        "en": "Period: {f} — {d}. Amazon delivers reports with a delay, the last {n} days "
-              "are not loaded yet — so the window is counted from the last day with data, "
-              "not from today.",
+        "ru": "Данные по {d} включительно, период {f} — {d}. Финансовые отчёты Amazon "
+              "(комиссии, маржа) отстают на 2-3 дня, последние {n} дн. ещё не загружены. "
+              "График обрезан по последнему полному дню: за более свежие даты приходят "
+              "только каналы Mirakl, и хвост выглядел бы обвалом, хотя продажи идут.",
+        "uk": "Дані по {d} включно, період {f} — {d}. Фінансові звіти Amazon (комісії, "
+              "маржа) відстають на 2-3 дні, останні {n} дн. ще не завантажені. Графік "
+              "обрізано за останнім повним днем: за свіжіші дати приходять лише канали "
+              "Mirakl, і хвіст виглядав би обвалом, хоча продажі йдуть.",
+        "en": "Data through {d}, period {f} — {d}. Amazon financial reports (fees, margin) "
+              "lag by 2-3 days; the last {n} days are not loaded yet. The chart is trimmed "
+              "to the last complete day: for fresher dates only the Mirakl channels arrive, "
+              "and the tail would look like a collapse while sales are in fact normal.",
     },
     "home.sales.no_plan": {
         "ru": "Сравнение с планом появится, когда будет подключён прогноз продаж. "
@@ -590,6 +593,23 @@ TRANSLATIONS = {
     },
     "home.kpi.ordered": {
         "ru": "Продажи по заказам", "uk": "Продажі за замовленнями", "en": "Ordered sales"},
+    "home.kpi.ordered_help_span": {
+        "ru": "Внимание: это число за {of} — {ot}, а «Выручка» рядом за {mf} — {mt}. "
+              "Отчёт заказов отстаёт на день, финансовые отчёты Amazon — на 2-3, поэтому "
+              "окна разъехались. Само число — как в кабинете Amazon: цена с НДС и "
+              "доставкой, по дате заказа, отменённые не вычитаются. Это витрина, "
+              "а не деньги на счёте.",
+        "uk": "Увага: це число за {of} — {ot}, а «Виручка» поруч за {mf} — {mt}. Звіт "
+              "замовлень відстає на день, фінансові звіти Amazon — на 2-3, тому вікна "
+              "розійшлися. Саме число — як у кабінеті Amazon: ціна з ПДВ і доставкою, "
+              "за датою замовлення, скасовані не віднімаються. Це вітрина, а не гроші "
+              "на рахунку.",
+        "en": "Note: this figure covers {of} — {ot}, while Revenue next to it covers "
+              "{mf} — {mt}. The orders report lags by a day, Amazon financial reports by "
+              "2-3, so the windows diverged. The figure itself matches Seller Central: "
+              "buyer price with VAT and shipping, by order date, cancellations not "
+              "deducted. This is the storefront, not cash.",
+    },
     "home.kpi.ordered_help": {
         "ru": "То же число, что видно в кабинете Amazon: цена с НДС и доставкой, "
               "по дате заказа, отменённые не вычитаются. Это витрина, а не деньги на счёте",

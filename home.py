@@ -425,6 +425,35 @@ else:
     _title = t("home.sec.sales").format(d=DAYS)
 st.markdown(f"##### {_title}")
 
+# «Полный день» — тот, за который пришли и амазоновские отчёты. Финансовые
+# отчёты Amazon (комиссии, маржа) отстают на 2-3 дня, а каналы Mirakl
+# приходят почти сразу: за свежие дни в economics_summary остаются только
+# они. Окно растягивалось на эти дни, и хвост графика проваливался почти
+# в ноль — при том что продажи шли в обычном режиме.
+#
+# Канал берём из справочника, а не перечнем кодов: литеральный список
+# протух бы с первой же новой площадкой, как уже протухал «LM»
+_full_last = pd.NaT
+if not money.empty:
+    money["sales_date"] = pd.to_datetime(money["sales_date"])
+    _ch = load_channels()
+    if not _ch.empty:
+        _amz_codes = set(_ch.loc[_ch["channel"].str.upper() == "AMAZON",
+                                 "marketplace_code"])
+        if _amz_codes:
+            _a_days = money.loc[
+                money["marketplace"].astype(str).str.strip().str.upper()
+                .isin(_amz_codes), "sales_date"]
+            if len(_a_days):
+                _full_last = _a_days.max()
+    if pd.isna(_full_last):
+        # справочник недоступен — прежнее поведение, а не пустой экран
+        _full_last = money["sales_date"].max()
+    money = money[money["sales_date"] <= _full_last]
+    if not money_wide.empty:
+        money_wide["sales_date"] = pd.to_datetime(money_wide["sales_date"])
+        money_wide = money_wide[money_wide["sales_date"] <= _full_last]
+
 # данные о продажах приходят с задержкой в несколько дней — говорим об этом
 # прямо, иначе «за 7 дней» читается как «включая вчера»
 if not money.empty:
@@ -475,6 +504,7 @@ else:
 
     # витринная выручка за тот же период — то, что видно в Seller Central
     ord_cur = None
+    _o_to = _o_from = pd.NaT
     if not ordered.empty:
         ordered["sales_date"] = pd.to_datetime(ordered["sales_date"])
         if date_from is not None:
@@ -484,11 +514,26 @@ else:
             _oa = ordered["sales_date"].max()
             _o = ordered[ordered["sales_date"] > _oa - pd.Timedelta(days=DAYS)]
         ord_cur = float(_o["ordered_sales"].sum())
+        # у отчёта заказов лаг меньше, чем у финансовых отчётов, поэтому
+        # его окно может заканчиваться позже. Числа рядом за разные дни —
+        # повод объяснить, а не молча показать
+        if len(_o):
+            _o_to = pd.Timestamp(_o["sales_date"].max())
+            _o_from = pd.Timestamp(_o["sales_date"].min())
+        else:
+            _o_to = _o_from = pd.NaT
+
+    _m_to = pd.Timestamp(cur["sales_date"].max()) if len(cur) else pd.NaT
+    _m_from = pd.Timestamp(cur["sales_date"].min()) if len(cur) else pd.NaT
+    _spans_differ = (pd.notna(_o_to) and pd.notna(_m_to) and _o_to != _m_to)
 
     s0, s1, s2, s3, s4 = st.columns(5)
     s0.metric(t("home.kpi.ordered"),
               fmt_money(ord_cur) if ord_cur else "—",
-              help=t("home.kpi.ordered_help"))
+              help=(t("home.kpi.ordered_help_span").format(
+                        of=_o_from.strftime("%d.%m"), ot=_o_to.strftime("%d.%m"),
+                        mf=_m_from.strftime("%d.%m"), mt=_m_to.strftime("%d.%m"))
+                    if _spans_differ else t("home.kpi.ordered_help")))
     s1.metric(t("home.kpi.revenue"), fmt_money(rev_cur),
               delta=(f"{delta_pct:+.1f}%" if delta_pct is not None else None),
               help=t("home.kpi.revenue_help").format(d=DAYS))
