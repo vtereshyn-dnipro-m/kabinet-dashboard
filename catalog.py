@@ -59,6 +59,118 @@ def asin_by_sku() -> dict:
     return dict(zip(df["sku_group"].astype(str), df["asin"].astype(str)))
 
 
+# Серая рамка вместо пустой ячейки. Картинка инлайновая: внешняя
+# заглушка означала бы сетевой запрос ради того, чтобы показать «ничего»,
+# и ломалась бы ровно тогда, когда сеть и так подводит
+NO_PHOTO = (
+    "data:image/svg+xml;utf8,"
+    "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'>"
+    "<rect width='64' height='64' rx='8' fill='%23e9edf2'/>"
+    "<path d='M16 44l10-13 7 9 5-6 10 10z' fill='%23b9c4d0'/>"
+    "<circle cx='24' cy='24' r='5' fill='%23b9c4d0'/></svg>"
+)
+
+
+def _mk(v) -> str:
+    """Код рынка в том виде, в каком он лежит в kabinet_data.
+
+    listing_cards джойнится по коду страны, а страницы приходят и с
+    кодом, и с именем канала «Amazon.de» — приводим к одному виду здесь,
+    чтобы не разводить преобразование по вызывающим местам."""
+    v = str(v or "").strip().upper()
+    return v.split(".")[-1] if v.startswith("AMAZON.") else v
+
+
+@st.cache_data(ttl=600)
+def listing_cards() -> pd.DataFrame:
+    """Карточки листингов: заголовок и главное фото по рынку.
+
+    Единственный источник, где заголовок снят с самой витрины. До этого
+    название бралось из economics_summary, а там под немецким рынком
+    лежит испанский текст — рынок совпадает, язык нет, и поймать это
+    сравнением кодов невозможно.
+
+    Таблица реплицируется из другой Lakebase раз в сутки: кросс-проектных
+    запросов Кабинет не делает."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("""
+            SELECT asin, marketplace, title, main_image
+            FROM kabinet_data.listing_cards
+        """, conn)
+    except Exception:
+        return pd.DataFrame(columns=["asin", "marketplace", "title",
+                                     "main_image"])
+    finally:
+        conn.close()
+    if df.empty:
+        return df
+    df["asin"] = df["asin"].astype(str).str.strip()
+    df["marketplace"] = df["marketplace"].map(_mk)
+    return df
+
+
+@st.cache_data(ttl=600)
+def _cards_maps() -> tuple:
+    """Три готовых словаря: заголовок по рынку, заголовок по любому рынку
+    (с указанием какому) и фото по любому рынку.
+
+    Собираем один раз: словарь на 977 карточек дешевле, чем merge на
+    каждой из тринадцати таблиц."""
+    df = listing_cards()
+    if df.empty:
+        return {}, {}, {}
+    by_mk, any_title, any_img = {}, {}, {}
+    for a, m, ti, im in zip(df["asin"], df["marketplace"], df["title"],
+                            df["main_image"]):
+        if ti and str(ti) not in ("None", "nan"):
+            by_mk[(a, m)] = str(ti)
+            any_title.setdefault(a, (m, str(ti)))
+        if im and str(im) not in ("None", "nan"):
+            any_img.setdefault((a, m), str(im))
+            any_img.setdefault(a, str(im))
+    return by_mk, any_title, any_img
+
+
+def title_for(asin, market):
+    """Заголовок с витрины этого рынка. Возвращает (текст, метка): метка
+    пустая, если рынок совпал, иначе код рынка, откуда взят текст."""
+    by_mk, any_title, _ = _cards_maps()
+    a, m = str(asin), _mk(market)
+    ti = by_mk.get((a, m))
+    if ti:
+        return ti, ""
+    alt = any_title.get(a)
+    return (alt[1], alt[0]) if alt else (None, "")
+
+
+def image_series(asins=None, skus=None, markets=None) -> list:
+    """Ссылки на фото для колонки таблицы.
+
+    Принимает то же, что url_series: готовые ASIN, артикулы или и то и
+    другое. Нет фото — заглушка, а не пустая ячейка: пустота в первой
+    колонке читается как сбой вёрстки, а не как отсутствие данных."""
+    _, _, any_img = _cards_maps()
+    m = asin_by_sku() if skus is not None else {}
+    n = len(asins if asins is not None else skus)
+    asins = list(asins) if asins is not None else [None] * n
+    skus = list(skus) if skus is not None else [None] * n
+    markets = list(markets) if markets is not None else [None] * n
+    out = []
+    for a, s_, mk in zip(asins, skus, markets):
+        if a is None or str(a) in ("None", "nan", ""):
+            a = m.get(base_sku(s_), "")
+        a = str(a)
+        out.append(any_img.get((a, _mk(mk))) or any_img.get(a) or NO_PHOTO)
+    return out
+
+
+def image_column(label: str = ""):
+    """Колонка фото, одинаковая во всех таблицах Кабинета."""
+    return st.column_config.ImageColumn(label, width="small",
+                                        help=t("catalog.photo_help"))
+
+
 @st.cache_data(ttl=600)
 def sku_by_asin() -> dict:
     """ASIN → артикул. Нужен поиску: человек ищет тем кодом, который у

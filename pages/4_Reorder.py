@@ -432,11 +432,13 @@ if not ordered.empty:
         od["sku_display"] = od["sku"].apply(clean_sku)
         # ASIN в рекомендациях не приходит — добираем по артикулу
         od["asin_url"] = catalog.url_series(skus=od["sku"])
+        od["photo"] = catalog.image_series(skus=od["sku"])
         st.dataframe(
-            od[["sku_display", "asin_url", "product_name", "current_stock",
-                "suggested_qty"]],
+            od[["photo", "sku_display", "asin_url", "product_name",
+                "current_stock", "suggested_qty"]],
             use_container_width=True, hide_index=True,
             column_config={
+                "photo": catalog.image_column(),
                 "sku_display": "SKU",
                 "asin_url": catalog.asin_column(),
                 "product_name": t("ro.tr.col_product"),

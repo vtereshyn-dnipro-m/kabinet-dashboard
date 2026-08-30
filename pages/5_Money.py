@@ -505,6 +505,9 @@ with tab_pnl:
         u if u else amazon_url("ES", a)
         for u, a in zip(by_sku["amazon_url"], by_sku["asin"])
     ]
+    by_sku["photo"] = catalog.image_series(
+        asins=by_sku["asin"], skus=by_sku["sku_display"],
+        markets=by_sku["link_mp"])
 
     def flag(row):
         if pd.isna(row["cm"]):
@@ -627,12 +630,13 @@ with tab_pnl:
         st.caption(t("money.alert.filtered_thin").format(n=len(by_sku)))
 
     st.dataframe(
-        by_sku[["flag_col", "ann_col", "sku_display", "product_name",
+        by_sku[["photo", "flag_col", "ann_col", "sku_display", "product_name",
                 "markets_label", "units", "revenue",
                 "net_proceeds", "cogs", "commission", "ads", "cm", "cm_pct", "acos_pct",
                 "rank_now", "rank_delta", "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
         column_config={
+            "photo": catalog.image_column(),
             "flag_col": st.column_config.TextColumn(t("money.col.flag"), width="small",
                 help=t("money.col.flag_help")),
             "ann_col": st.column_config.TextColumn(t("money.col.ann"), width="small",
@@ -843,11 +847,15 @@ with tab_alerts:
         alerts = alerts.copy()
         alerts["asin_url"] = catalog.url_series(
             skus=alerts["sku_display"], markets=alerts["marketplace"])
+        alerts["photo"] = catalog.image_series(
+            skus=alerts["sku_display"], markets=alerts["marketplace"])
         st.dataframe(
-            alerts[["type_label", "sku_display", "asin_url", "marketplace",
+            alerts[["photo", "type_label", "sku_display", "asin_url",
+                    "marketplace",
                     "units", "ads_spend", "cm", "details"]],
             use_container_width=True, height=480, hide_index=True,
             column_config={
+                "photo": catalog.image_column(),
                 "type_label": st.column_config.TextColumn(t("money.alerts.col_type"), width="small"),
                 "sku_display": st.column_config.TextColumn("SKU", width="small"),
                 "asin_url": catalog.asin_column(),

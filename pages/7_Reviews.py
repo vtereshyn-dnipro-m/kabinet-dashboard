@@ -1415,15 +1415,19 @@ with tab_asin:
 
         _names, _foreign = [], []
         for _a, _m in zip(by_asin["asin"].astype(str), by_asin["mk"]):
-            _n = _same.get((_a, _m))
+            # Первый источник — заголовок с самой витрины. Остальные
+            # оставлены ради покрытия и помечены источником: под немецким
+            # рынком в экономике лежит испанский текст, и рынок там
+            # совпадает, поэтому «свой рынок» ещё не значит «свой язык»
+            _ti, _alt_mk = catalog.title_for(_a, _m)
+            if _ti:
+                _names.append(_ti)
+                _foreign.append(_alt_mk)
+                continue
+            _n = _same.get((_a, _m)) or (_other.get(_a) or (None, None))[1]
             if _n:
                 _names.append(str(_n))
-                _foreign.append("")
-                continue
-            _alt = _other.get(_a)
-            if _alt and _alt[1]:
-                _names.append(str(_alt[1]))
-                _foreign.append(_alt[0])
+                _foreign.append(t("rev.asin.name_econ"))
                 continue
             _n = _any_map.get(_a)
             if _n and str(_n) not in ("None", "nan", ""):
@@ -1434,6 +1438,8 @@ with tab_asin:
             _foreign.append("")
         by_asin["product_name"] = _names
         by_asin["name_src"] = _foreign
+        by_asin["photo"] = catalog.image_series(
+            asins=by_asin["asin"], markets=by_asin["mk"])
 
         # ---- фильтры вкладки ----
         # Одни на обе таблицы и на график между ними: фильтр, который
@@ -1527,8 +1533,8 @@ with tab_asin:
                         _grow = (_fl.groupby("asin", as_index=False)["growth"].sum()
                                     .rename(columns={"growth": "reviews"}))
 
-                weak = by_asin[["asin", "product_name", "name_src", "mk",
-                                "sent", "url"]].copy()
+                weak = by_asin[["asin", "photo", "product_name", "name_src",
+                                "mk", "sent", "url"]].copy()
                 weak = weak.merge(_grow, on="asin", how="left")
                 weak["reviews"] = weak["reviews"].fillna(0).clip(lower=0).astype(int)
                 weak["pct"] = np.round(safe_div(weak["reviews"], weak["sent"]) * 100, 1)
@@ -1536,10 +1542,11 @@ with tab_asin:
                 # внутри — с наименьшей отдачей на запрос
                 weak = weak.sort_values(["reviews", "pct"], ascending=[False, True])
                 st.dataframe(
-                    weak[["url", "mk", "product_name", "name_src", "sent",
-                          "reviews", "pct"]],
+                    weak[["photo", "url", "mk", "product_name", "name_src",
+                          "sent", "reviews", "pct"]],
                     use_container_width=True, height=340, hide_index=True,
                     column_config={
+                        "photo": catalog.image_column(),
                         "url": catalog.asin_column(),
                         "mk": st.column_config.TextColumn(
                             t("rev.col.marketplace"), width="small",
@@ -1596,11 +1603,16 @@ with tab_asin:
                                                  .fillna("—"))
                         grown["url"] = catalog.url_series(
                             asins=grown["asin"], markets=grown["marketplace"])
+                        grown["photo"] = catalog.image_series(
+                            asins=grown["asin"],
+                            markets=grown["marketplace"])
                         st.dataframe(
-                            grown[["url", "product_name", "marketplace", "first",
+                            grown[["photo", "url", "product_name",
+                                   "marketplace", "first",
                                    "last", "growth", "rating"]],
                             use_container_width=True, height=380, hide_index=True,
                             column_config={
+                                "photo": catalog.image_column(),
                                 "url": catalog.asin_column(),
                                 "product_name": st.column_config.TextColumn(
                                     t("rev.col.product"), width="medium"),

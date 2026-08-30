@@ -560,7 +560,10 @@ with tab_sum:
                          .set_index("base_sku")["marketplace"])
             view["asin_url"] = catalog.url_series(
                 skus=view["base_sku"], markets=view["base_sku"].map(_mk))
-            show, conf = ["base_sku", "asin_url", "product_name"], {
+            view["photo"] = catalog.image_series(
+                skus=view["base_sku"], markets=view["base_sku"].map(_mk))
+            show, conf = ["photo", "base_sku", "asin_url", "product_name"], {
+                "photo": catalog.image_column(),
                 "base_sku": st.column_config.TextColumn("SKU", width="small"),
                 "asin_url": catalog.asin_column(),
                 "product_name": st.column_config.TextColumn(
@@ -782,11 +785,14 @@ with tab_amz:
         view = amz.sort_values("days_open", ascending=False).copy()
         view["created_at"] = pd.to_datetime(view["created_at"]).dt.strftime("%d.%m.%Y")
         view["asin_url"] = catalog.url_series(skus=view["sku"])
+        view["photo"] = catalog.image_series(skus=view["sku"])
         st.dataframe(
-            view[["created_at", "days_open", "sev_label", "type_label",
-                  "sku", "asin_url", "warehouse_name", "message"]],
+            view[["photo", "created_at", "days_open", "sev_label",
+                  "type_label", "sku", "asin_url", "warehouse_name",
+                  "message"]],
             use_container_width=True, height=420, hide_index=True,
             column_config={
+                "photo": catalog.image_column(),
                 "created_at": st.column_config.TextColumn(
                     t("cm.col.created"), width="small"),
                 "asin_url": catalog.asin_column(),
