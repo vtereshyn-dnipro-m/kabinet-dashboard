@@ -208,11 +208,30 @@ TRANSLATIONS = {
     "stock.map.inb_receiving_help": {"ru": "Единиц, которые Amazon уже разбирает на складе. Ближе всего к продаже: обычно встают в остаток за пару дней.", "uk": "Одиниць, які Amazon уже розбирає на складі. Найближче до продажу: зазвичай стають у залишок за кілька днів.", "en": "Units Amazon is already checking in. Closest to sale: they usually join the stock within a couple of days."},
     "stock.map.out_title": {"ru": "Кончился на складе", "uk": "Закінчився на складі", "en": "Out of stock"},
     "stock.map.out_caption": {
-        "ru": "Товары без запаса, которые продавались {p} — {n} шт. Сверху те, что уходили быстрее всего.",
-        "uk": "Товари без запасу, які продавалися {p} — {n} шт. Зверху ті, що йшли найшвидше.",
-        "en": "Products with no stock that sold {p} — {n}. Fastest movers first.",
+        "ru": "Товары без запаса, которые продавались {p} — {n} шт. Сверху те, по кому ничего не едет, внутри — по скорости продаж.",
+        "uk": "Товари без запасу, які продавалися {p} — {n} шт. Зверху ті, по кому нічого не їде, всередині — за швидкістю продажів.",
+        "en": "Products with no stock that sold {p} — {n}. Those with nothing inbound come first, then by sales rate.",
     },
-    "stock.map.out_blind": {"ru": "Кончилось и ничего не едет: {n}. Теряем примерно {per} шт. в день. Например: {skus}", "uk": "Закінчилось і нічого не їде: {n}. Втрачаємо приблизно {per} шт. на день. Наприклад: {skus}", "en": "Out of stock with nothing inbound: {n}. Losing about {per} units a day. For example: {skus}"},
+    "stock.map.out_asin_help": {
+        "ru": "Ссылка на карточку товара. Домен берётся по рынку, где товар продавался больше всего: ссылка на amazon.es для немецкого листинга открыла бы чужую витрину.",
+        "uk": "Посилання на картку товару. Домен береться за ринком, де товар продавався найбільше: посилання на amazon.es для німецького лістингу відкрило б чужу вітрину.",
+        "en": "A link to the product page. The domain follows the marketplace where the product sold most: an amazon.es link for a German listing would open the wrong storefront.",
+    },
+    "stock.map.out_markets": {
+        "ru": "Рынок",
+        "uk": "Ринок",
+        "en": "Market",
+    },
+    "stock.map.out_markets_help": {
+        "ru": "Где товар продавался за выбранный период, по убыванию продаж. Запас на Amazon общий на всю Европу, поэтому кончился он сразу везде, а не на одном из этих рынков.",
+        "uk": "Де товар продавався за обраний період, за спаданням продажів. Запас на Amazon спільний на всю Європу, тому закінчився він одразу скрізь, а не на одному з цих ринків.",
+        "en": "Where the product sold over the selected period, highest first. Amazon stock is shared across Europe, so it ran out everywhere at once, not on one of these marketplaces.",
+    },
+    "stock.map.out_blind": {
+        "ru": "Кончилось и ничего не едет: {n} · теряем около {per} шт в день",
+        "uk": "Закінчилося і нічого не їде: {n} · втрачаємо близько {per} шт на день",
+        "en": "Out of stock with nothing inbound: {n} · losing about {per} units a day",
+    },
     "stock.map.out_product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "stock.map.out_rate": {"ru": "Продажи в день", "uk": "Продажі на день", "en": "Units per day"},
     "stock.map.out_rate_help": {

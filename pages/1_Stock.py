@@ -8,6 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection
 from i18n import init_lang, t
+from links import amazon_url, first_amazon
 import period as period_mod
 
 init_lang()
@@ -246,29 +247,37 @@ def load_fba_inventory() -> pd.DataFrame:
 
 @st.cache_data(ttl=600)
 def load_sales_by_asin(days: int = 30) -> pd.DataFrame:
-    """Продажи в штуках по ASIN за период.
+    """Продажи в штуках по ASIN за период и рынки, где они шли.
 
     economics_summary хранит norm_sku, а не ASIN, поэтому связываем через
     sku_asin_map по числовой части артикула — тем же способом, что и
-    «Деньги». Один ASIN общий на всю Европу, поэтому суммируем по рынкам:
-    здесь нас интересует спрос на товар, а не по какой стране он прошёл."""
+    «Деньги». Один ASIN общий на всю Европу, поэтому по рынкам суммируем:
+    здесь нас интересует спрос на товар, а не по какой стране он прошёл.
+
+    Рынки при этом сохраняем списком по убыванию продаж: он отвечает на
+    вопрос «где именно кончилось» и даёт домен для ссылки на карточку."""
     conn = get_connection()
     try:
         return pd.read_sql(f"""
-            SELECT s.asin,
-                   SUM(e.units_ordered)         AS units,
-                   COUNT(DISTINCT e.sales_date) AS days_with_sales,
-                   MAX(e.sales_date)            AS last_sale
-            FROM kabinet_data.economics_summary e
-            JOIN (
-                SELECT sku_group, MAX(asin) AS asin
-                FROM kabinet_data.sku_asin_map
-                WHERE asin IS NOT NULL
-                GROUP BY sku_group
-            ) s ON s.sku_group = SUBSTRING(e.norm_sku FROM '([0-9]{{5,}})')
-            WHERE e.sales_date >= CURRENT_DATE - INTERVAL '{days} days'
-              AND e.units_ordered > 0
-            GROUP BY s.asin
+            WITH m AS (
+                SELECT s.asin           AS asin,
+                       e.marketplace    AS mp,
+                       SUM(e.units_ordered) AS units
+                FROM kabinet_data.economics_summary e
+                JOIN (
+                    SELECT sku_group, MAX(asin) AS asin
+                    FROM kabinet_data.sku_asin_map
+                    WHERE asin IS NOT NULL
+                    GROUP BY sku_group
+                ) s ON s.sku_group = SUBSTRING(e.norm_sku FROM '([0-9]{{5,}})')
+                WHERE e.sales_date >= CURRENT_DATE - INTERVAL '{days} days'
+                  AND e.units_ordered > 0
+                GROUP BY 1, 2
+            )
+            SELECT asin,
+                   SUM(units)                                AS units,
+                   STRING_AGG(mp, ', ' ORDER BY units DESC)  AS markets
+            FROM m GROUP BY asin
         """, conn)
     except Exception:
         return pd.DataFrame()
@@ -1297,7 +1306,15 @@ with tab_map:
     else:
         # ---- кончился на складе ----
         # Товар с нулём и живым спросом теряет деньги каждый день, поэтому
-        # блок стоит выше карточек и карты
+        # блок стоит выше карточек и карты.
+        #
+        # Раньше здесь было два блока: красная строка с обрезанными
+        # названиями через запятую и таблица под ней. Строка ничего не
+        # добавляла — те же товары стояли в таблице целиком, — но
+        # выглядела как отдельная находка и читалась хуже всего: по
+        # «Перфоратор SDS-plus 1500 Вт с…» нельзя ни найти товар, ни
+        # понять, сколько их. Осталась одна таблица, а красным — только
+        # итог, ради которого блок и заметен
         _inv = load_fba_inventory()
         _sales = load_sales_by_asin(PERIOD.days)
         if not _inv.empty and not _sales.empty:
@@ -1311,7 +1328,9 @@ with tab_map:
                            inb_shipped=("inb_shipped", "sum"),
                            inb_receiving=("inb_receiving", "sum"),
                            inbound=("inbound", "sum"),
-                           product=("product_name", "max")))
+                           product=("product_name", "max"),
+                           sku=("sku", lambda x: ", ".join(
+                               sorted(set(map(str, x))))[:60])))
             _z = _z[_z["avail"] <= 0].merge(_sales, on="asin", how="inner")
         else:
             _z = pd.DataFrame()
@@ -1326,42 +1345,55 @@ with tab_map:
             _z["zero_since"] = pd.to_datetime(_z["zero_since"], errors="coerce")
             _z["days_zero"] = (_today - _z["zero_since"]).dt.days
             # Скорость считаем по дням, когда запас ещё был: делить продажи
-            # на все 30 дней у товара, кончившегося три недели назад, —
+            # на весь период у товара, кончившегося три недели назад, —
             # занизить спрос втрое и увезти самую срочную строку вниз
             _live = ((_z["zero_since"] - _start).dt.days
                      .clip(lower=1, upper=PERIOD.days).fillna(PERIOD.days))
             _z["per_day"] = (pd.to_numeric(_z["units"], errors="coerce")
                              .fillna(0) / _live).round(2)
             _z["product"] = _z["product"].fillna(_z["asin"])
+            _z["url"] = [amazon_url(first_amazon(m), a)
+                         for m, a in zip(_z["markets"], _z["asin"])]
             # Даты прибытия в данных нет вообще — только корзины inbound.
             # Пустые корзины гасим в прочерк: ноль во всех трёх читался бы
             # как «поставка на ноль штук», а её просто нет
-            _none = _z[INV_INBOUND].sum(axis=1) <= 0
-            _z.loc[_none, INV_INBOUND] = pd.NA
-            _z = _z.sort_values("per_day", ascending=False)
+            _blind = _z[INV_INBOUND].sum(axis=1) <= 0
+            _z.loc[_blind, INV_INBOUND] = pd.NA
+            # Сортировка двойная: сначала те, по кому ничего не едет, —
+            # их простой сам не кончится, — внутри по скорости продаж
+            _z["_urgent"] = _blind.astype(int)
+            _z = _z.sort_values(["_urgent", "per_day"], ascending=[False, False])
 
-            _blind = _z[_none.reindex(_z.index, fill_value=False)]
-            if not _blind.empty:
+            _n_blind = int(_blind.sum())
+            if _n_blind:
                 st.error(t("stock.map.out_blind").format(
-                    n=len(_blind), per=f"{_blind['per_day'].sum():.1f}",
-                    skus=", ".join(_blind["product"].astype(str)
-                                   .str.slice(0, 40).head(3))))
+                    n=_n_blind, per=f"{_z.loc[_blind, 'per_day'].sum():.1f}"))
             st.markdown(f"**{t('stock.map.out_title')}**")
             st.caption(t("stock.map.out_caption").format(
                 n=len(_z), p=PERIOD.title))
             st.dataframe(
-                _z[["product", "asin", "per_day", "days_zero"] + INV_INBOUND],
+                _z[["sku", "url", "product", "per_day", "days_zero",
+                    "markets"] + INV_INBOUND],
                 use_container_width=True, hide_index=True,
                 column_config={
+                    "sku": st.column_config.TextColumn("SKU", width="small"),
+                    # ASIN и ссылка — одна колонка: display_text вырезает
+                    # ASIN из адреса, так что кода видно ровно столько же,
+                    # а отдельный столбец со стрелкой не занимает ширину
+                    "url": st.column_config.LinkColumn(
+                        "ASIN", display_text=r"/dp/([A-Z0-9]{10})",
+                        width="small", help=t("stock.map.out_asin_help")),
                     "product": st.column_config.TextColumn(
                         t("stock.map.out_product"), width="large"),
-                    "asin": st.column_config.TextColumn("ASIN", width="small"),
                     "per_day": st.column_config.NumberColumn(
                         t("stock.map.out_rate"), format="%.2f",
                         help=t("stock.map.out_rate_help")),
                     "days_zero": st.column_config.NumberColumn(
                         t("stock.map.out_days"),
                         help=t("stock.map.out_days_help")),
+                    "markets": st.column_config.TextColumn(
+                        t("stock.map.out_markets"), width="small",
+                        help=t("stock.map.out_markets_help")),
                     "inb_working": st.column_config.NumberColumn(
                         t("stock.map.inb_working"),
                         help=t("stock.map.inb_working_help")),
