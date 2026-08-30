@@ -12,6 +12,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
+from links import amazon_url
 import period as period_mod
 
 init_lang()
@@ -64,14 +65,6 @@ def channel_code(ch) -> str:
     длинная подпись, чем потерянная строка."""
     key = str(ch or "").strip()
     return CHANNEL_CODE.get(key, key or "—")
-
-
-CHANNEL_DOMAIN = {
-    "Amazon.es": "amazon.es", "Amazon.de": "amazon.de", "Amazon.fr": "amazon.fr",
-    "Amazon.it": "amazon.it", "Amazon.nl": "amazon.nl", "Amazon.com.be": "amazon.com.be",
-    "Amazon.se": "amazon.se", "Amazon.pl": "amazon.pl", "Amazon.co.uk": "amazon.co.uk",
-    "Amazon.ie": "amazon.ie",
-}
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1340,11 +1333,9 @@ with tab_asin:
         by_asin.loc[by_asin["product_name"].str.strip() == "", "product_name"] = "—"
         # пустая строка, а не None: LinkColumn печатает None текстом,
         # и в колонке со стрелками появлялось слово вместо прочерка
-        by_asin["url"] = [
-            (f"https://www.{CHANNEL_DOMAIN[ch]}/dp/{a}"
-             if ch in CHANNEL_DOMAIN and a else "")
-            for ch, a in zip(by_asin["sales_channel"], by_asin["asin"])
-        ]
+        by_asin["url"] = [amazon_url(CHANNEL_CODE.get(ch), a)
+                          for ch, a in zip(by_asin["sales_channel"],
+                                           by_asin["asin"])]
 
         # Таблица отдачи стоит во всю ширину, а не рядом с графиком: шесть
         # колонок в половинной колонке (~400 px) не помещались, заголовки
@@ -1440,16 +1431,11 @@ with tab_asin:
                     # название и ссылка: сырой ASIN в этой таблице ничего
                     # не говорил, а страну для домена берём из самой строки
                     _names = dict(zip(by_asin["asin"], by_asin["product_name"]))
-                    _dom = {CHANNEL_CODE[k]: v for k, v in CHANNEL_DOMAIN.items()
-                            if k in CHANNEL_CODE}
                     grown = grown.head(20).copy()
                     grown["product_name"] = (grown["asin"].map(_names)
                                              .fillna("—"))
-                    grown["url"] = [
-                        (f"https://www.{_dom[str(mp).upper()]}/dp/{a}"
-                         if str(mp).upper() in _dom and a else "")
-                        for mp, a in zip(grown["marketplace"], grown["asin"])
-                    ]
+                    grown["url"] = [amazon_url(mp, a) for mp, a
+                                    in zip(grown["marketplace"], grown["asin"])]
                     st.dataframe(
                         grown[["asin", "product_name", "marketplace", "first",
                                "last", "growth", "rating", "url"]],
