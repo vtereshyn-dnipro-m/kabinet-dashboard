@@ -1349,8 +1349,11 @@ with tab_asin:
             for ch, a in zip(by_asin["sales_channel"], by_asin["asin"])
         ]
 
-        a1, a2 = st.columns([1, 1])
-        with a1:
+        # Таблица отдачи стоит во всю ширину, а не рядом с графиком: шесть
+        # колонок в половинной колонке (~400 px) не помещались, заголовки
+        # резались — на украинском особенно, там подписи длиннее
+        _chart_col = st.container()
+        with _chart_col:
             top = by_asin.nlargest(15, "sent").sort_values("sent").copy()
             # на оси — название товара: сырой ASIN ни о чём не говорит.
             # Значением категории ASIN остаётся, подписи подменяем через
@@ -1372,7 +1375,7 @@ with tab_asin:
                               yaxis_title=None, xaxis_title=None,
                               margin=dict(l=10, r=10, t=50, b=10))
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
-        with a2:
+        with st.container():
             # Детализация переехала сюда из «Динамики»: там тенденции,
             # здесь разбор по товарам. Прежняя таблица «Все товары»
             # повторяла то же, что видно на графике слева, и убрана
