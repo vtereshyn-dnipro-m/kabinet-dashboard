@@ -12,6 +12,7 @@ import streamlit as st
 from db.connection import get_connection
 from i18n import init_lang, t
 import period as period_mod
+import catalog
 
 init_lang()
 
@@ -550,8 +551,18 @@ with tab_sum:
         if view.empty:
             st.success(t("cm.summary.no_alerts"))
         else:
-            show, conf = ["base_sku", "product_name"], {
+            # ASIN в economics_summary нет — добираем по артикулу.
+            # Рынок для домена берём тот, где выручка канала больше, а из
+            # него первый амазоновский: Mirakl-канал домена не имеет
+            view = view.copy()
+            _mk = (scoped.sort_values("revenue", ascending=False)
+                         .drop_duplicates("base_sku")
+                         .set_index("base_sku")["marketplace"])
+            view["asin_url"] = catalog.url_series(
+                skus=view["base_sku"], markets=view["base_sku"].map(_mk))
+            show, conf = ["base_sku", "asin_url", "product_name"], {
                 "base_sku": st.column_config.TextColumn("SKU", width="small"),
+                "asin_url": catalog.asin_column(),
                 "product_name": st.column_config.TextColumn(
                     t("cm.col.product"), width="medium"),
             }
@@ -770,13 +781,15 @@ with tab_amz:
         st.markdown(f"**{t('cm.amz.incidents_title')}**")
         view = amz.sort_values("days_open", ascending=False).copy()
         view["created_at"] = pd.to_datetime(view["created_at"]).dt.strftime("%d.%m.%Y")
+        view["asin_url"] = catalog.url_series(skus=view["sku"])
         st.dataframe(
             view[["created_at", "days_open", "sev_label", "type_label",
-                  "sku", "warehouse_name", "message"]],
+                  "sku", "asin_url", "warehouse_name", "message"]],
             use_container_width=True, height=420, hide_index=True,
             column_config={
                 "created_at": st.column_config.TextColumn(
                     t("cm.col.created"), width="small"),
+                "asin_url": catalog.asin_column(),
                 "days_open": st.column_config.NumberColumn(
                     t("cm.col.days_open"), width="small",
                     help=t("cm.col.days_open_help")),

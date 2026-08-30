@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection
 from i18n import init_lang, t
+import catalog
 from links import AMAZON_DOMAIN, amazon_url
 import period as period_mod
 
@@ -839,13 +840,17 @@ with tab_alerts:
                   delta_color="inverse")
         a3.metric(t("money.alerts.wasted"), len(w))
 
+        alerts = alerts.copy()
+        alerts["asin_url"] = catalog.url_series(
+            skus=alerts["sku_display"], markets=alerts["marketplace"])
         st.dataframe(
-            alerts[["type_label", "sku_display", "marketplace", "units",
-                    "ads_spend", "cm", "details"]],
+            alerts[["type_label", "sku_display", "asin_url", "marketplace",
+                    "units", "ads_spend", "cm", "details"]],
             use_container_width=True, height=480, hide_index=True,
             column_config={
                 "type_label": st.column_config.TextColumn(t("money.alerts.col_type"), width="small"),
                 "sku_display": st.column_config.TextColumn("SKU", width="small"),
+                "asin_url": catalog.asin_column(),
                 "marketplace": st.column_config.TextColumn(
                     t("money.col.marketplace"), width="small"),
                 "units": st.column_config.NumberColumn(t("money.col.units"), width="small"),
