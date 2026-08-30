@@ -1435,6 +1435,40 @@ with tab_asin:
         by_asin["product_name"] = _names
         by_asin["name_src"] = _foreign
 
+        # ---- фильтры вкладки ----
+        # Одни на обе таблицы и на график между ними: фильтр, который
+        # виден над графиком и на него не влияет, читается как сломанный
+        _sku_map = catalog.sku_by_asin()
+        by_asin["sku"] = by_asin["asin"].astype(str).map(_sku_map).fillna("")
+        fa1, fa2 = st.columns([2, 3])
+        with fa1:
+            _mk_opts = sorted(m for m in by_asin["mk"].unique() if str(m).strip())
+            _mk_pick = st.multiselect(
+                t("rev.asin.filter_market"), options=_mk_opts,
+                placeholder=t("rev.asin.filter_market_all"), key="asin_mk")
+        with fa2:
+            _q = st.text_input(t("rev.asin.filter_search"),
+                               placeholder=t("rev.asin.filter_search_ph"),
+                               key="asin_q").strip()
+
+        def _apply(df, mk_col):
+            """Тот же отбор для обеих таблиц: рынок и поиск по двум кодам."""
+            out = df
+            if _mk_pick:
+                out = out[out[mk_col].astype(str).isin(_mk_pick)]
+            if _q:
+                _a = out["asin"].astype(str)
+                _s = _a.map(_sku_map).fillna("")
+                out = out[_a.str.contains(_q, case=False, na=False)
+                          | _s.str.contains(_q, case=False, na=False)]
+            return out
+
+        _total_all = len(by_asin)
+        by_asin = _apply(by_asin, "mk")
+        if by_asin.empty:
+            st.info(t("rev.asin.filter_none").format(
+                q=_q or "—", mk=", ".join(_mk_pick) or t("rev.asin.filter_market_all")))
+
         # ASIN и ссылка — одна колонка: отдельный столбец со стрелкой
         # занимал ширину и требовал второго взгляда, чтобы понять, к какой
         # строке он относится
@@ -1445,85 +1479,91 @@ with tab_asin:
         # Таблица отдачи стоит во всю ширину, а не рядом с графиком: шесть
         # колонок в половинной колонке (~400 px) не помещались, заголовки
         # резались — на украинском особенно, там подписи длиннее
-        _chart_col = st.container()
-        with _chart_col:
-            top = by_asin.nlargest(15, "sent").sort_values("sent").copy()
-            # на оси — название товара: сырой ASIN ни о чём не говорит.
-            # Значением категории ASIN остаётся, подписи подменяем через
-            # ticktext — иначе два товара с одинаковым названием склеились
-            # бы в одну полосу. Нет названия — показываем ASIN, это лучше
-            # пустой подписи
-            top["label"] = [
-                str(a) if pd.isna(n) or str(n).strip() in ("", "—", "None")
-                else (str(n)[:38] + "…" if len(str(n)) > 38 else str(n))
-                for n, a in zip(top["product_name"], top["asin"])
-            ]
-            fig = px.bar(top, x="sent", y="asin", orientation="h",
-                         title=t("rev.asin.top"), text="sent",
-                         hover_data={"asin": True, "product_name": True},
-                         color_discrete_sequence=[GREEN])
-            fig.update_yaxes(tickmode="array", tickvals=top["asin"],
-                             ticktext=top["label"])
-            fig.update_layout(height=max(320, 26 * len(top)),
-                              yaxis_title=None, xaxis_title=None,
-                              margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
-        with st.container():
-            # Детализация переехала сюда из «Динамики»: там тенденции,
-            # здесь разбор по товарам. Прежняя таблица «Все товары»
-            # повторяла то же, что видно на графике слева, и убрана
-            st.markdown(f"**{t('rev.asin.weak')}**")
-            st.caption(t("rev.asin.weak_caption"))
+        # Пустой отбор объясняется словами выше; график и таблицу
+        # при этом не рисуем вовсе — пустые оси и шапка без строк
+        # выглядят как поломка, а не как «ничего не нашлось»
+        if not by_asin.empty:
+            _chart_col = st.container()
+            with _chart_col:
+                top = by_asin.nlargest(15, "sent").sort_values("sent").copy()
+                # на оси — название товара: сырой ASIN ни о чём не говорит.
+                # Значением категории ASIN остаётся, подписи подменяем через
+                # ticktext — иначе два товара с одинаковым названием склеились
+                # бы в одну полосу. Нет названия — показываем ASIN, это лучше
+                # пустой подписи
+                top["label"] = [
+                    str(a) if pd.isna(n) or str(n).strip() in ("", "—", "None")
+                    else (str(n)[:38] + "…" if len(str(n)) > 38 else str(n))
+                    for n, a in zip(top["product_name"], top["asin"])
+                ]
+                fig = px.bar(top, x="sent", y="asin", orientation="h",
+                             title=t("rev.asin.top"), text="sent",
+                             hover_data={"asin": True, "product_name": True},
+                             color_discrete_sequence=[GREEN])
+                fig.update_yaxes(tickmode="array", tickvals=top["asin"],
+                                 ticktext=top["label"])
+                fig.update_layout(height=max(320, 26 * len(top)),
+                                  yaxis_title=None, xaxis_title=None,
+                                  margin=dict(l=10, r=10, t=50, b=10))
+                st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+            with st.container():
+                # Детализация переехала сюда из «Динамики»: там тенденции,
+                # здесь разбор по товарам. Прежняя таблица «Все товары»
+                # повторяла то же, что видно на графике слева, и убрана
+                st.markdown(f"**{t('rev.asin.weak')}**")
+                st.caption(t("rev.asin.weak_caption"))
 
-            # отзывы за период берём из той же корзины, что и «Динамика»,
-            # иначе два экрана показывали бы разный прирост по одному ASIN
-            _dyn = load_reviews_dynamics(DAYS, P_FROM, P_TO)
-            _grow = pd.DataFrame(columns=["asin", "reviews"])
-            if not _dyn.empty and "stable" in _dyn.columns:
-                _st = _dyn[_dyn["stable"]]
-                if not _st.empty:
-                    _fl = (_st.sort_values("snapshot_date")
-                              .groupby(["asin", "marketplace"])["review_count"]
-                              .agg(["first", "last"]).reset_index())
-                    _fl["growth"] = _fl["last"] - _fl["first"]
-                    _grow = (_fl.groupby("asin", as_index=False)["growth"].sum()
-                                .rename(columns={"growth": "reviews"}))
+                # отзывы за период берём из той же корзины, что и «Динамика»,
+                # иначе два экрана показывали бы разный прирост по одному ASIN
+                _dyn = load_reviews_dynamics(DAYS, P_FROM, P_TO)
+                _grow = pd.DataFrame(columns=["asin", "reviews"])
+                if not _dyn.empty and "stable" in _dyn.columns:
+                    _st = _dyn[_dyn["stable"]]
+                    if not _st.empty:
+                        _fl = (_st.sort_values("snapshot_date")
+                                  .groupby(["asin", "marketplace"])["review_count"]
+                                  .agg(["first", "last"]).reset_index())
+                        _fl["growth"] = _fl["last"] - _fl["first"]
+                        _grow = (_fl.groupby("asin", as_index=False)["growth"].sum()
+                                    .rename(columns={"growth": "reviews"}))
 
-            weak = by_asin[["asin", "product_name", "name_src", "mk",
-                            "sent", "url"]].copy()
-            weak = weak.merge(_grow, on="asin", how="left")
-            weak["reviews"] = weak["reviews"].fillna(0).clip(lower=0).astype(int)
-            weak["pct"] = np.round(safe_div(weak["reviews"], weak["sent"]) * 100, 1)
-            # порядок как просили: сначала те, кто принёс больше отзывов,
-            # внутри — с наименьшей отдачей на запрос
-            weak = weak.sort_values(["reviews", "pct"], ascending=[False, True])
-            st.dataframe(
-                weak[["url", "mk", "product_name", "name_src", "sent",
-                      "reviews", "pct"]],
-                use_container_width=True, height=340, hide_index=True,
-                column_config={
-                    "url": catalog.asin_column(),
-                    "mk": st.column_config.TextColumn(
-                        t("rev.col.marketplace"), width="small",
-                        help=t("rev.asin.market_help")),
-                    "product_name": st.column_config.TextColumn(
-                        t("rev.col.product"), width="large",
-                        help=t("rev.asin.name_help")),
-                    "name_src": st.column_config.TextColumn(
-                        t("rev.asin.name_src"), width="small",
-                        help=t("rev.asin.name_src_help")),
-                    "sent": st.column_config.NumberColumn(
-                        t("rev.col.sent"), width="small"),
-                    "reviews": st.column_config.NumberColumn(
-                        t("rev.asin.got_reviews"), width="medium"),
-                    "pct": st.column_config.NumberColumn(
-                        t("rev.asin.to_requests"), format="%.1f%%", width="medium",
-                        help=t("rev.asin.to_requests_help")),
-                },
-            )
-            st.caption(t("rev.asin.over100"))
+                weak = by_asin[["asin", "product_name", "name_src", "mk",
+                                "sent", "url"]].copy()
+                weak = weak.merge(_grow, on="asin", how="left")
+                weak["reviews"] = weak["reviews"].fillna(0).clip(lower=0).astype(int)
+                weak["pct"] = np.round(safe_div(weak["reviews"], weak["sent"]) * 100, 1)
+                # порядок как просили: сначала те, кто принёс больше отзывов,
+                # внутри — с наименьшей отдачей на запрос
+                weak = weak.sort_values(["reviews", "pct"], ascending=[False, True])
+                st.dataframe(
+                    weak[["url", "mk", "product_name", "name_src", "sent",
+                          "reviews", "pct"]],
+                    use_container_width=True, height=340, hide_index=True,
+                    column_config={
+                        "url": catalog.asin_column(),
+                        "mk": st.column_config.TextColumn(
+                            t("rev.col.marketplace"), width="small",
+                            help=t("rev.asin.market_help")),
+                        "product_name": st.column_config.TextColumn(
+                            t("rev.col.product"), width="large",
+                            help=t("rev.asin.name_help")),
+                        "name_src": st.column_config.TextColumn(
+                            t("rev.asin.name_src"), width="small",
+                            help=t("rev.asin.name_src_help")),
+                        "sent": st.column_config.NumberColumn(
+                            t("rev.col.sent"), width="small"),
+                        "reviews": st.column_config.NumberColumn(
+                            t("rev.asin.got_reviews"), width="medium"),
+                        "pct": st.column_config.NumberColumn(
+                            t("rev.asin.to_requests"), format="%.1f%%", width="medium",
+                            help=t("rev.asin.to_requests_help")),
+                    },
+                )
+                st.caption(t("rev.asin.shown").format(
+                    n=len(weak), total=_total_all))
+                st.caption(t("rev.asin.over100"))
 
-    # ---- где отзывов прибавилось больше всего ----
+        # ---- где отзывов прибавилось больше всего ----
     if not by_asin.empty:
         _dyn2 = load_reviews_dynamics(DAYS, P_FROM, P_TO)
         if not _dyn2.empty and "stable" in _dyn2.columns:
@@ -1543,29 +1583,39 @@ with tab_asin:
                     # название и ссылка: сырой ASIN в этой таблице ничего
                     # не говорил, а страну для домена берём из самой строки
                     _names = dict(zip(by_asin["asin"], by_asin["product_name"]))
-                    grown = grown.head(20).copy()
-                    grown["product_name"] = (grown["asin"].map(_names)
-                                             .fillna("—"))
-                    grown["url"] = catalog.url_series(
-                        asins=grown["asin"], markets=grown["marketplace"])
-                    st.dataframe(
-                        grown[["url", "product_name", "marketplace", "first",
-                               "last", "growth", "rating"]],
-                        use_container_width=True, height=380, hide_index=True,
-                        column_config={
-                            "url": catalog.asin_column(),
-                            "product_name": st.column_config.TextColumn(
-                                t("rev.col.product"), width="medium"),
-                            "marketplace": st.column_config.TextColumn(
-                                t("rev.col.marketplace"), width="small"),
-                            "first": st.column_config.NumberColumn(
-                                t("rev.dyn.was"), width="small"),
-                            "last": st.column_config.NumberColumn(
-                                t("rev.dyn.now"), width="small"),
-                            "growth": st.column_config.NumberColumn(
-                                t("rev.dyn.plus"), format="+%d", width="small"),
-                            "rating": st.column_config.NumberColumn(
-                                t("rev.dyn.rating"), format="%.1f", width="small"),
-                        },
-                    )
-                    st.caption(t("rev.dyn.note"))
+                    # тот же отбор, что и у первой таблицы: иначе
+                    # фильтр над экраном режет одну таблицу и не
+                    # трогает вторую
+                    _grown_all = len(grown)
+                    grown = _apply(grown, "marketplace")
+                    if grown.empty:
+                        st.caption(t("rev.dyn.top_filtered"))
+                    else:
+                        grown = grown.head(20).copy()
+                        grown["product_name"] = (grown["asin"].map(_names)
+                                                 .fillna("—"))
+                        grown["url"] = catalog.url_series(
+                            asins=grown["asin"], markets=grown["marketplace"])
+                        st.dataframe(
+                            grown[["url", "product_name", "marketplace", "first",
+                                   "last", "growth", "rating"]],
+                            use_container_width=True, height=380, hide_index=True,
+                            column_config={
+                                "url": catalog.asin_column(),
+                                "product_name": st.column_config.TextColumn(
+                                    t("rev.col.product"), width="medium"),
+                                "marketplace": st.column_config.TextColumn(
+                                    t("rev.col.marketplace"), width="small"),
+                                "first": st.column_config.NumberColumn(
+                                    t("rev.dyn.was"), width="small"),
+                                "last": st.column_config.NumberColumn(
+                                    t("rev.dyn.now"), width="small"),
+                                "growth": st.column_config.NumberColumn(
+                                    t("rev.dyn.plus"), format="+%d", width="small"),
+                                "rating": st.column_config.NumberColumn(
+                                    t("rev.dyn.rating"), format="%.1f", width="small"),
+                            },
+                        )
+                        st.caption(t("rev.asin.shown").format(
+                            n=len(grown), total=_grown_all))
+                        st.caption(t("rev.dyn.note"))
