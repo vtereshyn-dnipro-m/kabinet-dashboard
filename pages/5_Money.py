@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection
 from i18n import init_lang, t
+import period as period_mod
 
 init_lang()
 
@@ -279,20 +280,12 @@ def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = ()):
 
 
 # ---------- выбор периода ----------
+# Набор вариантов и память о выборе — общие для Кабинета, см. period.py
 pc1, pc2 = st.columns([2, 2])
-with pc1:
-    period = st.segmented_control(
-        t("money.period.label"),
-        options=["7", "30", "60", "90",
-                 t("money.period.month"), t("money.period.custom")],
-        default="30",
-    )
-with pc2:
-    d_from = d_to = None
-    if period == t("money.period.custom"):
-        rng = st.date_input(t("money.period.range"), value=[], format="DD.MM.YYYY")
-        if len(rng) == 2:
-            d_from, d_to = rng[0], rng[1]
+PERIOD = period_mod.control(columns=(pc1, pc2))
+period = PERIOD.choice
+d_from = PERIOD.d_from.date() if PERIOD.is_range else None
+d_to = PERIOD.d_to.date() if PERIOD.is_range else None
 
 # ---------- фильтры ----------
 # Объявляем до загрузки: рынок теперь режется в SQL, а не в pandas, поэтому
@@ -312,21 +305,11 @@ with c2:
 
 MK = tuple(sorted(mp_filter))
 
-if period == t("money.period.month"):
-    from datetime import date as _date
-    _today = _date.today()
-    d_from, d_to = _today.replace(day=1), _today
-    WINDOW = (d_to - d_from).days + 1
-    df = load_pnl(0, d_from, d_to, MK)
-elif period == t("money.period.custom"):
-    if not (d_from and d_to):
-        st.info(t("money.period.pick"))
-        st.stop()
-    WINDOW = (d_to - d_from).days + 1
-    df = load_pnl(0, d_from, d_to, MK)
-else:
-    WINDOW = int(period)
-    df = load_pnl(WINDOW, markets=MK)
+WINDOW = PERIOD.days
+# «Этот месяц» и свой период приходят готовыми границами, остальные —
+# отступом от сегодня: у диапазона конец может быть в прошлом
+df = (load_pnl(0, d_from, d_to, MK) if PERIOD.is_range
+      else load_pnl(WINDOW, markets=MK))
 
 if df.empty:
     st.info(t("money.empty"))

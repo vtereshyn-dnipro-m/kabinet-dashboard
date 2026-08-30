@@ -207,18 +207,40 @@ TRANSLATIONS = {
     "stock.map.inb_receiving": {"ru": "Принимается", "uk": "Приймається", "en": "Receiving"},
     "stock.map.inb_receiving_help": {"ru": "Единиц, которые Amazon уже разбирает на складе. Ближе всего к продаже: обычно встают в остаток за пару дней.", "uk": "Одиниць, які Amazon уже розбирає на складі. Найближче до продажу: зазвичай стають у залишок за кілька днів.", "en": "Units Amazon is already checking in. Closest to sale: they usually join the stock within a couple of days."},
     "stock.map.out_title": {"ru": "Кончился на складе", "uk": "Закінчився на складі", "en": "Out of stock"},
-    "stock.map.out_caption": {"ru": "Товары без запаса, которые продавались последние 30 дней — {n} шт. Сверху те, что уходили быстрее всего.", "uk": "Товари без запасу, які продавалися останні 30 днів — {n} шт. Зверху ті, що йшли найшвидше.", "en": "Products with no stock that sold in the last 30 days — {n}. Fastest movers first."},
+    "stock.map.out_caption": {
+        "ru": "Товары без запаса, которые продавались {p} — {n} шт. Сверху те, что уходили быстрее всего.",
+        "uk": "Товари без запасу, які продавалися {p} — {n} шт. Зверху ті, що йшли найшвидше.",
+        "en": "Products with no stock that sold {p} — {n}. Fastest movers first.",
+    },
     "stock.map.out_blind": {"ru": "Кончилось и ничего не едет: {n}. Теряем примерно {per} шт. в день. Например: {skus}", "uk": "Закінчилось і нічого не їде: {n}. Втрачаємо приблизно {per} шт. на день. Наприклад: {skus}", "en": "Out of stock with nothing inbound: {n}. Losing about {per} units a day. For example: {skus}"},
     "stock.map.out_product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "stock.map.out_rate": {"ru": "Продажи в день", "uk": "Продажі на день", "en": "Units per day"},
-    "stock.map.out_rate_help": {"ru": "Штук в день, пока запас ещё был. Продажи за 30 дней делим на дни до обнуления, а не на все 30 — иначе у давно кончившегося товара спрос выглядит втрое меньше настоящего.", "uk": "Штук на день, поки запас ще був. Продажі за 30 днів ділимо на дні до обнулення, а не на всі 30 — інакше в товару, що давно закінчився, попит виглядає втричі меншим за справжній.", "en": "Units a day while stock lasted. Sales over 30 days are divided by the days before the stock hit zero, not by all 30 — otherwise a long-out product looks three times less in demand than it is."},
+    "stock.map.out_rate_help": {
+        "ru": "Штук в день, пока запас ещё был. Продажи за выбранный период делим на дни до обнуления, а не на весь период — иначе у давно кончившегося товара спрос выглядит в разы меньше настоящего.",
+        "uk": "Штук на день, поки запас ще був. Продажі за обраний період ділимо на дні до обнулення, а не на весь період — інакше в товару, що давно закінчився, попит виглядає в рази меншим за справжній.",
+        "en": "Units a day while stock lasted. Sales over the selected period are divided by the days before the stock hit zero, not by the whole period — otherwise a long-out product looks far less in demand than it is.",
+    },
     "stock.map.out_days": {"ru": "Дней в нуле", "uk": "Днів у нулі", "en": "Days at zero"},
     "stock.map.out_days_help": {"ru": "Считаем по журналу движений: последний день, когда остаток был больше нуля. Прочерк — товар в журнале не появлялся, дату обнуления восстановить не из чего.", "uk": "Рахуємо за журналом рухів: останній день, коли залишок був більший за нуль. Прочерк — товар у журналі не з’являвся, дату обнулення відновити нема з чого.", "en": "Taken from the movement ledger: the last day the balance was above zero. A dash means the product never appeared in the ledger, so there is nothing to reconstruct the date from."},
     "stock.map.dead": {"ru": "Неликвид", "uk": "Неліквід", "en": "Unfulfillable"},
+    "stock.map.search": {
+        "ru": "Поиск",
+        "uk": "Пошук",
+        "en": "Search",
+    },
+    "stock.map.search_ph": {
+        "ru": "ASIN или SKU",
+        "uk": "ASIN або SKU",
+        "en": "ASIN or SKU",
+    },
+    "stock.map.search_none": {
+        "ru": "По запросу «{q}» движений за выбранный период нет. Поиск идёт по ASIN и по SKU сразу, различать их не нужно.",
+        "uk": "За запитом «{q}» рухів за обраний період немає. Пошук іде по ASIN і по SKU одразу, розрізняти їх не потрібно.",
+        "en": "No movements match “{q}” in the selected period. The search covers both ASIN and SKU, so there is no need to tell them apart.",
+    },
     "stock.map.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
     "stock.map.all_countries": {
         "ru": "Все страны", "uk": "Усі країни", "en": "All countries"},
-    "stock.map.period": {"ru": "Период", "uk": "Період", "en": "Period"},
     "stock.map.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "stock.map.all_products": {
         "ru": "Все товары", "uk": "Усі товари", "en": "All products"},
@@ -585,9 +607,6 @@ TRANSLATIONS = {
         "uk": "Нижче — стан на зараз, період вище на нього не впливає.",
         "en": "Below is the current state — the period selector above does not affect it.",
     },
-    "home.period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
-    "home.period.custom": {"ru": "Свой период", "uk": "Свій період", "en": "Custom"},
-    "home.period.range": {"ru": "Даты с и по", "uk": "Дати з і по", "en": "Date range"},
     "home.sec.sales_range": {
         "ru": "Продажи: {f} — {to}", "uk": "Продажі: {f} — {to}", "en": "Sales: {f} — {to}"},
     "home.sales.lag_range": {
@@ -598,7 +617,6 @@ TRANSLATIONS = {
         "en": "Data is available up to {d} — Amazon delivers reports with a delay and the "
               "last {n} days are not loaded. The end of the selected range is still empty.",
     },
-    "home.period": {"ru": "Период, дней", "uk": "Період, днів", "en": "Period, days"},
     "home.sec.sales": {"ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
     "cov.err.no_table": {
         "ru": "Таблицы расчёта покрытия нет в базе, к которой подключён дашборд. "
@@ -1788,11 +1806,6 @@ TRANSLATIONS = {
         "en": "Data is available up to {d} — Amazon delivers reports with a delay, "
               "the last {n} days are not loaded yet.",
     },
-    "money.period.label": {"ru": "Период", "uk": "Період", "en": "Period"},
-    "money.period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
-    "money.period.custom": {"ru": "Свой", "uk": "Свій", "en": "Custom"},
-    "money.period.range": {"ru": "Даты от–до", "uk": "Дати від–до", "en": "Date range"},
-    "money.period.pick": {"ru": "Выбери обе даты периода", "uk": "Обери обидві дати періоду", "en": "Pick both dates"},
 
     # --- 7_Reviews.py: монитор запросов на отзывы ---
     "nav.reviews": {"ru": "Отзывы", "uk": "Відгуки", "en": "Reviews"},
@@ -1827,7 +1840,6 @@ TRANSLATIONS = {
         "uk": "Жодного запиту ще не надіслано.",
         "en": "No requests have been sent yet.",
     },
-    "rev.period": {"ru": "Период", "uk": "Період", "en": "Period"},
     "rev.kpi.today": {"ru": "Сегодня", "uk": "Сьогодні", "en": "Today"},
     "rev.kpi.week": {"ru": "За неделю", "uk": "За тиждень", "en": "This week"},
     "rev.kpi.today_help": {
@@ -2539,15 +2551,11 @@ TRANSLATIONS = {
     },
     "cm.filter.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
     "cm.filter.all_countries": {"ru": "Все страны", "uk": "Всі країни", "en": "All countries"},
-    "cm.period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
-    "cm.period.custom": {"ru": "Свой период", "uk": "Свій період", "en": "Custom"},
-    "cm.period.range": {"ru": "Даты с и по", "uk": "Дати з і по", "en": "Date range"},
     "cm.amz.returns_range": {
         "ru": "Единиц возвращено за период {f} — {to}",
         "uk": "Одиниць повернено за період {f} — {to}",
         "en": "Units returned between {f} and {to}",
     },
-    "cm.filter.period": {"ru": "Период", "uk": "Період", "en": "Period"},
     "cm.tab.summary": {"ru": "Свод по товарам", "uk": "Зведення за товарами", "en": "By product"},
     "cm.tab.lm_health": {"ru": "Leroy Merlin", "uk": "Leroy Merlin", "en": "Leroy Merlin"},
     "cm.tab.amazon_health": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
@@ -2580,6 +2588,25 @@ TRANSLATIONS = {
               "channel out of the local warehouse — not separate inventory.",
     },
     "cm.download": {"ru": "Скачать свод CSV", "uk": "Завантажити зведення CSV", "en": "Download summary CSV"},
+    "period.label": {"ru": "Период", "uk": "Період", "en": "Period"},
+    "period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
+    "period.custom": {"ru": "Свой период", "uk": "Свій період", "en": "Custom"},
+    "period.range": {"ru": "С какого по какое", "uk": "З якого по яке", "en": "Date range"},
+    "period.title_days": {"ru": "за {d} дней", "uk": "за {d} днів", "en": "over {d} days"},
+    "period.title_range": {"ru": "за {a}—{b}", "uk": "за {a}—{b}", "en": "for {a}—{b}"},
+    "period.gap_none": {"ru": "Данных {p} нет вообще — не пусто по фильтру, а нечего показывать: за это окно в базу не попало ни одной строки.", "uk": "Даних {p} немає взагалі — не порожньо за фільтром, а нема чого показувати: за це вікно до бази не потрапило жодного рядка.", "en": "There is no data {p} at all — not an empty filter, but nothing to show: not a single row landed in the database for this window."},
+    "period.gap_start": {
+        "ru": "Данные начинаются с {d}, а период выбран с {p} — начала периода в цифрах ниже нет.",
+        "uk": "Дані починаються з {d}, а період обрано з {p} — початку періоду в цифрах нижче немає.",
+        "en": "The data starts on {d}, but the period was set from {p} — the beginning of the period is not in the figures below.",
+    },
+    "period.gap_end": {
+        "ru": "Данные заканчиваются {d}, а период выбран по {p} — последние дни ещё не приехали, это лаг загрузки, а не падение.",
+        "uk": "Дані закінчуються {d}, а період обрано по {p} — останні дні ще не приїхали, це лаг завантаження, а не падіння.",
+        "en": "The data ends on {d}, but the period was set to {p} — the final days have not arrived yet; that is loading lag, not a drop.",
+    },
+    "period.snapshot": {"ru": "Это снимок на {d}, а не расчёт за период: выбранный период на эту вкладку не влияет.", "uk": "Це знімок на {d}, а не розрахунок за період: обраний період на цю вкладку не впливає.", "en": "This is a snapshot as of {d}, not a calculation over a period: the selected period does not affect this tab."},
+    "period.snapshot_now": {"ru": "Это снимок на сегодня, а не расчёт за период: выбранный период на эту вкладку не влияет.", "uk": "Це знімок на сьогодні, а не розрахунок за період: обраний період на цю вкладку не впливає.", "en": "This is a snapshot of today, not a calculation over a period: the selected period does not affect this tab."},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "cm.col.units_amazon": {"ru": "Продано AMZ", "uk": "Продано AMZ", "en": "Units AMZ"},
     "cm.col.revenue_amazon": {"ru": "Выручка AMZ", "uk": "Виручка AMZ", "en": "Revenue AMZ"},

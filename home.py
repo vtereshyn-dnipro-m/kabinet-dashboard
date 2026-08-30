@@ -11,6 +11,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
+import period as period_mod
 
 init_lang()
 
@@ -356,43 +357,14 @@ def fmt_money(v) -> str:
 # ЗАГРУЗКА
 # ═══════════════════════════════════════════════════════════════════
 
-# период держим в адресе — иначе он сбрасывается при переходе на другую
-# страницу и обратно
-P_7, P_30, P_90 = "7", "30", "90"
-P_MONTH, P_CUSTOM = t("home.period.month"), t("home.period.custom")
-_opts = [P_7, P_30, P_90, P_MONTH, P_CUSTOM]
-
-_qp = st.query_params.get("d", P_30)
-_default = _qp if _qp in _opts else P_30
-
+# период — общий для всего Кабинета: набор, умолчание и память живут в
+# period.py, чтобы Обзор и Деньги нельзя было развести по разным окнам
 pc1, pc2 = st.columns([2, 2])
-with pc1:
-    period = st.segmented_control(
-        t("home.period"), options=_opts, default=_default, key="home_period")
-period = period or P_30
-if period != _qp:
-    st.query_params["d"] = period
-
+PERIOD = period_mod.control(columns=(pc1, pc2))
+period = PERIOD.choice
+DAYS = PERIOD.days
 today = pd.Timestamp(datetime.now().date())
-date_from = date_to = None
-
-if period == P_MONTH:
-    date_from = today.replace(day=1)
-    date_to = today
-    DAYS = (date_to - date_from).days + 1
-elif period == P_CUSTOM:
-    with pc2:
-        picked = st.date_input(
-            t("home.period.range"),
-            value=(today - pd.Timedelta(days=29), today),
-            max_value=today, format="DD.MM.YYYY", key="home_range")
-    if isinstance(picked, (list, tuple)) and len(picked) == 2:
-        date_from, date_to = (pd.Timestamp(picked[0]), pd.Timestamp(picked[1]))
-    else:
-        date_from = date_to = today
-    DAYS = max((date_to - date_from).days + 1, 1)
-else:
-    DAYS = int(period)
+date_from, date_to = PERIOD.d_from, PERIOD.d_to
 
 try:
     # для произвольного диапазона грузим с запасом от его начала,

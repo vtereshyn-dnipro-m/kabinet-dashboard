@@ -10,6 +10,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
+import period as period_mod
 
 init_lang()
 
@@ -305,9 +306,6 @@ else:
     # справочник недоступен — прежнее поведение, а не пустой список
     countries = sorted({m for m in all_mp if m != LM_CODE})
 
-P_MONTH, P_CUSTOM = t("cm.period.month"), t("cm.period.custom")
-_opts = ["7", "30", "60", "90", P_MONTH, P_CUSTOM]
-
 f1, f2 = st.columns([2, 3])
 with f1:
     country = st.selectbox(
@@ -315,29 +313,11 @@ with f1:
         [t("cm.filter.all_countries")] + countries,
         index=(countries.index(LM_COUNTRY) + 1 if LM_COUNTRY in countries else 0),
     )
-with f2:
-    period = st.segmented_control(
-        t("cm.filter.period"), options=_opts, default="30")
-period = period or "30"
-
-_today = pd.Timestamp(datetime.now().date())
-date_from = date_to = None
-
-if period == P_MONTH:
-    date_from, date_to = _today.replace(day=1), _today
-    DAYS = (date_to - date_from).days + 1
-elif period == P_CUSTOM:
-    picked = st.date_input(
-        t("cm.period.range"),
-        value=(_today - pd.Timedelta(days=29), _today),
-        max_value=_today, format="DD.MM.YYYY", key="cm_range")
-    if isinstance(picked, (list, tuple)) and len(picked) == 2:
-        date_from, date_to = pd.Timestamp(picked[0]), pd.Timestamp(picked[1])
-    else:
-        date_from = date_to = _today
-    DAYS = max((date_to - date_from).days + 1, 1)
-else:
-    DAYS = int(period)
+# набор периодов и память о выборе — общие для Кабинета, см. period.py
+PERIOD = period_mod.control(columns=(f2, f2))
+period = PERIOD.choice
+DAYS = PERIOD.days
+date_from, date_to = PERIOD.d_from, PERIOD.d_to
 
 # для произвольного диапазона грузим от его начала, а не за последние N дней
 D_FROM = date_from.strftime("%Y-%m-%d") if date_from is not None else ""

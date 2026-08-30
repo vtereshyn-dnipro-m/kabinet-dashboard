@@ -12,6 +12,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
+import period as period_mod
 
 init_lang()
 
@@ -141,8 +142,24 @@ def load_pool() -> pd.DataFrame:
         conn.close()
 
 
+def _since(days: int, d_from: str) -> str:
+    """Начало окна для SQL. CURRENT_DATE, а не NOW(): «за 7 дней» должно
+    означать семь полных суток на всех страницах одинаково, иначе окна
+    разъезжаются на часы и цифры не сходятся между вкладками."""
+    return f"DATE '{d_from}'" if d_from else f"CURRENT_DATE - INTERVAL '{days} days'"
+
+
+def _win(col: str, days: int, d_from: str = "", d_to: str = "") -> str:
+    """Условие по дате. Верхнюю границу берём как < следующий день:
+    BETWEEN по времени обрезал бы последние сутки на полуночи."""
+    w = f"{col} >= " + _since(days, d_from)
+    if d_to:
+        w += f" AND {col} < DATE '{d_to}' + 1"
+    return w
+
+
 @st.cache_data(ttl=600)
-def load_coverage(days: int) -> pd.DataFrame:
+def load_coverage(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     """Покрытие по дате заказа: сколько заказов и сколько обработано."""
     conn = get_connection()
     try:
@@ -154,7 +171,7 @@ def load_coverage(days: int) -> pd.DataFrame:
                 FROM kabinet_data.orders_history
                 WHERE order_status = 'Shipped'
                   AND sales_channel LIKE 'Amazon.%%'
-                  AND purchase_date >= NOW() - INTERVAL '{days} days'
+                  AND {_win('purchase_date', days, d_from, d_to)}
                 GROUP BY 1, 2
             ),
             req AS (
@@ -171,7 +188,7 @@ def load_coverage(days: int) -> pd.DataFrame:
                 FROM kabinet_data.review_request_log l
                 JOIN kabinet_data.orders_history o
                   ON o.order_id = l.amazon_order_id
-                WHERE o.purchase_date >= NOW() - INTERVAL '{days} days'
+                WHERE {_win('o.purchase_date', days, d_from, d_to)}
                 GROUP BY 1, 2
             )
             SELECT ord.day, ord.sales_channel, ord.orders,
@@ -188,7 +205,7 @@ def load_coverage(days: int) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_daily(days: int) -> pd.DataFrame:
+def load_daily(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     """Объём проверок и отправок по дням."""
     conn = get_connection()
     try:
@@ -199,7 +216,7 @@ def load_daily(days: int) -> pd.DataFrame:
                    COUNT(*) FILTER (WHERE status='skipped_return')  AS skipped,
                    COUNT(*) FILTER (WHERE status='failed')          AS failed
             FROM kabinet_data.review_request_log
-            WHERE COALESCE(sent_at, checked_at) >= NOW() - INTERVAL '{days} days'
+            WHERE {_win('COALESCE(sent_at, checked_at)', days, d_from, d_to)}
             GROUP BY 1 ORDER BY 1
         """, conn)
     finally:
@@ -230,7 +247,7 @@ SLOT_SPLIT_DATE = "2026-08-19"
 
 
 @st.cache_data(ttl=600)
-def load_by_slot(days: int) -> pd.DataFrame:
+def load_by_slot(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     """Сравнение расписаний отправки. Смотрим долю разрешённых запросов,
     а не прирост отзывов: первое видно сразу, второе при нашем объёме
     неотличимо от случайности.
@@ -246,9 +263,9 @@ def load_by_slot(days: int) -> pd.DataFrame:
                    COUNT(*)                                   AS checked,
                    COUNT(*) FILTER (WHERE status = 'sent')     AS sent
             FROM kabinet_data.review_request_log
-            WHERE checked_at >= GREATEST(
-                      CURRENT_DATE - INTERVAL '{days} days',
-                      DATE '{SLOT_SPLIT_DATE}')
+            WHERE checked_at >= GREATEST({_since(days, d_from)},
+                                  DATE '{SLOT_SPLIT_DATE}')
+              {"AND checked_at < DATE '" + d_to + "' + 1" if d_to else ""}
               AND status IN ('sent', 'no_action')
             GROUP BY 1, 2 ORDER BY 2
         """, conn)
@@ -259,7 +276,7 @@ def load_by_slot(days: int) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_by_hour(days: int) -> pd.DataFrame:
+def load_by_hour(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     """Во сколько уходили запросы — по местному времени маркетплейсов.
     Пока все отправки в один час, но данные копятся: через месяц-другой
     можно будет сравнивать, если появится разброс."""
@@ -272,7 +289,7 @@ def load_by_hour(days: int) -> pd.DataFrame:
                    COUNT(*) AS sent
             FROM kabinet_data.review_request_log
             WHERE status = 'sent'
-              AND sent_at >= NOW() - INTERVAL '{days} days'
+              AND {_win('sent_at', days, d_from, d_to)}
             GROUP BY 1, 2 ORDER BY 1
         """, conn)
     except Exception:
@@ -282,7 +299,7 @@ def load_by_hour(days: int) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_by_asin(days: int) -> pd.DataFrame:
+def load_by_asin(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     """По каким товарам уходили запросы."""
     conn = get_connection()
     try:
@@ -303,7 +320,7 @@ def load_by_asin(days: int) -> pd.DataFrame:
                 WHERE asin IS NOT NULL
                 GROUP BY asin
             ) s ON s.asin = o.asin
-            WHERE COALESCE(l.sent_at, l.checked_at) >= NOW() - INTERVAL '{days} days'
+            WHERE {_win('COALESCE(l.sent_at, l.checked_at)', days, d_from, d_to)}
               AND o.asin IS NOT NULL
             GROUP BY o.asin
             HAVING COUNT(DISTINCT l.amazon_order_id) FILTER (WHERE l.status='sent') > 0
@@ -388,7 +405,7 @@ def load_reviews_basket() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
+def load_reviews_dynamics(days: int = 30, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     """История количества отзывов по ASIN. Нестабильные ряды отсеиваем:
     Amazon иногда показывает отзывы страны, иногда все европейские, и число
     скачет — такие пары в динамику не берём."""
@@ -399,7 +416,7 @@ def load_reviews_dynamics(days: int = 30) -> pd.DataFrame:
         df = pd.read_sql(f"""
             SELECT asin, marketplace, snapshot_date, review_count, rating
             FROM kabinet_data.asin_reviews_daily
-            WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+            WHERE {_win('snapshot_date', days, d_from, d_to)}
               AND review_count IS NOT NULL
             ORDER BY snapshot_date
         """, conn)
@@ -520,14 +537,14 @@ def load_reviews_last_snapshot() -> pd.Timestamp | None:
 
 
 @st.cache_data(ttl=600)
-def load_sent_by_day(days: int = 30) -> pd.DataFrame:
+def load_sent_by_day(days: int = 30, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     conn = get_connection()
     try:
         return pd.read_sql(f"""
             SELECT sent_at::date AS day, COUNT(*) AS sent
             FROM kabinet_data.review_request_log
             WHERE status = 'sent'
-              AND sent_at >= CURRENT_DATE - INTERVAL '{days} days'
+              AND {_win('sent_at', days, d_from, d_to)}
             GROUP BY 1 ORDER BY 1
         """, conn)
     except Exception:
@@ -723,10 +740,9 @@ with st.expander(t("rev.how.title")):
 
 # ---------- период ----------
 pc1, pc2 = st.columns([2, 3])
-with pc1:
-    period = st.segmented_control(
-        t("rev.period"), options=["7", "14", "30", "60", "90"], default="30")
-DAYS = int(period or 30)
+PERIOD = period_mod.control(columns=(pc1, pc2))
+DAYS = PERIOD.days
+P_FROM, P_TO = PERIOD.from_str, PERIOD.to_str
 
 # ═══════════════════════════════════════════════════════════════════
 # KPI
@@ -754,7 +770,7 @@ tab_cov, tab_dyn, tab_mp, tab_age, tab_asin = st.tabs(
      t("rev.tab.age"), t("rev.tab.asin")]
 )
 
-cov = load_coverage(DAYS)
+cov = load_coverage(DAYS, P_FROM, P_TO)
 
 # ═══════════════════════════════════════════════════════════════════
 # ПОКРЫТИЕ ПО ДАТАМ
@@ -1022,7 +1038,7 @@ with tab_cov:
 # ═══════════════════════════════════════════════════════════════════
 
 with tab_dyn:
-    dyn = load_reviews_dynamics(DAYS)
+    dyn = load_reviews_dynamics(DAYS, P_FROM, P_TO)
     if dyn.empty:
         st.info(t("rev.dyn.no_data"))
     else:
@@ -1085,7 +1101,7 @@ with tab_dyn:
                              - have["snapshot_date"].iloc[0]).days, 1)
 
             # Отправки нужны графику ниже — столбцами рядом с приростом
-            sent = load_sent_by_day(DAYS)
+            sent = load_sent_by_day(DAYS, P_FROM, P_TO)
             if not sent.empty:
                 sent["day"] = pd.to_datetime(sent["day"])
 
@@ -1205,7 +1221,7 @@ with tab_dyn:
 with tab_mp:
     # Прежняя таблица повторяла «Покрытие» с разбивкой по странам и убрана.
     # Здесь теперь про ОТПРАВКУ: когда уходят запросы и что из этого выходит
-    _hours = load_by_hour(DAYS)
+    _hours = load_by_hour(DAYS, P_FROM, P_TO)
     if _hours.empty:
         st.info(t("common.no_data"))
     else:
@@ -1262,7 +1278,7 @@ with tab_mp:
         st.plotly_chart(figh, use_container_width=True, config=PLOTLY_CFG)
 
         # ---- что даёт разное время отправки ----
-        slots = load_by_slot(DAYS)
+        slots = load_by_slot(DAYS, P_FROM, P_TO)
         st.divider()
         st.markdown(f"**{t('rev.slot.title')}**")
         st.caption(t("rev.slot.caption"))
@@ -1333,7 +1349,7 @@ with tab_age:
 
 
 with tab_asin:
-    by_asin = load_by_asin(DAYS)
+    by_asin = load_by_asin(DAYS, P_FROM, P_TO)
     if by_asin.empty:
         st.info(t("rev.asin.no_data"))
     else:
@@ -1384,7 +1400,7 @@ with tab_asin:
 
             # отзывы за период берём из той же корзины, что и «Динамика»,
             # иначе два экрана показывали бы разный прирост по одному ASIN
-            _dyn = load_reviews_dynamics(DAYS)
+            _dyn = load_reviews_dynamics(DAYS, P_FROM, P_TO)
             _grow = pd.DataFrame(columns=["asin", "reviews"])
             if not _dyn.empty and "stable" in _dyn.columns:
                 _st = _dyn[_dyn["stable"]]
@@ -1425,7 +1441,7 @@ with tab_asin:
 
     # ---- где отзывов прибавилось больше всего ----
     if not by_asin.empty:
-        _dyn2 = load_reviews_dynamics(DAYS)
+        _dyn2 = load_reviews_dynamics(DAYS, P_FROM, P_TO)
         if not _dyn2.empty and "stable" in _dyn2.columns:
             _stable2 = _dyn2[_dyn2["stable"]]
             if not _stable2.empty:
