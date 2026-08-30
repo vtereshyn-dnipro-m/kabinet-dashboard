@@ -6,6 +6,7 @@ import streamlit as st
 from datetime import datetime, timezone
 from db.connection import get_connection
 from i18n import init_lang, t
+import catalog
 
 init_lang()
 
@@ -429,11 +430,15 @@ if not ordered.empty:
             n=len(ordered), qty=int(ordered["suggested_qty"].sum()))):
         od = ordered.copy()
         od["sku_display"] = od["sku"].apply(clean_sku)
+        # ASIN в рекомендациях не приходит — добираем по артикулу
+        od["asin_url"] = catalog.url_series(skus=od["sku"])
         st.dataframe(
-            od[["sku_display", "product_name", "current_stock", "suggested_qty"]],
+            od[["sku_display", "asin_url", "product_name", "current_stock",
+                "suggested_qty"]],
             use_container_width=True, hide_index=True,
             column_config={
                 "sku_display": "SKU",
+                "asin_url": catalog.asin_column(),
                 "product_name": t("ro.tr.col_product"),
                 "current_stock": t("ro.order.col_stock"),
                 "suggested_qty": t("ro.ordered.col_qty"),

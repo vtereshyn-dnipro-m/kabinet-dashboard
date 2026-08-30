@@ -12,8 +12,8 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
-from links import amazon_url
 import period as period_mod
+import catalog
 
 init_lang()
 
@@ -1333,9 +1333,12 @@ with tab_asin:
         by_asin.loc[by_asin["product_name"].str.strip() == "", "product_name"] = "—"
         # пустая строка, а не None: LinkColumn печатает None текстом,
         # и в колонке со стрелками появлялось слово вместо прочерка
-        by_asin["url"] = [amazon_url(CHANNEL_CODE.get(ch), a)
-                          for ch, a in zip(by_asin["sales_channel"],
-                                           by_asin["asin"])]
+        # ASIN и ссылка — одна колонка: отдельный столбец со стрелкой
+        # занимал ширину и требовал второго взгляда, чтобы понять, к какой
+        # строке он относится
+        by_asin["url"] = catalog.url_series(
+            asins=by_asin["asin"],
+            markets=[CHANNEL_CODE.get(c) for c in by_asin["sales_channel"]])
 
         # Таблица отдачи стоит во всю ширину, а не рядом с графиком: шесть
         # колонок в половинной колонке (~400 px) не помещались, заголовки
@@ -1392,10 +1395,10 @@ with tab_asin:
             # внутри — с наименьшей отдачей на запрос
             weak = weak.sort_values(["reviews", "pct"], ascending=[False, True])
             st.dataframe(
-                weak[["asin", "product_name", "sent", "reviews", "pct", "url"]],
+                weak[["url", "product_name", "sent", "reviews", "pct"]],
                 use_container_width=True, height=340, hide_index=True,
                 column_config={
-                    "asin": st.column_config.TextColumn("ASIN", width="small"),
+                    "url": catalog.asin_column(),
                     "product_name": st.column_config.TextColumn(
                         t("rev.col.product"), width="medium"),
                     "sent": st.column_config.NumberColumn(
@@ -1405,8 +1408,6 @@ with tab_asin:
                     "pct": st.column_config.NumberColumn(
                         t("rev.asin.to_requests"), format="%.1f%%", width="medium",
                         help=t("rev.asin.to_requests_help")),
-                    "url": st.column_config.LinkColumn("", display_text="↗",
-                                                       width="small"),
                 },
             )
             st.caption(t("rev.asin.over100"))
@@ -1434,14 +1435,14 @@ with tab_asin:
                     grown = grown.head(20).copy()
                     grown["product_name"] = (grown["asin"].map(_names)
                                              .fillna("—"))
-                    grown["url"] = [amazon_url(mp, a) for mp, a
-                                    in zip(grown["marketplace"], grown["asin"])]
+                    grown["url"] = catalog.url_series(
+                        asins=grown["asin"], markets=grown["marketplace"])
                     st.dataframe(
-                        grown[["asin", "product_name", "marketplace", "first",
-                               "last", "growth", "rating", "url"]],
+                        grown[["url", "product_name", "marketplace", "first",
+                               "last", "growth", "rating"]],
                         use_container_width=True, height=380, hide_index=True,
                         column_config={
-                            "asin": st.column_config.TextColumn("ASIN", width="small"),
+                            "url": catalog.asin_column(),
                             "product_name": st.column_config.TextColumn(
                                 t("rev.col.product"), width="medium"),
                             "marketplace": st.column_config.TextColumn(
@@ -1454,8 +1455,6 @@ with tab_asin:
                                 t("rev.dyn.plus"), format="+%d", width="small"),
                             "rating": st.column_config.NumberColumn(
                                 t("rev.dyn.rating"), format="%.1f", width="small"),
-                            "url": st.column_config.LinkColumn(
-                                "", display_text="↗", width="small"),
                         },
                     )
                     st.caption(t("rev.dyn.note"))
