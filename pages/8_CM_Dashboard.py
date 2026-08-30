@@ -1,5 +1,6 @@
 # pages/8_CM_Dashboard.py — CM Dashboard: сводка по площадкам и здоровье каналов
 from datetime import datetime, timedelta
+import re
 
 import numpy as np
 import pandas as pd
@@ -36,6 +37,12 @@ PLOTLY_CFG = {"displayModeBar": False}
 
 # площадки: Amazon по странам + Leroy Merlin (Испания, через Mirakl)
 LM_CODE = "LM"
+# Физический склад есть только у FBA, у площадок Mirakl остаток — квота
+# на канал. Это свойство данных, а не список каналов: канал, под которым
+# лежит склад, один, а витрин над ним сколько угодно
+FBA_CHANNEL = "Amazon"
+DEFAULT_CHANNEL = "Amazon"
+MIRAKL_SRC = "mirakl"
 LM_COUNTRY = "ES"
 
 # пороги здоровья канала Leroy Merlin: (ok при >=, warn при >=) либо обратные
@@ -275,6 +282,12 @@ def load_returns(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
         conn.close()
 
 
+def _norm(x) -> str:
+    """Строка без пробелов и знаков, в нижнем регистре — чтобы «Leroy
+    Merlin» и «leroy-merlin» опознавались как одно и то же."""
+    return re.sub(r"[^a-z0-9]", "", str(x).lower())
+
+
 def safe_div(a, b):
     return np.where(b > 0, a / np.where(b > 0, b, 1), 0.0)
 
@@ -367,70 +380,111 @@ tab_sum, tab_lm, tab_amz, tab_all = st.tabs(
 with tab_sum:
     scoped = sales[sales["marketplace"].isin(mp_scope)].copy()
 
-    # Эта таблица сравнивает товар на ДВУХ площадках: колонки, остатки и
-    # разница цен построены под Amazon и Leroy Merlin, а квота канала
-    # берётся из mirakl-offers. Третья площадка сюда не помещается — это
-    # устройство таблицы, а не литерал, который можно заменить.
-    #
-    # Но раньше «не LM» означало «Amazon», и ManoMano с Carrefour молча
-    # легли бы в амазоновскую колонку, завысив её. Берём в сравнение только
-    # те две площадки, под которые оно построено, а остальные называем под
-    # таблицей: потерять их молча нельзя
-    _lm_ch = _code2channel.get(LM_CODE, "")
-    _pair = {c for c in ("Amazon", _lm_ch) if c}
-    _dropped = []
-    if _code2channel and len(_pair) == 2 and not scoped.empty:
-        _ch_of = scoped["marketplace"].map(
-            lambda m: _code2channel.get(str(m).upper(), "Amazon"))
-        _dropped = sorted(set(_ch_of[~_ch_of.isin(_pair)]))
-        scoped = scoped[_ch_of.isin(_pair)].copy()
-
     if scoped.empty:
         st.info(t("common.no_data"))
     else:
-        # площадку определяем по каналу из справочника, а не сравнением
-        # кода с литералом: у Leroy Merlin может появиться вторая страна
-        scoped["platform"] = np.where(
-            scoped["marketplace"].map(
-                lambda m: _code2channel.get(str(m).upper(), "Amazon")) == "Amazon",
-            "amazon", "lm")
-        if _dropped:
-            st.caption(t("cm.pair.excluded").format(
-                ch=", ".join(_dropped)))
+        # Канал строки берём из справочника, а не сравнением кода с
+        # литералом: у одного канала бывает несколько стран, а список
+        # каналов меняется без нас
+        scoped["channel"] = scoped["marketplace"].map(
+            lambda m: _code2channel.get(str(m).upper(), DEFAULT_CHANNEL))
+        # Колонки идут по убыванию выручки: крупный канал слева, где на
+        # него смотрят. Порядок считается по данным, а не задан списком
+        chans = (scoped.groupby("channel")["revenue"].sum()
+                       .sort_values(ascending=False).index.tolist())
+        # Внутренние имена колонок — по номеру канала: в названии канала
+        # бывают пробелы и точки, а pivot из них делает ключи
+        slug = {ch: f"c{i}" for i, ch in enumerate(chans)}
 
-        agg = (scoped.groupby(["base_sku", "platform"], as_index=False)
+        agg = (scoped.groupby(["base_sku", "channel"], as_index=False)
                      .agg(product_name=("product_name", "first"),
                           units=("units", "sum"), revenue=("revenue", "sum"),
                           net=("net_proceeds", "sum"), cogs=("cogs_total", "sum")))
         agg["avg_price"] = np.round(safe_div(agg["revenue"], agg["units"]), 2)
 
-        wide = agg.pivot(index="base_sku", columns="platform",
+        wide = agg.pivot(index="base_sku", columns="channel",
                          values=["units", "revenue", "avg_price", "net"])
-        wide.columns = [f"{a}_{b}" for a, b in wide.columns]
-        wide = wide.reset_index().fillna(0)
+        wide.columns = [f"{a}_{slug.get(b, b)}" for a, b in wide.columns]
+        wide = wide.reset_index()
+        # Ноль ставим только там, где он означает «не продавалось».
+        # Цену не заполняем: неизвестная цена и цена ноль — разные вещи,
+        # и от этого зависит расхождение ниже
+        for ch in chans:
+            for pref in ("units", "revenue", "net"):
+                col = f"{pref}_{slug[ch]}"
+                if col in wide.columns:
+                    wide[col] = wide[col].fillna(0)
 
         names = (agg.sort_values("revenue", ascending=False)
                     .drop_duplicates("base_sku").set_index("base_sku")["product_name"])
         wide["product_name"] = wide["base_sku"].map(names).fillna("—")
 
-        # остатки: физический товар и выделенная квота канала.
-        # ключ приводим к строке с обеих сторон — иначе merge молча даёт пустоту
+        # ---- остатки ----
+        # Физический склад есть только у FBA. У площадок Mirakl остаток —
+        # это квота, выставленная на канал из того же местного склада:
+        # складывать её с амазоновской нельзя и между каналами тоже,
+        # один и тот же товар выставлен на каждую витрину целиком
         stock_k = stock.copy()
         stock_k["base_sku"] = stock_k["base_sku"].astype(str).str.strip()
         wide["base_sku"] = wide["base_sku"].astype(str).str.strip()
 
         phys = (stock_k[stock_k["availability_status"] == "available"]
-                .groupby("base_sku", as_index=False)["qty"].sum()
-                .rename(columns={"qty": "stock_amazon"}))
-        quota = (stock_k[stock_k["source"] == "mirakl-offers"]
-                 .groupby("base_sku", as_index=False)["qty"].sum()
-                 .rename(columns={"qty": "stock_lm"}))
-        wide = wide.merge(phys, on="base_sku", how="left") \
-                   .merge(quota, on="base_sku", how="left")
-        wide[["stock_amazon", "stock_lm"]] = \
-            wide[["stock_amazon", "stock_lm"]].fillna(0)
+                .groupby("base_sku", as_index=False)["qty"].sum())
+        quota_rows = stock_k[stock_k["source"].astype(str).str.lower()
+                             .str.startswith(MIRAKL_SRC)]
+        # В stock_local нет колонки канала — есть source, location и
+        # warehouse_name. Пробуем узнать канал по ним; если хоть одна
+        # строка квоты не опознана, раскладывать по каналам наугад не
+        # станем — покажем одну общую колонку и скажем об этом подписью
+        quota_ch, quota_split = {}, False
+        if not quota_rows.empty:
+            _tag = (quota_rows["source"].astype(str) + " "
+                    + quota_rows["location"].astype(str) + " "
+                    + quota_rows["warehouse_name"].astype(str)).map(_norm)
+            _hit = pd.Series(pd.NA, index=quota_rows.index, dtype="object")
+            # FBA в опознание не берём: строка квоты, чей склад назвали
+            # словом «amazon», ушла бы в канал, у которого остаток и так
+            # берётся из физического склада, — и просто исчезла бы
+            for ch in (c for c in chans if c != FBA_CHANNEL):
+                _n = _norm(ch)
+                if _n:
+                    _hit = _hit.mask(_tag.str.contains(_n, na=False), ch)
+            quota_split = _hit.notna().all()
+            if quota_split:
+                for ch, grp in quota_rows.assign(ch=_hit).groupby("ch"):
+                    quota_ch[ch] = (grp.groupby("base_sku", as_index=False)["qty"]
+                                       .sum().rename(columns={"qty": "v"}))
+            else:
+                quota_ch[None] = (quota_rows.groupby("base_sku", as_index=False)["qty"]
+                                            .sum().rename(columns={"qty": "v"}))
 
-        # доля возвратов от проданного — сразу видно проблемные позиции
+        stock_cols, quota_cols = [], []
+        for ch in chans:
+            col = f"stock_{slug[ch]}"
+            src = (phys.rename(columns={"qty": "v"}) if ch == FBA_CHANNEL
+                   else (quota_ch.get(ch) if quota_split else None))
+            if src is None:
+                continue
+            wide = wide.merge(src.rename(columns={"v": col}), on="base_sku",
+                              how="left")
+            wide[col] = wide[col].fillna(0)
+            stock_cols.append(col)
+            if ch != FBA_CHANNEL:
+                quota_cols.append(col)
+        # Квота, которую по каналам не разложить, показывается ОДНОЙ
+        # колонкой в конце. Скопировать её в колонку каждого канала было
+        # бы хуже прочерка: одинаковые числа под ManoMano и Carrefour
+        # читаются как «на обеих витринах свой запас», а это одна и та же
+        # строка склада
+        shared_quota = None
+        if quota_ch.get(None) is not None:
+            shared_quota = "stock_shared"
+            wide = wide.merge(
+                quota_ch[None].rename(columns={"v": shared_quota}),
+                on="base_sku", how="left")
+            wide[shared_quota] = wide[shared_quota].fillna(0)
+
+        # ---- возвраты ----
         rets_all = load_returns(DAYS, D_FROM, D_TO)
         if not rets_all.empty:
             rq = (rets_all[rets_all["marketplace"].isin(mp_scope)]
@@ -441,37 +495,44 @@ with tab_sum:
             wide["returns_qty"] = 0
         wide["returns_qty"] = wide["returns_qty"].fillna(0)
 
-        for col in ("units_amazon", "units_lm", "revenue_amazon", "revenue_lm",
-                    "avg_price_amazon", "avg_price_lm"):
-            if col not in wide.columns:
-                wide[col] = 0.0
-
-        sold_total = wide["units_amazon"] + wide["units_lm"]
+        unit_cols = [f"units_{slug[ch]}" for ch in chans]
+        rev_cols = [f"revenue_{slug[ch]}" for ch in chans]
+        price_cols = [f"avg_price_{slug[ch]}" for ch in chans]
+        sold_total = wide[unit_cols].sum(axis=1)
         wide["returns_pct"] = np.where(
             sold_total > 0,
-            np.round(wide["returns_qty"] / sold_total * 100, 1),
-            np.nan)
+            np.round(wide["returns_qty"] / sold_total * 100, 1), np.nan)
         wide["returns_alert"] = wide["returns_pct"] > 15
 
-        # расхождение цены между площадками — только там, где продаётся на обеих
-        both = (wide["avg_price_amazon"] > 0) & (wide["avg_price_lm"] > 0)
+        # ---- расхождение цен ----
+        # Считаем размах между каналами, где цена известна: с четырьмя
+        # каналами «выше или ниже Amazon» больше не отвечает на вопрос,
+        # а разброс отвечает. Цена известна на одном канале — сравнивать
+        # не с чем, и там прочерк: ноль читался бы как «цены сошлись»
+        _pr = wide[price_cols].where(wide[price_cols] > 0)
+        _known = _pr.notna().sum(axis=1)
+        _lo, _hi = _pr.min(axis=1), _pr.max(axis=1)
         wide["price_gap_pct"] = np.where(
-            both,
-            np.round((wide["avg_price_lm"] - wide["avg_price_amazon"])
-                     / wide["avg_price_amazon"].replace(0, np.nan) * 100, 1),
+            _known >= 2, np.round((_hi - _lo) / _lo.replace(0, np.nan) * 100, 1),
             np.nan)
-        wide["price_gap_pct"] = pd.to_numeric(wide["price_gap_pct"], errors="coerce")
-        wide["price_alert"] = both & (wide["price_gap_pct"].abs() > 10)
+        wide["price_gap_pct"] = pd.to_numeric(wide["price_gap_pct"],
+                                              errors="coerce")
+        wide["price_alert"] = wide["price_gap_pct"] > 10
 
-        wide = wide.sort_values("revenue_amazon", ascending=False)
+        wide["revenue_total"] = wide[rev_cols].sum(axis=1)
+        wide = wide.sort_values("revenue_total", ascending=False)
 
-        k1, k2, k3, k4, k5 = st.columns(5)
+        # ---- сводка ----
+        st.markdown(f"**{t('cm.kpi.revenue_by_channel')}**")
+        kc = st.columns(max(len(chans), 1))
+        for i, ch in enumerate(chans):
+            kc[i].metric(ch, fmt_money(wide[f"revenue_{slug[ch]}"].sum()),
+                         help=t("cm.kpi.revenue_ch_help"))
+        k1, k2, k3 = st.columns(3)
         k1.metric(t("cm.kpi.skus"), f"{len(wide):,}")
-        k2.metric(t("cm.kpi.revenue_amazon"), fmt_money(wide["revenue_amazon"].sum()))
-        k3.metric(t("cm.kpi.revenue_lm"), fmt_money(wide["revenue_lm"].sum()))
-        k4.metric(t("cm.kpi.price_alerts"), f"{int(wide['price_alert'].sum()):,}",
+        k2.metric(t("cm.kpi.price_alerts"), f"{int(wide['price_alert'].sum()):,}",
                   help=t("cm.kpi.price_alerts_help"))
-        k5.metric(t("cm.kpi.return_alerts"), f"{int(wide['returns_alert'].sum()):,}",
+        k3.metric(t("cm.kpi.return_alerts"), f"{int(wide['returns_alert'].sum()):,}",
                   help=t("cm.kpi.return_alerts_help"))
 
         fl1, fl2 = st.columns([1, 1])
@@ -489,47 +550,54 @@ with tab_sum:
         if view.empty:
             st.success(t("cm.summary.no_alerts"))
         else:
-            st.dataframe(
-                view[["base_sku", "product_name",
-                      "units_amazon", "revenue_amazon", "avg_price_amazon", "stock_amazon",
-                      "units_lm", "revenue_lm", "avg_price_lm", "stock_lm",
-                      "price_gap_pct", "returns_pct"]],
-                use_container_width=True, height=560, hide_index=True,
-                column_config={
-                    "base_sku": st.column_config.TextColumn("SKU", width="small"),
-                    "product_name": st.column_config.TextColumn(
-                        t("cm.col.product"), width="medium"),
-                    "units_amazon": st.column_config.NumberColumn(
-                        t("cm.col.units_amazon"), width="small"),
-                    "revenue_amazon": st.column_config.NumberColumn(
-                        t("cm.col.revenue_amazon"), format="%.0f €"),
-                    "avg_price_amazon": st.column_config.NumberColumn(
-                        t("cm.col.price_amazon"), format="%.2f €"),
-                    "stock_amazon": st.column_config.NumberColumn(
-                        t("cm.col.stock_amazon"), width="small",
-                        help=t("cm.col.stock_amazon_help")),
-                    "units_lm": st.column_config.NumberColumn(
-                        t("cm.col.units_lm"), width="small"),
-                    "revenue_lm": st.column_config.NumberColumn(
-                        t("cm.col.revenue_lm"), format="%.0f €"),
-                    "avg_price_lm": st.column_config.NumberColumn(
-                        t("cm.col.price_lm"), format="%.2f €"),
-                    "stock_lm": st.column_config.NumberColumn(
-                        t("cm.col.stock_lm"), width="small",
-                        help=t("cm.col.stock_lm_help")),
-                    "price_gap_pct": st.column_config.NumberColumn(
-                        t("cm.col.price_gap"), format="%+.1f%%",
-                        help=t("cm.col.price_gap_help")),
-                    "returns_pct": st.column_config.NumberColumn(
-                        t("cm.col.returns_pct"), format="%.0f%%",
-                        help=t("cm.col.returns_pct_help")),
-                },
-            )
+            show, conf = ["base_sku", "product_name"], {
+                "base_sku": st.column_config.TextColumn("SKU", width="small"),
+                "product_name": st.column_config.TextColumn(
+                    t("cm.col.product"), width="medium"),
+            }
+            for ch in chans:
+                u, r = f"units_{slug[ch]}", f"revenue_{slug[ch]}"
+                p, k = f"avg_price_{slug[ch]}", f"stock_{slug[ch]}"
+                show += [u, r, p]
+                conf[u] = st.column_config.NumberColumn(
+                    t("cm.col.ch_units").format(ch=ch), width="small")
+                conf[r] = st.column_config.NumberColumn(
+                    t("cm.col.ch_revenue").format(ch=ch), format="%.0f €")
+                conf[p] = st.column_config.NumberColumn(
+                    t("cm.col.ch_price").format(ch=ch), format="%.2f €",
+                    help=t("cm.col.ch_price_help"))
+                if k in stock_cols:
+                    show.append(k)
+                    _quota = k in quota_cols
+                    conf[k] = st.column_config.NumberColumn(
+                        t("cm.col.ch_quota" if _quota
+                          else "cm.col.ch_stock").format(ch=ch), width="small",
+                        help=t("cm.col.ch_quota_help" if _quota
+                               else "cm.col.ch_stock_help"))
+            if shared_quota:
+                show.append(shared_quota)
+                conf[shared_quota] = st.column_config.NumberColumn(
+                    t("cm.col.quota_shared"), width="small",
+                    help=t("cm.col.quota_shared_help"))
+            show += ["price_gap_pct", "returns_pct"]
+            conf["price_gap_pct"] = st.column_config.NumberColumn(
+                t("cm.col.price_gap"), format="%.1f%%",
+                help=t("cm.col.price_gap_help"))
+            conf["returns_pct"] = st.column_config.NumberColumn(
+                t("cm.col.returns_pct"), format="%.0f%%",
+                help=t("cm.col.returns_pct_help"))
+
+            st.dataframe(view[show], use_container_width=True, height=560,
+                         hide_index=True, column_config=conf)
             st.caption(t("cm.summary.note"))
+            if quota_rows.empty:
+                st.caption(t("cm.summary.quota_none"))
+            elif not quota_split:
+                st.caption(t("cm.summary.quota_merged"))
 
             st.download_button(
                 t("cm.download"),
-                view.to_csv(index=False).encode("utf-8-sig"),
+                view[show].to_csv(index=False).encode("utf-8-sig"),
                 file_name="cm_summary.csv", mime="text/csv", key="dl_cm_sum")
 
 
