@@ -1823,9 +1823,9 @@ TRANSLATIONS = {
               "widens: if 30 days shows less growth than 14, that is a bug, not data.",
     },
     "rev.dyn.chart": {
-        "ru": "Отправленные запросы и новые отзывы по дням",
-        "uk": "Надіслані запити та нові відгуки за днями",
-        "en": "Requests sent and new reviews by day",
+        "ru": "Отправленные запросы и изменение отзывов по дням",
+        "uk": "Надіслані запити та зміна відгуків за днями",
+        "en": "Requests sent and daily change in reviews",
     },
     "rev.dyn.delta": {
         "ru": "Изменение за день", "uk": "Зміна за день", "en": "Daily change"},
@@ -1875,12 +1875,18 @@ TRANSLATIONS = {
               "coverage on — this is not a halted mailing. Pick a period of 14 days or more.",
     },
     "rev.dyn.gap_note": {
-        "ru": "Сборщик не отработал {n} дн. ({days}) — в эти дни данных нет, "
-              "линия прироста разорвана. Это пропуск сбора, а не отсутствие отзывов.",
-        "uk": "Збирач не відпрацював {n} дн. ({days}) — у ці дні даних немає, "
-              "лінія приросту розірвана. Це пропуск збору, а не відсутність відгуків.",
-        "en": "The collector did not run for {n} day(s) ({days}) — no data for those "
-              "days, so the growth line is broken. A collection gap, not missing reviews.",
+        "ru": "На графике нет точки за {n} дн. ({days}). Часть этих дней сборщик "
+              "пропустил совсем; в остальные снимок есть, но изменение считать не от "
+              "чего — предыдущий день отсутствует. И то и другое — пропуск сбора, "
+              "а не отсутствие отзывов.",
+        "uk": "На графіку немає точки за {n} дн. ({days}). Частину цих днів збирач "
+              "пропустив зовсім; в інші знімок є, але зміну рахувати немає від чого — "
+              "попередній день відсутній. І те й інше — пропуск збору, а не "
+              "відсутність відгуків.",
+        "en": "The chart has no point for {n} day(s) ({days}). Some of these days the "
+              "collector skipped entirely; on the others a snapshot exists but the change "
+              "cannot be computed because the previous day is missing. Either way it is a "
+              "collection gap, not missing reviews.",
     },
     "rev.dyn.filtered_note": {
         "ru": "В таблице есть данные по {raw}, но свежие дни не прошли отбор "
@@ -1925,15 +1931,18 @@ TRANSLATIONS = {
     "rev.dyn.plus": {"ru": "Прирост", "uk": "Приріст", "en": "Gain"},
     "rev.dyn.rating": {"ru": "Оценка", "uk": "Оцінка", "en": "Rating"},
     "rev.dyn.note": {
-        "ru": "Часть отзывов появилась бы и без рассылки — покупатели пишут их сами. "
-              "Поэтому сравниваем не общий прирост, а скорость: сколько отзывов "
-              "прибавлялось в день до запуска и сколько после.",
-        "uk": "Частина відгуків зʼявилася б і без розсилки — покупці пишуть їх самі. "
-              "Тому порівнюємо не загальний приріст, а швидкість: скільки відгуків "
-              "додавалося на день до запуску і скільки після.",
-        "en": "Some reviews would have appeared anyway — buyers write them on their own. "
-              "That is why we compare the rate, not the total: how many reviews were added "
-              "per day before the launch and how many after.",
+        "ru": "В таблице: сколько отзывов было на начало периода, сколько стало, "
+              "прирост за период и текущая оценка товара. Прирост нельзя целиком "
+              "относить на счёт рассылки — часть отзывов покупатели пишут сами, "
+              "без запроса.",
+        "uk": "У таблиці: скільки відгуків було на початок періоду, скільки стало, "
+              "приріст за період і поточна оцінка товару. Приріст не можна цілком "
+              "відносити на рахунок розсилки — частину відгуків покупці пишуть самі, "
+              "без запиту.",
+        "en": "The table shows how many reviews there were at the start of the period, "
+              "how many there are now, the growth over the period and the product's "
+              "current rating. The growth cannot be credited to the mailing alone — some "
+              "reviews are written without any request.",
     },
     "rev.tab.marketplace": {"ru": "По маркетплейсам", "uk": "За маркетплейсами", "en": "By marketplace"},
     "rev.tab.age": {"ru": "Возраст заказа", "uk": "Вік замовлення", "en": "Order age"},
@@ -2191,6 +2200,17 @@ TRANSLATIONS = {
         "ru": "Отзывов", "uk": "Відгуків", "en": "Reviews"},
     "rev.asin.to_requests": {
         "ru": "% к запросам", "uk": "% до запитів", "en": "% of requests"},
+    "rev.asin.over100": {
+        "ru": "Доля может быть больше 100%, и это не ошибка счёта: часть отзывов "
+              "покупатели пишут сами, без запроса, а в прирост попадают все. 300% "
+              "означает, что отзывов прибавилось втрое больше, чем ушло запросов.",
+        "uk": "Частка може бути більшою за 100%, і це не помилка підрахунку: частину "
+              "відгуків покупці пишуть самі, без запиту, а в приріст потрапляють усі. "
+              "300% означає, що відгуків додалося втричі більше, ніж пішло запитів.",
+        "en": "The share can exceed 100%, and that is not a counting error: some reviews "
+              "are written without any request, yet all of them count towards the growth. "
+              "300% means three times more reviews appeared than requests were sent.",
+    },
     "rev.asin.to_requests_help": {
         "ru": "Прирост отзывов за период, делённый на число отправленных запросов. Это "
               "соседство во времени, а не доказанная связь: отзыв мог появиться и без "

@@ -1050,10 +1050,20 @@ with tab_dyn:
             # читается как всплеск. Пустой день рвёт линию, это честнее
             span_idx = pd.date_range(daily["snapshot_date"].min(),
                                      daily["snapshot_date"].max(), freq="D")
-            gap_days = span_idx.difference(daily["snapshot_date"])
             daily = (daily.set_index("snapshot_date").reindex(span_idx)
                           .rename_axis("snapshot_date").reset_index())
             daily["delta"] = daily["review_count"].diff()
+
+            # Дырка на линии — это день, за который точки нет. Таких дней
+            # больше, чем дней без снимка: прирост считается от соседа
+            # слева, и если сосед пропущен, diff даёт NaN даже там, где
+            # снимок есть. Раньше в подписи назывались только дни без
+            # снимка, и 20 с 22 августа выпадали из перечня, хотя на
+            # графике выглядели такой же дырой, как 17-19 и 21
+            _first_day = daily["snapshot_date"].iloc[0]
+            gap_days = daily.loc[daily["delta"].isna()
+                                 & (daily["snapshot_date"] > _first_day),
+                                 "snapshot_date"]
 
             have = daily.dropna(subset=["review_count"])
             first_val = float(have["review_count"].iloc[0])
@@ -1232,10 +1242,10 @@ with tab_mp:
                 "marketplace": st.column_config.TextColumn(
                     t("rev.col.marketplace")),
                 "main": st.column_config.TextColumn(
-                    t("rev.sched.main_hour"), width="small",
+                    t("rev.sched.main_hour"), width="medium",
                     help=t("rev.sched.main_hour_help")),
                 "share": st.column_config.NumberColumn(
-                    t("rev.sched.share"), format="%.0f%%", width="small"),
+                    t("rev.sched.share"), format="%.0f%%", width="medium"),
                 "hours": st.column_config.TextColumn(t("rev.sched.all_hours")),
                 "total": st.column_config.NumberColumn(
                     t("rev.col.sent"), width="small"),
@@ -1331,9 +1341,11 @@ with tab_asin:
                                    .fillna("").astype(str)
                                    .replace({"None": "", "nan": ""}))
         by_asin.loc[by_asin["product_name"].str.strip() == "", "product_name"] = "—"
+        # пустая строка, а не None: LinkColumn печатает None текстом,
+        # и в колонке со стрелками появлялось слово вместо прочерка
         by_asin["url"] = [
             (f"https://www.{CHANNEL_DOMAIN[ch]}/dp/{a}"
-             if ch in CHANNEL_DOMAIN and a else None)
+             if ch in CHANNEL_DOMAIN and a else "")
             for ch, a in zip(by_asin["sales_channel"], by_asin["asin"])
         ]
 
@@ -1398,14 +1410,15 @@ with tab_asin:
                     "sent": st.column_config.NumberColumn(
                         t("rev.col.sent"), width="small"),
                     "reviews": st.column_config.NumberColumn(
-                        t("rev.asin.got_reviews"), width="small"),
+                        t("rev.asin.got_reviews"), width="medium"),
                     "pct": st.column_config.NumberColumn(
-                        t("rev.asin.to_requests"), format="%.1f%%", width="small",
+                        t("rev.asin.to_requests"), format="%.1f%%", width="medium",
                         help=t("rev.asin.to_requests_help")),
                     "url": st.column_config.LinkColumn("", display_text="↗",
                                                        width="small"),
                 },
             )
+            st.caption(t("rev.asin.over100"))
 
     # ---- где отзывов прибавилось больше всего ----
     if not by_asin.empty:
@@ -1434,7 +1447,7 @@ with tab_asin:
                                              .fillna("—"))
                     grown["url"] = [
                         (f"https://www.{_dom[str(mp).upper()]}/dp/{a}"
-                         if str(mp).upper() in _dom and a else None)
+                         if str(mp).upper() in _dom and a else "")
                         for mp, a in zip(grown["marketplace"], grown["asin"])
                     ]
                     st.dataframe(
