@@ -8,6 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection
 from i18n import init_lang, t
+import period as period_mod
 
 init_lang()
 
@@ -140,7 +141,8 @@ def load_fba_centers() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_fba_ledger(days: int) -> pd.DataFrame:
+def load_fba_ledger(days: int, d_from: str = "",
+                    d_to: str = "") -> pd.DataFrame:
     """Движения по центрам за период.
 
     Разрез по ЦЕНТРАМ, а не по маркетплейсам: при Pan-EU один и тот же
@@ -157,7 +159,9 @@ def load_fba_ledger(days: int) -> pd.DataFrame:
                    asin, msku, title, event_type    AS event,
                    quantity                         AS qty
             FROM kabinet_data.fba_ledger_detail
-            WHERE event_date >= CURRENT_DATE - INTERVAL '{days} days'
+            WHERE {"event_date BETWEEN DATE '%s' AND DATE '%s'" % (d_from, d_to)
+                   if d_from else
+                   "event_date >= CURRENT_DATE - INTERVAL '%d days'" % days}
         """, conn)
     except Exception:
         return pd.DataFrame()
@@ -538,6 +542,12 @@ if not burn.empty and burn["quantity"].min() <= 3:
             st.caption(f"📍 {country_str}" if country_str else t("stock.burn_none"))
     st.divider()
 
+# Период — один на страницу и общий для всего Кабинета. Стоит над
+# вкладками, а не внутри карты: три вкладки читают одни и те же остатки,
+# и разные окна на одной странице путали бы сильнее, чем помогали
+_pc1, _pc2 = st.columns([2, 2])
+PERIOD = period_mod.control(columns=(_pc1, _pc2))
+
 # Обзор, ABC, По странам и Таблица скрыты до доработки: показывать
 # полупустые вкладки хуже, чем не показывать их вовсе
 SHOW_DRAFT_TABS = False
@@ -628,6 +638,10 @@ with tab_cov:
         cov["coverage_status"] = cov["coverage_status"].fillna("ok")
 
         calc_d = pd.to_datetime(cov["calc_date"].iloc[0]).strftime("%d.%m.%Y")
+        # Период страницы сюда не приходит: покрытие считается на дату
+        # расчёта. Молча игнорировать выбор нельзя — человек выберет
+        # «7 дней» и решит, что цифры за неделю
+        st.caption(t("period.snapshot").format(d=calc_d))
         hc1, hc2 = st.columns([3, 1])
         hc1.markdown(f"##### {t('stock.cov.header').format(d=calc_d)}")
         with hc2.popover(t("stock.cov.how"), use_container_width=True):
@@ -1020,6 +1034,10 @@ if SHOW_DRAFT_TABS:
 
 # ---------- Категории ----------
 with tab_cat:
+    _snap = pd.to_datetime(df["snapshot_date"], errors="coerce").max()
+    st.caption(t("period.snapshot").format(
+        d=_snap.strftime("%d.%m.%Y") if pd.notna(_snap) else "—")
+        if pd.notna(_snap) else t("period.snapshot_now"))
     by_cat = (f.groupby("category", as_index=False)
                 .agg(quantity=("quantity", "sum"), skus=("sku", "nunique")))
     fig = px.treemap(by_cat, path=["category"], values="quantity",
@@ -1281,7 +1299,7 @@ with tab_map:
         # Товар с нулём и живым спросом теряет деньги каждый день, поэтому
         # блок стоит выше карточек и карты
         _inv = load_fba_inventory()
-        _sales = load_sales_by_asin(30)
+        _sales = load_sales_by_asin(PERIOD.days)
         if not _inv.empty and not _sales.empty:
             # Ноль по пулам — максимум, а не сумма: EU и UK физически
             # разные склады, и запас в Британии не спасает европейский
@@ -1299,7 +1317,7 @@ with tab_map:
             _z = pd.DataFrame()
         if not _z.empty:
             _today = pd.Timestamp.today().normalize()
-            _start = _today - pd.Timedelta(days=30)
+            _start = _today - pd.Timedelta(days=PERIOD.days)
             _zero = load_zero_since()
             if _zero.empty:
                 _z["zero_since"] = pd.NaT
@@ -1311,7 +1329,7 @@ with tab_map:
             # на все 30 дней у товара, кончившегося три недели назад, —
             # занизить спрос втрое и увезти самую срочную строку вниз
             _live = ((_z["zero_since"] - _start).dt.days
-                     .clip(lower=1, upper=30).fillna(30))
+                     .clip(lower=1, upper=PERIOD.days).fillna(PERIOD.days))
             _z["per_day"] = (pd.to_numeric(_z["units"], errors="coerce")
                              .fillna(0) / _live).round(2)
             _z["product"] = _z["product"].fillna(_z["asin"])
@@ -1329,7 +1347,8 @@ with tab_map:
                     skus=", ".join(_blind["product"].astype(str)
                                    .str.slice(0, 40).head(3))))
             st.markdown(f"**{t('stock.map.out_title')}**")
-            st.caption(t("stock.map.out_caption").format(n=len(_z)))
+            st.caption(t("stock.map.out_caption").format(
+                n=len(_z), p=PERIOD.title))
             st.dataframe(
                 _z[["product", "asin", "per_day", "days_zero"] + INV_INBOUND],
                 use_container_width=True, hide_index=True,
@@ -1394,15 +1413,14 @@ with tab_map:
                         f'{cells}</div></div>',
                         unsafe_allow_html=True)
 
-        # ---- период, товар, страна ----
+        # ---- товар, страна, поиск ----
+        # Период берём страничный: свой набор 7/30 на этой вкладке
+        # означал, что цифры карты и цифры соседних вкладок посчитаны за
+        # разные окна, а на экране это ничем не отличалось
+        _days = PERIOD.days
+        _moves = load_fba_ledger(_days, PERIOD.from_str, PERIOD.to_str)
         f1, f2, f3 = st.columns([2, 2, 2])
         with f1:
-            _p = st.segmented_control(
-                t("stock.map.period"), options=["7", "30"], default="7",
-                key="map_period")
-        _days = int(_p or 7)
-        _moves = load_fba_ledger(_days)
-        with f2:
             _skus = (sorted(_moves["msku"].dropna().unique().tolist())
                      if not _moves.empty else [])
             _sku_pick = st.multiselect(
@@ -1410,18 +1428,33 @@ with tab_map:
                 placeholder=t("stock.map.all_products"), key="map_sku")
         if _sku_pick and not _moves.empty:
             _moves = _moves[_moves["msku"].isin(_sku_pick)]
-        with f3:
+        with f2:
             _countries = sorted(c for c in _centers["country"].dropna().unique()
                                 if str(c).strip())
             _country_pick = st.multiselect(
                 t("stock.map.country"), options=_countries,
                 placeholder=t("stock.map.all_countries"), key="map_country")
+        with f3:
+            _q = st.text_input(t("stock.map.search"),
+                               placeholder=t("stock.map.search_ph"),
+                               key="map_search").strip()
         if _country_pick:
             # страна режет и точки, и движения: показывать дуги в центры,
             # которых на карте нет, — значит рисовать линии в никуда
             _centers = _centers[_centers["country"].isin(_country_pick)]
             if not _moves.empty:
                 _moves = _moves[_moves["fc_code"].isin(_centers["fc_code"])]
+        if _q and not _moves.empty:
+            # одно поле на ASIN и SKU: человек не знает заранее, что у
+            # него в буфере, и выбирать вид кода перед вводом — лишний шаг
+            _m = (_moves["asin"].astype(str).str.contains(_q, case=False, na=False)
+                  | _moves["msku"].astype(str).str.contains(_q, case=False, na=False))
+            _moves = _moves[_m]
+            if _moves.empty:
+                st.info(t("stock.map.search_none").format(q=_q))
+
+        if not _moves.empty:
+            period_mod.show_note(PERIOD, _moves["day"].min(), _moves["day"].max())
 
         # ---- перемещения между центрами ----
         # Переброска — это отдельный тип события WhseTransfers, две строки
