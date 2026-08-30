@@ -109,7 +109,11 @@ def _pick(df: pd.DataFrame, *cands):
             return low[c]
     for c in cands:
         for k, orig in low.items():
-            if c in k:
+            # «fulfillable» входит в «unfulfillable», и по подстроке
+            # «Доступно» могло прочитать колонку неликвида. Отрицающие
+            # приставки отсекаем явно
+            if c in k and not any(
+                    p + c in k for p in ("un", "non", "not_", "no_")):
                 return orig
     return None
 
@@ -1245,7 +1249,19 @@ with tab_map:
                 "res": ("reserved",),
                 "dead": ("unfulfillable", "unsellable", "defective"),
             }.items()}
-            c_sku = _pick(_inv, "sku", "msku", "asin")
+            c_sku = _pick(_inv, "asin", "sku", "msku")
+            # Один и тот же физический запас приходит несколькими строками:
+            # у товара есть листинг FBA и листинг FBM, и оба несут одно
+            # количество. Суммирование удваивало «Доступно» и «Резерв».
+            # Схлопываем до одной строки на товар в пуле, беря максимум:
+            # строки зеркальные, а не части одного числа
+            _rows_before = len(_inv)
+            _num_cols = [c for c in _inv.columns
+                         if pd.api.types.is_numeric_dtype(_inv[c])]
+            if c_sku and c_pool and _num_cols:
+                _inv = (_inv.groupby([c_sku, c_pool], as_index=False)[_num_cols]
+                            .max())
+            _rows_after = len(_inv)
             pools = st.columns(2)
             for i, (pool, key) in enumerate((("eu", "stock.map.pool_eu"),
                                              ("uk", "stock.map.pool_uk"))):
@@ -1256,6 +1272,7 @@ with tab_map:
                 n_sku = int(part[c_sku].nunique()) if c_sku else 0
                 n_fc = int(_centers.merge(
                     _stock, on="fc_code")["fc_code"].nunique()) if pool == "eu" else 0
+                n_net = int(_centers["fc_code"].nunique())
 
                 def _sum(col_or_cols):
                     if not col_or_cols:
@@ -1284,13 +1301,17 @@ with tab_map:
                         f'border-radius:12px;padding:12px 16px;">'
                         f'<div style="font-size:0.85rem;'
                         f'color:var(--text-secondary);margin-bottom:8px">'
-                        f'{t(key).format(n=n_sku, c=n_fc)}</div>'
+                        f'{t(key).format(n=n_sku, c=n_fc, total=n_net)}</div>'
                         f'<div style="display:flex;gap:18px;flex-wrap:wrap">'
                         f'{cells}</div></div>',
                         unsafe_allow_html=True)
 
-        # ---- период и фильтр товара ----
-        f1, f2 = st.columns([2, 2])
+        if _rows_before != _rows_after:
+            st.caption(t("stock.map.dedup_note").format(
+                a=_rows_after, b=_rows_before))
+
+        # ---- период, товар, страна ----
+        f1, f2, f3 = st.columns([2, 2, 2])
         with f1:
             _p = st.segmented_control(
                 t("stock.map.period"), options=["7", "30"], default="7",
@@ -1305,6 +1326,18 @@ with tab_map:
                 placeholder=t("stock.map.all_products"), key="map_sku")
         if _sku_pick and not _moves.empty:
             _moves = _moves[_moves["sku"].isin(_sku_pick)]
+        with f3:
+            _countries = sorted(c for c in _centers["country"].dropna().unique()
+                                if str(c).strip())
+            _country_pick = st.multiselect(
+                t("stock.map.country"), options=_countries,
+                placeholder=t("stock.map.all_countries"), key="map_country")
+        if _country_pick:
+            # страна режет и точки, и движения: показывать дуги в центры,
+            # которых на карте нет, — значит рисовать линии в никуда
+            _centers = _centers[_centers["country"].isin(_country_pick)]
+            if not _moves.empty:
+                _moves = _moves[_moves["fc_code"].isin(_centers["fc_code"])]
 
         # ---- перемещения между центрами ----
         # В журнале переброска — это две строки на одну дату и SKU: минус в
