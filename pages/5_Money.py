@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection
 from i18n import init_lang, t
+from links import AMAZON_DOMAIN, amazon_url
 import period as period_mod
 
 init_lang()
@@ -32,23 +33,6 @@ def clean_sku(sku: str) -> str:
     s = re.sub(r"-[A-Za-z0-9]{8,}$", "", s)
     s = re.sub(r"-[A-Za-z]$", "", s)
     return s.strip(" -")
-
-
-# домены Amazon по коду маркетплейса — ссылка на листинг строится по стране,
-# а не всегда на amazon.es. Каналы вне Amazon (LM и т.п.) ссылки не получают.
-AMAZON_DOMAIN = {
-    "ES": "amazon.es", "DE": "amazon.de", "FR": "amazon.fr", "IT": "amazon.it",
-    "NL": "amazon.nl", "BE": "amazon.com.be", "SE": "amazon.se", "PL": "amazon.pl",
-    "IE": "amazon.ie", "UK": "amazon.co.uk", "GB": "amazon.co.uk",
-}
-
-
-def amazon_url(marketplace: str, asin) -> str | None:
-    """Ссылка на листинг Amazon. Для не-Amazon каналов возвращает None."""
-    dom = AMAZON_DOMAIN.get(str(marketplace or "").upper())
-    if not dom or asin is None or str(asin) in ("None", "nan", ""):
-        return None
-    return f"https://www.{dom}/dp/{asin}"
 
 
 WINDOW_DEFAULT = 30
