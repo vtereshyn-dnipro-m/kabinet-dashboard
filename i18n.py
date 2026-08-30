@@ -190,17 +190,30 @@ TRANSLATIONS = {
               "empty. The map appears once the loader delivers them.",
     },
     "stock.map.pool_eu": {
-        "ru": "Европа · {n} товаров · {c} центров",
-        "uk": "Європа · {n} товарів · {c} центрів",
-        "en": "Europe · {n} products · {c} centres"},
+        "ru": "Европа · товаров: {n} · центров с запасом: {c} из {total}",
+        "uk": "Європа · товарів: {n} · центрів із запасом: {c} з {total}",
+        "en": "Europe · products: {n} · centres holding stock: {c} of {total}"},
     "stock.map.pool_uk": {
-        "ru": "Великобритания · {n} товаров · отдельный склад",
-        "uk": "Великобританія · {n} товарів · окремий склад",
+        "ru": "Великобритания · товаров: {n} · отдельный склад",
+        "uk": "Великобританія · товарів: {n} · окремий склад",
         "en": "United Kingdom · {n} products · separate pool"},
     "stock.map.available": {"ru": "Доступно", "uk": "Доступно", "en": "Available"},
     "stock.map.reserved": {"ru": "Резерв", "uk": "Резерв", "en": "Reserved"},
     "stock.map.inbound": {"ru": "В пути", "uk": "У дорозі", "en": "Inbound"},
     "stock.map.dead": {"ru": "Неликвид", "uk": "Неліквід", "en": "Unfulfillable"},
+    "stock.map.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "stock.map.all_countries": {
+        "ru": "Все страны", "uk": "Усі країни", "en": "All countries"},
+    "stock.map.dedup_note": {
+        "ru": "Остатки схлопнуты до {a} строк из {b}: один и тот же запас приходит "
+              "несколькими листингами одного товара — FBA и FBM, — и суммирование "
+              "считало бы его дважды.",
+        "uk": "Залишки згорнуто до {a} рядків із {b}: той самий запас приходить кількома "
+              "лістингами одного товару — FBA і FBM, — і підсумовування рахувало б його "
+              "двічі.",
+        "en": "Stock rows collapsed to {a} from {b}: the same units arrive as several "
+              "listings of one product — FBA and FBM — and summing would count them twice.",
+    },
     "stock.map.period": {"ru": "Период", "uk": "Період", "en": "Period"},
     "stock.map.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "stock.map.all_products": {
