@@ -205,25 +205,6 @@ def load_coverage(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_daily(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
-    """Объём проверок и отправок по дням."""
-    conn = get_connection()
-    try:
-        return pd.read_sql(f"""
-            SELECT COALESCE(sent_at, checked_at)::date AS day,
-                   COUNT(*) FILTER (WHERE status='sent')            AS sent,
-                   COUNT(*) FILTER (WHERE status='no_action')       AS no_action,
-                   COUNT(*) FILTER (WHERE status='skipped_return')  AS skipped,
-                   COUNT(*) FILTER (WHERE status='failed')          AS failed
-            FROM kabinet_data.review_request_log
-            WHERE {_win('COALESCE(sent_at, checked_at)', days, d_from, d_to)}
-            GROUP BY 1 ORDER BY 1
-        """, conn)
-    finally:
-        conn.close()
-
-
-@st.cache_data(ttl=600)
 def load_age_stats() -> pd.DataFrame:
     """Доля разрешённых Amazon запросов по возрасту заказа."""
     conn = get_connection()
