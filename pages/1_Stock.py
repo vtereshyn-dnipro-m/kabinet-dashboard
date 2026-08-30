@@ -1233,10 +1233,16 @@ with tab_map:
         _inv = load_fba_inventory()
         if not _inv.empty:
             c_pool = _pick(_inv, "pool")
+            # Inbound у Amazon разложен на несколько корзин — working,
+            # shipped, receiving. Одна колонка по подстроке давала первую
+            # из них, а она часто пустая: «В пути» показывало 0 при живых
+            # поставках. Складываем ВСЕ колонки, похожие на inbound
+            _inb_cols = [c for c in _inv.columns
+                         if any(k in str(c).lower()
+                                for k in ("inbound", "in_transit", "transit"))]
             cols = {k: _pick(_inv, *v) for k, v in {
                 "avail": ("available", "fulfillable"),
                 "res": ("reserved",),
-                "inb": ("inbound", "in_transit", "transit"),
                 "dead": ("unfulfillable", "unsellable", "defective"),
             }.items()}
             c_sku = _pick(_inv, "sku", "msku", "asin")
@@ -1250,18 +1256,38 @@ with tab_map:
                 n_sku = int(part[c_sku].nunique()) if c_sku else 0
                 n_fc = int(_centers.merge(
                     _stock, on="fc_code")["fc_code"].nunique()) if pool == "eu" else 0
+
+                def _sum(col_or_cols):
+                    if not col_or_cols:
+                        return None
+                    cc = ([col_or_cols] if isinstance(col_or_cols, str)
+                          else list(col_or_cols))
+                    return int(sum(pd.to_numeric(part[c], errors="coerce")
+                                     .fillna(0).sum() for c in cc))
+
+                vals = [(t("stock.map.available"), _sum(cols.get("avail"))),
+                        (t("stock.map.reserved"), _sum(cols.get("res"))),
+                        (t("stock.map.inbound"), _sum(_inb_cols)),
+                        (t("stock.map.dead"), _sum(cols.get("dead")))]
+                # Четыре st.metric в половинной колонке резали подписи до
+                # «Доступ…» и «Нелик…». Верстаем строкой: занимает меньше
+                # места и не обрезается ни на одном языке
+                cells = "".join(
+                    f'<div style="min-width:96px"><div style="font-size:0.78rem;'
+                    f'color:var(--text-secondary)">{lbl}</div>'
+                    f'<div style="font-size:1.35rem;font-weight:600">'
+                    f'{"—" if v is None else f"{v:,}"}</div></div>'
+                    for lbl, v in vals)
                 with pools[i]:
-                    st.markdown(f"**{t(key).format(n=n_sku, c=n_fc)}**")
-                    kc = st.columns(4)
-                    for j, (ck, lbl) in enumerate((
-                            ("avail", "stock.map.available"),
-                            ("res", "stock.map.reserved"),
-                            ("inb", "stock.map.inbound"),
-                            ("dead", "stock.map.dead"))):
-                        col = cols.get(ck)
-                        val = (int(pd.to_numeric(part[col], errors="coerce")
-                                   .fillna(0).sum()) if col else None)
-                        kc[j].metric(t(lbl), "—" if val is None else f"{val:,}")
+                    st.markdown(
+                        f'<div style="border:1px solid var(--border);'
+                        f'border-radius:12px;padding:12px 16px;">'
+                        f'<div style="font-size:0.85rem;'
+                        f'color:var(--text-secondary);margin-bottom:8px">'
+                        f'{t(key).format(n=n_sku, c=n_fc)}</div>'
+                        f'<div style="display:flex;gap:18px;flex-wrap:wrap">'
+                        f'{cells}</div></div>',
+                        unsafe_allow_html=True)
 
         # ---- период и фильтр товара ----
         f1, f2 = st.columns([2, 2])

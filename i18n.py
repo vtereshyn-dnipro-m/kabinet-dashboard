@@ -190,12 +190,12 @@ TRANSLATIONS = {
               "empty. The map appears once the loader delivers them.",
     },
     "stock.map.pool_eu": {
-        "ru": "Европа · {n} товаров · {c} центров",
-        "uk": "Європа · {n} товарів · {c} центрів",
-        "en": "Europe · {n} products · {c} centres"},
+        "ru": "Европа · товаров: {n} · центров с запасом: {c}",
+        "uk": "Європа · товарів: {n} · центрів із запасом: {c}",
+        "en": "Europe · products: {n} · centres holding stock: {c}"},
     "stock.map.pool_uk": {
-        "ru": "Великобритания · {n} товаров · отдельный склад",
-        "uk": "Великобританія · {n} товарів · окремий склад",
+        "ru": "Великобритания · товаров: {n} · отдельный склад",
+        "uk": "Великобританія · товарів: {n} · окремий склад",
         "en": "United Kingdom · {n} products · separate pool"},
     "stock.map.available": {"ru": "Доступно", "uk": "Доступно", "en": "Available"},
     "stock.map.reserved": {"ru": "Резерв", "uk": "Резерв", "en": "Reserved"},
