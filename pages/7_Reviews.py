@@ -274,30 +274,37 @@ def load_by_hour(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
 
 @st.cache_data(ttl=600)
 def load_by_asin(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
-    """По каким товарам уходили запросы."""
+    """По каким товарам уходили запросы.
+
+    Канал строки — тот, откуда по этому товару ушло больше всего
+    запросов, а не MAX() по алфавиту. От канала зависят и название, и
+    домен ссылки: раньше у товара, который продаётся в Италии и Испании,
+    побеждала «Amazon.it» просто потому, что «i» больше «e»."""
     conn = get_connection()
     try:
         return pd.read_sql(f"""
-            SELECT o.asin,
-                   MAX(o.sales_channel) AS sales_channel,
-                   MAX(s.product_name)  AS product_name,
-                   COUNT(DISTINCT l.amazon_order_id)
-                       FILTER (WHERE l.status='sent')      AS sent,
-                   COUNT(DISTINCT l.amazon_order_id)
-                       FILTER (WHERE l.status='no_action') AS no_action
-            FROM kabinet_data.review_request_log l
-            JOIN kabinet_data.orders_history o
-              ON o.order_id = l.amazon_order_id
-            LEFT JOIN (
-                SELECT asin, MAX(product_name) AS product_name
-                FROM kabinet_data.stock_local
-                WHERE asin IS NOT NULL
-                GROUP BY asin
-            ) s ON s.asin = o.asin
-            WHERE {_win('COALESCE(l.sent_at, l.checked_at)', days, d_from, d_to)}
-              AND o.asin IS NOT NULL
-            GROUP BY o.asin
-            HAVING COUNT(DISTINCT l.amazon_order_id) FILTER (WHERE l.status='sent') > 0
+            WITH r AS (
+                SELECT o.asin, o.sales_channel,
+                       COUNT(DISTINCT l.amazon_order_id)
+                           FILTER (WHERE l.status='sent')      AS sent,
+                       COUNT(DISTINCT l.amazon_order_id)
+                           FILTER (WHERE l.status='no_action') AS no_action
+                FROM kabinet_data.review_request_log l
+                JOIN kabinet_data.orders_history o
+                  ON o.order_id = l.amazon_order_id
+                WHERE {_win('COALESCE(l.sent_at, l.checked_at)', days, d_from, d_to)}
+                  AND o.asin IS NOT NULL
+                GROUP BY 1, 2
+            )
+            SELECT asin,
+                   SUM(sent)      AS sent,
+                   SUM(no_action) AS no_action,
+                   (ARRAY_AGG(sales_channel
+                              ORDER BY sent DESC, sales_channel))[1]
+                                  AS sales_channel
+            FROM r
+            GROUP BY asin
+            HAVING SUM(sent) > 0
             ORDER BY sent DESC
         """, conn)
     finally:
@@ -310,6 +317,64 @@ def load_by_asin(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
 BASKET_DAYS = 90
 JUMP_TOL = 0.25   # доля от медианы, выше которой суточное изменение — подмена набора
 JUMP_MIN = 5      # абсолютный пол, чтобы не ловить шум на товарах с единицами отзывов
+
+
+@st.cache_data(ttl=600)
+def load_names_by_market() -> pd.DataFrame:
+    """Название товара по каждому рынку отдельно.
+
+    Раньше название бралось из stock_local по одному ASIN. Там нет
+    измерения рынка вовсе — это снимок местного склада, — поэтому
+    итальянский листинг подписывался испанским текстом, а товары, которых
+    на местном складе нет, оставались вообще без названия. Второе било
+    чаще первого: на складе лежит малая часть того, что продаётся.
+
+    economics_summary хранит product_name рядом с marketplace, то есть
+    ровно то, что нужно. ASIN там нет, мост тот же, что на «Деньгах» и
+    «Остатках»: sku_asin_map по числовой части артикула.
+
+    DISTINCT ON, а не MAX: имя листинга со временем меняется, и нужно
+    последнее, а не то, что больше по алфавиту."""
+    conn = get_connection()
+    try:
+        return pd.read_sql("""
+            SELECT DISTINCT ON (s.asin, e.marketplace)
+                   s.asin, e.marketplace, e.product_name
+            FROM kabinet_data.economics_summary e
+            JOIN (
+                SELECT sku_group, MAX(asin) AS asin
+                FROM kabinet_data.sku_asin_map
+                WHERE asin IS NOT NULL
+                GROUP BY sku_group
+            ) s ON s.sku_group = SUBSTRING(e.norm_sku FROM '([0-9]{5,})')
+            WHERE e.product_name IS NOT NULL AND e.product_name <> ''
+            ORDER BY s.asin, e.marketplace, e.sales_date DESC
+        """, conn)
+    except Exception:
+        return pd.DataFrame(columns=["asin", "marketplace", "product_name"])
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_names_any() -> pd.DataFrame:
+    """Название без привязки к рынку — последняя линия обороны.
+
+    Местный склад рынка не знает, поэтому такое название помечается в
+    таблице как чужое: подписать итальянский листинг испанским текстом
+    молча — это ровно то, с чего началась правка."""
+    conn = get_connection()
+    try:
+        return pd.read_sql("""
+            SELECT asin, MAX(product_name) AS product_name
+            FROM kabinet_data.stock_local
+            WHERE asin IS NOT NULL AND product_name IS NOT NULL
+            GROUP BY asin
+        """, conn)
+    except Exception:
+        return pd.DataFrame(columns=["asin", "product_name"])
+    finally:
+        conn.close()
 
 
 @st.cache_data(ttl=600)
@@ -1327,12 +1392,49 @@ with tab_asin:
     if by_asin.empty:
         st.info(t("rev.asin.no_data"))
     else:
-        by_asin["product_name"] = (by_asin["product_name"]
-                                   .fillna("").astype(str)
-                                   .replace({"None": "", "nan": ""}))
-        by_asin.loc[by_asin["product_name"].str.strip() == "", "product_name"] = "—"
-        # пустая строка, а не None: LinkColumn печатает None текстом,
-        # и в колонке со стрелками появлялось слово вместо прочерка
+        # ---- название по рынку строки ----
+        # Три ступени: имя с того же рынка, имя с другого рынка и имя со
+        # склада, у которого рынка нет вовсе. Две последние помечаются
+        # кодом источника — молча подписать итальянский листинг испанским
+        # текстом значит соврать в самой заметной колонке
+        by_asin["mk"] = [CHANNEL_CODE.get(c, "") for c in by_asin["sales_channel"]]
+        _nm = load_names_by_market()
+        _same = {}
+        _other = {}
+        if not _nm.empty:
+            _nm["asin"] = _nm["asin"].astype(str)
+            _nm["marketplace"] = _nm["marketplace"].astype(str).str.upper()
+            _same = {(a, m): n for a, m, n in zip(
+                _nm["asin"], _nm["marketplace"], _nm["product_name"])}
+            # для запасного варианта берём любой рынок, но помним какой
+            _other = {a: (m, n) for a, m, n in zip(
+                _nm["asin"], _nm["marketplace"], _nm["product_name"])}
+        _any = load_names_any()
+        _any_map = (dict(zip(_any["asin"].astype(str), _any["product_name"]))
+                    if not _any.empty else {})
+
+        _names, _foreign = [], []
+        for _a, _m in zip(by_asin["asin"].astype(str), by_asin["mk"]):
+            _n = _same.get((_a, _m))
+            if _n:
+                _names.append(str(_n))
+                _foreign.append("")
+                continue
+            _alt = _other.get(_a)
+            if _alt and _alt[1]:
+                _names.append(str(_alt[1]))
+                _foreign.append(_alt[0])
+                continue
+            _n = _any_map.get(_a)
+            if _n and str(_n) not in ("None", "nan", ""):
+                _names.append(str(_n))
+                _foreign.append(t("rev.asin.name_warehouse"))
+                continue
+            _names.append("—")
+            _foreign.append("")
+        by_asin["product_name"] = _names
+        by_asin["name_src"] = _foreign
+
         # ASIN и ссылка — одна колонка: отдельный столбец со стрелкой
         # занимал ширину и требовал второго взгляда, чтобы понять, к какой
         # строке он относится
@@ -1387,7 +1489,8 @@ with tab_asin:
                     _grow = (_fl.groupby("asin", as_index=False)["growth"].sum()
                                 .rename(columns={"growth": "reviews"}))
 
-            weak = by_asin[["asin", "product_name", "sent", "url"]].copy()
+            weak = by_asin[["asin", "product_name", "name_src", "mk",
+                            "sent", "url"]].copy()
             weak = weak.merge(_grow, on="asin", how="left")
             weak["reviews"] = weak["reviews"].fillna(0).clip(lower=0).astype(int)
             weak["pct"] = np.round(safe_div(weak["reviews"], weak["sent"]) * 100, 1)
@@ -1395,12 +1498,20 @@ with tab_asin:
             # внутри — с наименьшей отдачей на запрос
             weak = weak.sort_values(["reviews", "pct"], ascending=[False, True])
             st.dataframe(
-                weak[["url", "product_name", "sent", "reviews", "pct"]],
+                weak[["url", "mk", "product_name", "name_src", "sent",
+                      "reviews", "pct"]],
                 use_container_width=True, height=340, hide_index=True,
                 column_config={
                     "url": catalog.asin_column(),
+                    "mk": st.column_config.TextColumn(
+                        t("rev.col.marketplace"), width="small",
+                        help=t("rev.asin.market_help")),
                     "product_name": st.column_config.TextColumn(
-                        t("rev.col.product"), width="medium"),
+                        t("rev.col.product"), width="large",
+                        help=t("rev.asin.name_help")),
+                    "name_src": st.column_config.TextColumn(
+                        t("rev.asin.name_src"), width="small",
+                        help=t("rev.asin.name_src_help")),
                     "sent": st.column_config.NumberColumn(
                         t("rev.col.sent"), width="small"),
                     "reviews": st.column_config.NumberColumn(
