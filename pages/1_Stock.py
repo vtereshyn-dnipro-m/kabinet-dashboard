@@ -766,8 +766,11 @@ with tab_cov:
             # справочника, чтобы из таблицы можно было открыть карточку
             cview["asin_url"] = catalog.url_series(
                 skus=cview["sku"], markets=cview["marketplace"])
+            cview["photo"] = catalog.image_series(
+                skus=cview["sku"], markets=cview["marketplace"])
             st.dataframe(
-                cview[["sku", "asin_url", "product_name", "marketplace",
+                cview[["photo", "sku", "asin_url", "product_name",
+                       "marketplace",
                        "available_now",
                        "weeks_until_first_gap", "coverage_weeks",
                        "fbm_fallback_qty", "total_coverage_weeks",
@@ -776,6 +779,7 @@ with tab_cov:
                        "odoo_incoming_qty", "overstock_qty", "status_label"]],
                 use_container_width=True, height=460, hide_index=True,
                 column_config={
+                    "photo": catalog.image_column(),
                     "sku": st.column_config.TextColumn("SKU", width="small"),
                     "asin_url": catalog.asin_column(),
                     "product_name": st.column_config.TextColumn(
@@ -1176,7 +1180,10 @@ if SHOW_DRAFT_TABS:
 
         table_view = full_pivot.reset_index()
         table_view.insert(1, t("stock.ctr.col_product"), table_view["sku_display"].map(full_name_map))
-        table_view.insert(2, "asin_url", catalog.url_series(
+        table_view.insert(0, "photo", catalog.image_series(
+            asins=table_view["sku_display"].map(full_asin_map),
+            skus=table_view["sku_display"]))
+        table_view.insert(3, "asin_url", catalog.url_series(
             asins=table_view["sku_display"].map(full_asin_map),
             skus=table_view["sku_display"]))
 
@@ -1184,10 +1191,10 @@ if SHOW_DRAFT_TABS:
         st.dataframe(
             table_view, use_container_width=True, height=520, hide_index=True,
             column_config={
+                "photo": catalog.image_column(),
                 "sku_display": st.column_config.TextColumn(t("stock.ctr.col_sku"), width="small"),
                 t("stock.ctr.col_product"): st.column_config.TextColumn(t("stock.ctr.col_product"), width="large"),
-                "asin_url": st.column_config.LinkColumn(
-                    "ASIN", display_text=t("stock.tbl.col_listing_text"), width="small"),
+                "asin_url": catalog.asin_column(),
                 total_col: st.column_config.NumberColumn(total_col, width="small"),
                 **{col: st.column_config.NumberColumn(col, width="small")
                    for col in country_cols},
@@ -1218,10 +1225,13 @@ if SHOW_DRAFT_TABS:
                                   countries=("location", "nunique")))
             dfx = dfx.sort_values("quantity", ascending=False)
             dfx["asin_url"] = catalog.url_series(skus=dfx["sku"])
+            dfx["photo"] = catalog.image_series(skus=dfx["sku"])
             st.dataframe(
-                dfx[["sku", "asin_url", "product_name", "quantity", "countries"]],
+                dfx[["photo", "sku", "asin_url", "product_name", "quantity",
+                     "countries"]],
                 use_container_width=True, height=280, hide_index=True,
                 column_config={
+                    "photo": catalog.image_column(),
                     "sku": st.column_config.TextColumn(t("stock.ctr.col_sku"), width="medium"),
                     "asin_url": catalog.asin_column(),
                     "product_name": st.column_config.TextColumn(t("stock.ctr.col_product"), width="large"),
@@ -1259,11 +1269,14 @@ if SHOW_DRAFT_TABS:
             tbl["amazon_url"] = catalog.url_series(
                 asins=tbl["asin"], skus=tbl["sku_display"])
             tbl = tbl.sort_values("quantity", ascending=False)
+            tbl["photo"] = catalog.image_series(asins=tbl["asin"],
+                                               skus=tbl["sku_display"])
             st.dataframe(
-                tbl[["sku_display", "product_name", "quantity", "countries",
-                     "category", "amazon_url"]],
+                tbl[["photo", "sku_display", "product_name", "quantity",
+                     "countries", "category", "amazon_url"]],
                 use_container_width=True, height=560, hide_index=True,
                 column_config={
+                    "photo": catalog.image_column(),
                     "sku_display": st.column_config.TextColumn(t("stock.ctr.col_sku"), width="small"),
                     "quantity": st.column_config.ProgressColumn(
                         t("stock.tbl.col_total_stock"), format="%d",
@@ -1283,11 +1296,16 @@ if SHOW_DRAFT_TABS:
             tbl["amazon_url"] = catalog.url_series(
                 asins=tbl["asin"], skus=tbl["sku_display"],
                 markets=tbl["location"])
+            tbl["photo"] = catalog.image_series(
+                asins=tbl["asin"], skus=tbl["sku_display"],
+                markets=tbl["location"])
             st.dataframe(
-                tbl[["sku_display", "product_name", "location", "quantity",
-                     "availability_status", "category", "amazon_url", "snapshot_date"]],
+                tbl[["photo", "sku_display", "product_name", "location",
+                     "quantity", "availability_status", "category",
+                     "amazon_url", "snapshot_date"]],
                 use_container_width=True, height=560, hide_index=True,
                 column_config={
+                    "photo": catalog.image_column(),
                     "sku_display": st.column_config.TextColumn(t("stock.ctr.col_sku"), width="small"),
                     "quantity": st.column_config.ProgressColumn(
                         t("stock.tbl.col_stock"), format="%d",
@@ -1371,6 +1389,8 @@ with tab_map:
             _z["product"] = _z["product"].fillna(_z["asin"])
             _z["url"] = catalog.url_series(asins=_z["asin"], skus=_z["sku"],
                                            markets=_z["markets"])
+            _z["photo"] = catalog.image_series(
+                asins=_z["asin"], skus=_z["sku"], markets=_z["markets"])
             # Даты прибытия в данных нет вообще — только корзины inbound.
             # Пустые корзины гасим в прочерк: ноль во всех трёх читался бы
             # как «поставка на ноль штук», а её просто нет
@@ -1389,10 +1409,11 @@ with tab_map:
             st.caption(t("stock.map.out_caption").format(
                 n=len(_z), p=PERIOD.title))
             st.dataframe(
-                _z[["sku", "url", "product", "per_day", "days_zero",
+                _z[["photo", "sku", "url", "product", "per_day", "days_zero",
                     "markets"] + INV_INBOUND],
                 use_container_width=True, hide_index=True,
                 column_config={
+                    "photo": catalog.image_column(),
                     "sku": st.column_config.TextColumn("SKU", width="small"),
                     # ASIN и ссылка — одна колонка: display_text вырезает
                     # ASIN из адреса, так что кода видно ровно столько же,

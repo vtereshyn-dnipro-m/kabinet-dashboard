@@ -211,13 +211,16 @@ show["created_str"] = show["created_at"].dt.strftime("%d.%m.%Y %H:%M")
 # ASIN в инцидентах не хранится — добираем по артикулу, чтобы из строки
 # инцидента можно было сразу открыть карточку и посмотреть, что там
 show["asin_url"] = catalog.url_series(skus=show["sku"])
+show["photo"] = catalog.image_series(skus=show["sku"])
 
 event = st.dataframe(
-    show[["created_str", "severity_icon", "incident_type", "sku", "asin_url",
-          "warehouse_name", "current_qty", "message", "age_days", "status"]],
+    show[["photo", "created_str", "severity_icon", "incident_type", "sku",
+          "asin_url", "warehouse_name", "current_qty", "message", "age_days",
+          "status"]],
     use_container_width=True, height=480, hide_index=True,
     on_select="rerun", selection_mode="multi-row",
     column_config={
+        "photo": catalog.image_column(),
         "created_str": st.column_config.TextColumn(t("inc.tbl.col_created"), width="small"),
         "severity_icon": st.column_config.TextColumn(t("inc.tbl.col_level"), width="small"),
         "incident_type": st.column_config.TextColumn(t("inc.tbl.col_type"), width="small"),
