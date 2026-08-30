@@ -1822,18 +1822,6 @@ TRANSLATIONS = {
               "total». It depends on the period and can only increase as the period "
               "widens: if 30 days shows less growth than 14, that is a bug, not data.",
     },
-    "rev.dyn.before": {"ru": "В день до", "uk": "На день до", "en": "Per day before"},
-    "rev.dyn.before_help": {
-        "ru": "Сколько отзывов прибавлялось в день до запуска рассылки",
-        "uk": "Скільки відгуків додавалося на день до запуску розсилки",
-        "en": "Reviews added per day before the mailing started",
-    },
-    "rev.dyn.after": {"ru": "В день после", "uk": "На день після", "en": "Per day after"},
-    "rev.dyn.after_help": {
-        "ru": "Сколько отзывов прибавляется в день после запуска рассылки",
-        "uk": "Скільки відгуків додається на день після запуску розсилки",
-        "en": "Reviews added per day since the mailing started",
-    },
     "rev.dyn.chart": {
         "ru": "Отправленные запросы и новые отзывы по дням",
         "uk": "Надіслані запити та нові відгуки за днями",

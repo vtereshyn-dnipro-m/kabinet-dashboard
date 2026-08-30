@@ -1074,29 +1074,20 @@ with tab_dyn:
             days_span = max((have["snapshot_date"].iloc[-1]
                              - have["snapshot_date"].iloc[0]).days, 1)
 
-            # день первой отправки — граница «до» и «после»
+            # Отправки нужны графику ниже — столбцами рядом с приростом
             sent = load_sent_by_day(DAYS)
-            launch = None
             if not sent.empty:
                 sent["day"] = pd.to_datetime(sent["day"])
-                launch = sent["day"].min()
 
-            before_rate = after_rate = None
-            if launch is not None:
-                b = have[have["snapshot_date"] < launch]
-                a = have[have["snapshot_date"] >= launch]
-                if len(b) > 1:
-                    before_rate = ((float(b["review_count"].iloc[-1])
-                                    - float(b["review_count"].iloc[0]))
-                                   / max((b["snapshot_date"].iloc[-1]
-                                          - b["snapshot_date"].iloc[0]).days, 1))
-                if len(a) > 1:
-                    after_rate = ((float(a["review_count"].iloc[-1])
-                                   - float(a["review_count"].iloc[0]))
-                                  / max((a["snapshot_date"].iloc[-1]
-                                         - a["snapshot_date"].iloc[0]).days, 1))
-
-            d1, d2, d3, d4 = st.columns(4)
+            # Карточки «В день до» и «В день после» убраны. Они делили
+            # период по launch = первой отправке ВНУТРИ выбранного окна:
+            # граница ездила вместе с окном, и на семи днях «до» означало
+            # одно, на тридцати — другое. Это ровно та причина, по которой
+            # с графика убрали линию старта; оставлять на ней же две цифры
+            # было непоследовательно.
+            # Понадобится сравнение до/после — делать по фиксированной дате
+            # из настроек, а не по вычисляемой из окна
+            d1, d2 = st.columns(2)
             d1.metric(t("rev.dyn.total"),
                       "—" if pd.isna(total_now) else f"{int(total_now):,}",
                       help=t("rev.dyn.total_help").format(
@@ -1106,15 +1097,6 @@ with tab_dyn:
                           w=BASKET_DAYS))
             d2.metric(t("rev.dyn.growth"), f"+{int(total_growth):,}",
                       help=t("rev.dyn.growth_help").format(d=days_span))
-            d3.metric(t("rev.dyn.before"),
-                      f"{before_rate:.1f}" if before_rate is not None else "—",
-                      help=t("rev.dyn.before_help"))
-            d4.metric(t("rev.dyn.after"),
-                      f"{after_rate:.1f}" if after_rate is not None else "—",
-                      delta=(f"×{after_rate / before_rate:.1f}"
-                             if before_rate and after_rate and before_rate > 0
-                             else None),
-                      help=t("rev.dyn.after_help"))
 
             # ---- график: отправки и прирост отзывов ----
             st.markdown(f"**{t('rev.dyn.chart')}**")
