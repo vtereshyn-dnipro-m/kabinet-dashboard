@@ -3,6 +3,7 @@ import re
 import pandas as pd
 import numpy as np
 import streamlit as st
+import pydeck as pdk
 import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection
@@ -95,6 +96,165 @@ def coverage_diag() -> dict:
     finally:
         conn.close()
     return out
+
+
+def _pick(df: pd.DataFrame, *cands):
+    """Имя колонки по списку кандидатов: сначала точное совпадение, потом
+    вхождение подстроки. Схема таблиц FBA заранее не зафиксирована, а
+    падать из-за одного переименованного поля нельзя — лучше вернуть None
+    и сказать на экране, чего не хватило."""
+    low = {str(c).lower(): c for c in df.columns}
+    for c in cands:
+        if c in low:
+            return low[c]
+    for c in cands:
+        for k, orig in low.items():
+            if c in k:
+                return orig
+    return None
+
+
+@st.cache_data(ttl=600)
+def load_fba_centers() -> pd.DataFrame:
+    """Справочник центров FBA: код, город, страна, координаты."""
+    if not table_exists("fba_fulfillment_centers"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        df = pd.read_sql(
+            "SELECT * FROM kabinet_data.fba_fulfillment_centers", conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+    if df.empty:
+        return df
+    c_code = _pick(df, "fc_code", "code", "center")
+    c_lat = _pick(df, "lat", "latitude")
+    c_lon = _pick(df, "lon", "lng", "longitude")
+    if not (c_code and c_lat and c_lon):
+        return pd.DataFrame()
+    out = pd.DataFrame({
+        "fc_code": df[c_code].astype(str).str.strip().str.upper(),
+        "lat": pd.to_numeric(df[c_lat], errors="coerce"),
+        "lon": pd.to_numeric(df[c_lon], errors="coerce"),
+    })
+    c_city = _pick(df, "city", "town")
+    c_country = _pick(df, "country", "country_code")
+    c_sort = _pick(df, "is_sort_center", "sort_center", "is_sort")
+    out["city"] = df[c_city].astype(str).str.strip() if c_city else ""
+    out["country"] = df[c_country].astype(str).str.strip() if c_country else ""
+    out["is_sort"] = (df[c_sort].fillna(False).astype(bool) if c_sort else False)
+    return out.dropna(subset=["lat", "lon"]).drop_duplicates("fc_code")
+
+
+@st.cache_data(ttl=600)
+def _fba_ledger_columns() -> list:
+    """Имена колонок ledger. Нужны, чтобы построить фильтр по дате в SQL:
+    имя поля даты заранее не зафиксировано, а тянуть таблицу целиком ради
+    того, чтобы отфильтровать её потом в pandas, — плохой размен."""
+    if not table_exists("fba_ledger_detail"):
+        return []
+    conn = get_connection()
+    try:
+        return list(pd.read_sql(
+            "SELECT * FROM kabinet_data.fba_ledger_detail LIMIT 0", conn).columns)
+    except Exception:
+        return []
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_fba_ledger(days: int) -> pd.DataFrame:
+    """Движения по центрам за период, приведённые к общей схеме.
+
+    Разрез по ЦЕНТРАМ, а не по маркетплейсам: при Pan-EU один и тот же
+    запас виден в нескольких странах, и сумма по рынкам физический склад
+    не описывает. Ledger отвечает на вопрос «где лежит», рынки — «где
+    продаётся»."""
+    cols = _fba_ledger_columns()
+    if not cols:
+        return pd.DataFrame()
+    probe = pd.DataFrame(columns=cols)
+    c_date = _pick(probe, "date", "event_date", "ledger_date", "snapshot_date")
+    c_fc = _pick(probe, "fulfillment_center", "fc_code", "center")
+    c_qty = _pick(probe, "quantity", "qty", "units")
+    if not (c_date and c_fc and c_qty):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        df = pd.read_sql(f'''
+            SELECT * FROM kabinet_data.fba_ledger_detail
+            WHERE "{c_date}" >= CURRENT_DATE - INTERVAL '{days} days'
+        ''', conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+    if df.empty:
+        return pd.DataFrame()
+    c_asin = _pick(probe, "asin")
+    c_sku = _pick(probe, "sku", "msku", "seller_sku")
+    c_evt = _pick(probe, "event_type", "event", "reason", "disposition")
+    out = pd.DataFrame({
+        "day": pd.to_datetime(df[c_date], errors="coerce"),
+        "fc_code": df[c_fc].astype(str).str.strip().str.upper(),
+        "qty": pd.to_numeric(df[c_qty], errors="coerce").fillna(0),
+    })
+    out["asin"] = df[c_asin].astype(str) if c_asin else ""
+    out["sku"] = df[c_sku].astype(str) if c_sku else ""
+    out["event"] = df[c_evt].astype(str) if c_evt else ""
+    return out.dropna(subset=["day"])
+
+
+@st.cache_data(ttl=600)
+def load_fba_center_stock() -> pd.DataFrame:
+    """Остаток по каждому центру — сумма движений за ВСЮ историю ledger.
+
+    Окно периода сюда не применяется: за семь дней получилось бы не
+    «сколько лежит», а «на сколько изменилось». Агрегируем на стороне
+    базы — 36 строк вместо всего журнала."""
+    cols = _fba_ledger_columns()
+    if not cols:
+        return pd.DataFrame()
+    probe = pd.DataFrame(columns=cols)
+    c_fc = _pick(probe, "fulfillment_center", "fc_code", "center")
+    c_qty = _pick(probe, "quantity", "qty", "units")
+    if not (c_fc and c_qty):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        df = pd.read_sql(f'''
+            SELECT "{c_fc}" AS fc_code, SUM("{c_qty}") AS qty
+            FROM kabinet_data.fba_ledger_detail
+            GROUP BY 1
+        ''', conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+    if df.empty:
+        return df
+    df["fc_code"] = df["fc_code"].astype(str).str.strip().str.upper()
+    df["qty"] = pd.to_numeric(df["qty"], errors="coerce").fillna(0)
+    return df[df["qty"] > 0]
+
+
+@st.cache_data(ttl=600)
+def load_fba_inventory() -> pd.DataFrame:
+    """Остатки FBA с разбивкой на пулы eu и uk. Британия после Brexit —
+    отдельный склад, складывать её с европейским запасом нельзя."""
+    if not table_exists("fba_inventory_deduped"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        return pd.read_sql(
+            "SELECT * FROM kabinet_data.fba_inventory_deduped", conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
 
 
 @st.cache_data(ttl=600)
@@ -333,14 +493,15 @@ if not burn.empty and burn["quantity"].min() <= 3:
 SHOW_DRAFT_TABS = False
 
 if SHOW_DRAFT_TABS:
-    (tab_cov, tab_cat, tab_overview,
+    (tab_cov, tab_cat, tab_map, tab_overview,
      tab_abc, tab_countries, tab_table) = st.tabs(
         [t("stock.tab.coverage"), t("stock.tab.categories"),
-         t("stock.tab.overview"), t("stock.tab.abc"),
+         t("stock.tab.map"), t("stock.tab.overview"), t("stock.tab.abc"),
          t("stock.tab.countries"), t("stock.tab.table")])
 else:
-    tab_cov, tab_cat = st.tabs(
-        [t("stock.tab.coverage"), t("stock.tab.categories")])
+    tab_cov, tab_cat, tab_map = st.tabs(
+        [t("stock.tab.coverage"), t("stock.tab.categories"),
+         t("stock.tab.map")])
     tab_overview = tab_abc = tab_countries = tab_table = None
 
 BLUE = "#1f77b4"
@@ -1054,3 +1215,190 @@ if SHOW_DRAFT_TABS:
             file_name=f"stock_{f['snapshot_date'].max()}.csv",
             mime="text/csv",
         ) 
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ЗАПАСЫ AMAZON: КАРТА ЦЕНТРОВ FBA
+# ═══════════════════════════════════════════════════════════════════
+
+with tab_map:
+    _centers = load_fba_centers()
+    _stock = load_fba_center_stock()
+    if _centers.empty or _stock.empty:
+        st.info(t("stock.map.no_data"))
+    else:
+        # ---- карточки пулов ----
+        # Британия после Brexit — отдельный склад: европейский запас туда
+        # не переливается, и складывать их в одно число нельзя
+        _inv = load_fba_inventory()
+        if not _inv.empty:
+            c_pool = _pick(_inv, "pool")
+            cols = {k: _pick(_inv, *v) for k, v in {
+                "avail": ("available", "fulfillable"),
+                "res": ("reserved",),
+                "inb": ("inbound", "in_transit", "transit"),
+                "dead": ("unfulfillable", "unsellable", "defective"),
+            }.items()}
+            c_sku = _pick(_inv, "sku", "msku", "asin")
+            pools = st.columns(2)
+            for i, (pool, key) in enumerate((("eu", "stock.map.pool_eu"),
+                                             ("uk", "stock.map.pool_uk"))):
+                part = (_inv[_inv[c_pool].astype(str).str.lower() == pool]
+                        if c_pool else _inv.iloc[0:0])
+                if part.empty:
+                    continue
+                n_sku = int(part[c_sku].nunique()) if c_sku else 0
+                n_fc = int(_centers.merge(
+                    _stock, on="fc_code")["fc_code"].nunique()) if pool == "eu" else 0
+                with pools[i]:
+                    st.markdown(f"**{t(key).format(n=n_sku, c=n_fc)}**")
+                    kc = st.columns(4)
+                    for j, (ck, lbl) in enumerate((
+                            ("avail", "stock.map.available"),
+                            ("res", "stock.map.reserved"),
+                            ("inb", "stock.map.inbound"),
+                            ("dead", "stock.map.dead"))):
+                        col = cols.get(ck)
+                        val = (int(pd.to_numeric(part[col], errors="coerce")
+                                   .fillna(0).sum()) if col else None)
+                        kc[j].metric(t(lbl), "—" if val is None else f"{val:,}")
+
+        # ---- период и фильтр товара ----
+        f1, f2 = st.columns([2, 2])
+        with f1:
+            _p = st.segmented_control(
+                t("stock.map.period"), options=["7", "30"], default="7",
+                key="map_period")
+        _days = int(_p or 7)
+        _moves = load_fba_ledger(_days)
+        with f2:
+            _skus = (sorted(_moves["sku"].dropna().unique().tolist())
+                     if not _moves.empty else [])
+            _sku_pick = st.multiselect(
+                t("stock.map.product"), options=_skus,
+                placeholder=t("stock.map.all_products"), key="map_sku")
+        if _sku_pick and not _moves.empty:
+            _moves = _moves[_moves["sku"].isin(_sku_pick)]
+
+        # ---- перемещения между центрами ----
+        # В журнале переброска — это две строки на одну дату и SKU: минус в
+        # отдающем центре и плюс в принимающем. Пары восстанавливаем внутри
+        # (дата, SKU) жадно: точной ссылки «откуда куда» в данных нет
+        arcs = []
+        if not _moves.empty:
+            for (_d, _s), grp in _moves.groupby(["day", "sku"], sort=False):
+                src = grp[grp["qty"] < 0].copy()
+                dst = grp[grp["qty"] > 0].copy()
+                if src.empty or dst.empty:
+                    continue
+                src["left"] = src["qty"].abs()
+                dst["left"] = dst["qty"]
+                for si in src.index:
+                    for di in dst.index:
+                        take = min(src.at[si, "left"], dst.at[di, "left"])
+                        if take <= 0:
+                            continue
+                        arcs.append({"from": src.at[si, "fc_code"],
+                                     "to": dst.at[di, "fc_code"],
+                                     "qty": float(take), "sku": _s})
+                        src.at[si, "left"] -= take
+                        dst.at[di, "left"] -= take
+                        if src.at[si, "left"] <= 0:
+                            break
+        arcs = pd.DataFrame(arcs, columns=["from", "to", "qty", "sku"])
+        if not arcs.empty:
+            arcs = arcs[arcs["from"] != arcs["to"]]
+
+        # ---- карта ----
+        pts = _centers.merge(_stock, on="fc_code", how="inner")
+        _mx = float(pts["qty"].max()) or 1.0
+        # Радиус в МЕТРАХ, а не в пикселях: pydeck сериализует строковое
+        # radius_units как выражение (@@=pixels), deck.gl его не понимает и
+        # молча берёт метры — точки накрывали пол-Европы. Числовые
+        # ограничители в пикселях проходят как есть и держат размер
+        # читаемым на любом зуме
+        pts["radius"] = 15000 + 65000 * (pts["qty"] / _mx) ** 0.5
+        pts["color"] = pts["qty"].apply(
+            lambda q: [232, 72, 77, 200] if q > 200
+            else ([49, 102, 145, 200] if q >= 80 else [150, 170, 190, 200]))
+        pts["label"] = pts["fc_code"] + " · " + pts["qty"].astype(int).astype(str)
+
+        layers = []
+        if not arcs.empty:
+            _c = _centers.set_index("fc_code")[["lat", "lon"]]
+            a = arcs.merge(_c.rename(columns={"lat": "f_lat", "lon": "f_lon"}),
+                           left_on="from", right_index=True, how="inner") \
+                    .merge(_c.rename(columns={"lat": "t_lat", "lon": "t_lon"}),
+                           left_on="to", right_index=True, how="inner")
+            if not a.empty:
+                a = (a.groupby(["from", "to", "f_lat", "f_lon", "t_lat", "t_lon"],
+                               as_index=False)["qty"].sum())
+                a["width"] = 1 + 5 * (a["qty"] / max(a["qty"].max(), 1))
+                layers.append(pdk.Layer(
+                    "ArcLayer", data=a,
+                    get_source_position="[f_lon, f_lat]",
+                    get_target_position="[t_lon, t_lat]",
+                    get_source_color=[232, 72, 77, 120],
+                    get_target_color=[232, 72, 77, 120],
+                    get_width="width", pickable=False))
+        layers.append(pdk.Layer(
+            "ScatterplotLayer", data=pts, get_position="[lon, lat]",
+            get_radius="radius", radius_min_pixels=5, radius_max_pixels=30,
+            get_fill_color="color", pickable=True, opacity=0.8))
+        layers.append(pdk.Layer(
+            "TextLayer", data=pts, get_position="[lon, lat]",
+            get_text="label", get_size=11, get_color=[70, 80, 95],
+            get_pixel_offset=[0, 18]))
+
+        st.pydeck_chart(pdk.Deck(
+            layers=layers,
+            initial_view_state=pdk.ViewState(
+                latitude=float(pts["lat"].mean()),
+                longitude=float(pts["lon"].mean()), zoom=3.4),
+            # carto вместо mapbox: не требует токена, подложка та же OSM
+            map_provider="carto", map_style="light",
+            tooltip={"text": "{fc_code} · {city}\n{qty}"}))
+        st.caption(t("stock.map.legend"))
+
+        # ---- строка-итог ----
+        if not arcs.empty:
+            _tot = int(arcs["qty"].sum())
+            _pairs = (arcs.groupby(["from", "to"], as_index=False)["qty"].sum()
+                          .sort_values("qty", ascending=False))
+            _city = dict(zip(_centers["fc_code"], _centers["city"]))
+            _route = "; ".join(
+                f"{_city.get(r['from'], r['from'])} → {_city.get(r['to'], r['to'])}"
+                f" ({int(r['qty'])})" for _, r in _pairs.head(3).iterrows())
+            _goods = ", ".join(sorted(arcs["sku"].dropna().unique())[:3])
+            st.info(t("stock.map.summary").format(
+                n=_tot, d=_days, routes=_route, goods=_goods or "—"))
+        else:
+            st.caption(t("stock.map.no_moves").format(d=_days))
+
+        # ---- движения за период ----
+        if not _moves.empty:
+            st.markdown(f"**{t('stock.map.moves_title')}**")
+            tbl = (_moves.groupby("fc_code", as_index=False)
+                         .agg(shipped=("qty", lambda x: int(-x[x < 0].sum())),
+                              net=("qty", "sum"),
+                              goods=("sku", "nunique")))
+            tbl["net"] = tbl["net"].astype(int)
+            tbl = tbl.merge(_centers[["fc_code", "city"]], on="fc_code",
+                            how="left").sort_values("shipped", ascending=False)
+            st.dataframe(
+                tbl[["fc_code", "city", "shipped", "net", "goods"]],
+                use_container_width=True, hide_index=True,
+                column_config={
+                    "fc_code": st.column_config.TextColumn(
+                        t("stock.map.col_fc"), width="small"),
+                    "city": st.column_config.TextColumn(t("stock.map.col_city")),
+                    "shipped": st.column_config.NumberColumn(
+                        t("stock.map.col_shipped"), width="medium"),
+                    "net": st.column_config.NumberColumn(
+                        t("stock.map.col_net"), format="%+d", width="medium",
+                        help=t("stock.map.col_net_help")),
+                    "goods": st.column_config.NumberColumn(
+                        t("stock.map.col_goods"), width="medium"),
+                },
+            )
+

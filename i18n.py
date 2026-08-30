@@ -179,6 +179,72 @@ TRANSLATIONS = {
         "uk": "В останньому знімку лише квоти каналів, фізичних залишків немає. Показані квоти.",
         "en": "The latest snapshot contains only channel quotas, no physical stock. Showing quotas.",
     },
+    "stock.tab.map": {
+        "ru": "Запасы Amazon", "uk": "Запаси Amazon", "en": "Amazon stock"},
+    "stock.map.no_data": {
+        "ru": "Нет данных по центрам FBA: не заполнен справочник центров или журнал "
+              "движений. Карта появится, когда загрузчик их привезёт.",
+        "uk": "Немає даних по центрах FBA: не заповнений довідник центрів або журнал "
+              "рухів. Карта зʼявиться, коли завантажувач їх привезе.",
+        "en": "No FBA centre data: either the centre reference or the movement ledger is "
+              "empty. The map appears once the loader delivers them.",
+    },
+    "stock.map.pool_eu": {
+        "ru": "Европа · {n} товаров · {c} центров",
+        "uk": "Європа · {n} товарів · {c} центрів",
+        "en": "Europe · {n} products · {c} centres"},
+    "stock.map.pool_uk": {
+        "ru": "Великобритания · {n} товаров · отдельный склад",
+        "uk": "Великобританія · {n} товарів · окремий склад",
+        "en": "United Kingdom · {n} products · separate pool"},
+    "stock.map.available": {"ru": "Доступно", "uk": "Доступно", "en": "Available"},
+    "stock.map.reserved": {"ru": "Резерв", "uk": "Резерв", "en": "Reserved"},
+    "stock.map.inbound": {"ru": "В пути", "uk": "У дорозі", "en": "Inbound"},
+    "stock.map.dead": {"ru": "Неликвид", "uk": "Неліквід", "en": "Unfulfillable"},
+    "stock.map.period": {"ru": "Период", "uk": "Період", "en": "Period"},
+    "stock.map.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
+    "stock.map.all_products": {
+        "ru": "Все товары", "uk": "Усі товари", "en": "All products"},
+    "stock.map.legend": {
+        "ru": "Точка — центр выполнения заказов, размер по остатку. Дуги — перемещения "
+              "между центрами за период: Amazon сам перекладывает запас ближе к спросу. "
+              "Разрез по центрам, а не по маркетплейсам: при Pan-EU один и тот же товар "
+              "виден в нескольких странах, и сумма по рынкам физический склад не описывает.",
+        "uk": "Точка — центр виконання замовлень, розмір за залишком. Дуги — переміщення "
+              "між центрами за період: Amazon сам перекладає запас ближче до попиту. "
+              "Розріз за центрами, а не за маркетплейсами: за Pan-EU той самий товар видно "
+              "в кількох країнах, і сума за ринками фізичний склад не описує.",
+        "en": "A dot is a fulfilment centre, sized by stock on hand. Arcs are transfers "
+              "between centres over the period — Amazon rebalances stock towards demand. "
+              "The cut is by centre, not by marketplace: under Pan-EU the same unit is "
+              "visible in several countries, so a sum across markets is not a warehouse.",
+    },
+    "stock.map.summary": {
+        "ru": "За {d} дн. Amazon переместил {n} ед. между центрами: {routes}. Товары: {goods}.",
+        "uk": "За {d} дн. Amazon перемістив {n} од. між центрами: {routes}. Товари: {goods}.",
+        "en": "Over {d} days Amazon moved {n} units between centres: {routes}. Products: {goods}.",
+    },
+    "stock.map.no_moves": {
+        "ru": "За {d} дн. перемещений между центрами не было.",
+        "uk": "За {d} дн. переміщень між центрами не було.",
+        "en": "No transfers between centres over the last {d} days.",
+    },
+    "stock.map.moves_title": {
+        "ru": "Движения за период", "uk": "Рухи за період",
+        "en": "Movements over the period"},
+    "stock.map.col_fc": {"ru": "Центр", "uk": "Центр", "en": "Centre"},
+    "stock.map.col_city": {"ru": "Город", "uk": "Місто", "en": "City"},
+    "stock.map.col_shipped": {"ru": "Отгружено", "uk": "Відвантажено", "en": "Shipped"},
+    "stock.map.col_net": {"ru": "Изменение", "uk": "Зміна", "en": "Net change"},
+    "stock.map.col_net_help": {
+        "ru": "Сумма всех движений по центру за период: приход минус расход. Плюс — "
+              "центр набрал запас, минус — отдал.",
+        "uk": "Сума всіх рухів по центру за період: прихід мінус витрата. Плюс — центр "
+              "набрав запас, мінус — віддав.",
+        "en": "The sum of all movements for the centre over the period: inbound minus "
+              "outbound. Plus means the centre gained stock, minus means it gave it away.",
+    },
+    "stock.map.col_goods": {"ru": "Товаров", "uk": "Товарів", "en": "Products"},
     "stock.tab.coverage": {"ru": "📅 Покрытие", "uk": "📅 Покриття", "en": "📅 Coverage"},
     "stock.abc.no_data": {
         "ru": "Недостаточно данных для ABC-анализа по текущему фильтру.",
