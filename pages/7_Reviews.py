@@ -297,8 +297,12 @@ def load_by_asin(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
                 GROUP BY 1, 2
             )
             SELECT asin,
-                   SUM(sent)      AS sent,
-                   SUM(no_action) AS no_action,
+                   -- ::int обязателен: SUM() в Postgres даёт numeric, а он
+                   -- приезжает Decimal'ом, колонка становится object и
+                   -- NumberColumn перестаёт её форматировать — процент
+                   -- отдачи выводился пустым при живых числах рядом
+                   SUM(sent)::int      AS sent,
+                   SUM(no_action)::int AS no_action,
                    (ARRAY_AGG(sales_channel
                               ORDER BY sent DESC, sales_channel))[1]
                                   AS sales_channel
@@ -1446,9 +1450,17 @@ with tab_asin:
         # виден над графиком и на него не влияет, читается как сломанный
         _sku_map = catalog.sku_by_asin()
         by_asin["sku"] = by_asin["asin"].astype(str).map(_sku_map).fillna("")
+        # Варианты рынка собираем по ОБЕИМ таблицам. Список из одной
+        # первой означал, что рынки, которые видно во второй, выбрать
+        # нельзя: там свой словарь значений — «de», «co.uk» вместо кодов
+        _dyn_mk = load_reviews_dynamics(DAYS, P_FROM, P_TO)
+        _dyn_mk = (sorted({catalog._mk(m) for m in
+                           _dyn_mk["marketplace"].dropna().unique()})
+                   if not _dyn_mk.empty else [])
         fa1, fa2 = st.columns([2, 3])
         with fa1:
-            _mk_opts = sorted(m for m in by_asin["mk"].unique() if str(m).strip())
+            _mk_opts = sorted(
+                {m for m in by_asin["mk"] if str(m).strip()} | set(_dyn_mk))
             _mk_pick = st.multiselect(
                 t("rev.asin.filter_market"), options=_mk_opts,
                 placeholder=t("rev.asin.filter_market_all"), key="asin_mk")
@@ -1461,7 +1473,8 @@ with tab_asin:
             """Тот же отбор для обеих таблиц: рынок и поиск по двум кодам."""
             out = df
             if _mk_pick:
-                out = out[out[mk_col].astype(str).isin(_mk_pick)]
+                # сравниваем нормализованные коды: «de» и «DE» — один рынок
+                out = out[out[mk_col].map(catalog._mk).isin(_mk_pick)]
             if _q:
                 _a = out["asin"].astype(str)
                 _s = _a.map(_sku_map).fillna("")
@@ -1537,6 +1550,7 @@ with tab_asin:
                                 "mk", "sent", "url"]].copy()
                 weak = weak.merge(_grow, on="asin", how="left")
                 weak["reviews"] = weak["reviews"].fillna(0).clip(lower=0).astype(int)
+                weak["sent"] = pd.to_numeric(weak["sent"], errors="coerce").fillna(0)
                 weak["pct"] = np.round(safe_div(weak["reviews"], weak["sent"]) * 100, 1)
                 # порядок как просили: сначала те, кто принёс больше отзывов,
                 # внутри — с наименьшей отдачей на запрос
@@ -1599,25 +1613,38 @@ with tab_asin:
                         st.caption(t("rev.dyn.top_filtered"))
                     else:
                         grown = grown.head(20).copy()
-                        grown["product_name"] = (grown["asin"].map(_names)
-                                                 .fillna("—"))
+                        # Заголовок берём по паре ASIN+рынок, а не один на
+                        # ASIN: один и тот же товар стоял здесь шестью
+                        # строками — fr, es, co.uk, nl, it, de — и все шесть
+                        # подписывались испанским текстом
+                        _t = [catalog.title_for(a, m) for a, m
+                              in zip(grown["asin"], grown["marketplace"])]
+                        grown["product_name"] = [
+                            ti if ti else str(_names.get(a, "—"))
+                            for (ti, _), a in zip(_t, grown["asin"])]
+                        grown["name_src"] = [mk for _, mk in _t]
+                        grown["mk"] = grown["marketplace"].map(catalog._mk)
                         grown["url"] = catalog.url_series(
                             asins=grown["asin"], markets=grown["marketplace"])
                         grown["photo"] = catalog.image_series(
                             asins=grown["asin"],
                             markets=grown["marketplace"])
                         st.dataframe(
-                            grown[["photo", "url", "product_name",
-                                   "marketplace", "first",
-                                   "last", "growth", "rating"]],
+                            grown[["photo", "url", "mk", "product_name",
+                                   "name_src", "first", "last", "growth",
+                                   "rating"]],
                             use_container_width=True, height=380, hide_index=True,
                             column_config={
                                 "photo": catalog.image_column(),
                                 "url": catalog.asin_column(),
-                                "product_name": st.column_config.TextColumn(
-                                    t("rev.col.product"), width="medium"),
-                                "marketplace": st.column_config.TextColumn(
+                                "mk": st.column_config.TextColumn(
                                     t("rev.col.marketplace"), width="small"),
+                                "product_name": st.column_config.TextColumn(
+                                    t("rev.col.product"), width="large",
+                                    help=t("rev.asin.name_help")),
+                                "name_src": st.column_config.TextColumn(
+                                    t("rev.asin.name_src"), width="small",
+                                    help=t("rev.asin.name_src_help")),
                                 "first": st.column_config.NumberColumn(
                                     t("rev.dyn.was"), width="small"),
                                 "last": st.column_config.NumberColumn(

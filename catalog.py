@@ -13,7 +13,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import t
-from links import amazon_url, first_amazon
+from links import AMAZON_DOMAIN, amazon_url
 
 # Рынок для ссылки, когда своего у страницы нет. ASIN у Amazon общий на
 # всю Европу, поэтому карточка откроется та же — меняется только витрина
@@ -71,14 +71,24 @@ NO_PHOTO = (
 )
 
 
-def _mk(v) -> str:
-    """Код рынка в том виде, в каком он лежит в kabinet_data.
+# Один и тот же рынок записан в базе тремя способами: economics_summary
+# и listing_cards держат код страны (DE), orders_history — имя канала
+# (Amazon.de), asin_reviews_daily — хвост домена (de, co.uk). Последний
+# ломался тише всех: «co.uk» не код страны, поэтому британские строки
+# теряли и заголовок, и ссылку — она молча уезжала на испанскую витрину.
+# Таблицу хвостов выводим из справочника доменов, а не пишем заново
+_SUFFIX = {}
+for _code, _dom in AMAZON_DOMAIN.items():
+    _SUFFIX.setdefault(_dom.split(".", 1)[1], _code)
 
-    listing_cards джойнится по коду страны, а страницы приходят и с
-    кодом, и с именем канала «Amazon.de» — приводим к одному виду здесь,
-    чтобы не разводить преобразование по вызывающим местам."""
-    v = str(v or "").strip().upper()
-    return v.split(".")[-1] if v.startswith("AMAZON.") else v
+
+def _mk(v) -> str:
+    """Код рынка, приведённый к виду kabinet_data, из любого из трёх."""
+    v = str(v or "").strip()
+    low = v.lower()
+    if low.startswith("amazon."):
+        low = low[len("amazon."):]
+    return _SUFFIX.get(low, v.upper())
 
 
 @st.cache_data(ttl=600)
@@ -178,6 +188,20 @@ def sku_by_asin() -> dict:
     return {a: s for s, a in asin_by_sku().items()}
 
 
+def _first_market(markets) -> str:
+    """Первый амазоновский рынок из списка «где продавалось».
+
+    Список идёт по убыванию продаж, но брать просто первый нельзя: сверху
+    может стоять Mirakl-канал, у которого домена нет. Каждый элемент
+    сперва приводим к коду страны — иначе британское «co.uk» не опознаётся
+    и строка уезжает на испанскую витрину."""
+    for m in str(markets or "").split(","):
+        code = _mk(m)
+        if code in AMAZON_DOMAIN:
+            return code
+    return ""
+
+
 def url_series(skus=None, asins=None, markets=None) -> list:
     """Ссылки на карточки для колонки таблицы.
 
@@ -196,5 +220,5 @@ def url_series(skus=None, asins=None, markets=None) -> list:
     for a, s, mk in zip(asins, skus, markets):
         if a is None or str(a) in ("None", "nan", ""):
             a = m.get(base_sku(s), "")
-        out.append(amazon_url(first_amazon(mk) or FALLBACK_MARKET, a))
+        out.append(amazon_url(_first_market(mk) or FALLBACK_MARKET, a))
     return out
