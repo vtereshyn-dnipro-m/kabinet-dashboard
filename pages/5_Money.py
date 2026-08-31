@@ -784,7 +784,8 @@ with tab_alerts:
         conn = get_connection()
         try:
             adf = pd.read_sql("""
-                SELECT sku, marketplace, alert_type, units, ads_spend, cm, details
+                SELECT sku, marketplace, alert_type, units, ads_spend, cm,
+                       details, calc_date
                 FROM kabinet_data.ads_alerts
                 WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.ads_alerts)
                 ORDER BY CASE alert_type
@@ -803,7 +804,7 @@ with tab_alerts:
             # в старой версии таблицы колонки маркетплейса нет
             adf = pd.read_sql("""
                 SELECT sku, NULL AS marketplace, alert_type, units,
-                       ads_spend, cm, details
+                       ads_spend, cm, details, calc_date
                 FROM kabinet_data.ads_alerts
                 WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.ads_alerts)
             """, conn)
@@ -812,6 +813,15 @@ with tab_alerts:
         return adf
 
     alerts = load_ads_alerts()
+
+    # Вкладка НЕ считает ничего сама: ads_alerts — готовая таблица,
+    # загрузчик пишет её раз в сутки по своему окну. Селектор периода на
+    # неё не влияет, и молчать об этом нельзя: человек меняет диапазон,
+    # числа не двигаются, и это выглядит как зависший экран
+    _cd = (pd.to_datetime(alerts["calc_date"], errors="coerce").max()
+           if not alerts.empty and "calc_date" in alerts.columns else pd.NaT)
+    st.caption(t("money.alerts.snapshot").format(
+        d=_cd.strftime("%d.%m.%Y") if pd.notna(_cd) else "—"))
 
     # применяем те же фильтры, что и ко всей странице
     if not alerts.empty:
