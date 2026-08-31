@@ -642,6 +642,11 @@ with tab_sum:
 # ═══════════════════════════════════════════════════════════════════
 
 with tab_lm:
+    # Вкладка называется каналом, и в строке вкладок это читалось как
+    # фильтр по каналу, которому не хватает ManoMano и Carrefour. Это не
+    # фильтр: здесь операционное здоровье канала, и выгрузка с приёмкой
+    # заказов приходит только по Leroy Merlin
+    st.caption(t("cm.lm.scope"))
     if not table_exists("lm_health_daily"):
         st.info(t("cm.lm.no_table"))
     else:
@@ -751,6 +756,7 @@ with tab_lm:
 # ═══════════════════════════════════════════════════════════════════
 
 with tab_amz:
+    st.caption(t("cm.amz.scope"))
     inc = load_incidents()
 
     if inc.empty:
