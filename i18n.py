@@ -2643,6 +2643,8 @@ TRANSLATIONS = {
     "cm.summary.search_ph": {"ru": "ASIN или SKU", "uk": "ASIN або SKU", "en": "ASIN or SKU"},
     "cm.summary.search_none": {"ru": "По запросу «{q}» товаров нет. Поиск идёт по артикулу и по ASIN сразу, различать их не нужно. Если товар продавался только вне выбранной страны или периода, он в свод не попал — проверьте фильтры сверху.", "uk": "За запитом «{q}» товарів немає. Пошук іде по артикулу і по ASIN одразу, розрізняти їх не потрібно. Якщо товар продавався лише поза обраною країною чи періодом, він до зведення не потрапив — перевірте фільтри згори.", "en": "No products match “{q}”. The search covers both SKU and ASIN, so there is no need to tell them apart. If the product only sold outside the selected country or period, it is not in this table — check the filters above."},
     "cm.summary.shown": {"ru": "Показано {n} из {total}.", "uk": "Показано {n} з {total}.", "en": "Showing {n} of {total}."},
+    "stock.map.out_only_blind": {"ru": "Показать только эти {n}", "uk": "Показати лише ці {n}", "en": "Show only these {n}"},
+    "stock.map.out_shown": {"ru": "Показано {n} из {total}.", "uk": "Показано {n} з {total}.", "en": "Showing {n} of {total}."},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "cm.col.price_gap": {
         "ru": "Разброс цен",
