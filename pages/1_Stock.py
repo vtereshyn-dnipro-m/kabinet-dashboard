@@ -1402,15 +1402,24 @@ with tab_map:
             _z = _z.sort_values(["_urgent", "per_day"], ascending=[False, False])
 
             _n_blind = int(_blind.sum())
+            _only_blind = False
             if _n_blind:
                 st.error(t("stock.map.out_blind").format(
                     n=_n_blind, per=f"{_z.loc[_blind, 'per_day'].sum():.1f}"))
+                # Из плашки должен быть путь к тем самым строкам. Названия
+                # обратно в неё не возвращаем — их оттуда убирали как
+                # нечитаемые; вместо этого один тумблер оставляет в
+                # таблице ровно те товары, о которых плашка говорит
+                _only_blind = st.toggle(
+                    t("stock.map.out_only_blind").format(n=_n_blind),
+                    value=False, key="map_only_blind")
+            _view = _z[_z["_urgent"] == 1] if _only_blind else _z
             st.markdown(f"**{t('stock.map.out_title')}**")
             st.caption(t("stock.map.out_caption").format(
-                n=len(_z), p=PERIOD.title))
+                n=len(_view), p=PERIOD.title))
             st.dataframe(
-                _z[["photo", "sku", "url", "product", "per_day", "days_zero",
-                    "markets"] + INV_INBOUND],
+                _view[["photo", "sku", "url", "product", "per_day",
+                       "days_zero", "markets"] + INV_INBOUND],
                 use_container_width=True, hide_index=True,
                 column_config={
                     "photo": catalog.image_column(),
@@ -1443,6 +1452,8 @@ with tab_map:
                         help=t("stock.map.inb_receiving_help")),
                 },
             )
+            st.caption(t("stock.map.out_shown").format(
+                n=len(_view), total=len(_z)))
             st.divider()
 
         # ---- карточки пулов ----
