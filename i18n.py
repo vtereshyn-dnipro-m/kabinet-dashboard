@@ -2636,6 +2636,9 @@ TRANSLATIONS = {
     "rev.dyn.top_filtered": {"ru": "Под выбранный рынок и поиск здесь ничего не подошло, хотя выше товары есть: прирост отзывов считается по своим снимкам и покрывает не все рынки.", "uk": "Під обраний ринок і пошук тут нічого не підійшло, хоча вище товари є: приріст відгуків рахується за своїми знімками і покриває не всі ринки.", "en": "Nothing here matches the selected marketplace and search, even though there are products above: review growth is counted from its own snapshots and does not cover every marketplace."},
     "catalog.photo_help": {"ru": "Главное фото листинга с витрины этого рынка. Серая рамка — карточки по товару нет в суточной выгрузке листингов; это не значит, что фото нет на самом Amazon.", "uk": "Головне фото лістингу з вітрини цього ринку. Сіра рамка — картки за товаром немає в добовому вивантаженні лістингів; це не означає, що фото немає на самому Amazon.", "en": "The listing's main photo from this marketplace's storefront. A grey frame means the product has no card in the daily listing export; it does not mean the photo is missing on Amazon itself."},
     "rev.asin.name_econ": {"ru": "экономика", "uk": "економіка", "en": "economics"},
+    "rev.asin.pick_hint": {"ru": "Нажмите на полосу — под графиком откроется карточка товара со ссылкой на листинг.", "uk": "Натисніть на смугу — під графіком відкриється картка товару з посиланням на лістинг.", "en": "Click a bar — a product card with a link to the listing opens below the chart."},
+    "rev.asin.pick_sent": {"ru": "Запросов отправлено: {n} {p}", "uk": "Запитів надіслано: {n} {p}", "en": "Requests sent: {n} {p}"},
+    "rev.asin.open": {"ru": "Открыть на Amazon", "uk": "Відкрити на Amazon", "en": "Open on Amazon"},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "cm.col.price_gap": {
         "ru": "Разброс цен",

@@ -1510,9 +1510,15 @@ with tab_asin:
                 # ticktext — иначе два товара с одинаковым названием склеились
                 # бы в одну полосу. Нет названия — показываем ASIN, это лучше
                 # пустой подписи
+                # На оси и название, и ASIN: по одному названию товар не
+                # найти ни в Seller Central, ни в 1С, а сырой ASIN ничего
+                # не говорит глазу. Значением категории ASIN остаётся —
+                # иначе два товара с одинаковым названием склеились бы в
+                # одну полосу
                 top["label"] = [
-                    str(a) if pd.isna(n) or str(n).strip() in ("", "—", "None")
-                    else (str(n)[:38] + "…" if len(str(n)) > 38 else str(n))
+                    (str(a) if pd.isna(n) or str(n).strip() in ("", "—", "None")
+                     else (str(n)[:30] + "…" if len(str(n)) > 30 else str(n))
+                     + "  ·  " + str(a))
                     for n, a in zip(top["product_name"], top["asin"])
                 ]
                 fig = px.bar(top, x="sent", y="asin", orientation="h",
@@ -1524,7 +1530,40 @@ with tab_asin:
                 fig.update_layout(height=max(320, 26 * len(top)),
                                   yaxis_title=None, xaxis_title=None,
                                   margin=dict(l=10, r=10, t=50, b=10))
-                st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+                # Клик по полосе открывает карточку товара под графиком.
+                # Ссылку в подпись оси не вшиваем: подпись графика,
+                # выглядящая ссылкой, но не работающая в каком-нибудь
+                # рендерере, хуже честной кнопки под ним
+                _ev = st.plotly_chart(fig, use_container_width=True,
+                                      config=PLOTLY_CFG, on_select="rerun",
+                                      key="rev_top_chart")
+                try:
+                    _pts = list(_ev["selection"]["points"])
+                except (TypeError, KeyError, IndexError):
+                    _pts = []
+                _idx = None
+                for _p in _pts:
+                    _i = _p.get("point_index", _p.get("point_number"))
+                    if _i is not None and 0 <= int(_i) < len(top):
+                        _idx = int(_i)
+                        break
+                if _idx is None:
+                    st.caption(t("rev.asin.pick_hint"))
+                else:
+                    _r = top.iloc[_idx]
+                    pc1, pc2, pc3 = st.columns([1, 4, 2])
+                    with pc1:
+                        st.image(_r["photo"], width=88)
+                    with pc2:
+                        st.markdown(
+                            f"**{_r['product_name']}**  \n`{_r['asin']}`"
+                            f" · {_r['mk'] or '—'}")
+                        st.caption(t("rev.asin.pick_sent").format(
+                            n=int(_r["sent"]), p=PERIOD.title))
+                    with pc3:
+                        if _r["url"]:
+                            st.link_button(t("rev.asin.open"), _r["url"],
+                                           use_container_width=True)
             with st.container():
                 # Детализация переехала сюда из «Динамики»: там тенденции,
                 # здесь разбор по товарам. Прежняя таблица «Все товары»
