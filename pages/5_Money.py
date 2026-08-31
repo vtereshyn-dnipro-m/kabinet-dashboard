@@ -779,15 +779,21 @@ with tab_fees:
 with tab_alerts:
     @st.cache_data(ttl=600)
     def load_ads_alerts():
-        """Алерты по рекламе. Маркетплейс тянем отдельно: без него фильтр
-        страны не работал и по Германии показывались алерты всех рынков."""
+        """Алерты по рекламе за все окна сразу.
+
+        Таблица считается загрузчиком по трём окнам, и строк в ней три
+        сотни — тянуть их одним запросом дешевле, чем ходить в базу на
+        каждое переключение периода."""
         conn = get_connection()
         try:
-            adf = pd.read_sql("""
-                SELECT sku, marketplace, alert_type, units, ads_spend, cm,
-                       details, calc_date
+            return pd.read_sql("""
+                SELECT sku, marketplace, alert_type, window_days,
+                       units, ads_spend, cm, net_proceeds, cogs_total,
+                       cogs_per_unit, days_with_sales, days_ads_only,
+                       calc_date
                 FROM kabinet_data.ads_alerts
-                WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.ads_alerts)
+                WHERE calc_date = (SELECT MAX(calc_date)
+                                   FROM kabinet_data.ads_alerts)
                 ORDER BY CASE alert_type
                     WHEN 'zero_sales' THEN 0
                     WHEN 'negative_cm' THEN 1
@@ -795,33 +801,66 @@ with tab_alerts:
                     ads_spend DESC NULLS LAST
             """, conn)
         except Exception:
-            # первый запрос уронил транзакцию — до повтора её надо откатить,
-            # иначе Postgres откажет и здесь
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            # в старой версии таблицы колонки маркетплейса нет
-            adf = pd.read_sql("""
-                SELECT sku, NULL AS marketplace, alert_type, units,
-                       ads_spend, cm, details, calc_date
-                FROM kabinet_data.ads_alerts
-                WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.ads_alerts)
-            """, conn)
+            return pd.DataFrame()
         finally:
             conn.close()
-        return adf
+
+    def alert_details(row) -> str:
+        """Фраза для колонки «Детали», собранная из чисел.
+
+        Раньше текст приходил готовым из базы и оставался русским в
+        английском интерфейсе — язык жил вне i18n, и починить это
+        переводом было нельзя. Теперь загрузчик отдаёт числа, а фразу
+        собирает страница: тип алерта и есть ключ перевода."""
+        def _n(v, dec=0, unit=""):
+            # Знак валюты внутри форматирования, а не в шаблоне фразы:
+            # иначе у отсутствующего числа получалось «— €», и прочерк
+            # читался как «ноль евро», хотя значения просто нет
+            v = pd.to_numeric(v, errors="coerce")
+            if pd.isna(v):
+                return "—"
+            return (f"{v:,.{dec}f}".replace(",", "\u00a0") + unit)
+        return t("money.alerts.details." + str(row["alert_type"])).format(
+            days=_n(row.get("window_days")),
+            units=_n(row.get("units")),
+            ads=_n(row.get("ads_spend"), 2, " €"),
+            cm=_n(row.get("cm"), 2, " €"),
+            net=_n(row.get("net_proceeds"), 2, " €"),
+            cogs=_n(row.get("cogs_total"), 2, " €"),
+            cogs_unit=_n(row.get("cogs_per_unit"), 2, " €"),
+            sale_days=_n(row.get("days_with_sales")),
+            ad_days=_n(row.get("days_ads_only")))
 
     alerts = load_ads_alerts()
 
-    # Вкладка НЕ считает ничего сама: ads_alerts — готовая таблица,
-    # загрузчик пишет её раз в сутки по своему окну. Селектор периода на
-    # неё не влияет, и молчать об этом нельзя: человек меняет диапазон,
-    # числа не двигаются, и это выглядит как зависший экран
+    # ---- окно ----
+    # Список окон берём из данных, а не из кода: загрузчик заведёт
+    # четвёртое — оно появится само. Период страницы в фиксированное окно
+    # ложится не всегда: «этот месяц» и свой диапазон — произвольной
+    # длины, поэтому берём ближайшее и говорим, какое именно показано
+    _wins = (sorted(int(w) for w in
+                    pd.to_numeric(alerts["window_days"], errors="coerce")
+                      .dropna().unique())
+             if not alerts.empty and "window_days" in alerts.columns else [])
+    _win = None
+    if _wins:
+        _win = min(_wins, key=lambda w: (abs(w - PERIOD.days), w))
+        alerts = alerts[pd.to_numeric(alerts["window_days"],
+                                      errors="coerce") == _win]
+
     _cd = (pd.to_datetime(alerts["calc_date"], errors="coerce").max()
            if not alerts.empty and "calc_date" in alerts.columns else pd.NaT)
-    st.caption(t("money.alerts.snapshot").format(
-        d=_cd.strftime("%d.%m.%Y") if pd.notna(_cd) else "—"))
+    _cd_s = _cd.strftime("%d.%m.%Y") if pd.notna(_cd) else "—"
+    if _win is None:
+        st.caption(t("money.alerts.snapshot").format(d=_cd_s))
+    elif _win == PERIOD.days:
+        st.caption(t("money.alerts.window_exact").format(n=_win, d=_cd_s))
+    else:
+        # окно не совпало с выбранным периодом — называем оба, иначе
+        # цифры молча относятся не к тому отрезку, что стоит сверху
+        st.caption(t("money.alerts.window_near").format(
+            n=_win, p=PERIOD.title, d=_cd_s,
+            all=" / ".join(str(w) for w in _wins)))
 
     # применяем те же фильтры, что и ко всей странице
     if not alerts.empty:
@@ -855,6 +894,7 @@ with tab_alerts:
         a3.metric(t("money.alerts.wasted"), len(w))
 
         alerts = alerts.copy()
+        alerts["details"] = [alert_details(r) for _, r in alerts.iterrows()]
         alerts["asin_url"] = catalog.url_series(
             skus=alerts["sku_display"], markets=alerts["marketplace"])
         alerts["photo"] = catalog.image_series(
