@@ -1790,20 +1790,14 @@ TRANSLATIONS = {
     "money.alerts.col_type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
     "money.alerts.col_details": {"ru": "Детали", "uk": "Деталі", "en": "Details"},
     "money.alerts.window_note": {
-        "ru": "Алерты считаются за 30 дней и не зависят от выбранного выше периода. "
-              "Поэтому товар может числиться здесь, даже если сейчас снят с продажи — "
-              "расход был раньше.",
-        "uk": "Алерти рахуються за 30 днів і не залежать від обраного вище періоду. "
-              "Тому товар може значитись тут, навіть якщо зараз знятий з продажу — "
-              "витрата була раніше.",
-        "en": "Alerts are calculated over 30 days and do not depend on the period selected "
-              "above. So a product can appear here even if it is currently suppressed — "
-              "the spend happened earlier.",
+        "ru": "Товар может числиться здесь, даже если сейчас снят с продажи: расход на рекламу был внутри окна, раньше.",
+        "uk": "Товар може значитися тут, навіть якщо зараз знятий з продажу: витрата на рекламу була всередині вікна, раніше.",
+        "en": "A product can appear here even if it is no longer on sale: the ad spend happened earlier, inside the window.",
     },
     "money.alerts.note": {
-        "ru": "Алерты пересчитываются ежедневно в 12:30 по данным рекламы (SP+SD) и P&L за 30 дней.",
-        "uk": "Алерти перераховуються щодня о 12:30 за даними реклами та P&L за 30 днів.",
-        "en": "Alerts recalculated daily at 12:30 from ads (SP+SD) and 30-day P&L.",
+        "ru": "Алерты пересчитываются ежедневно в 12:30 по данным рекламы (SP+SD) и P&L, отдельно по каждому окну.",
+        "uk": "Алерти перераховуються щодня о 12:30 за даними реклами (SP+SD) і P&L, окремо за кожним вікном.",
+        "en": "Alerts are recomputed daily at 12:30 from ad data (SP+SD) and P&L, separately for each window.",
     },
 
     # --- 5_Money.py: выбор периода ---
@@ -2654,6 +2648,23 @@ TRANSLATIONS = {
     "cm.summary.shown": {"ru": "Показано {n} из {total}.", "uk": "Показано {n} з {total}.", "en": "Showing {n} of {total}."},
     "stock.map.out_only_blind": {"ru": "Показать только эти {n}", "uk": "Показати лише ці {n}", "en": "Show only these {n}"},
     "stock.map.out_shown": {"ru": "Показано {n} из {total}.", "uk": "Показано {n} з {total}.", "en": "Showing {n} of {total}."},
+    "money.alerts.details.zero_sales": {
+        "ru": "Нет продаж за {days} дн. Реклама {ads} впустую, дней с рекламой: {ad_days}.",
+        "uk": "Немає продажів за {days} дн. Реклама {ads} даремно, днів з рекламою: {ad_days}.",
+        "en": "No sales in {days} days. {ads} spent on ads for nothing, days with ads: {ad_days}.",
+    },
+    "money.alerts.details.negative_cm": {
+        "ru": "Маржа {cm} за {days} дн.: чистыми {net}, себестоимость {cogs} ({cogs_unit} за штуку), реклама {ads}. Продано {units} шт.",
+        "uk": "Маржа {cm} за {days} дн.: чистими {net}, собівартість {cogs} ({cogs_unit} за штуку), реклама {ads}. Продано {units} шт.",
+        "en": "Margin {cm} over {days} days: {net} net, {cogs} COGS ({cogs_unit} per unit), {ads} ads. {units} units sold.",
+    },
+    "money.alerts.details.wasted_days": {
+        "ru": "Дней с рекламой и без заказов: {ad_days} из {days}. Продажи шли {sale_days} дн., на рекламу ушло {ads}.",
+        "uk": "Днів з рекламою і без замовлень: {ad_days} із {days}. Продажі йшли {sale_days} дн., на рекламу пішло {ads}.",
+        "en": "Days with ads and no orders: {ad_days} of {days}. Sales ran on {sale_days} days, {ads} spent on ads.",
+    },
+    "money.alerts.window_exact": {"ru": "Окно {n} дней — совпадает с выбранным периодом. Расчёт загрузчика на {d}.", "uk": "Вікно {n} днів — збігається з обраним періодом. Розрахунок завантажувача на {d}.", "en": "Window of {n} days — matches the selected period. Loader calculation as of {d}."},
+    "money.alerts.window_near": {"ru": "Показано окно {n} дней — ближайшее к выбранному периоду ({p}). Алерты считаются по фиксированным окнам: {all}, произвольный диапазон среди них не считается. Расчёт загрузчика на {d}.", "uk": "Показано вікно {n} днів — найближче до обраного періоду ({p}). Алерти рахуються за фіксованими вікнами: {all}, довільний діапазон серед них не рахується. Розрахунок завантажувача на {d}.", "en": "Showing the {n}-day window — the closest to the selected period ({p}). Alerts are computed over fixed windows: {all}; an arbitrary range is not among them. Loader calculation as of {d}."},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "cm.col.price_gap": {
         "ru": "Разброс цен",
