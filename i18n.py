@@ -1762,12 +1762,21 @@ TRANSLATIONS = {
 
     # --- 5_Money.py: алерты по рекламе ---
     "money.tab.alerts": {"ru": "⚠️ Реклама: проблемы", "uk": "⚠️ Реклама: проблеми", "en": "⚠️ Ads issues"},
+    "money.alerts.snapshot": {
+        "ru": "Это готовый расчёт загрузчика на {d}, а не расчёт за выбранный период: цифры здесь не меняются вместе с диапазоном сверху. Окно, за которое считался каждый алерт, написано в колонке «Детали».",
+        "uk": "Це готовий розрахунок завантажувача на {d}, а не розрахунок за обраний період: цифри тут не змінюються разом із діапазоном згори. Вікно, за яке рахувався кожен алерт, написано в колонці «Деталі».",
+        "en": "This is the loader's finished calculation as of {d}, not a calculation over the selected period: these figures do not change with the range above. The window each alert was computed over is written in the Details column.",
+    },
     "money.alerts.none": {
         "ru": "Рекламных проблем не найдено 🎉",
         "uk": "Рекламних проблем не знайдено 🎉",
         "en": "No ads issues found 🎉",
     },
-    "money.alerts.none_help": {"ru": "Ни одного SKU с рекламными проблемами за период", "uk": "Жодного SKU з рекламними проблемами за період", "en": "No SKU with ad problems in the period"},
+    "money.alerts.none_help": {
+        "ru": "Ни одного SKU с рекламными проблемами в последнем расчёте загрузчика",
+        "uk": "Жодного SKU з рекламними проблемами в останньому розрахунку завантажувача",
+        "en": "No SKU with ad problems in the loader's latest calculation",
+    },
     "money.alerts.zero": {"ru": "🔴 Реклама без продаж", "uk": "🔴 Реклама без продажів", "en": "🔴 Ads, no sales"},
     "money.alerts.zero_help": {
         "ru": "Кампании крутятся, продаж 0 — бюджет впустую",
