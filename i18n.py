@@ -2639,6 +2639,10 @@ TRANSLATIONS = {
     "rev.asin.pick_hint": {"ru": "Нажмите на полосу — под графиком откроется карточка товара со ссылкой на листинг.", "uk": "Натисніть на смугу — під графіком відкриється картка товару з посиланням на лістинг.", "en": "Click a bar — a product card with a link to the listing opens below the chart."},
     "rev.asin.pick_sent": {"ru": "Запросов отправлено: {n} {p}", "uk": "Запитів надіслано: {n} {p}", "en": "Requests sent: {n} {p}"},
     "rev.asin.open": {"ru": "Открыть на Amazon", "uk": "Відкрити на Amazon", "en": "Open on Amazon"},
+    "cm.summary.search": {"ru": "Поиск", "uk": "Пошук", "en": "Search"},
+    "cm.summary.search_ph": {"ru": "ASIN или SKU", "uk": "ASIN або SKU", "en": "ASIN or SKU"},
+    "cm.summary.search_none": {"ru": "По запросу «{q}» товаров нет. Поиск идёт по артикулу и по ASIN сразу, различать их не нужно. Если товар продавался только вне выбранной страны или периода, он в свод не попал — проверьте фильтры сверху.", "uk": "За запитом «{q}» товарів немає. Пошук іде по артикулу і по ASIN одразу, розрізняти їх не потрібно. Якщо товар продавався лише поза обраною країною чи періодом, він до зведення не потрапив — перевірте фільтри згори.", "en": "No products match “{q}”. The search covers both SKU and ASIN, so there is no need to tell them apart. If the product only sold outside the selected country or period, it is not in this table — check the filters above."},
+    "cm.summary.shown": {"ru": "Показано {n} из {total}.", "uk": "Показано {n} з {total}.", "en": "Showing {n} of {total}."},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "cm.col.price_gap": {
         "ru": "Разброс цен",

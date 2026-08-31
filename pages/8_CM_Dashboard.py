@@ -536,20 +536,40 @@ with tab_sum:
         k3.metric(t("cm.kpi.return_alerts"), f"{int(wide['returns_alert'].sum()):,}",
                   help=t("cm.kpi.return_alerts_help"))
 
-        fl1, fl2 = st.columns([1, 1])
+        fl1, fl2, fl3 = st.columns([1, 1, 2])
         with fl1:
             only_alerts = st.toggle(t("cm.summary.only_alerts"), value=False)
         with fl2:
             only_returns = st.toggle(t("cm.summary.only_returns"), value=False)
+        with fl3:
+            _q = st.text_input(t("cm.summary.search"),
+                               placeholder=t("cm.summary.search_ph"),
+                               key="cm_search").strip()
 
+        _total_all = len(wide)
         view = wide
+        # Поиск идёт по артикулу и по ASIN сразу: человек не знает заранее,
+        # что у него в буфере, и выбирать вид кода перед вводом — лишний шаг
+        if _q:
+            _amap = catalog.asin_by_sku()
+            _sk = view["base_sku"].astype(str)
+            view = view[_sk.str.contains(_q, case=False, na=False)
+                        | _sk.map(_amap).fillna("")
+                            .str.contains(_q, case=False, na=False)]
+        _found = len(view)
         if only_alerts:
             view = view[view["price_alert"]]
         if only_returns:
             view = view[view["returns_alert"]]
 
         if view.empty:
-            st.success(t("cm.summary.no_alerts"))
+            # Пустой поиск и пустой список тревог — разные вещи. «Тревог
+            # нет» на несуществующий артикул читается как «с товаром всё
+            # хорошо», хотя товара просто не нашли
+            if _q and _found == 0:
+                st.info(t("cm.summary.search_none").format(q=_q))
+            else:
+                st.success(t("cm.summary.no_alerts"))
         else:
             # ASIN в economics_summary нет — добираем по артикулу.
             # Рынок для домена берём тот, где выручка канала больше, а из
@@ -603,6 +623,8 @@ with tab_sum:
 
             st.dataframe(view[show], use_container_width=True, height=560,
                          hide_index=True, column_config=conf)
+            st.caption(t("cm.summary.shown").format(
+                n=len(view), total=_total_all))
             st.caption(t("cm.summary.note"))
             if quota_rows.empty:
                 st.caption(t("cm.summary.quota_none"))
