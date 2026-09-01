@@ -8,9 +8,11 @@
 справочные разрезы свёрнуты внизу — к ним обращаются раз в месяц.
 """
 import re
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 from db.connection import get_connection
@@ -48,6 +50,12 @@ LISTING_SUITE_URL = ""
 # потому что плохая, а потому что покупки ещё не случились
 PRELIM_DAYS = 3
 
+PLOTLY_CFG = {"displayModeBar": False}
+# Часы приходят в UTC, а решения принимают по местному времени. Сдвигать
+# на +2 нельзя: летом это +2, зимой +1, и константа тихо разъедется в
+# последнее воскресенье октября — зона знает про переход, число не знает
+LOCAL_TZ = ZoneInfo("Europe/Madrid")
+
 MASKED = "__MASKED__"
 ASIN_RE = re.compile(r"^B0[A-Z0-9]{8}$")
 # В названиях кампаний ASIN обычно стоит в конце: ...-B0DFWVNRWB.
@@ -71,6 +79,8 @@ NEED = {
                         "ntb_purchases", "total_sales", "ntb_rate_pct"],
     "amc_search_terms": ["report_date", "customer_search_term",
                          "unique_buyers", "sales"],
+    "amc_dayparting": ["report_date", "hour_utc", "purchases"],
+    "amc_overlap": ["ad_type_1", "ad_type_2", "overlap_users"],
 }
 
 # Технические поля загрузки. На экран не идут: инстанс и id рынка ничего
@@ -576,12 +586,33 @@ st.caption(t("ads.ref.note"))
 with st.expander(t("ads.ref.dayparting")):
     _d = scope(load_amc("amc_dayparting")[0]).drop(columns=list(SERVICE),
                                                    errors="ignore")
-    # Обычный if, а не тернарник: выражение верхнего уровня Streamlit
-    # считает значением для показа и пытается разобрать его как код
     if _d.empty:
         st.info(t("ads.empty.period"))
-    else:
-        st.dataframe(_d, use_container_width=True, hide_index=True)
+    elif not contract_error(_d, "amc_dayparting"):
+        # Час считаем через зону, а не прибавлением двойки: дата у строки
+        # есть, значит переход на зимнее время учтётся сам
+        _ts = (pd.to_datetime(_d["report_date"], errors="coerce")
+               + pd.to_timedelta(pd.to_numeric(_d["hour_utc"],
+                                               errors="coerce").fillna(0),
+                                 unit="h"))
+        _d["hour"] = (_ts.dt.tz_localize("UTC").dt.tz_convert(LOCAL_TZ)
+                        .dt.hour)
+        _h = (_d.groupby("hour", as_index=False)["purchases"].sum()
+                .set_index("hour").reindex(range(24), fill_value=0)
+                .reset_index())
+        _h["purchases"] = pd.to_numeric(_h["purchases"],
+                                        errors="coerce").fillna(0)
+        fig = px.bar(_h, x="hour", y="purchases",
+                     color_discrete_sequence=[GREEN])
+        fig.update_xaxes(dtick=1, title=None,
+                         tickmode="array", tickvals=list(range(24)))
+        fig.update_yaxes(title=None)
+        fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10))
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+        st.caption(t("ads.ref.hours_local"))
+        if st.toggle(t("ads.ref.numbers"), key="amc_hours_tbl"):
+            st.dataframe(_d.drop(columns=["hour"], errors="ignore"),
+                         use_container_width=True, hide_index=True)
 
 with st.expander(t("ads.ref.terms")):
     S = scope(load_amc("amc_search_terms")[0])
@@ -601,6 +632,30 @@ with st.expander(t("ads.ref.terms")):
         T["avg"] = np.where(T["customers"] > 0, T["sales"] / T["customers"], np.nan)
         _is_asin = T["search_term"].astype(str).str.upper().str.match(ASIN_RE)
 
+        def _terms_bars(df):
+            """Полосы вместо таблицы: длина сразу показывает, во что
+            упирается спрос, а средний чек остаётся подписью на полосе —
+            он важнее самих продаж и должен читаться без второго
+            взгляда."""
+            top = df.sort_values("sales", ascending=False).head(10)
+            if top.empty:
+                return
+            top = top.sort_values("sales")
+            top["label"] = [f"{v:,.0f} €".replace(",", " ") +
+                            (f"  ·  {a:,.0f} € "
+                             .replace(",", " ") + t("ads.terms.per_buyer")
+                             if pd.notna(a) else "")
+                            for v, a in zip(top["sales"], top["avg"])]
+            fig = px.bar(top, x="sales", y="search_term", orientation="h",
+                         text="label", color_discrete_sequence=[GREEN])
+            fig.update_traces(textposition="outside", cliponaxis=False)
+            fig.update_xaxes(title=None, showticklabels=False,
+                             range=[0, float(top["sales"].max()) * 1.45])
+            fig.update_yaxes(title=None)
+            fig.update_layout(height=max(220, 34 * len(top)),
+                              margin=dict(l=10, r=10, t=10, b=10))
+            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+
         def _terms_table(df, key):
             st.dataframe(
                 df.sort_values("sales", ascending=False).head(10)[
@@ -619,24 +674,41 @@ with st.expander(t("ads.ref.terms")):
                 }, key=key)
 
         st.markdown(f"**{t('ads.terms.top')}**")
-        _terms_table(T[~_is_asin], "amc_terms_words")
+        _terms_bars(T[~_is_asin])
         if _is_asin.any():
             # Поиск по коду товара — другое поведение: человек пришёл с
             # другой площадки или сравнивает цену. Смешивать со
             # смысловыми запросами значит усреднять разные намерения
             st.markdown(f"**{t('ads.terms.asins')}**")
             st.caption(t("ads.terms.asins_note"))
-            _terms_table(T[_is_asin], "amc_terms_asins")
+            _terms_bars(T[_is_asin])
+        # Скрытое в полосы не мешаем: это не запрос, а сумма по всем, что
+        # не прошли порог, — рядом с настоящими запросами такая полоса
+        # читалась бы как самый популярный из них
         if not _tm.empty:
             st.caption(t("ads.terms.masked").format(
                 s=money(_tm["sales"].sum()),
                 p=f'{_tm["sales"].sum() / max(_tm["sales"].sum() + T["sales"].sum(), 1) * 100:.0f}'))
         st.caption(t("ads.terms.no_acos"))
+        if st.toggle(t("ads.ref.numbers"), key="amc_terms_tbl"):
+            _terms_table(T[~_is_asin], "amc_terms_words")
+            if _is_asin.any():
+                _terms_table(T[_is_asin], "amc_terms_asins")
 
 with st.expander(t("ads.ref.overlap")):
     _o = scope(load_amc("amc_overlap")[0]).drop(columns=list(SERVICE),
-                                               errors="ignore")
+                                                errors="ignore")
     if _o.empty:
         st.info(t("ads.empty.period"))
-    else:
-        st.dataframe(_o, use_container_width=True, hide_index=True)
+    elif not contract_error(_o, "amc_overlap"):
+        # График на одну строку — это рамка вокруг числа. Фразой короче
+        # и понятнее
+        _ov = (_o.groupby(["ad_type_1", "ad_type_2"], as_index=False)
+                 ["overlap_users"].max())
+        for _, r in _ov.iterrows():
+            st.markdown(t("ads.ref.overlap_line").format(
+                n=f"{int(r['overlap_users']):,}".replace(",", " "),
+                a=r["ad_type_1"], b=r["ad_type_2"]))
+        st.caption(t("ads.ref.overlap_note"))
+        if st.toggle(t("ads.ref.numbers"), key="amc_overlap_tbl"):
+            st.dataframe(_o, use_container_width=True, hide_index=True)

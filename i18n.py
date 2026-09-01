@@ -2776,6 +2776,11 @@ TRANSLATIONS = {
     "ads.card.acos_manual": {"ru": "порог {n} %, задан вручную", "uk": "поріг {n} %, заданий вручну", "en": "target {n} %, set manually"},
     "ads.card.cac": {"ru": "Новый покупатель", "uk": "Новий покупець", "en": "New customer"},
     "ads.card.cac_base": {"ru": "расход ÷ покупки новых", "uk": "витрата ÷ покупки нових", "en": "spend ÷ new-to-brand purchases"},
+    "ads.ref.numbers": {"ru": "Точные числа", "uk": "Точні числа", "en": "Exact figures"},
+    "ads.ref.hours_local": {"ru": "Время местное, испанское. В данных часы приходят в UTC — пересчёт идёт через часовую зону, а не прибавлением двух часов, поэтому переход на зимнее время учитывается сам.", "uk": "Час місцевий, іспанський. У даних години надходять у UTC — перерахунок іде через часову зону, а не додаванням двох годин, тому перехід на зимовий час враховується сам.", "en": "Times are local to Spain. The data arrives in UTC and is converted through the time zone rather than by adding two hours, so the switch to winter time is handled automatically."},
+    "ads.terms.per_buyer": {"ru": "за покупателя", "uk": "за покупця", "en": "per buyer"},
+    "ads.ref.overlap_line": {"ru": "**{n}** человек видели и {a}, и {b}.", "uk": "**{n}** людей бачили і {a}, і {b}.", "en": "**{n}** people saw both {a} and {b}."},
+    "ads.ref.overlap_note": {"ru": "Пересечение показывает, сколько раз мы платили дважды за одного человека. Отдельная метрика на одну-две строки — повод посмотреть, а не считать каждый день.", "uk": "Перетин показує, скільки разів ми платили двічі за одну людину. Окрема метрика на один-два рядки — привід подивитися, а не рахувати щодня.", "en": "The overlap shows how often we paid twice for the same person. A single-figure metric like this is worth a look, not a daily calculation."},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "cm.col.price_gap": {
         "ru": "Разброс цен",
