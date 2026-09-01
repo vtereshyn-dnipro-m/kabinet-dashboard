@@ -2714,7 +2714,11 @@ TRANSLATIONS = {
     "ads.camp.col_spend": {"ru": "Расход", "uk": "Витрата", "en": "Spend"},
     "ads.camp.col_action": {"ru": "Действие", "uk": "Дія", "en": "Action"},
     "ads.camp.col_clicks": {"ru": "Клики", "uk": "Кліки", "en": "Clicks"},
-    "ads.camp.sub": {"ru": "кликов {c} · заказов {o} · охват {u}", "uk": "кліків {c} · замовлень {o} · охоплення {u}", "en": "{c} clicks · {o} orders · reach {u}"},
+    "ads.camp.sub": {
+        "ru": "кликов {c} · заказов {o} · показов {i}",
+        "uk": "кліків {c} · замовлень {o} · показів {i}",
+        "en": "{c} clicks · {o} orders · {i} impressions",
+    },
     "ads.act.off": {"ru": "отключить", "uk": "вимкнути", "en": "switch off"},
     "ads.act.lower": {"ru": "снизить ставку", "uk": "знизити ставку", "en": "lower the bid"},
     "ads.act.keep": {"ru": "оставить", "uk": "залишити", "en": "keep"},
