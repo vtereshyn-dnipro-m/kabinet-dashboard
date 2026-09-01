@@ -83,6 +83,9 @@ pages = st.navigation({
         st.Page("pages/2_Incidents.py", title=t("nav.incidents"), icon=":material/warning:"),
         st.Page("pages/4_Reorder.py", title=t("nav.reorder"), icon=":material/shopping_cart:"),
         st.Page("pages/5_Money.py", title=t("nav.money"), icon=":material/payments:"),
+        # Отдельной страницей, а не вкладкой в «Деньгах»: там считают
+        # прибыль, здесь ведут ставки — разные читатели и разные вопросы
+        st.Page("pages/9_Ads.py", title=t("nav.ads"), icon=":material/campaign:"),
         st.Page("pages/3_Forecast.py", title=t("nav.forecast"), icon=":material/show_chart:"),
         st.Page("pages/7_Reviews.py", title=t("nav.reviews"),
                 icon=":material/rate_review:"),
