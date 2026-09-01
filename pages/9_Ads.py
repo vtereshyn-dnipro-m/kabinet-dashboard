@@ -64,21 +64,60 @@ MK_COL = "amazon_marketplace_id"
 
 
 @st.cache_data(ttl=600)
-def load_amc(table: str) -> pd.DataFrame:
-    """Таблица AMC целиком.
+def load_amc(table: str) -> tuple:
+    """Таблица AMC целиком и текст ошибки, если запрос не прошёл.
 
-    SELECT * намеренно: перечислять колонки в запросе значит гадать их
-    имена внутри SQL, где ошибка роняет запрос целиком. Здесь ошибка
-    видна на экране с полным списком того, что пришло. Объёмы дневных
-    агрегатов такие, что тянуть всё дешевле, чем ходить в базу на
-    каждое переключение периода."""
+    Ошибку возвращаем, а не глотаем. Первый же прогон показал, зачем:
+    вью не оказалось в схеме, запрос упал, пустой ответ дошёл до экрана
+    как «данных нет» — и выглядело это так, будто не отработал
+    загрузчик, хотя данные лежали на месте. Молчаливый except здесь
+    стоит дороже любой некрасивой строки на экране.
+
+    SELECT * намеренно: перечислять колонки значит гадать их имена
+    внутри SQL, где ошибка роняет запрос целиком."""
     conn = get_connection()
     try:
-        return pd.read_sql(f"SELECT * FROM kabinet_data.{table}", conn)
-    except Exception:
-        return pd.DataFrame()
+        return pd.read_sql(f"SELECT * FROM kabinet_data.{table}", conn), ""
+    except Exception as e:
+        return pd.DataFrame(), f"{type(e).__name__}: {e}".strip()
     finally:
         conn.close()
+
+
+@st.cache_data(ttl=600)
+def amc_objects() -> list:
+    """Что вообще лежит в схеме с именем amc. Без этого списка разбор
+    «почему пусто» превращается в переписку: видно только то, чего нет,
+    и не видно того, что есть."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'kabinet_data'
+              AND table_name LIKE '%%amc%%'
+            ORDER BY 1
+        """, conn)
+        return df["table_name"].astype(str).tolist()
+    except Exception:
+        return []
+    finally:
+        conn.close()
+
+
+def load_first(*names) -> tuple:
+    """Первый существующий источник из перечисленных.
+
+    Действия считаются по campaign_status, а он живёт во вью. Если вью
+    нет, берём базовую таблицу: карточки и суммы соберутся и по ней, а
+    чего именно не хватит — скажет проверка колонок."""
+    errs = []
+    for n in names:
+        df, err = load_amc(n)
+        if not df.empty:
+            return df, n, ""
+        errs.append(f"{n} — {err or '0 строк'}")
+    return pd.DataFrame(), names[0], "; ".join(errs)
 
 
 def missing(df: pd.DataFrame, table: str) -> list:
@@ -122,10 +161,16 @@ def card(col, label: str, base: str, value: str, tone: str = "") -> None:
 st.title(t("ads.title"))
 st.caption(t("ads.subtitle"))
 
-attr = load_amc("v_amc_attribution")
+attr, ATTR_SRC, _err = load_first("v_amc_attribution", "amc_attribution")
 if attr.empty:
-    st.info(t("ads.empty.no_table"))
+    st.error(t("ads.err.load").format(
+        e=_err or "—", have=", ".join(amc_objects()) or "—"))
     st.stop()
+if ATTR_SRC != "v_amc_attribution":
+    # Вью считает campaign_status, roas и acos_pct. Без него это придётся
+    # считать здесь, а логика в двух местах однажды разойдётся — поэтому
+    # не считаем, а говорим
+    st.warning(t("ads.err.no_view").format(src=ATTR_SRC))
 if contract_error(attr, "v_amc_attribution"):
     st.stop()
 
@@ -137,7 +182,7 @@ _markets = (sorted({str(m) for m in attr[MK_COL].dropna().unique()})
 # amc_run_log — внешняя точка контроля: если job молчит, таблицы просто
 # перестают пополняться, и без этой проверки страница показывает старое
 # как свежее
-_log = load_amc("amc_run_log")
+_log = load_amc("amc_run_log")[0]
 if not _log.empty:
     _dcol = next((c for c in ("finished_at", "started_at", "run_at", "calc_date")
                   if c in _log.columns), None)
@@ -206,7 +251,14 @@ for c in ("spend", "sales_14d", "clicks", "purchases_14d",
         A[c] = pd.to_numeric(A[c], errors="coerce")
 
 if A.empty:
-    st.info(t("ads.empty.period"))
+    # Границы имеющихся данных в сообщении обязательны: без них «за этот
+    # период данных нет» неотличимо от «загрузчик умер», и человек идёт
+    # чинить то, что работает
+    _dd = pd.to_datetime(attr["report_date"], errors="coerce").dropna()
+    st.info(t("ads.empty.period_range").format(
+        a=_dd.min().strftime("%d.%m.%Y") if len(_dd) else "—",
+        b=_dd.max().strftime("%d.%m.%Y") if len(_dd) else "—",
+        f=_from.strftime("%d.%m.%Y"), to=_to.strftime("%d.%m.%Y")))
     st.stop()
 
 # ═══════════════════════════════════════════════════════════════════
@@ -216,7 +268,7 @@ _spend, _sales = A["spend"].sum(), A["sales_14d"].sum()
 _days = max((_to - _from).days + 1, 1)
 _acos = (_spend / _sales * 100) if _sales > 0 else np.inf
 
-ntb = scope(load_amc("amc_ntb_by_asin"))
+ntb = scope(load_amc("amc_ntb_by_asin")[0])
 _ntb_share = np.nan
 if not ntb.empty and {"total_purchases", "ntb_rate_pct"} <= set(ntb.columns):
     _o = pd.to_numeric(ntb["total_purchases"], errors="coerce").fillna(0)
@@ -398,13 +450,13 @@ st.divider()
 st.caption(t("ads.ref.note"))
 
 with st.expander(t("ads.ref.dayparting")):
-    _d = scope(load_amc("amc_dayparting")).drop(columns=list(SERVICE),
+    _d = scope(load_amc("amc_dayparting")[0]).drop(columns=list(SERVICE),
                                                  errors="ignore")
     st.dataframe(_d, use_container_width=True, hide_index=True) if not _d.empty \
         else st.info(t("ads.empty.period"))
 
 with st.expander(t("ads.ref.terms")):
-    S = scope(load_amc("amc_search_terms"))
+    S = scope(load_amc("amc_search_terms")[0])
     if S.empty:
         st.info(t("ads.empty.period"))
     elif not contract_error(S, "amc_search_terms"):
@@ -454,7 +506,7 @@ with st.expander(t("ads.ref.terms")):
         st.caption(t("ads.terms.no_acos"))
 
 with st.expander(t("ads.ref.overlap")):
-    _o = scope(load_amc("amc_overlap")).drop(columns=list(SERVICE),
+    _o = scope(load_amc("amc_overlap")[0]).drop(columns=list(SERVICE),
                                              errors="ignore")
     st.dataframe(_o, use_container_width=True, hide_index=True) if not _o.empty \
         else st.info(t("ads.empty.period"))
