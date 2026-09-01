@@ -432,6 +432,11 @@ k3.metric(t("money.kpi.cogs"),
           help=(t("money.kpi.cogs_missing") if pd.isna(tot_cogs)
                 else t("money.kpi.cogs_help")))
 k4.metric(t("money.kpi.ads"), f"−{tot_ads:,.0f} €", help=t("money.kpi.ads_help"))
+# Период уезжает вместе с переходом: он общий для Кабинета и лежит в
+# session_state, отдельно передавать нечего
+with k4:
+    st.page_link("pages/9_Ads.py", label=t("money.kpi.ads_link"),
+                 icon=":material/arrow_forward:")
 k5.metric(t("money.kpi.cm"),
           "—" if pd.isna(tot_cogs) else f"{cm:,.0f} €",
           delta=None if pd.isna(tot_cogs) else f"{cm_pct:.1f}%",
