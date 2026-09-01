@@ -392,10 +392,10 @@ except Exception as e:
 # ═══════════════════════════════════════════════════════════════════
 
 if date_from is not None:
-    _title = t("home.sec.sales_range").format(
+    _title = t("home.sec.sales_range", 
         f=date_from.strftime("%d.%m"), to=date_to.strftime("%d.%m.%Y"))
 else:
-    _title = t("home.sec.sales").format(d=DAYS)
+    _title = t("home.sec.sales", d=DAYS)
 st.markdown(f"##### {_title}")
 
 # «Полный день» — тот, за который пришли и амазоновские отчёты. Финансовые
@@ -434,10 +434,10 @@ if not money.empty:
     _lag = (pd.Timestamp(datetime.now().date()) - _last).days
     if _lag >= 2 and date_from is None:
         _from = (_last - pd.Timedelta(days=DAYS - 1)).strftime("%d.%m")
-        st.caption(t("home.sales.lag").format(
+        st.caption(t("home.sales.lag", 
             d=_last.strftime("%d.%m"), n=_lag, f=_from))
     elif _lag >= 2 and date_to is not None and date_to > _last:
-        st.caption(t("home.sales.lag_range").format(
+        st.caption(t("home.sales.lag_range", 
             d=_last.strftime("%d.%m"), n=_lag))
 
 if money.empty:
@@ -503,13 +503,13 @@ else:
     s0, s1, s2, s3, s4 = st.columns(5)
     s0.metric(t("home.kpi.ordered"),
               fmt_money(ord_cur) if ord_cur else "—",
-              help=(t("home.kpi.ordered_help_span").format(
+              help=(t("home.kpi.ordered_help_span", 
                         of=_o_from.strftime("%d.%m"), ot=_o_to.strftime("%d.%m"),
                         mf=_m_from.strftime("%d.%m"), mt=_m_to.strftime("%d.%m"))
                     if _spans_differ else t("home.kpi.ordered_help")))
     s1.metric(t("home.kpi.revenue"), fmt_money(rev_cur),
               delta=(f"{delta_pct:+.1f}%" if delta_pct is not None else None),
-              help=t("home.kpi.revenue_help").format(d=DAYS))
+              help=t("home.kpi.revenue_help", d=DAYS))
     s2.metric(t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
               help=t("home.kpi.margin_help"))
     _ref = int(cur.get("units_refunded", pd.Series(dtype=float)).sum() or 0)
@@ -577,7 +577,7 @@ else:
             elif len(codes) <= 2:
                 sub = ", ".join(codes)
             else:
-                sub = t("home.sales.n_countries").format(n=len(codes))
+                sub = t("home.sales.n_countries", n=len(codes))
             value = (t("home.sales.silent") if r["revenue"] <= 0
                      else f"{r['revenue']:,.0f} €")
             st.markdown(
@@ -637,7 +637,7 @@ else:
             unsafe_allow_html=True)
 
     if ord_cur and rev_cur:
-        st.caption(t("home.sales.two_numbers").format(
+        st.caption(t("home.sales.two_numbers", 
             gap=ord_cur - rev_cur, pct=(ord_cur - rev_cur) / ord_cur * 100))
     st.caption(t("home.sales.no_plan"))
     st.page_link("pages/5_Money.py", label=t("home.link.money"),
@@ -660,13 +660,13 @@ with cl:
         d = coverage_diag()
         err = d["error"] or st.session_state.get("_cov_error")
         if err:
-            st.error(t("cov.err.query").format(e=err))
+            st.error(t("cov.err.query", e=err))
         elif not d["table"]:
             st.error(t("cov.err.no_table"))
         elif not d["rows"]:
             st.warning(t("cov.err.no_rows"))
         else:
-            st.warning(t("cov.err.no_match").format(
+            st.warning(t("cov.err.no_match", 
                 n=d["rows"],
                 d=("—" if pd.isna(pd.Timestamp(d["last_calc"]))
                    else pd.Timestamp(d["last_calc"]).strftime("%d.%m.%Y %H:%M"))))
@@ -786,19 +786,19 @@ with ir:
         st.caption(t("home.rev.no_data"))
     else:
         q1, q2 = st.columns(2)
-        q1.metric(t("home.kpi.requests").format(d=DAYS),
+        q1.metric(t("home.kpi.requests", d=DAYS),
                   f"{reviews.get('sent7', 0):,}",
-                  help=t("home.kpi.requests_help").format(d=DAYS))
+                  help=t("home.kpi.requests_help", d=DAYS))
         growth = reviews.get("reviews_growth")
         q2.metric(t("home.kpi.new_reviews"),
                   f"+{growth:,}" if growth is not None else "—",
-                  help=t("home.kpi.new_reviews_help").format(
+                  help=t("home.kpi.new_reviews_help", 
                       d=DAYS, n=reviews.get("reviews_pairs", 0)))
         if reviews.get("last_sent") is not None:
             ls = pd.to_datetime(reviews["last_sent"])
             hours = (datetime.now(ls.tzinfo) - ls).total_seconds() / 3600
             if hours > 25:
-                st.warning(t("home.rev.stopped").format(h=hours))
+                st.warning(t("home.rev.stopped", h=hours))
         st.page_link("pages/7_Reviews.py", label=t("home.link.reviews"),
                      icon=":material/rate_review:")
 

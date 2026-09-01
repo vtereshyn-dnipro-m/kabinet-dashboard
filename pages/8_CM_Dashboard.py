@@ -567,7 +567,7 @@ with tab_sum:
             # нет» на несуществующий артикул читается как «с товаром всё
             # хорошо», хотя товара просто не нашли
             if _q and _found == 0:
-                st.info(t("cm.summary.search_none").format(q=_q))
+                st.info(t("cm.summary.search_none", q=_q))
             else:
                 st.success(t("cm.summary.no_alerts"))
         else:
@@ -594,11 +594,11 @@ with tab_sum:
                 p, k = f"avg_price_{slug[ch]}", f"stock_{slug[ch]}"
                 show += [u, r, p]
                 conf[u] = st.column_config.NumberColumn(
-                    t("cm.col.ch_units").format(ch=ch), width="small")
+                    t("cm.col.ch_units", ch=ch), width="small")
                 conf[r] = st.column_config.NumberColumn(
-                    t("cm.col.ch_revenue").format(ch=ch), format="%.0f €")
+                    t("cm.col.ch_revenue", ch=ch), format="%.0f €")
                 conf[p] = st.column_config.NumberColumn(
-                    t("cm.col.ch_price").format(ch=ch), format="%.2f €",
+                    t("cm.col.ch_price", ch=ch), format="%.2f €",
                     help=t("cm.col.ch_price_help"))
                 if k in stock_cols:
                     show.append(k)
@@ -623,7 +623,7 @@ with tab_sum:
 
             st.dataframe(view[show], use_container_width=True, height=560,
                          hide_index=True, column_config=conf)
-            st.caption(t("cm.summary.shown").format(
+            st.caption(t("cm.summary.shown", 
                 n=len(view), total=_total_all))
             st.caption(t("cm.summary.note"))
             if quota_rows.empty:
@@ -655,7 +655,7 @@ with tab_lm:
             st.info(t("common.no_data"))
         else:
             last = lm.iloc[-1]
-            st.caption(t("cm.lm.as_of").format(
+            st.caption(t("cm.lm.as_of", 
                 d=pd.to_datetime(last["calc_date"]).strftime("%d.%m.%Y")))
 
             # в метриках значение вчерашнее — список заказов актуальнее,
@@ -748,7 +748,7 @@ with tab_lm:
                             t("cm.col.hours_open"), format="%.0f ч"),
                     },
                 )
-                st.warning(t("cm.lm.waiting_warn").format(n=len(waiting)))
+                st.warning(t("cm.lm.waiting_warn", n=len(waiting)))
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -852,9 +852,9 @@ with tab_amz:
 
         r1, r2, r3 = st.columns(3)
         r1.metric(t("cm.amz.returns"), f"{int(scoped_ret['qty'].sum()):,}",
-                  help=(t("cm.amz.returns_range").format(f=D_FROM_H, to=D_TO_H)
+                  help=(t("cm.amz.returns_range", f=D_FROM_H, to=D_TO_H)
                         if date_from is not None
-                        else t("cm.amz.returns_help").format(d=DAYS)))
+                        else t("cm.amz.returns_help", d=DAYS)))
         r2.metric(t("cm.amz.refunded"), fmt_money(scoped_ret["refunded"].sum()))
         r3.metric(t("cm.amz.return_skus"), f"{scoped_ret['base_sku'].nunique():,}")
 

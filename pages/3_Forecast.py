@@ -33,4 +33,4 @@ try:
         st.info(t("fc.empty_title"))
         st.markdown(t("fc.empty_body"))
 except Exception as e:
-    st.error(t("fc.load_error").format(e=e))
+    st.error(t("fc.load_error", e=e))

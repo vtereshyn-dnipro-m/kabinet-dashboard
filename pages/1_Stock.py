@@ -501,7 +501,7 @@ k5.metric(t("stock.kpi.low_stock"), int(low_stock),
 
 # ---------- квоты, выделенные на каналы продаж ----------
 if not reserve_df.empty:
-    with st.expander(t("stock.channels.title").format(
+    with st.expander(t("stock.channels.title", 
             n=int(reserve_df["quantity"].sum()))):
         st.caption(t("stock.channels.caption"))
         ch = (reserve_df.groupby("warehouse_name", as_index=False)
@@ -511,7 +511,7 @@ if not reserve_df.empty:
         for i, (_, row) in enumerate(ch.iterrows()):
             with ch_cols[i % len(ch_cols)]:
                 st.metric(row["warehouse_name"], f"{int(row['quantity'])} {unit_}",
-                          help=t("stock.ctr.metric_help").format(n=int(row["skus"])))
+                          help=t("stock.ctr.metric_help", n=int(row["skus"])))
 
         ch_tbl = (reserve_df.groupby(["warehouse_name", "sku_display", "product_name"],
                                      as_index=False)["quantity"].sum()
@@ -627,7 +627,7 @@ with tab_cov:
         d = coverage_diag()
         err = d["error"] or st.session_state.get("_cov_error")
         if err:
-            st.error(t("cov.err.query").format(e=err))
+            st.error(t("cov.err.query", e=err))
         elif not d["table"]:
             st.error(t("cov.err.no_table"))
         elif not d["rows"]:
@@ -636,7 +636,7 @@ with tab_cov:
             # строки есть, а выборка пуста — значит разошлись calc_date
             # в запросе и в таблице. Показываем обе стороны, чтобы не
             # гадать: расчёт не доехал или сматчился не с тем днём
-            st.warning(t("cov.err.no_match").format(
+            st.warning(t("cov.err.no_match", 
                 n=d["rows"],
                 d=("—" if pd.isna(pd.Timestamp(d["last_calc"]))
                    else pd.Timestamp(d["last_calc"]).strftime("%d.%m.%Y %H:%M"))))
@@ -656,7 +656,7 @@ with tab_cov:
         # Период страницы сюда не приходит: покрытие считается на дату
         # расчёта. Молча игнорировать выбор нельзя — человек выберет
         # «7 дней» и решит, что цифры за неделю
-        st.caption(t("period.snapshot").format(d=calc_d))
+        st.caption(t("period.snapshot", d=calc_d))
         hc1, hc2 = st.columns([3, 1])
         hc1.markdown(f"##### {t('stock.cov.header').format(d=calc_d)}")
         with hc2.popover(t("stock.cov.how"), use_container_width=True):
@@ -848,7 +848,7 @@ with tab_cov:
             shared = (pd.notna(pw_) and pd.notna(tw_) and pw_ < tw_
                       and int(prow.get("competing_marketplaces") or 0) > 1)
             if shared:
-                st.warning(t("stock.cov.pool_warn").format(
+                st.warning(t("stock.cov.pool_warn", 
                     n=int(prow["competing_marketplaces"]),
                     qty=int(prow["fbm_fallback_qty"] or 0),
                     demand=float(prow["pool_total_weekly_demand"] or 0),
@@ -886,11 +886,11 @@ with tab_cov:
 
             odoo_q = float(prow.get("odoo_incoming_qty") or 0)
             if odoo_q > 0:
-                st.caption(t("stock.cov.odoo_note").format(qty=int(odoo_q)))
+                st.caption(t("stock.cov.odoo_note", qty=int(odoo_q)))
 
             over_q = float(prow.get("overstock_qty") or 0)
             if over_q > 0:
-                st.info(t("stock.cov.overstock_note").format(
+                st.info(t("stock.cov.overstock_note", 
                     qty=int(over_q),
                     weeks=int(float(prow.get("overstock_weeks") or 0))))
 
@@ -1001,9 +1001,9 @@ if SHOW_DRAFT_TABS:
         a1, a2, a3 = st.columns(3)
         for col, cls in zip((a1, a2, a3), ("A", "B", "C")):
             sub = abc[abc["class"] == cls]
-            col.metric(t("stock.abc.class_label").format(cls=cls),
-                       t("stock.abc.sku_count").format(n=len(sub)),
-                       t("stock.abc.pct_of_stock").format(pct=sub['quantity'].sum() / total * 100))
+            col.metric(t("stock.abc.class_label", cls=cls),
+                       t("stock.abc.sku_count", n=len(sub)),
+                       t("stock.abc.pct_of_stock", pct=sub['quantity'].sum() / total * 100))
 
         fig = go.Figure()
         colors = abc["class"].map({"A": ACCENT, "B": "#f2b134", "C": "#9aa4b2"})
@@ -1061,7 +1061,7 @@ if SHOW_DRAFT_TABS:
 # ---------- Категории ----------
 with tab_cat:
     _snap = pd.to_datetime(df["snapshot_date"], errors="coerce").max()
-    st.caption(t("period.snapshot").format(
+    st.caption(t("period.snapshot", 
         d=_snap.strftime("%d.%m.%Y") if pd.notna(_snap) else "—")
         if pd.notna(_snap) else t("period.snapshot_now"))
     by_cat = (f.groupby("category", as_index=False)
@@ -1098,7 +1098,7 @@ if SHOW_DRAFT_TABS:
         for i, (_, row) in enumerate(by_country.iterrows()):
             with cc[i % len(cc)]:
                 st.metric(row["location"], f"{int(row['quantity'])} {unit}",
-                         help=t("stock.ctr.metric_help").format(n=int(row['skus'])))
+                         help=t("stock.ctr.metric_help", n=int(row['skus'])))
 
         fig = px.bar(by_country, x="location", y="quantity", text="quantity",
                      title=t("stock.ctr.bar_title"), color_discrete_sequence=[BLUE])
@@ -1410,18 +1410,18 @@ with tab_map:
             _n_blind = int(_blind.sum())
             _only_blind = False
             if _n_blind:
-                st.error(t("stock.map.out_blind").format(
+                st.error(t("stock.map.out_blind", 
                     n=_n_blind, per=f"{_z.loc[_blind, 'per_day'].sum():.1f}"))
                 # Из плашки должен быть путь к тем самым строкам. Названия
                 # обратно в неё не возвращаем — их оттуда убирали как
                 # нечитаемые; вместо этого один тумблер оставляет в
                 # таблице ровно те товары, о которых плашка говорит
                 _only_blind = st.toggle(
-                    t("stock.map.out_only_blind").format(n=_n_blind),
+                    t("stock.map.out_only_blind", n=_n_blind),
                     value=False, key="map_only_blind")
             _view = _z[_z["_urgent"] == 1] if _only_blind else _z
             st.markdown(f"**{t('stock.map.out_title')}**")
-            st.caption(t("stock.map.out_caption").format(
+            st.caption(t("stock.map.out_caption", 
                 n=len(_view), p=PERIOD.title))
             st.dataframe(
                 _view[["photo", "sku", "url", "product", "per_day",
@@ -1458,7 +1458,7 @@ with tab_map:
                         help=t("stock.map.inb_receiving_help")),
                 },
             )
-            st.caption(t("stock.map.out_shown").format(
+            st.caption(t("stock.map.out_shown", 
                 n=len(_view), total=len(_z)))
             st.divider()
 
@@ -1538,7 +1538,7 @@ with tab_map:
                   | _moves["msku"].astype(str).str.contains(_q, case=False, na=False))
             _moves = _moves[_m]
             if _moves.empty:
-                st.info(t("stock.map.search_none").format(q=_q))
+                st.info(t("stock.map.search_none", q=_q))
 
         if not _moves.empty:
             period_mod.show_note(PERIOD, _moves["day"].min(), _moves["day"].max())
@@ -1638,10 +1638,10 @@ with tab_map:
                 f"{_city.get(r['from'], r['from'])} → {_city.get(r['to'], r['to'])}"
                 f" ({int(r['qty'])})" for _, r in _pairs.head(3).iterrows())
             _goods = ", ".join(sorted(arcs["sku"].dropna().unique())[:3])
-            st.info(t("stock.map.summary").format(
+            st.info(t("stock.map.summary", 
                 n=_tot, d=_days, routes=_route, goods=_goods or "—"))
         else:
-            st.caption(t("stock.map.no_moves").format(d=_days))
+            st.caption(t("stock.map.no_moves", d=_days))
 
         # ---- движения за период ----
         if not _moves.empty:

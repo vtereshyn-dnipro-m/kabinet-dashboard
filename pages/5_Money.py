@@ -320,23 +320,23 @@ _ahead = _by_mp[_by_mp > _last] if len(_by_mp) else _by_mp
 _to_eff = (min(pd.Timestamp(d_to), _last) if (d_to and pd.notna(_last))
            else (pd.Timestamp(d_to) if d_to else None))
 if d_from and d_to:
-    _ptitle = t("money.period_title").format(
+    _ptitle = t("money.period_title", 
         f=pd.Timestamp(d_from).strftime("%d.%m"),
         to=_to_eff.strftime("%d.%m.%Y"))
 else:
-    _ptitle = t("money.period_days").format(d=WINDOW)
+    _ptitle = t("money.period_days", d=WINDOW)
 st.markdown(f"##### {_ptitle}")
 
 if pd.notna(_last):
     _lag = (pd.Timestamp(pd.Timestamp.now().date()) - _last).days
     if len(_ahead):
         # границы по странам разошлись — называем и отстающую, и остальные
-        st.caption(t("money.period_lag_mixed").format(
+        st.caption(t("money.period_lag_mixed", 
             d=_last.strftime("%d.%m"), mp=", ".join(_behind),
             more=", ".join(sorted(_ahead.index)),
             dmax=_ahead.max().strftime("%d.%m")))
     elif _lag >= 2:
-        st.caption(t("money.period_lag").format(
+        st.caption(t("money.period_lag", 
             d=_last.strftime("%d.%m"), n=_lag))
 
 # сверяем с контрольной суммой: расхождение означает размножение строк
@@ -346,7 +346,7 @@ if _ctrl and _ctrl.get("rows"):
     _mine = float(pd.to_numeric(df["revenue"], errors="coerce").fillna(0).sum())
     _real = float(_ctrl["revenue"])
     if _real > 0 and abs(_mine - _real) / _real > 0.01:
-        st.error(t("money.mismatch").format(
+        st.error(t("money.mismatch", 
             mine=_mine, real=_real,
             k=(_mine / _real if _real else 0),
             rows=int(len(df)), ctrl_rows=int(_ctrl["rows"])))
@@ -425,7 +425,7 @@ k0, k1, k2, k3, k4, k5 = st.columns(6)
 k0.metric(t("money.kpi.ordered"),
           "—" if pd.isna(_ordered) else f"{_ordered:,.0f} €",
           help=t("money.kpi.ordered_help"))
-k1.metric(t("money.kpi.revenue").format(d=WINDOW), f"{tot_rev:,.0f} €",
+k1.metric(t("money.kpi.revenue", d=WINDOW), f"{tot_rev:,.0f} €",
           help=t("money.kpi.revenue_help"))
 k2.metric(t("money.kpi.net"), f"{tot_net:,.0f} €", help=t("money.kpi.net_help"))
 k3.metric(t("money.kpi.cogs"),
@@ -444,7 +444,7 @@ k5.metric(t("money.kpi.cm"),
           help=t("money.kpi.cm_help"))
 
 if sku_known < sku_all:
-    st.caption(t("money.cogs_partial").format(
+    st.caption(t("money.cogs_partial", 
         n=sku_known, total=sku_all, miss=sku_all - sku_known,
         pct=f"{rev_share:.0f}", rev=f"{rev_known:,.0f}"))
 
@@ -584,20 +584,20 @@ with tab_pnl:
         al, ar = st.columns(2)
         if not losers.empty:
             with al:
-                st.warning(t("money.alert.losers").format(
+                st.warning(t("money.alert.losers", 
                     n=len(losers), skus=", ".join(losers["sku_display"].head(5))))
                 st.button(
-                    t("money.alert.show_losers").format(n=len(losers)),
+                    t("money.alert.show_losers", n=len(losers)),
                     key="btn_losers", use_container_width=True,
                     type=("primary" if st.session_state.pnl_quick == "losers"
                           else "secondary"),
                     on_click=_pnl_toggle, args=("losers",))
         if not thin.empty:
             with ar:
-                st.warning(t("money.alert.thin").format(
+                st.warning(t("money.alert.thin", 
                     n=len(thin), skus=", ".join(thin["sku_display"].head(5))))
                 st.button(
-                    t("money.alert.show_thin").format(n=len(thin)),
+                    t("money.alert.show_thin", n=len(thin)),
                     key="btn_thin", use_container_width=True,
                     type=("primary" if st.session_state.pnl_quick == "thin"
                           else "secondary"),
@@ -630,10 +630,10 @@ with tab_pnl:
     _quick = st.session_state.pnl_quick
     if _quick == "losers":
         by_sku = by_sku[by_sku["sku_display"].isin(losers["sku_display"])]
-        st.caption(t("money.alert.filtered_losers").format(n=len(by_sku)))
+        st.caption(t("money.alert.filtered_losers", n=len(by_sku)))
     elif _quick == "thin":
         by_sku = by_sku[by_sku["sku_display"].isin(thin["sku_display"])]
-        st.caption(t("money.alert.filtered_thin").format(n=len(by_sku)))
+        st.caption(t("money.alert.filtered_thin", n=len(by_sku)))
 
     st.dataframe(
         by_sku[["photo", "flag_col", "ann_col", "sku_display", "product_name",
@@ -766,7 +766,7 @@ with tab_fees:
     # Отдельным куском в круге её нет — это те же деньги, что и «Комиссии
     # маркетплейса», просто у Mirakl они приходят одним понятным полем
     if not pd.isna(tot_comm) and tot_comm > 0:
-        st.caption(t("money.struct.commission_note").format(
+        st.caption(t("money.struct.commission_note", 
             v=f"{tot_comm:,.0f}"))
 
     fee_share = (f.groupby("marketplace", as_index=False)
@@ -858,13 +858,13 @@ with tab_alerts:
            if not alerts.empty and "calc_date" in alerts.columns else pd.NaT)
     _cd_s = _cd.strftime("%d.%m.%Y") if pd.notna(_cd) else "—"
     if _win is None:
-        st.caption(t("money.alerts.snapshot").format(d=_cd_s))
+        st.caption(t("money.alerts.snapshot", d=_cd_s))
     elif _win == PERIOD.days:
-        st.caption(t("money.alerts.window_exact").format(n=_win, d=_cd_s))
+        st.caption(t("money.alerts.window_exact", n=_win, d=_cd_s))
     else:
         # окно не совпало с выбранным периодом — называем оба, иначе
         # цифры молча относятся не к тому отрезку, что стоит сверху
-        st.caption(t("money.alerts.window_near").format(
+        st.caption(t("money.alerts.window_near", 
             n=_win, p=PERIOD.title, d=_cd_s,
             all=" / ".join(str(w) for w in _wins)))
 
