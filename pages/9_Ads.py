@@ -583,7 +583,7 @@ elif not contract_error(ntb, "amc_ntb_by_asin"):
 st.divider()
 st.caption(t("ads.ref.note"))
 
-with st.expander(t("ads.ref.dayparting")):
+with st.expander(t("ads.ref.dayparting"), expanded=True):
     _d = scope(load_amc("amc_dayparting")[0]).drop(columns=list(SERVICE),
                                                    errors="ignore")
     if _d.empty:
@@ -614,7 +614,7 @@ with st.expander(t("ads.ref.dayparting")):
             st.dataframe(_d.drop(columns=["hour"], errors="ignore"),
                          use_container_width=True, hide_index=True)
 
-with st.expander(t("ads.ref.terms")):
+with st.expander(t("ads.ref.terms"), expanded=True):
     S = scope(load_amc("amc_search_terms")[0])
     if S.empty:
         st.info(t("ads.empty.period"))
@@ -656,14 +656,23 @@ with st.expander(t("ads.ref.terms")):
                               margin=dict(l=10, r=10, t=10, b=10))
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
-        def _terms_table(df, key):
+        def _terms_table(df, key, as_asin=False):
+            """Таблица запросов. Когда запрос — это ASIN, он становится
+            ссылкой: сырой код в ячейке ничем не помогает, а по нему как
+            раз и хочется посмотреть, что за товар ищут по артикулу."""
+            top = df.sort_values("sales", ascending=False).head(10).copy()
+            if as_asin:
+                _code = MARKETPLACE_ID.get(_markets[0]) if _markets else None
+                top["search_term"] = [
+                    amazon_url(_code or "ES", a) for a in top["search_term"]]
             st.dataframe(
-                df.sort_values("sales", ascending=False).head(10)[
-                    ["search_term", "customers", "sales", "avg"]],
+                top[["search_term", "customers", "sales", "avg"]],
                 use_container_width=True, hide_index=True,
                 column_config={
-                    "search_term": st.column_config.TextColumn(
-                        t("ads.terms.col_term"), width="large"),
+                    "search_term": (catalog.asin_column(
+                        t("ads.terms.col_term")) if as_asin
+                        else st.column_config.TextColumn(
+                            t("ads.terms.col_term"), width="large")),
                     "customers": st.column_config.NumberColumn(
                         t("ads.terms.col_customers"), width="small"),
                     "sales": st.column_config.NumberColumn(
@@ -695,7 +704,7 @@ with st.expander(t("ads.ref.terms")):
             if _is_asin.any():
                 _terms_table(T[_is_asin], "amc_terms_asins")
 
-with st.expander(t("ads.ref.overlap")):
+with st.expander(t("ads.ref.overlap"), expanded=True):
     _o = scope(load_amc("amc_overlap")[0]).drop(columns=list(SERVICE),
                                                 errors="ignore")
     if _o.empty:
