@@ -65,6 +65,7 @@ ASIN_RE = re.compile(r"^B0[A-Z0-9]{8}$")
 CAMP_ASIN_RE = re.compile(r"B0[A-Z0-9]{8}")
 
 RED, AMBER, GREEN, GREY = "#e8484d", "#f0a500", "#2e9e5b", "#8a94a6"
+BLUE = "#1f77b4"
 
 # ── Контракт по колонкам ────────────────────────────────────────────
 # Часть имён названа в ТЗ прямо (campaign_status, reach, acos_pct,
@@ -168,22 +169,38 @@ def contract_error(df: pd.DataFrame, table: str) -> bool:
     return True
 
 
-def listing_url(campaign_name) -> str:
-    """Куда вести по действию «проверить листинг».
+def campaign_asins(campaign_name) -> list:
+    """Все ASIN из названия кампании, а не первый попавшийся.
+
+    В названиях их бывает несколько: SB-кампания на три товара так и
+    подписана — ...-B0DFWVNRWB-B0FNRR3H51-B0FNX5JNKJ. Показывать из
+    троих один значит соврать о том, что рекламируется."""
+    seen, out = set(), []
+    for a in CAMP_ASIN_RE.findall(as_text(campaign_name).upper()):
+        if a not in seen:
+            seen.add(a)
+            out.append(a)
+    return out
+
+
+def asin_link(asin: str) -> str:
+    """Куда вести по ASIN.
 
     Здесь AMC и Listing Suite сходятся: AMC говорит «сюда идёт платный
     трафик и не покупают», Suite отвечает «вот что не так с карточкой».
     Пока адрес Suite не задан, ведём на саму карточку Amazon — проверить
-    листинг можно и там, а ссылка в никуда хуже ссылки не туда.
-    ASIN в названии нет — ссылки не будет вовсе."""
-    m = CAMP_ASIN_RE.search(as_text(campaign_name).upper())
-    if not m:
-        return ""
-    asin = m.group(0)
+    листинг можно и там, а ссылка в никуда хуже ссылки не туда."""
     if LISTING_SUITE_URL:
         return LISTING_SUITE_URL.rstrip("/") + "/" + asin
     code = MARKETPLACE_ID.get(_markets[0]) if _markets else None
     return amazon_url(code or "ES", asin)
+
+
+def listing_url(campaign_name) -> str:
+    """Ссылка действия «проверить листинг» — по первому товару кампании.
+    ASIN в названии нет — ссылки не будет вовсе."""
+    a = campaign_asins(campaign_name)
+    return asin_link(a[0]) if a else ""
 
 
 def money(v, dec=0) -> str:
@@ -483,6 +500,17 @@ else:
                    else _cell(f'{r["ctr"]:.2f} %',
                               AMBER if r["ctr"] < CTR_MIN else GREY))
         cpc_txt = "—" if pd.isna(r["cpc"]) else money(r["cpc"], 2)
+        # ASIN из названия — рядом со строкой, а не только у действия:
+        # посмотреть товар хочется по любой кампании, а не лишь по той,
+        # где мы советуем проверить карточку
+        asin_html = ""
+        if r["asins"]:
+            asin_html = " · " + " ".join(
+                f'<a href="{asin_link(a)}" target="_blank" '
+                f'style="color:{BLUE};text-decoration:none">{a}</a>'
+                for a in r["asins"][:3])
+            if len(r["asins"]) > 3:
+                asin_html += f' +{len(r["asins"]) - 3}'
         act_html = _cell(r["act"], r["act_color"], True)
         if r["act_url"]:
             act_html = (f'<a href="{r["act_url"]}" target="_blank" '
