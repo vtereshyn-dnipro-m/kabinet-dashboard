@@ -17,14 +17,31 @@ from db.connection import get_connection
 from i18n import init_lang, t
 import period as period_mod
 import catalog
-from links import market_name
+from links import MARKETPLACE_ID, amazon_url, market_name
 
 init_lang()
 
-# Порог ACOS. По смыслу это настройка, и по правилам Кабинета ей место
-# в БД рядом с остальными порогами, а не в коде. Отдельной таблицы для
-# рекламных правил пока нет — когда появится, читать отсюда
+# Оба порога заданы вручную и ни на чём не основаны, кроме привычки.
+# ACOS сам по себе не значит ничего без маржи: при марже 20 % убыточен и
+# ACOS 22 %, при марже 45 % нормален и 32 %. Экономика ASIN в Кабинете
+# есть, и считать порог надо от неё — пока не связано, на экране стоит
+# подпись «задан вручную», чтобы его не приняли за расчётный
 ACOS_TARGET = 25.0
+# Граница между «не те запросы» и «карточка не продаёт». Ниже неё людям
+# показываются, но не кликают — проблема до клика; выше кликают, но не
+# покупают — проблема после.
+#
+# Число выставлено по разобранному вручную примеру: SP-Manual-Auto-B2B
+# с охватом 11 032 и шестьюдесятью кликами (0,54 %) должен читаться как
+# проблема таргетинга. Это калибровка по одному случаю, а не norm по
+# рынку, — если начнёт помечать «сузить таргетинг» слишком многих,
+# двигать надо здесь
+CTR_MIN = 0.6
+
+# Адрес Listing Suite для действия «проверить листинг». Пока пусто —
+# ссылка ведёт на саму карточку Amazon: проверять листинг можно и там,
+# а мёртвая кнопка хуже живой, но не той
+LISTING_SUITE_URL = ""
 
 # Атрибуция AMC закрывается 14 дней, но основная масса покупок доезжает
 # за трое суток. Кампания, запущенная вчера, попадёт в no_sales не
@@ -33,6 +50,10 @@ PRELIM_DAYS = 3
 
 MASKED = "__MASKED__"
 ASIN_RE = re.compile(r"^B0[A-Z0-9]{8}$")
+# В названиях кампаний ASIN обычно стоит в конце: ...-B0DFWVNRWB.
+# Оттуда его и берём — другого способа связать кампанию с товаром в
+# attribution нет
+CAMP_ASIN_RE = re.compile(r"B0[A-Z0-9]{8}")
 
 RED, AMBER, GREEN, GREY = "#e8484d", "#f0a500", "#2e9e5b", "#8a94a6"
 
@@ -45,9 +66,9 @@ RED, AMBER, GREEN, GREY = "#e8484d", "#f0a500", "#2e9e5b", "#8a94a6"
 NEED = {
     "v_amc_attribution": ["report_date", "campaign_id", "campaign_name",
                           "campaign_status", "spend", "sales_14d", "clicks",
-                          "purchases_14d", "acos_pct", "reach"],
+                          "purchases_14d", "acos_pct", "reach", "impressions"],
     "amc_ntb_by_asin": ["report_date", "asin", "total_purchases",
-                        "total_sales", "ntb_rate_pct"],
+                        "ntb_purchases", "total_sales", "ntb_rate_pct"],
     "amc_search_terms": ["report_date", "customer_search_term",
                          "unique_buyers", "sales"],
 }
@@ -134,6 +155,24 @@ def contract_error(df: pd.DataFrame, table: str) -> bool:
         table=table, miss=", ".join(miss),
         have=", ".join(map(str, df.columns)) or "—"))
     return True
+
+
+def listing_url(campaign_name) -> str:
+    """Куда вести по действию «проверить листинг».
+
+    Здесь AMC и Listing Suite сходятся: AMC говорит «сюда идёт платный
+    трафик и не покупают», Suite отвечает «вот что не так с карточкой».
+    Пока адрес Suite не задан, ведём на саму карточку Amazon — проверить
+    листинг можно и там, а ссылка в никуда хуже ссылки не туда.
+    ASIN в названии нет — ссылки не будет вовсе."""
+    m = CAMP_ASIN_RE.search(str(campaign_name or "").upper())
+    if not m:
+        return ""
+    asin = m.group(0)
+    if LISTING_SUITE_URL:
+        return LISTING_SUITE_URL.rstrip("/") + "/" + asin
+    code = MARKETPLACE_ID.get(_markets[0]) if _markets else None
+    return amazon_url(code or "ES", asin)
 
 
 def money(v, dec=0) -> str:
@@ -246,7 +285,7 @@ def scope(df: pd.DataFrame) -> pd.DataFrame:
 
 A = scope(attr)
 for c in ("spend", "sales_14d", "clicks", "purchases_14d",
-          "acos_pct", "reach"):
+          "acos_pct", "reach", "impressions"):
     if c in A.columns:
         A[c] = pd.to_numeric(A[c], errors="coerce")
 
@@ -269,8 +308,11 @@ _days = max((_to - _from).days + 1, 1)
 _acos = (_spend / _sales * 100) if _sales > 0 else np.inf
 
 ntb = scope(load_amc("amc_ntb_by_asin")[0])
-_ntb_share = np.nan
+_ntb_share, _ntb_buys = np.nan, np.nan
 if not ntb.empty and {"total_purchases", "ntb_rate_pct"} <= set(ntb.columns):
+    if "ntb_purchases" in ntb.columns:
+        _ntb_buys = float(pd.to_numeric(ntb["ntb_purchases"],
+                                        errors="coerce").fillna(0).sum())
     _o = pd.to_numeric(ntb["total_purchases"], errors="coerce").fillna(0)
     _r = pd.to_numeric(ntb["ntb_rate_pct"], errors="coerce")
     if _r.max() is not np.nan and (_r > 100).any():
@@ -279,8 +321,13 @@ if not ntb.empty and {"total_purchases", "ntb_rate_pct"} <= set(ntb.columns):
     if _o.sum() > 0:
         _ntb_share = float((_o * _r).sum() / _o.sum())
 
-c1, c2, c3, c4 = st.columns(4)
-card(c1, "ACOS", t("ads.card.acos_base").format(n=f"{ACOS_TARGET:.0f}"),
+# Пятая карточка — стоимость привода нового покупателя. 97 % покупок
+# делают те, кто бренд ещё не знал: главный вопрос тут не «какой ACOS»,
+# а «сколько стоит привести человека». Если она выше маржи с первой
+# покупки, а повторных нет, разговор не про ставки вообще
+_cac = (_spend / _ntb_buys) if (_ntb_buys and _ntb_buys > 0) else np.nan
+c1, c2, c3, c4, c5 = st.columns(5)
+card(c1, "ACOS", t("ads.card.acos_manual").format(n=f"{ACOS_TARGET:.0f}"),
      "∞" if np.isinf(_acos) else f"{_acos:.0f} %",
      "bad" if (np.isinf(_acos) or _acos > ACOS_TARGET) else "good")
 card(c2, t("ads.card.spend"), t("ads.card.spend_base").format(n=_days),
@@ -288,6 +335,8 @@ card(c2, t("ads.card.spend"), t("ads.card.spend_base").format(n=_days),
 card(c3, t("ads.card.sales"), t("ads.card.sales_base"), money(_sales))
 card(c4, t("ads.card.ntb"), t("ads.card.ntb_base"),
      "—" if pd.isna(_ntb_share) else f"{_ntb_share:.0f} %")
+card(c5, t("ads.card.cac"), t("ads.card.cac_base"),
+     "—" if pd.isna(_cac) else money(_cac, 2))
 
 # ═══════════════════════════════════════════════════════════════════
 # КАМПАНИИ
@@ -311,6 +360,7 @@ C = (V.groupby("campaign_id", as_index=False, dropna=False)
       .agg(campaign_name=("campaign_name", "first"),
            spend=("spend", "sum"), sales=("sales_14d", "sum"),
            clicks=("clicks", "sum"), orders=("purchases_14d", "sum"),
+           impressions=("impressions", "sum"),
            days=("report_date", "nunique"),
            reach=("reach", lambda x: x.sum(min_count=1)),
            statuses=("campaign_status", lambda x: set(map(str, x)))))
@@ -318,6 +368,12 @@ C = (V.groupby("campaign_id", as_index=False, dropna=False)
 # не процент от суммы, и на кампании с одним дорогим днём расходится
 # заметно
 C["acos"] = np.where(C["sales"] > 0, C["spend"] / C["sales"] * 100, np.inf)
+# CTR и CPC тоже считаем от сумм. Во вью они есть, но подневные: среднее
+# из процентов не равно проценту от суммы, а на кампании с одним крупным
+# днём разница видна невооружённым глазом
+C["ctr"] = np.where(C["impressions"] > 0,
+                    C["clicks"] / C["impressions"] * 100, np.nan)
+C["cpc"] = np.where(C["clicks"] > 0, C["spend"] / C["clicks"], np.nan)
 # Охват за несколько дней неизвестен: сумма уникальных пользователей по
 # дням не равна числу уникальных за период. Пустое место честнее числа,
 # которое выглядит точным и не является им
@@ -325,21 +381,30 @@ C.loc[C["days"] > 1, "reach"] = np.nan
 
 
 def period_status(row) -> str:
-    """Статус кампании за ПЕРИОД.
+    """Диагноз кампании за период.
 
-    Взять его прямо из вью нельзя: там он посчитан на каждый день, а на
-    окне из тридцати дней у одной кампании их несколько. Поставить
-    дневной ярлык рядом с суммами за месяц значит показать строку,
-    спорящую сама с собой, — именно так «нет продаж» оказывалось
-    подписано «оставить».
+    Действий три, а не два, потому что «клики есть, покупок нет» — не
+    повод отключать. Реклама в этом случае сработала: человека нашли, он
+    заинтересовался, кликнул, за клик заплатили. Ушёл он уже с карточки
+    товара. Отключить кампанию значит вылечить симптом — тот же
+    посетитель не купит и из органики, просто там это бесплатно и потому
+    незаметно.
 
-    Свести дни к периоду вью не может: она их не видит вместе. Словарь
-    статусов взят у неё, правила — те же, что в ТЗ. Если правило
-    поменяется во вью, поменять надо и здесь."""
+    Разделяем по CTR: не кликают при показах — проблема ДО клика, не те
+    запросы; кликают и не покупают — проблема ПОСЛЕ клика, карточка.
+
+    Статус за период сводится здесь, а не берётся из вью: там он
+    посчитан на каждый день, а дневной ярлык не описывает месяц. Словарь
+    статусов и правила — из ТЗ, место одно."""
     if row["clicks"] <= 0 and row["spend"] <= 0:
-        return "no_traffic"
+        return "no_traffic"          # ничего не тратит — в подвал
+    if row["clicks"] <= 0:
+        return "dead"                # тратит и не получает даже кликов
     if row["sales"] <= 0:
-        return "no_sales"
+        # 1 800 кликов без единой покупки — это не про ставки. При
+        # конверсии хотя бы 3 % они дали бы полсотни заказов
+        return ("narrow" if (pd.notna(row["ctr"]) and row["ctr"] < CTR_MIN)
+                else "listing")
     if row["acos"] > ACOS_TARGET:
         return "high_acos"
     return "ok"
@@ -350,7 +415,11 @@ _masked = M
 _quiet = C[C["status"] == "no_traffic"]
 _live = C[C["status"] != "no_traffic"].copy()
 
-ACTION = {"no_sales": ("ads.act.off", RED),
+# Диагноз → действие и цвет. Красное только там, где деньги уходят и не
+# возвращается ничего: остальное — работа, а не выключатель
+ACTION = {"dead": ("ads.act.off", RED),
+          "listing": ("ads.act.listing", AMBER),
+          "narrow": ("ads.act.narrow", AMBER),
           "high_acos": ("ads.act.lower", AMBER),
           "ok": ("ads.act.keep", GREY)}
 # Сортировка по величине потерь, а не по расходу и не по алфавиту:
@@ -377,7 +446,10 @@ else:
             "spend": float(r["spend"] or 0),
             "sales": float(r["sales"] or 0),
             "acos": r["acos"],
+            "ctr": r["ctr"], "cpc": r["cpc"],
             "act": t(key), "act_color": colr,
+            "act_url": listing_url(r["campaign_name"])
+                       if r["status"] == "listing" else "",
         })
     tbl = pd.DataFrame(rows)
 
@@ -394,6 +466,17 @@ else:
     for _, r in tbl.iterrows():
         acos_txt = "∞" if np.isinf(r["acos"]) else f'{r["acos"]:.0f} %'
         acos_col = RED if (np.isinf(r["acos"]) or r["acos"] > ACOS_TARGET) else GREEN
+        # CTR красим по своему порогу: он отвечает на другой вопрос, чем
+        # ACOS, — не «дорого ли», а «доходит ли до карточки хоть кто-то»
+        ctr_txt = ("—" if pd.isna(r["ctr"])
+                   else _cell(f'{r["ctr"]:.2f} %',
+                              AMBER if r["ctr"] < CTR_MIN else GREY))
+        cpc_txt = "—" if pd.isna(r["cpc"]) else money(r["cpc"], 2)
+        act_html = _cell(r["act"], r["act_color"], True)
+        if r["act_url"]:
+            act_html = (f'<a href="{r["act_url"]}" target="_blank" '
+                        f'style="color:{r["act_color"]};font-weight:600">'
+                        f'{r["act"]} ↗</a>')
         html.append(
             '<tr style="border-top:1px solid rgba(128,128,128,0.18)">'
             f'<td style="padding:8px">{r["name"]}<div style="font-size:0.74rem;'
@@ -410,12 +493,17 @@ else:
             f'<td style="padding:8px">{t("ads.camp.masked")}</td>'
             f'<td style="padding:8px;text-align:right">{money(_ms)}</td>'
             f'<td style="padding:8px;text-align:right">{money(_mv)}</td>'
+            '<td style="padding:8px;text-align:right">—</td>'
+            '<td style="padding:8px;text-align:right">—</td>'
             f'<td style="padding:8px;text-align:right">{_ma}</td>'
             '<td style="padding:8px">—</td></tr>')
     html.append("</table>")
     st.markdown("".join(html), unsafe_allow_html=True)
+    st.caption(t("ads.camp.three_actions"))
     if not _masked.empty:
         st.caption(t("ads.camp.masked_note"))
+    st.caption(t("ads.camp.thresholds").format(
+        a=f"{ACOS_TARGET:.0f}", c=f"{CTR_MIN:.1f}"))
 
 # Кампании без кликов — по строке на каждую пустоту. Одиннадцать пустых
 # строк вытесняют вниз то, ради чего таблицу открывают
