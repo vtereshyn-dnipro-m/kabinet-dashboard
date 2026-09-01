@@ -11,6 +11,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
+from util import as_text
 import period as period_mod
 
 init_lang()
@@ -541,7 +542,7 @@ else:
         _ch_lookup = dict(zip(ch_map["marketplace_code"], ch_map["channel"]))
 
         def _channel_of(code) -> str:
-            return _ch_lookup.get(str(code or "").strip().upper(),
+            return _ch_lookup.get(as_text(code).strip().upper(),
                                   t("home.sales.channel_other"))
 
         by_mp = (cur.groupby("marketplace", as_index=False)["revenue"].sum()

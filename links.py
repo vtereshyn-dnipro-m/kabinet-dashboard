@@ -8,6 +8,7 @@
 """
 
 from i18n import t
+from util import as_text
 
 # Идентификаторы рынков Amazon — константы самого Amazon, одни и те же
 # для всех продавцов. В БД им места нет: девять строк, которые никогда не
@@ -32,8 +33,8 @@ def market_name(mid) -> str:
     Незнакомый код возвращаем как есть: показать сырой идентификатор
     честнее, чем подписать его чужой страной, — а заодно видно, что в
     справочник добавился новый рынок."""
-    code = MARKETPLACE_ID.get(str(mid or "").strip().upper())
-    return t("market." + code) if code else (str(mid or "").strip() or "—")
+    code = MARKETPLACE_ID.get(as_text(mid).strip().upper())
+    return t("market." + code) if code else (as_text(mid).strip() or "—")
 
 
 AMAZON_DOMAIN = {
@@ -46,7 +47,7 @@ AMAZON_DOMAIN = {
 def amazon_url(marketplace: str, asin) -> str:
     """Ссылка на листинг. Пустая строка, а не None: LinkColumn печатает
     None текстом, и в колонке появляется слово «None»."""
-    dom = AMAZON_DOMAIN.get(str(marketplace or "").upper())
+    dom = AMAZON_DOMAIN.get(as_text(marketplace).upper())
     if not dom or asin is None or str(asin) in ("None", "nan", ""):
         return ""
     return f"https://www.{dom}/dp/{asin}"
@@ -58,7 +59,7 @@ def first_amazon(markets) -> str:
     Список идёт по убыванию продаж, и брать просто первый нельзя: сверху
     может стоять Mirakl-канал, у которого домена нет, и товар остался бы
     без ссылки при живом листинге на Amazon."""
-    for m in str(markets or "").split(","):
+    for m in as_text(markets).split(","):
         m = m.strip().upper()
         if m in AMAZON_DOMAIN:
             return m

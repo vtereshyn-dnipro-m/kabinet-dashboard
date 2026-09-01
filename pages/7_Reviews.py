@@ -12,6 +12,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
+from util import as_text
 import period as period_mod
 import catalog
 
@@ -63,7 +64,7 @@ CHANNEL_CODE = {
 def channel_code(ch) -> str:
     """Короткий код рынка. Незнакомый канал отдаём как есть — лучше
     длинная подпись, чем потерянная строка."""
-    key = str(ch or "").strip()
+    key = as_text(ch).strip()
     return CHANNEL_CODE.get(key, key or "—")
 
 

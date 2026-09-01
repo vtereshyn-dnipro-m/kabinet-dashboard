@@ -395,8 +395,11 @@ def get_category_map():
     }
 
 
-def detect_category(name: str) -> str:
-    n = (name or "").lower()
+def detect_category(name) -> str:
+    # «name or ""» здесь не работает: NaN в Python истинен, поэтому
+    # выражение возвращает сам NaN, и .lower() падает с AttributeError.
+    # Проверяем через pd.isna — так в проекте и принято
+    n = "" if pd.isna(name) else str(name).lower()
     for key, cat in get_category_map().items():
         if key in n:
             return cat
@@ -404,14 +407,17 @@ def detect_category(name: str) -> str:
 
 
 # ---------- очистка SKU и фильтр дефектов/возвратов ----------
-def clean_sku(sku: str) -> str:
-    """Убирает -FBA суффикс для отображения."""
-    return str(sku or "").replace("-FBA", "").strip()
+def clean_sku(sku) -> str:
+    """Убирает -FBA суффикс для отображения.
+
+    str(sku or "") здесь тоже неверен, хоть и не падает: у NaN он даёт
+    строку «nan», и она уезжает в таблицу как артикул товара."""
+    return "" if pd.isna(sku) else str(sku).replace("-FBA", "").strip()
 
 
-def is_defect_sku(sku: str) -> bool:
+def is_defect_sku(sku) -> bool:
     """Дефектные/возвратные SKU (Amazon removal/grade): amzn.gr.16873000-1-eyYX..."""
-    return str(sku or "").lower().startswith("amzn.gr.")
+    return False if pd.isna(sku) else str(sku).lower().startswith("amzn.gr.")
 
 
 df = load_stock()

@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection
 from i18n import init_lang, t
+from util import as_text
 import catalog
 from links import AMAZON_DOMAIN, amazon_url
 import period as period_mod
@@ -28,7 +29,7 @@ st.caption(t("money.caption"))
 
 
 def clean_sku(sku: str) -> str:
-    s = str(sku or "").strip()
+    s = as_text(sku).strip()
     s = re.sub(r"^amzn\.gr\.", "", s)
     s = s.replace("-FBA", "").replace("-FBM", "")
     s = re.sub(r"-[A-Za-z0-9]{8,}$", "", s)

@@ -17,6 +17,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
+from util import as_text
 import period as period_mod
 import catalog
 from links import MARKETPLACE_ID, amazon_url, market_name
@@ -175,7 +176,7 @@ def listing_url(campaign_name) -> str:
     Пока адрес Suite не задан, ведём на саму карточку Amazon — проверить
     листинг можно и там, а ссылка в никуда хуже ссылки не туда.
     ASIN в названии нет — ссылки не будет вовсе."""
-    m = CAMP_ASIN_RE.search(str(campaign_name or "").upper())
+    m = CAMP_ASIN_RE.search(as_text(campaign_name).upper())
     if not m:
         return ""
     asin = m.group(0)
