@@ -43,12 +43,23 @@ RED, AMBER, GREEN, GREY = "#e8484d", "#f0a500", "#2e9e5b", "#8a94a6"
 # строкой здесь
 NEED = {
     "v_amc_attribution": ["report_date", "campaign_id", "campaign_name",
-                          "campaign_status", "spend", "sales", "clicks",
-                          "orders", "acos_pct", "reach"],
-    "amc_ntb_by_asin": ["report_date", "asin", "orders", "sales",
-                        "ntb_rate_pct"],
-    "amc_search_terms": ["report_date", "search_term", "customers", "sales"],
+                          "campaign_status", "spend", "sales_14d", "clicks",
+                          "purchases_14d", "acos_pct", "reach"],
+    "amc_ntb_by_asin": ["report_date", "asin", "total_purchases",
+                        "total_sales", "ntb_rate_pct"],
+    "amc_search_terms": ["report_date", "customer_search_term",
+                         "unique_buyers", "sales"],
 }
+
+# Технические поля загрузки. На экран не идут: инстанс и id рынка ничего
+# не говорят тому, кто ведёт кампании, а loaded_at — время записи, а не
+# дата данных, и путать их дороже, чем не показывать
+SERVICE = ("loaded_at", "instance_id", "amazon_marketplace_id")
+
+# Рынок различается по инстансу AMC. Пока он один, но резать данные
+# нужно уже по нему: когда появятся Германия и Италия, поменяется только
+# подпись
+MK_COL = "amazon_marketplace_id"
 
 
 @st.cache_data(ttl=600)
@@ -118,8 +129,8 @@ if contract_error(attr, "v_amc_attribution"):
     st.stop()
 
 attr["report_date"] = pd.to_datetime(attr["report_date"], errors="coerce")
-_markets = sorted({str(m) for m in attr.get("marketplace", pd.Series(dtype=str))
-                   .dropna().unique()}) if "marketplace" in attr.columns else []
+_markets = (sorted({str(m) for m in attr[MK_COL].dropna().unique()})
+            if MK_COL in attr.columns else [])
 
 # ---- свежесть загрузки ----
 # amc_run_log — внешняя точка контроля: если job молчит, таблицы просто
@@ -147,9 +158,11 @@ with f3:
         # Селектор с единственным пунктом — обманка: выглядит выбором,
         # которого нет. Показываем значение подписью, а место под
         # настоящий селектор останется, когда инстансов станет больше
+        # Идентификатор инстанса на экран не выносим: A1RKKUPIHCS9HS
+        # ничего не говорит человеку, а названия рынков по этим кодам в
+        # Кабинете нет. Пока инстанс один, достаточно сказать это словами
         _mk = []
-        st.caption(t("ads.filter.market_one").format(
-            m=_markets[0] if _markets else "—"))
+        st.caption(t("ads.filter.market_one"))
 
 # ---- предварительные дни ----
 _today = pd.Timestamp.today().normalize()
@@ -164,7 +177,7 @@ st.markdown(f"""
 <div style="border:1px solid rgba(240,165,0,0.45);border-left:3px solid {AMBER};
             border-radius:10px;padding:10px 16px;margin:10px 0 6px 0;
             background:rgba(240,165,0,0.08);font-size:0.92rem;">
-{t("ads.limits").format(m=", ".join(_markets) if _markets else "—")}
+{t("ads.limits")}
 </div>
 """, unsafe_allow_html=True)
 st.caption(t("ads.prelim.on").format(n=PRELIM_DAYS) if show_prelim
@@ -181,13 +194,14 @@ def scope(df: pd.DataFrame) -> pd.DataFrame:
         return df
     d = pd.to_datetime(df["report_date"], errors="coerce")
     out = df[(d >= _from) & (d <= _to)]
-    if _mk and "marketplace" in out.columns:
-        out = out[out["marketplace"].astype(str).isin(_mk)]
+    if _mk and MK_COL in out.columns:
+        out = out[out[MK_COL].astype(str).isin(_mk)]
     return out.copy()
 
 
 A = scope(attr)
-for c in ("spend", "sales", "clicks", "orders", "acos_pct", "reach"):
+for c in ("spend", "sales_14d", "clicks", "purchases_14d",
+          "acos_pct", "reach"):
     if c in A.columns:
         A[c] = pd.to_numeric(A[c], errors="coerce")
 
@@ -198,14 +212,14 @@ if A.empty:
 # ═══════════════════════════════════════════════════════════════════
 # КАРТОЧКИ
 # ═══════════════════════════════════════════════════════════════════
-_spend, _sales = A["spend"].sum(), A["sales"].sum()
+_spend, _sales = A["spend"].sum(), A["sales_14d"].sum()
 _days = max((_to - _from).days + 1, 1)
 _acos = (_spend / _sales * 100) if _sales > 0 else np.inf
 
 ntb = scope(load_amc("amc_ntb_by_asin"))
 _ntb_share = np.nan
-if not ntb.empty and {"orders", "ntb_rate_pct"} <= set(ntb.columns):
-    _o = pd.to_numeric(ntb["orders"], errors="coerce").fillna(0)
+if not ntb.empty and {"total_purchases", "ntb_rate_pct"} <= set(ntb.columns):
+    _o = pd.to_numeric(ntb["total_purchases"], errors="coerce").fillna(0)
     _r = pd.to_numeric(ntb["ntb_rate_pct"], errors="coerce")
     if _r.max() is not np.nan and (_r > 100).any():
         # ntb_rate_pct считается в источнике; больше 100 быть не может
@@ -230,8 +244,8 @@ st.markdown(f"### {t('ads.camp.title')}")
 
 _gb = ["campaign_id", "campaign_name", "campaign_status"]
 C = (A.groupby(_gb, as_index=False, dropna=False)
-      .agg(spend=("spend", "sum"), sales=("sales", "sum"),
-           clicks=("clicks", "sum"), orders=("orders", "sum"),
+      .agg(spend=("spend", "sum"), sales=("sales_14d", "sum"),
+           clicks=("clicks", "sum"), orders=("purchases_14d", "sum"),
            # min_count=1, иначе sum() по группе из одних NULL даёт ноль.
            # У скрытых строк охват пуст намеренно: сумма уникальных
            # пользователей по нескольким кампаниям не равна числу
@@ -339,10 +353,11 @@ if ntb.empty:
     st.info(t("ads.empty.period"))
 elif not contract_error(ntb, "amc_ntb_by_asin"):
     ntb = ntb.copy()
-    for c in ("orders", "sales", "ntb_rate_pct"):
+    for c in ("total_purchases", "total_sales", "ntb_rate_pct"):
         ntb[c] = pd.to_numeric(ntb[c], errors="coerce")
     G = (ntb.groupby("asin", as_index=False)
-            .agg(orders=("orders", "sum"), sales=("sales", "sum"),
+            .agg(orders=("total_purchases", "sum"),
+                 sales=("total_sales", "sum"),
                  ntb=("ntb_rate_pct", "mean")))
     _m = G[G["asin"].astype(str) == MASKED]
     G = G[G["asin"].astype(str) != MASKED].sort_values("sales", ascending=False)
@@ -383,7 +398,8 @@ st.divider()
 st.caption(t("ads.ref.note"))
 
 with st.expander(t("ads.ref.dayparting")):
-    _d = scope(load_amc("amc_dayparting"))
+    _d = scope(load_amc("amc_dayparting")).drop(columns=list(SERVICE),
+                                                 errors="ignore")
     st.dataframe(_d, use_container_width=True, hide_index=True) if not _d.empty \
         else st.info(t("ads.empty.period"))
 
@@ -393,10 +409,11 @@ with st.expander(t("ads.ref.terms")):
         st.info(t("ads.empty.period"))
     elif not contract_error(S, "amc_search_terms"):
         S = S.copy()
-        for c in ("customers", "sales"):
+        for c in ("unique_buyers", "sales"):
             S[c] = pd.to_numeric(S[c], errors="coerce")
-        T = (S.groupby("search_term", as_index=False)
-              .agg(customers=("customers", "sum"), sales=("sales", "sum")))
+        T = (S.groupby("customer_search_term", as_index=False)
+              .agg(customers=("unique_buyers", "sum"), sales=("sales", "sum"))
+              .rename(columns={"customer_search_term": "search_term"}))
         _tm = T[T["search_term"].astype(str) == MASKED]
         T = T[T["search_term"].astype(str) != MASKED].copy()
         # Средний чек важнее самих продаж: одинаковый спрос при разнице
@@ -437,6 +454,7 @@ with st.expander(t("ads.ref.terms")):
         st.caption(t("ads.terms.no_acos"))
 
 with st.expander(t("ads.ref.overlap")):
-    _o = scope(load_amc("amc_overlap"))
+    _o = scope(load_amc("amc_overlap")).drop(columns=list(SERVICE),
+                                             errors="ignore")
     st.dataframe(_o, use_container_width=True, hide_index=True) if not _o.empty \
         else st.info(t("ads.empty.period"))
