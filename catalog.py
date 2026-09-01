@@ -14,6 +14,7 @@ import streamlit as st
 from db.connection import get_connection
 from i18n import t
 from links import AMAZON_DOMAIN, amazon_url
+from util import as_text
 
 # Рынок для ссылки, когда своего у страницы нет. ASIN у Amazon общий на
 # всю Европу, поэтому карточка откроется та же — меняется только витрина
@@ -36,7 +37,7 @@ def base_sku(sku) -> str:
 
     В разных таблицах один товар записан как 11111, 11111-FBA и
     DM-11111-ES. Связывать их можно только по числу внутри."""
-    m = re.search(r"(\d{5,})", str(sku or ""))
+    m = re.search(r"(\d{5,})", as_text(sku))
     return m.group(1) if m else ""
 
 
@@ -84,7 +85,7 @@ for _code, _dom in AMAZON_DOMAIN.items():
 
 def _mk(v) -> str:
     """Код рынка, приведённый к виду kabinet_data, из любого из трёх."""
-    v = str(v or "").strip()
+    v = as_text(v).strip()
     low = v.lower()
     if low.startswith("amazon."):
         low = low[len("amazon."):]
@@ -195,7 +196,7 @@ def _first_market(markets) -> str:
     может стоять Mirakl-канал, у которого домена нет. Каждый элемент
     сперва приводим к коду страны — иначе британское «co.uk» не опознаётся
     и строка уезжает на испанскую витрину."""
-    for m in str(markets or "").split(","):
+    for m in as_text(markets).split(","):
         code = _mk(m)
         if code in AMAZON_DOMAIN:
             return code

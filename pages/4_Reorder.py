@@ -6,6 +6,7 @@ import streamlit as st
 from datetime import datetime, timezone
 from db.connection import get_connection
 from i18n import init_lang, t
+from util import as_text
 import catalog
 
 init_lang()
@@ -27,7 +28,7 @@ st.caption(t("ro.caption"))
 
 def clean_sku(sku: str) -> str:
     """Чистый базовый SKU: режет amzn.gr., -FBA/-FBM, хвост-хеш, вариант -A/-B."""
-    s = str(sku or "").strip()
+    s = as_text(sku).strip()
     s = re.sub(r"^amzn\.gr\.", "", s)
     s = s.replace("-FBA", "").replace("-FBM", "")
     s = re.sub(r"-[A-Za-z0-9]{8,}$", "", s)
@@ -36,7 +37,7 @@ def clean_sku(sku: str) -> str:
 
 
 def is_defect_sku(sku: str) -> bool:
-    return str(sku or "").lower().startswith("amzn.gr.")
+    return as_text(sku).lower().startswith("amzn.gr.")
 
 
 # ---------- автозаказ ----------
