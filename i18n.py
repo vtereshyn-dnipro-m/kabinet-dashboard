@@ -3226,13 +3226,39 @@ def get_lang() -> str:
     return st.session_state.lang
 
 
-def t(key: str) -> str:
-    """Возвращает перевод по ключу для текущего языка. Если ключа нет — возвращает сам key."""
+class _Tolerant(dict):
+    """Словарь подстановок, который не бросает KeyError.
+
+    Нужен потому, что фраза и код, который её заполняет, живут в разных
+    файлах и обновляются не одновременно. Streamlit Cloud после деплоя
+    без полного перезапуска держит в памяти старый модуль рядом с новым,
+    и если у ключа поменялся набор плейсхолдеров, .format() валит
+    страницу целиком. Пропущенная подстановка — повод показать прочерк,
+    а не уронить экран."""
+
+    def __missing__(self, key):
+        return "—"
+
+
+def t(key: str, **kw) -> str:
+    """Перевод по ключу для текущего языка. Ключа нет — возвращаем сам
+    ключ: так пропажа видна на экране и не притворяется текстом.
+
+    С аргументами подставляет их в фразу устойчиво: лишние игнорируются,
+    пропущенные становятся прочерком. Обычный .format() на переводе —
+    место, где расхождение версий превращается в падение."""
     init_lang()
     entry = TRANSLATIONS.get(key)
     if not entry:
         return key
-    return entry.get(st.session_state.lang, entry.get(DEFAULT_LANG, key))
+    txt = entry.get(st.session_state.lang, entry.get(DEFAULT_LANG, key))
+    if not kw:
+        return txt
+    try:
+        return txt.format_map(_Tolerant(kw))
+    except (IndexError, ValueError):
+        # фигурные скобки в самом тексте, не подстановка
+        return txt
 
 
 def language_toggle(location=None):

@@ -301,7 +301,7 @@ if not active_tr.empty:
 
     tc1, tc2 = st.columns([1, 1])
     with tc1:
-        if st.button(t("ro.tr.confirm").format(n=len(chosen_tr)),
+        if st.button(t("ro.tr.confirm", n=len(chosen_tr)),
                      use_container_width=True, disabled=chosen_tr.empty):
             # полные строки выбранного берём по индексу (сохраняется из tr),
             # кол-во — правленое из редактора. Надёжнее парсинга строки с иконкой.
@@ -318,7 +318,7 @@ if not active_tr.empty:
             st.rerun()
     with tc2:
         st.download_button(
-            t("ro.tr.export").format(n=len(chosen_tr)),
+            t("ro.tr.export", n=len(chosen_tr)),
             chosen_tr.to_csv(index=False).encode("utf-8-sig") if not chosen_tr.empty else b"",
             file_name="transfers.csv", mime="text/csv",
             use_container_width=True, disabled=chosen_tr.empty,
@@ -329,9 +329,9 @@ if not active_tr.empty:
     if _order:
         oc1, oc2 = st.columns([3, 1])
         with oc1:
-            st.success(t("ro.tr.order_created").format(no=_order["no"], n=_order["n"]))
+            st.success(t("ro.tr.order_created", no=_order["no"], n=_order["n"]))
             st.download_button(
-                t("ro.tr.order_download").format(no=_order["no"]),
+                t("ro.tr.order_download", no=_order["no"]),
                 _order["bytes"], file_name=f"zayavka_{_order['no']}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="dl_tr_order", use_container_width=True)
@@ -406,20 +406,20 @@ t3.metric(t("ro.order.avg_velocity"),
 
 a1, a2 = st.columns([1, 1])
 with a1:
-    if st.button(t("ro.order.form").format(n=len(chosen)),
+    if st.button(t("ro.order.form", n=len(chosen)),
                  type="primary", use_container_width=True,
                  disabled=chosen.empty or not HAS_ORDER_STATUS):
         skus_orig = [active[active["sku"].apply(clean_sku) == sd].iloc[0]["sku"]
                      for sd in chosen["sku_display"]]
         mark_ordered(skus_orig, chosen["suggested_qty"].tolist())
         st.cache_data.clear()
-        st.success(t("ro.order.formed").format(
+        st.success(t("ro.order.formed", 
             n=len(chosen), qty=int(chosen["suggested_qty"].sum())))
         st.rerun()
 with a2:
     exp = chosen if not chosen.empty else fdf[fdf["urgency"] != "ok"]
     st.download_button(
-        t("ro.order.export").format(n=len(exp)),
+        t("ro.order.export", n=len(exp)),
         exp.to_csv(index=False).encode("utf-8-sig"),
         file_name="reorder.csv", mime="text/csv",
         use_container_width=True, disabled=exp.empty,
@@ -427,7 +427,7 @@ with a2:
 
 if not ordered.empty:
     st.divider()
-    with st.expander(t("ro.ordered.title").format(
+    with st.expander(t("ro.ordered.title", 
             n=len(ordered), qty=int(ordered["suggested_qty"].sum()))):
         od = ordered.copy()
         od["sku_display"] = od["sku"].apply(clean_sku)

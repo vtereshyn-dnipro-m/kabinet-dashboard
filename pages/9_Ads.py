@@ -163,7 +163,7 @@ def contract_error(df: pd.DataFrame, table: str) -> bool:
     miss = missing(df, table)
     if not miss:
         return False
-    st.error(t("ads.err.columns").format(
+    st.error(t("ads.err.columns", 
         table=table, miss=", ".join(miss),
         have=", ".join(map(str, df.columns)) or "—"))
     return True
@@ -230,14 +230,14 @@ st.caption(t("ads.subtitle"))
 
 attr, ATTR_SRC, _err = load_first("v_amc_attribution", "amc_attribution")
 if attr.empty:
-    st.error(t("ads.err.load").format(
+    st.error(t("ads.err.load", 
         e=_err or "—", have=", ".join(amc_objects()) or "—"))
     st.stop()
 if ATTR_SRC != "v_amc_attribution":
     # Вью считает campaign_status, roas и acos_pct. Без него это придётся
     # считать здесь, а логика в двух местах однажды разойдётся — поэтому
     # не считаем, а говорим
-    st.warning(t("ads.err.no_view").format(src=ATTR_SRC))
+    st.warning(t("ads.err.no_view", src=ATTR_SRC))
 if contract_error(attr, "v_amc_attribution"):
     st.stop()
 
@@ -257,7 +257,7 @@ if not _log.empty:
         _last = pd.to_datetime(_log[_dcol], errors="coerce").max()
         _age = (pd.Timestamp.now() - _last).days if pd.notna(_last) else None
         if _age is not None and _age >= 2:
-            st.warning(t("ads.stale").format(n=_age))
+            st.warning(t("ads.stale", n=_age))
 
 # ---- фильтры ----
 f1, f2, f3 = st.columns([2, 2, 2])
@@ -273,13 +273,13 @@ with f3:
         # которого нет. Показываем значение подписью, а место под
         # настоящий селектор останется, когда инстансов станет больше
         _mk = []
-        st.caption(t("ads.filter.market_one").format(
+        st.caption(t("ads.filter.market_one", 
             m=market_name(_markets[0]) if _markets else "—"))
 
 # ---- предварительные дни ----
 _today = pd.Timestamp.today().normalize()
 _closed_to = _today - pd.Timedelta(days=PRELIM_DAYS)
-show_prelim = st.toggle(t("ads.prelim.toggle").format(n=PRELIM_DAYS),
+show_prelim = st.toggle(t("ads.prelim.toggle", n=PRELIM_DAYS),
                         value=False, key="ads_prelim")
 _from, _to = PERIOD.start, PERIOD.end
 if not show_prelim:
@@ -289,11 +289,11 @@ st.markdown(f"""
 <div style="border:1px solid rgba(240,165,0,0.45);border-left:3px solid {AMBER};
             border-radius:10px;padding:10px 16px;margin:10px 0 6px 0;
             background:rgba(240,165,0,0.08);font-size:0.92rem;">
-{t("ads.limits").format(m=", ".join(market_name(m) for m in _markets) or "—")}
+{t("ads.limits", m=", ".join(market_name(m) for m in _markets) or "—")}
 </div>
 """, unsafe_allow_html=True)
-st.caption(t("ads.prelim.on").format(n=PRELIM_DAYS) if show_prelim
-           else t("ads.prelim.off").format(
+st.caption(t("ads.prelim.on", n=PRELIM_DAYS) if show_prelim
+           else t("ads.prelim.off", 
                n=PRELIM_DAYS, d=_to.strftime("%d.%m.%Y")))
 
 
@@ -322,7 +322,7 @@ if A.empty:
     # период данных нет» неотличимо от «загрузчик умер», и человек идёт
     # чинить то, что работает
     _dd = pd.to_datetime(attr["report_date"], errors="coerce").dropna()
-    st.info(t("ads.empty.period_range").format(
+    st.info(t("ads.empty.period_range", 
         a=_dd.min().strftime("%d.%m.%Y") if len(_dd) else "—",
         b=_dd.max().strftime("%d.%m.%Y") if len(_dd) else "—",
         f=_from.strftime("%d.%m.%Y"), to=_to.strftime("%d.%m.%Y")))
@@ -355,10 +355,10 @@ if not ntb.empty and {"total_purchases", "ntb_rate_pct"} <= set(ntb.columns):
 # покупки, а повторных нет, разговор не про ставки вообще
 _cac = (_spend / _ntb_buys) if (_ntb_buys and _ntb_buys > 0) else np.nan
 c1, c2, c3, c4, c5 = st.columns(5)
-card(c1, "ACOS", t("ads.card.acos_manual").format(n=f"{ACOS_TARGET:.0f}"),
+card(c1, "ACOS", t("ads.card.acos_manual", n=f"{ACOS_TARGET:.0f}"),
      "∞" if np.isinf(_acos) else f"{_acos:.0f} %",
      "bad" if (np.isinf(_acos) or _acos > ACOS_TARGET) else "good")
-card(c2, t("ads.card.spend"), t("ads.card.spend_base").format(n=_days),
+card(c2, t("ads.card.spend"), t("ads.card.spend_base", n=_days),
      money(_spend))
 card(c3, t("ads.card.sales"), t("ads.card.sales_base"), money(_sales))
 card(c4, t("ads.card.ntb"), t("ads.card.ntb_base"),
@@ -468,9 +468,15 @@ else:
         key, colr = ACTION.get(r["status"], ("ads.act.keep", GREY))
         rows.append({
             "name": str(r["campaign_name"]),
-            "sub": t("ads.camp.sub").format(
-                c=int(r["clicks"] or 0), o=int(r["orders"] or 0),
-                u="—" if pd.isna(r["reach"]) else f"{int(r['reach']):,}".replace(",", " ")),
+            # В подстроке показы, а не охват. Охват честно пуст на любом
+            # окне длиннее суток — сумма уникальных по дням не равна
+            # числу уникальных, — и «охват —» стояло в каждой строке.
+            # Подпись, которая всегда прочерк, приучает не читать строку
+            "sub": t("ads.camp.sub",
+                     c=int(r["clicks"] or 0), o=int(r["orders"] or 0),
+                     i="—" if pd.isna(r["impressions"])
+                       else f"{int(r['impressions']):,}".replace(",", " ")),
+            "asins": campaign_asins(r["campaign_name"]),
             "spend": float(r["spend"] or 0),
             "sales": float(r["sales"] or 0),
             "acos": r["acos"],
@@ -541,13 +547,13 @@ else:
     st.caption(t("ads.camp.three_actions"))
     if not _masked.empty:
         st.caption(t("ads.camp.masked_note"))
-    st.caption(t("ads.camp.thresholds").format(
+    st.caption(t("ads.camp.thresholds", 
         a=f"{ACOS_TARGET:.0f}", c=f"{CTR_MIN:.1f}"))
 
 # Кампании без кликов — по строке на каждую пустоту. Одиннадцать пустых
 # строк вытесняют вниз то, ради чего таблицу открывают
 if not _quiet.empty:
-    with st.expander(t("ads.camp.quiet").format(
+    with st.expander(t("ads.camp.quiet", 
             n=len(_quiet), s=money(_quiet["spend"].sum()))):
         st.dataframe(_quiet[["campaign_name", "spend", "clicks"]],
                      use_container_width=True, hide_index=True,
@@ -724,7 +730,7 @@ with st.expander(t("ads.ref.terms"), expanded=True):
         # не прошли порог, — рядом с настоящими запросами такая полоса
         # читалась бы как самый популярный из них
         if not _tm.empty:
-            st.caption(t("ads.terms.masked").format(
+            st.caption(t("ads.terms.masked", 
                 s=money(_tm["sales"].sum()),
                 p=f'{_tm["sales"].sum() / max(_tm["sales"].sum() + T["sales"].sum(), 1) * 100:.0f}'))
         st.caption(t("ads.terms.no_acos"))
@@ -744,7 +750,7 @@ with st.expander(t("ads.ref.overlap"), expanded=True):
         _ov = (_o.groupby(["ad_type_1", "ad_type_2"], as_index=False)
                  ["overlap_users"].max())
         for _, r in _ov.iterrows():
-            st.markdown(t("ads.ref.overlap_line").format(
+            st.markdown(t("ads.ref.overlap_line", 
                 n=f"{int(r['overlap_users']):,}".replace(",", " "),
                 a=r["ad_type_1"], b=r["ad_type_2"]))
         st.caption(t("ads.ref.overlap_note"))

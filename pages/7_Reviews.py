@@ -637,7 +637,7 @@ def _legend() -> str:
         (ST_COLOR["catching"], t("rev.st.catching"), t("rev.legend.catching_short")),
         (ST_COLOR["missed"], t("rev.st.missed"), t("rev.legend.missed_short")),
         (ST_COLOR["maturing"], t("rev.st.maturing"),
-         t("rev.legend.maturing_short").format(min=AGE_MIN)),
+         t("rev.legend.maturing_short", min=AGE_MIN)),
     ]
     cells = "".join(
         f'<span style="display:flex;align-items:center;gap:6px;">'
@@ -743,13 +743,13 @@ if last_sent is not None and pd.notna(last_sent):
 if hours_since is None:
     st.warning(t("rev.health_never"))
 elif hours_since > 25:
-    st.error(t("rev.health_stopped").format(h=hours_since))
+    st.error(t("rev.health_stopped", h=hours_since))
 else:
-    st.success(t("rev.health_ok").format(
+    st.success(t("rev.health_ok", 
         when=last_sent_local.strftime("%d.%m %H:%M")))
 
 # ---------- как это работает: коротко на видном месте + подробности по клику ----------
-_intro_body = t("rev.intro.body").format(
+_intro_body = t("rev.intro.body", 
     min=AGE_MIN, max=AGE_MAX,
     maturing=t("rev.st.maturing"),
     catching=t("rev.st.catching"),
@@ -865,7 +865,7 @@ with tab_cov:
         # стоит», хотя мерить просто нечего. Говорим об этом прямо
         all_maturing = matured.empty
         if all_maturing:
-            st.info(t("rev.sum.all_maturing").format(n=AGE_MIN, d=DAYS))
+            st.info(t("rev.sum.all_maturing", n=AGE_MIN, d=DAYS))
 
         s1, s2, s3, s4 = st.columns(4)
         s1.metric(t("rev.sum.orders"),
@@ -1160,13 +1160,13 @@ with tab_dyn:
             d1, d2 = st.columns(2)
             d1.metric(t("rev.dyn.total"),
                       "—" if pd.isna(total_now) else f"{int(total_now):,}",
-                      help=t("rev.dyn.total_help").format(
+                      help=t("rev.dyn.total_help", 
                           n=len(_live),
                           d=("—" if as_of is None
                              else pd.Timestamp(as_of).strftime("%d.%m.%Y")),
                           w=BASKET_DAYS))
             d2.metric(t("rev.dyn.growth"), f"+{int(total_growth):,}",
-                      help=t("rev.dyn.growth_help").format(d=days_span))
+                      help=t("rev.dyn.growth_help", d=days_span))
 
             # ---- график: отправки и прирост отзывов ----
             st.markdown(f"**{t('rev.dyn.chart')}**")
@@ -1211,24 +1211,24 @@ with tab_dyn:
             if last_seen is not None:
                 _lag = (pd.Timestamp(datetime.now(TZ).date()) - last_seen).days
                 if _lag >= 1:
-                    st.caption(t("rev.dyn.data_through").format(
+                    st.caption(t("rev.dyn.data_through", 
                         d=last_seen.strftime("%d.%m"), n=_lag))
             # п.4: за пределами накопленной истории окна перестают отличаться
             if first_seen is not None:
                 _covered = (pd.Timestamp(datetime.now(TZ).date())
                             - first_seen).days
                 if DAYS > _covered:
-                    st.caption(t("rev.dyn.history_limit").format(
+                    st.caption(t("rev.dyn.history_limit", 
                         d=first_seen.strftime("%d.%m.%Y"), n=_covered))
 
             raw_last = load_reviews_last_snapshot()
             shown_last = daily.dropna(subset=["review_count"])["snapshot_date"].max()
             if raw_last is not None and raw_last > shown_last:
-                st.warning(t("rev.dyn.filtered_note").format(
+                st.warning(t("rev.dyn.filtered_note", 
                     raw=raw_last.strftime("%d.%m"),
                     shown=shown_last.strftime("%d.%m")))
             if len(gap_days):
-                st.caption(t("rev.dyn.gap_note").format(
+                st.caption(t("rev.dyn.gap_note", 
                     n=len(gap_days),
                     days=", ".join(d.strftime("%d.%m")
                                    for d in gap_days[:8])
@@ -1248,7 +1248,7 @@ with tab_dyn:
 
             g1, g2 = st.columns(2)
             g1.metric(t("rev.dyn.grown"), f"{len(grown):,}",
-                      help=t("rev.dyn.grown_help").format(n=n_pairs))
+                      help=t("rev.dyn.grown_help", n=n_pairs))
             g2.metric(t("rev.dyn.excluded"), f"{n_dropped:,}",
                       help=t("rev.dyn.excluded_help"))
 
@@ -1337,7 +1337,7 @@ with tab_mp:
             cs = st.columns(len(agg))
             for i, (_, r) in enumerate(agg.iterrows()):
                 cs[i].metric(r["label"], f"{r['rate']:.0f}%",
-                             delta=t("rev.slot.checked").format(n=int(r["checked"])),
+                             delta=t("rev.slot.checked", n=int(r["checked"])),
                              delta_color="off",
                              help=t("rev.slot.metric_help"))
             figs = px.bar(agg, x="label", y="rate", text="rate",
@@ -1349,10 +1349,10 @@ with tab_mp:
             st.plotly_chart(figs, use_container_width=True, config=PLOTLY_CFG)
             _small = int(agg["checked"].min())
             if _small < 100:
-                st.warning(t("rev.slot.small").format(
+                st.warning(t("rev.slot.small", 
                     n=int(agg["checked"].sum()), mn=_small))
             else:
-                st.caption(t("rev.slot.enough").format(n=int(agg["checked"].sum())))
+                st.caption(t("rev.slot.enough", n=int(agg["checked"].sum())))
         st.caption(t("rev.slot.reviews_gap"))
 
 
@@ -1387,9 +1387,9 @@ with tab_age:
         st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
         if total_checked < 200:
-            st.warning(t("rev.age.small_sample").format(n=total_checked))
+            st.warning(t("rev.age.small_sample", n=total_checked))
         else:
-            st.caption(t("rev.age.enough_sample").format(n=total_checked))
+            st.caption(t("rev.age.enough_sample", n=total_checked))
 
 
 with tab_asin:
@@ -1486,7 +1486,7 @@ with tab_asin:
         _total_all = len(by_asin)
         by_asin = _apply(by_asin, "mk")
         if by_asin.empty:
-            st.info(t("rev.asin.filter_none").format(
+            st.info(t("rev.asin.filter_none", 
                 q=_q or "—", mk=", ".join(_mk_pick) or t("rev.asin.filter_market_all")))
 
         # ASIN и ссылка — одна колонка: отдельный столбец со стрелкой
@@ -1559,7 +1559,7 @@ with tab_asin:
                         st.markdown(
                             f"**{_r['product_name']}**  \n`{_r['asin']}`"
                             f" · {_r['mk'] or '—'}")
-                        st.caption(t("rev.asin.pick_sent").format(
+                        st.caption(t("rev.asin.pick_sent", 
                             n=int(_r["sent"]), p=PERIOD.title))
                     with pc3:
                         if _r["url"]:
@@ -1620,7 +1620,7 @@ with tab_asin:
                             help=t("rev.asin.to_requests_help")),
                     },
                 )
-                st.caption(t("rev.asin.shown").format(
+                st.caption(t("rev.asin.shown", 
                     n=len(weak), total=_total_all))
                 st.caption(t("rev.asin.over100"))
 
@@ -1695,6 +1695,6 @@ with tab_asin:
                                     t("rev.dyn.rating"), format="%.1f", width="small"),
                             },
                         )
-                        st.caption(t("rev.asin.shown").format(
+                        st.caption(t("rev.asin.shown", 
                             n=len(grown), total=_grown_all))
                         st.caption(t("rev.dyn.note"))

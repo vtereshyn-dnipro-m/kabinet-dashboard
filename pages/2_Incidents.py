@@ -143,7 +143,7 @@ if not burning.empty:
         col.metric(
             label=f"{SEV_ICON.get(row['severity'], '⚪')} {row['sku'][:18]}",
             value=f"{int(row['current_qty'])} {unit}",
-            delta=t("inc.age_delta_open").format(n=int(row["age_days"])) if row["age_days"] else t("inc.age_new"),
+            delta=t("inc.age_delta_open", n=int(row["age_days"])) if row["age_days"] else t("inc.age_new"),
             delta_color="inverse" if row["age_days"] else "off",
             help=f"{product} · {row['warehouse_name']} · {t('inc.status_word')}: {row['status']}",
         )
@@ -237,14 +237,14 @@ event = st.dataframe(
 selected_rows = event.selection.rows if event and event.selection else []
 b1, b2, b3 = st.columns([1.2, 1.2, 3])
 with b1:
-    if st.button(t("inc.btn.acknowledge").format(n=len(selected_rows)),
+    if st.button(t("inc.btn.acknowledge", n=len(selected_rows)),
                  disabled=not selected_rows, use_container_width=True):
         ids = show.loc[selected_rows, "id"].tolist()
         update_status(ids, "acknowledged")
         st.cache_data.clear()
         st.rerun()
 with b2:
-    if st.button(t("inc.btn.resolve").format(n=len(selected_rows)),
+    if st.button(t("inc.btn.resolve", n=len(selected_rows)),
                  disabled=not selected_rows, use_container_width=True):
         ids = show.loc[selected_rows, "id"].tolist()
         update_status(ids, "resolved")
