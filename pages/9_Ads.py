@@ -17,6 +17,7 @@ from db.connection import get_connection
 from i18n import init_lang, t
 import period as period_mod
 import catalog
+from links import market_name
 
 init_lang()
 
@@ -152,17 +153,16 @@ PERIOD = period_mod.control(columns=(f1, f2), key="ads_period")
 with f3:
     if len(_markets) > 1:
         _mk = st.multiselect(t("ads.filter.market"), options=_markets,
+                             format_func=market_name,
                              placeholder=t("ads.filter.market_all"),
                              key="ads_mk")
     else:
         # Селектор с единственным пунктом — обманка: выглядит выбором,
         # которого нет. Показываем значение подписью, а место под
         # настоящий селектор останется, когда инстансов станет больше
-        # Идентификатор инстанса на экран не выносим: A1RKKUPIHCS9HS
-        # ничего не говорит человеку, а названия рынков по этим кодам в
-        # Кабинете нет. Пока инстанс один, достаточно сказать это словами
         _mk = []
-        st.caption(t("ads.filter.market_one"))
+        st.caption(t("ads.filter.market_one").format(
+            m=market_name(_markets[0]) if _markets else "—"))
 
 # ---- предварительные дни ----
 _today = pd.Timestamp.today().normalize()
@@ -177,7 +177,7 @@ st.markdown(f"""
 <div style="border:1px solid rgba(240,165,0,0.45);border-left:3px solid {AMBER};
             border-radius:10px;padding:10px 16px;margin:10px 0 6px 0;
             background:rgba(240,165,0,0.08);font-size:0.92rem;">
-{t("ads.limits")}
+{t("ads.limits").format(m=", ".join(market_name(m) for m in _markets) or "—")}
 </div>
 """, unsafe_allow_html=True)
 st.caption(t("ads.prelim.on").format(n=PRELIM_DAYS) if show_prelim
