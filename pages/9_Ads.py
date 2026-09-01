@@ -294,25 +294,61 @@ card(c4, t("ads.card.ntb"), t("ads.card.ntb_base"),
 # ═══════════════════════════════════════════════════════════════════
 st.markdown(f"### {t('ads.camp.title')}")
 
-_gb = ["campaign_id", "campaign_name", "campaign_status"]
-C = (A.groupby(_gb, as_index=False, dropna=False)
-      .agg(spend=("spend", "sum"), sales=("sales_14d", "sum"),
-           clicks=("clicks", "sum"), orders=("purchases_14d", "sum"),
-           # min_count=1, иначе sum() по группе из одних NULL даёт ноль.
-           # У скрытых строк охват пуст намеренно: сумма уникальных
-           # пользователей по нескольким кампаниям не равна числу
-           # уникальных, и ноль на этом месте — неверное число вместо
-           # честной пустоты
-           reach=("reach", lambda x: x.sum(min_count=1))))
-C["acos"] = np.where(C["sales"] > 0, C["spend"] / C["sales"] * 100, np.inf)
-C["status"] = C["campaign_status"].astype(str)
+# Скрытые строки отделяем ДО группировки. У них нет ни campaign_id, ни
+# названия — Amazon убирает и то и другое, оставляя суммы. В общей
+# группировке они схлопывались в никуда, и строка «скрыто Amazon»
+# пропадала с экрана, хотя её продажи оставались в карточках: итог по
+# таблице переставал сходиться, а объяснить это было нечем
+_st_raw = A["campaign_status"].astype(str).str.strip()
+M = A[_st_raw == "masked"]
+V = A[_st_raw != "masked"].copy()
 
-# Маскированные строки AMC отдаёт без идентификатора, но с суммами. По
-# данным первого прогона в них больше продаж, чем во всех видимых
-# кампаниях вместе, — спрятать их значит перевернуть картину втрое
-_masked = C[C["status"] == "masked"]
+# Группируем по кампании, а НЕ по (кампания, статус). Статус во вью
+# считается на каждый день, поэтому кампания с разными статусами по дням
+# распадалась на несколько строк — одна и та же кампания встречалась в
+# таблице дважды с разными числами
+C = (V.groupby("campaign_id", as_index=False, dropna=False)
+      .agg(campaign_name=("campaign_name", "first"),
+           spend=("spend", "sum"), sales=("sales_14d", "sum"),
+           clicks=("clicks", "sum"), orders=("purchases_14d", "sum"),
+           days=("report_date", "nunique"),
+           reach=("reach", lambda x: x.sum(min_count=1)),
+           statuses=("campaign_status", lambda x: set(map(str, x)))))
+# ACOS считаем от сумм, а не усредняем дневные: среднее из процентов —
+# не процент от суммы, и на кампании с одним дорогим днём расходится
+# заметно
+C["acos"] = np.where(C["sales"] > 0, C["spend"] / C["sales"] * 100, np.inf)
+# Охват за несколько дней неизвестен: сумма уникальных пользователей по
+# дням не равна числу уникальных за период. Пустое место честнее числа,
+# которое выглядит точным и не является им
+C.loc[C["days"] > 1, "reach"] = np.nan
+
+
+def period_status(row) -> str:
+    """Статус кампании за ПЕРИОД.
+
+    Взять его прямо из вью нельзя: там он посчитан на каждый день, а на
+    окне из тридцати дней у одной кампании их несколько. Поставить
+    дневной ярлык рядом с суммами за месяц значит показать строку,
+    спорящую сама с собой, — именно так «нет продаж» оказывалось
+    подписано «оставить».
+
+    Свести дни к периоду вью не может: она их не видит вместе. Словарь
+    статусов взят у неё, правила — те же, что в ТЗ. Если правило
+    поменяется во вью, поменять надо и здесь."""
+    if row["clicks"] <= 0 and row["spend"] <= 0:
+        return "no_traffic"
+    if row["sales"] <= 0:
+        return "no_sales"
+    if row["acos"] > ACOS_TARGET:
+        return "high_acos"
+    return "ok"
+
+
+C["status"] = C.apply(period_status, axis=1)
+_masked = M
 _quiet = C[C["status"] == "no_traffic"]
-_live = C[~C["status"].isin(["masked", "no_traffic"])].copy()
+_live = C[C["status"] != "no_traffic"].copy()
 
 ACTION = {"no_sales": ("ads.act.off", RED),
           "high_acos": ("ads.act.lower", AMBER),
@@ -366,7 +402,7 @@ else:
             f'<td style="padding:8px;text-align:right">{_cell(acos_txt, acos_col, True)}</td>'
             f'<td style="padding:8px">{_cell(r["act"], r["act_color"], True)}</td></tr>')
     if not _masked.empty:
-        _ms, _mv = _masked["spend"].sum(), _masked["sales"].sum()
+        _ms, _mv = _masked["spend"].sum(), _masked["sales_14d"].sum()
         _ma = f"{_ms / _mv * 100:.0f} %" if _mv > 0 else "∞"
         html.append(
             '<tr style="border-top:1px solid rgba(128,128,128,0.18);'
@@ -451,9 +487,13 @@ st.caption(t("ads.ref.note"))
 
 with st.expander(t("ads.ref.dayparting")):
     _d = scope(load_amc("amc_dayparting")[0]).drop(columns=list(SERVICE),
-                                                 errors="ignore")
-    st.dataframe(_d, use_container_width=True, hide_index=True) if not _d.empty \
-        else st.info(t("ads.empty.period"))
+                                                   errors="ignore")
+    # Обычный if, а не тернарник: выражение верхнего уровня Streamlit
+    # считает значением для показа и пытается разобрать его как код
+    if _d.empty:
+        st.info(t("ads.empty.period"))
+    else:
+        st.dataframe(_d, use_container_width=True, hide_index=True)
 
 with st.expander(t("ads.ref.terms")):
     S = scope(load_amc("amc_search_terms")[0])
@@ -507,6 +547,8 @@ with st.expander(t("ads.ref.terms")):
 
 with st.expander(t("ads.ref.overlap")):
     _o = scope(load_amc("amc_overlap")[0]).drop(columns=list(SERVICE),
-                                             errors="ignore")
-    st.dataframe(_o, use_container_width=True, hide_index=True) if not _o.empty \
-        else st.info(t("ads.empty.period"))
+                                               errors="ignore")
+    if _o.empty:
+        st.info(t("ads.empty.period"))
+    else:
+        st.dataframe(_o, use_container_width=True, hide_index=True)
