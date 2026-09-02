@@ -374,14 +374,19 @@ tab_sum, tab_par, tab_lm, tab_amz, tab_all = st.tabs(
 )
 
 
-# Цена в фунтах в сравнение не идёт: разброс считается между числами в
-# одной валюте, иначе британская строка задерёт его втрое на ровном месте
-PARITY_SKIP = ("amz_gb",)
-# Технические поля выгрузки — на экран не идут
-PARITY_SERVICE = ("loaded_at", "calc_date", "snapshot_date", "updated_at",
-                  "instance_id")
+# Каналы в евро, в порядке убывания значимости рынка. Список явный:
+# в таблице рядом лежат min_price, max_price и прочие числовые поля,
+# и «всё числовое, кроме служебного» однажды прихватило бы их
+PARITY_EUR = ("amz_es", "amz_fr", "amz_de", "amz_it",
+              "mm_es", "mm_fr", "lm_es", "cf_es")
+# Британия в фунтах: в сравнение не идёт, но и прятать цену незачем —
+# показываем последней колонкой и с другим знаком валюты
+PARITY_GBP = "amz_gb"
 PARITY_ALERT = 20.0     # с какого разброса подсвечиваем
 PARITY_BAD = 50.0       # и с какого он перестаёт быть недосмотром
+
+PARITY_NEED = ("norm_sku", "product_name", "max_deviation_pct",
+               "channels_count", "outlier_channels")
 
 
 @st.cache_data(ttl=600)
@@ -399,23 +404,6 @@ def load_price_parity() -> tuple:
         return pd.DataFrame(), f"{type(e).__name__}: {e}".strip()
     finally:
         conn.close()
-
-
-def parity_price_columns(df: pd.DataFrame) -> list:
-    """Колонки с ценами: всё числовое, кроме служебного и фунтов.
-
-    Имена каналов заранее не перечисляем — появится новый рынок, он
-    попадёт в сравнение сам. Взамен страница показывает, что именно
-    приняла за цену: список на экране дешевле переписки о том, почему
-    разброс не сошёлся."""
-    out = []
-    for c in df.columns:
-        low = str(c).lower()
-        if low in PARITY_SKIP or low in PARITY_SERVICE:
-            continue
-        if pd.api.types.is_numeric_dtype(df[c]):
-            out.append(c)
-    return out
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -687,89 +675,96 @@ with tab_sum:
 
 with tab_par:
     par, par_err = load_price_parity()
+    _miss = [c for c in PARITY_NEED if c not in par.columns] if not par.empty else []
     if par.empty:
         st.error(t("cm.par.no_data", e=par_err or "—"))
+    elif _miss:
+        st.error(t("cm.par.no_columns", miss=", ".join(_miss),
+                   have=", ".join(map(str, par.columns)) or "—"))
     else:
-        _sku_col = next((c for c in ("sku", "base_sku", "norm_sku", "asin")
-                         if c in par.columns), None)
-        _pcols = parity_price_columns(par)
-        if not _sku_col or len(_pcols) < 2:
-            st.error(t("cm.par.no_columns",
-                       have=", ".join(map(str, par.columns)) or "—"))
+        P = par.copy()
+        _eur = [c for c in PARITY_EUR if c in P.columns]
+        for c in _eur + [PARITY_GBP, "max_deviation_pct", "channels_count"]:
+            if c in P.columns:
+                P[c] = pd.to_numeric(P[c], errors="coerce")
+        # Отклонение считает загрузчик — берём готовое, а не пересчитываем.
+        # Свой расчёт рядом с чужим однажды разойдётся, и разбираться,
+        # какое из двух чисел верное, придётся в самый неподходящий момент
+        P["spread"] = P["max_deviation_pct"]
+        # Цена на одном канале — не паритет ноль, а отсутствие ответа
+        P = P[P["channels_count"].fillna(0) >= 2]
+        P = P.sort_values("spread", ascending=False)
+
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric(t("cm.par.kpi_alert", n=int(PARITY_ALERT)),
+                  f"{int((P['spread'] > PARITY_ALERT).sum()):,}",
+                  help=t("cm.par.kpi_alert_help"))
+        k2.metric(t("cm.par.kpi_bad", n=int(PARITY_BAD)),
+                  f"{int((P['spread'] > PARITY_BAD).sum()):,}")
+        k3.metric(t("cm.par.kpi_double"),
+                  f"{int((P['spread'] > 100).sum()):,}",
+                  help=t("cm.par.kpi_double_help"))
+        k4.metric(t("cm.par.kpi_avg"),
+                  "—" if P["spread"].isna().all()
+                  else f"{P['spread'].mean():.0f} %")
+
+        _q = st.text_input(t("cm.summary.search"),
+                           placeholder=t("cm.summary.search_ph"),
+                           key="par_search").strip()
+        _total = len(P)
+        if _q:
+            _amap = catalog.asin_by_sku()
+            _sk = P["norm_sku"].astype(str)
+            P = P[_sk.str.contains(_q, case=False, na=False)
+                  | _sk.map(_amap).fillna("")
+                      .str.contains(_q, case=False, na=False)
+                  | P["product_name"].astype(str)
+                      .str.contains(_q, case=False, na=False)]
+        if P.empty:
+            st.info(t("cm.summary.search_none", q=_q))
         else:
-            P = par.copy()
-            _px = P[_pcols].where(P[_pcols] > 0)
-            _known = _px.notna().sum(axis=1)
-            _lo, _hi = _px.min(axis=1), _px.max(axis=1)
-            # Разброс — от минимума, а не от среднего: вопрос «насколько
-            # дороже там, где дороже всего», а не «как далеко от центра»
-            P["spread"] = np.where(
-                _known >= 2,
-                np.round((_hi - _lo) / _lo.replace(0, np.nan) * 100, 1),
-                np.nan)
-            P["spread"] = pd.to_numeric(P["spread"], errors="coerce")
-            P["lo"], P["hi"], P["known"] = _lo, _hi, _known
-            # Цену на одном канале сравнивать не с чем — это не паритет
-            # ноль, а отсутствие ответа
-            P = P[P["known"] >= 2].sort_values("spread", ascending=False)
+            # Подсветку делаем значком, а не фоном ячейки: Styler в
+            # st.dataframe не уживается с колонками фото и ссылки, а
+            # они на этой странице уже везде
+            P["flag"] = np.where(P["spread"] > PARITY_BAD, "🔴",
+                                 np.where(P["spread"] > PARITY_ALERT,
+                                          "🟡", "·"))
+            P["photo"] = catalog.image_series(skus=P["norm_sku"])
+            P["asin_url"] = catalog.url_series(skus=P["norm_sku"])
+            show = (["flag", "photo", "norm_sku", "asin_url", "product_name"]
+                    + _eur + ["spread", "outlier_channels"])
+            if PARITY_GBP in P.columns:
+                show.append(PARITY_GBP)
+            conf = {
+                "flag": st.column_config.TextColumn("", width="small"),
+                "photo": catalog.image_column(),
+                "norm_sku": st.column_config.TextColumn("SKU", width="small"),
+                "asin_url": catalog.asin_column(),
+                "product_name": st.column_config.TextColumn(
+                    t("cm.col.product"), width="medium"),
+                "spread": st.column_config.NumberColumn(
+                    t("cm.par.col_spread"), format="%.0f%%",
+                    help=t("cm.par.col_spread_help")),
+                "outlier_channels": st.column_config.TextColumn(
+                    t("cm.par.col_outliers"), width="large",
+                    help=t("cm.par.col_outliers_help")),
+                PARITY_GBP: st.column_config.NumberColumn(
+                    "AMZ · GB", format="%.2f £",
+                    help=t("cm.par.col_gbp_help")),
+            }
+            for c in _eur:
+                conf[c] = st.column_config.NumberColumn(
+                    str(c).upper().replace("_", " · "), format="%.2f €")
+            st.dataframe(P[show], use_container_width=True, height=560,
+                         hide_index=True, column_config=conf)
+            st.caption(t("cm.summary.shown", n=len(P), total=_total))
+            st.caption(t("cm.par.note"))
+            st.download_button(
+                t("cm.download"),
+                P[show].to_csv(index=False).encode("utf-8-sig"),
+                file_name="price_parity.csv", mime="text/csv",
+                key="dl_parity")
 
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric(t("cm.par.kpi_alert", n=int(PARITY_ALERT)),
-                      f"{int((P['spread'] > PARITY_ALERT).sum()):,}",
-                      help=t("cm.par.kpi_alert_help"))
-            k2.metric(t("cm.par.kpi_bad", n=int(PARITY_BAD)),
-                      f"{int((P['spread'] > PARITY_BAD).sum()):,}")
-            k3.metric(t("cm.par.kpi_double"),
-                      f"{int((P['spread'] > 100).sum()):,}",
-                      help=t("cm.par.kpi_double_help"))
-            k4.metric(t("cm.par.kpi_avg"),
-                      "—" if P["spread"].isna().all()
-                      else f"{P['spread'].mean():.0f} %")
-
-            _q = st.text_input(t("cm.summary.search"),
-                               placeholder=t("cm.summary.search_ph"),
-                               key="par_search").strip()
-            _total = len(P)
-            if _q:
-                _amap = catalog.asin_by_sku()
-                _sk = P[_sku_col].astype(str)
-                P = P[_sk.str.contains(_q, case=False, na=False)
-                      | _sk.map(_amap).fillna("")
-                          .str.contains(_q, case=False, na=False)]
-            if P.empty:
-                st.info(t("cm.summary.search_none", q=_q))
-            else:
-                # Подсветку делаем значком, а не фоном ячейки: Styler в
-                # st.dataframe не уживается с колонками фото и ссылки, а
-                # они на этой странице уже везде
-                P["flag"] = np.where(P["spread"] > PARITY_BAD, "🔴",
-                                     np.where(P["spread"] > PARITY_ALERT,
-                                              "🟡", "·"))
-                P["photo"] = catalog.image_series(skus=P[_sku_col])
-                P["asin_url"] = catalog.url_series(skus=P[_sku_col])
-                show = ["flag", "photo", _sku_col, "asin_url"] + _pcols + ["spread"]
-                conf = {
-                    "flag": st.column_config.TextColumn("", width="small"),
-                    "photo": catalog.image_column(),
-                    _sku_col: st.column_config.TextColumn("SKU", width="small"),
-                    "asin_url": catalog.asin_column(),
-                    "spread": st.column_config.NumberColumn(
-                        t("cm.par.col_spread"), format="%.0f%%",
-                        help=t("cm.par.col_spread_help")),
-                }
-                for c in _pcols:
-                    conf[c] = st.column_config.NumberColumn(
-                        str(c).upper().replace("_", " · "), format="%.2f €")
-                st.dataframe(P[show], use_container_width=True, height=560,
-                             hide_index=True, column_config=conf)
-                st.caption(t("cm.summary.shown", n=len(P), total=_total))
-                st.caption(t("cm.par.note", cols=", ".join(map(str, _pcols)),
-                             skip=", ".join(PARITY_SKIP)))
-                st.download_button(
-                    t("cm.download"),
-                    P[show].to_csv(index=False).encode("utf-8-sig"),
-                    file_name="price_parity.csv", mime="text/csv",
-                    key="dl_parity")
 
 
 # ═══════════════════════════════════════════════════════════════════
