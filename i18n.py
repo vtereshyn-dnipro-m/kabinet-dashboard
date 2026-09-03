@@ -2702,7 +2702,11 @@ TRANSLATIONS = {
     "ads.prelim.toggle": {"ru": "Показывать последние {n} дн. (предварительные)", "uk": "Показувати останні {n} дн. (попередні)", "en": "Include the last {n} days (preliminary)"},
     "ads.prelim.off": {"ru": "Показано закрытое окно, по {d}. Последние {n} дн. отрезаны: атрибуция AMC закрывается не сразу, и свежая кампания попала бы в «отключить» не потому что плохая, а потому что покупки ещё не доехали.", "uk": "Показано закрите вікно, по {d}. Останні {n} дн. відрізані: атрибуція AMC закривається не одразу, і свіжа кампанія потрапила б у «вимкнути» не тому що погана, а тому що покупки ще не доїхали.", "en": "Showing the closed window, through {d}. The last {n} days are cut off: AMC attribution does not close immediately, and a fresh campaign would land in “switch off” not because it is bad but because the purchases have not arrived yet."},
     "ads.prelim.on": {"ru": "Последние {n} дн. включены и предварительны: покупки по ним ещё доезжают, поэтому продажи занижены, а ACOS завышен. Решения по свежим кампаниям на этих числах не принимать.", "uk": "Останні {n} дн. увімкнені й попередні: покупки за ними ще доїжджають, тому продажі занижені, а ACOS завищений. Рішення щодо свіжих кампаній на цих числах не ухвалювати.", "en": "The last {n} days are included and preliminary: purchases are still arriving, so sales are understated and ACOS overstated. Do not decide on fresh campaigns from these figures."},
-    "ads.card.acos_base": {"ru": "порог {n} %", "uk": "поріг {n} %", "en": "target {n} %"},
+    "ads.card.acos_base": {
+        "ru": "порог {n} % — средний по продажам",
+        "uk": "поріг {n} % — середній за продажами",
+        "en": "target {n} % — sales-weighted",
+    },
     "ads.card.spend": {"ru": "Расход", "uk": "Витрата", "en": "Spend"},
     "ads.card.spend_base": {"ru": "за {n} дн.", "uk": "за {n} дн.", "en": "over {n} days"},
     "ads.card.sales": {"ru": "Продажи", "uk": "Продажі", "en": "Sales"},
@@ -2724,9 +2728,9 @@ TRANSLATIONS = {
     "ads.act.keep": {"ru": "оставить", "uk": "залишити", "en": "keep"},
     "ads.camp.masked": {"ru": "скрыто Amazon", "uk": "приховано Amazon", "en": "hidden by Amazon"},
     "ads.camp.thresholds": {
-        "ru": "Пороги заданы вручную: ACOS {a} %, CTR {c} %. ACOS сам по себе ничего не значит без маржи — при марже 20 % убыточен и ACOS 22 %, при марже 45 % нормален и 32 %. Экономика товара в Кабинете есть, и порог правильнее считать от неё; пока не связано, читайте эти числа как ориентир, а не как расчёт.",
-        "uk": "Пороги задані вручну: ACOS {a} %, CTR {c} %. ACOS сам по собі нічого не значить без маржі — за маржі 20 % збитковий і ACOS 22 %, за маржі 45 % нормальний і 32 %. Економіка товару в Кабінеті є, і поріг правильніше рахувати від неї; поки не пов’язано, читайте ці числа як орієнтир, а не як розрахунок.",
-        "en": "The thresholds are set by hand: ACOS {a} %, CTR {c} %. ACOS on its own means nothing without margin — at a 20 % margin even 22 % ACOS loses money, at 45 % even 32 % is fine. The product economics are already in the Kabinet and the threshold should be derived from them; until that is wired up, read these numbers as a reference point, not a calculation.",
+        "ru": "Порог ACOS у каждой кампании свой: он считается от маржи её товаров, поэтому одного числа для всех тут быть не может — при марже 20 % убыточен и ACOS 22 %, при марже 45 % нормален и 32 %. Считает его загрузчик, страница только сравнивает. Порог CTR {c} % пока задан вручную: он выставлен по разобранному примеру, а не по норме рынка.",
+        "uk": "Поріг ACOS у кожної кампанії свій: він рахується від маржі її товарів, тому одного числа для всіх тут бути не може — за маржі 20 % збитковий і ACOS 22 %, за маржі 45 % нормальний і 32 %. Рахує його завантажувач, сторінка лише порівнює. Поріг CTR {c} % поки заданий вручну: він виставлений за розібраним прикладом, а не за нормою ринку.",
+        "en": "Each campaign has its own ACOS target, derived from the margin of its products — there can be no single number for all: at a 20 % margin even 22 % ACOS loses money, at 45 % even 32 % is fine. The loader computes it; the page only compares. The {c} % CTR threshold is still set by hand, calibrated on one worked example rather than a market norm.",
     },
     "ads.camp.three_actions": {
         "ru": "Три разных действия, а не «оставить или отключить». Клики есть, покупок нет — реклама сработала, а карточка нет: отключать такую кампанию значит лечить симптом, тот же посетитель не купит и из органики, просто там это бесплатно и потому незаметно. Не кликают при показах — проблема до клика, не те запросы. Красным помечено только то, где деньги уходят и не возвращается ничего.",
@@ -2808,6 +2812,9 @@ TRANSLATIONS = {
     "cm.par.col_outliers": {"ru": "Кто выбивается", "uk": "Хто вибивається", "en": "Outliers"},
     "cm.par.col_outliers_help": {"ru": "Каналы с отклонением больше 20 % и на сколько именно. Строку собирает загрузчик — это готовый ответ на вопрос «где именно чинить цену», а не подсказка искать глазами по восьми колонкам.", "uk": "Канали з відхиленням більшим за 20 % і на скільки саме. Рядок збирає завантажувач — це готова відповідь на питання «де саме лагодити ціну», а не підказка шукати очима по восьми колонках.", "en": "Channels deviating by more than 20 % and by how much. The loader builds this string — it is a ready answer to “where exactly to fix the price”, not a hint to scan eight columns by eye."},
     "cm.par.col_gbp_help": {"ru": "Цена в фунтах, поэтому в разброс она не входит: сравнивать её с евро без курса нельзя. Показана рядом, чтобы британский рынок не пропадал из виду.", "uk": "Ціна у фунтах, тому в розкид вона не входить: порівнювати її з євро без курсу не можна. Показана поруч, щоб британський ринок не зникав з очей.", "en": "A price in pounds, so it is not part of the spread: comparing it with euros without a rate is meaningless. Shown alongside so the British marketplace does not drop out of sight."},
+    "ads.card.acos_no_threshold": {"ru": "порога нет: у товаров не загружена себестоимость", "uk": "порога немає: у товарів не завантажено собівартість", "en": "no target: product costs are not loaded"},
+    "ads.camp.col_threshold": {"ru": "Порог", "uk": "Поріг", "en": "Target"},
+    "ads.act.no_margin": {"ru": "маржа неизвестна", "uk": "маржа невідома", "en": "margin unknown"},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "cm.col.price_gap": {
         "ru": "Разброс цен",

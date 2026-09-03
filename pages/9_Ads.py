@@ -24,20 +24,16 @@ from links import MARKETPLACE_ID, amazon_url, market_name
 
 init_lang()
 
-# Оба порога заданы вручную и ни на чём не основаны, кроме привычки.
-# ACOS сам по себе не значит ничего без маржи: при марже 20 % убыточен и
-# ACOS 22 %, при марже 45 % нормален и 32 %. Экономика ASIN в Кабинете
-# есть, и считать порог надо от неё — пока не связано, на экране стоит
-# подпись «задан вручную», чтобы его не приняли за расчётный
-ACOS_TARGET = 25.0
-# Граница между «не те запросы» и «карточка не продаёт». Ниже неё людям
-# показываются, но не кликают — проблема до клика; выше кликают, но не
-# покупают — проблема после.
+# Порог ACOS у каждой кампании свой: он считается от маржи её товаров,
+# и общего числа тут быть не может. При марже 20 % убыточен и ACOS 22 %,
+# при марже 45 % нормален и 32 % — одна константа на всех врала бы в обе
+# стороны сразу. Считает его загрузчик, страница только сравнивает
 #
-# Число выставлено по разобранному вручную примеру: SP-Manual-Auto-B2B
-# с охватом 11 032 и шестьюдесятью кликами (0,54 %) должен читаться как
-# проблема таргетинга. Это калибровка по одному случаю, а не norm по
-# рынку, — если начнёт помечать «сузить таргетинг» слишком многих,
+# Граница между «не те запросы» и «карточка не продаёт» пока вручную:
+# ниже неё людям показываются, но не кликают — проблема до клика; выше
+# кликают, но не покупают — проблема после. Число выставлено по
+# разобранному примеру SP-Manual-Auto-B2B (охват 11 032, кликов 60), а
+# не по норме рынка: начнёт помечать «сузить таргетинг» слишком многих —
 # двигать надо здесь
 CTR_MIN = 0.6
 
@@ -76,7 +72,8 @@ BLUE = "#1f77b4"
 NEED = {
     "v_amc_attribution": ["report_date", "campaign_id", "campaign_name",
                           "campaign_status", "spend", "sales_14d", "clicks",
-                          "purchases_14d", "acos_pct", "reach", "impressions"],
+                          "purchases_14d", "acos_pct", "reach", "impressions",
+                          "acos_threshold"],
     "amc_ntb_by_asin": ["report_date", "asin", "total_purchases",
                         "ntb_purchases", "total_sales", "ntb_rate_pct"],
     "amc_search_terms": ["report_date", "customer_search_term",
@@ -313,7 +310,7 @@ def scope(df: pd.DataFrame) -> pd.DataFrame:
 
 A = scope(attr)
 for c in ("spend", "sales_14d", "clicks", "purchases_14d",
-          "acos_pct", "reach", "impressions"):
+          "acos_pct", "reach", "impressions", "acos_threshold"):
     if c in A.columns:
         A[c] = pd.to_numeric(A[c], errors="coerce")
 
@@ -355,9 +352,20 @@ if not ntb.empty and {"total_purchases", "ntb_rate_pct"} <= set(ntb.columns):
 # покупки, а повторных нет, разговор не про ставки вообще
 _cac = (_spend / _ntb_buys) if (_ntb_buys and _ntb_buys > 0) else np.nan
 c1, c2, c3, c4, c5 = st.columns(5)
-card(c1, "ACOS", t("ads.card.acos_manual", n=f"{ACOS_TARGET:.0f}"),
-     "∞" if np.isinf(_acos) else f"{_acos:.0f} %",
-     "bad" if (np.isinf(_acos) or _acos > ACOS_TARGET) else "good")
+# Порог теперь у каждой кампании свой, и одного числа для карточки нет.
+# Взвешиваем по продажам, а не по расходу: ACOS и есть расход, делённый
+# на продажи, поэтому вес должен быть знаменателем. Порогов не нашлось —
+# подписи про порог не будет вовсе, и карточка останется нейтральной
+_thr_col = pd.to_numeric(A.get("acos_threshold"), errors="coerce") \
+    if "acos_threshold" in A.columns else pd.Series(dtype=float)
+_w = A["sales_14d"].where(_thr_col.notna())
+_thr_avg = ((_thr_col * _w).sum() / _w.sum()) if _w.sum() > 0 else np.nan
+if pd.isna(_thr_avg):
+    _base, _tone = t("ads.card.acos_no_threshold"), ""
+else:
+    _base = t("ads.card.acos_base", n=f"{_thr_avg:.0f}")
+    _tone = "bad" if (np.isinf(_acos) or _acos > _thr_avg) else "good"
+card(c1, "ACOS", _base, "∞" if np.isinf(_acos) else f"{_acos:.0f} %", _tone)
 card(c2, t("ads.card.spend"), t("ads.card.spend_base", n=_days),
      money(_spend))
 card(c3, t("ads.card.sales"), t("ads.card.sales_base"), money(_sales))
@@ -384,8 +392,12 @@ V = A[_st_raw != "masked"].copy()
 # считается на каждый день, поэтому кампания с разными статусами по дням
 # распадалась на несколько строк — одна и та же кампания встречалась в
 # таблице дважды с разными числами
+# Сортируем по дате: порог берём последний, а не первый попавшийся —
+# себестоимость меняется, и решать надо по нынешней марже
+V = V.sort_values("report_date")
 C = (V.groupby("campaign_id", as_index=False, dropna=False)
       .agg(campaign_name=("campaign_name", "first"),
+           threshold=("acos_threshold", "last"),
            spend=("spend", "sum"), sales=("sales_14d", "sum"),
            clicks=("clicks", "sum"), orders=("purchases_14d", "sum"),
            impressions=("impressions", "sum"),
@@ -433,7 +445,12 @@ def period_status(row) -> str:
         # конверсии хотя бы 3 % они дали бы полсотни заказов
         return ("narrow" if (pd.notna(row["ctr"]) and row["ctr"] < CTR_MIN)
                 else "listing")
-    if row["acos"] > ACOS_TARGET:
+    # Порога нет — значит у товаров кампании нет себестоимости, и
+    # сравнивать ACOS не с чем. Это отдельный ответ, а не «всё в норме»:
+    # кампания может быть глубоко убыточной, мы просто не знаем
+    if pd.isna(row["threshold"]):
+        return "no_margin_data"
+    if row["acos"] > row["threshold"]:
         return "high_acos"
     return "ok"
 
@@ -449,13 +466,18 @@ ACTION = {"dead": ("ads.act.off", RED),
           "listing": ("ads.act.listing", AMBER),
           "narrow": ("ads.act.narrow", AMBER),
           "high_acos": ("ads.act.lower", AMBER),
+          "no_margin_data": ("ads.act.no_margin", GREY),
           "ok": ("ads.act.keep", GREY)}
 # Сортировка по величине потерь, а не по расходу и не по алфавиту:
 # сверху то, где деньги утекают быстрее. Расход без продаж — потеря
 # целиком, расход при высоком ACOS — та часть, что выше порога
+# Потеря — то, что потрачено сверх порога ЭТОЙ кампании. Порога нет —
+# считаем по расходу целиком: неизвестная маржа не повод считать трату
+# оправданной
+_thr = _live["threshold"].fillna(0)
 _live["loss"] = np.where(
     _live["sales"] > 0,
-    np.maximum(_live["spend"] - _live["sales"] * ACOS_TARGET / 100, 0),
+    np.maximum(_live["spend"] - _live["sales"] * _thr / 100, 0),
     _live["spend"])
 _live = _live.sort_values("loss", ascending=False)
 
@@ -480,7 +502,7 @@ else:
             "spend": float(r["spend"] or 0),
             "sales": float(r["sales"] or 0),
             "acos": r["acos"],
-            "ctr": r["ctr"], "cpc": r["cpc"],
+            "ctr": r["ctr"], "cpc": r["cpc"], "threshold": r["threshold"],
             "act": t(key), "act_color": colr,
             "act_url": listing_url(r["campaign_name"])
                        if r["status"] == "listing" else "",
@@ -499,13 +521,18 @@ else:
             f'<th style="padding:6px 8px">{t("ads.camp.col_action")}</th></tr>']
     for _, r in tbl.iterrows():
         acos_txt = "∞" if np.isinf(r["acos"]) else f'{r["acos"]:.0f} %'
-        acos_col = RED if (np.isinf(r["acos"]) or r["acos"] > ACOS_TARGET) else GREEN
+        # Цвет по порогу этой кампании, а не по общему числу
+        acos_col = GREY if pd.isna(r["threshold"]) else (
+            RED if (np.isinf(r["acos"]) or r["acos"] > r["threshold"])
+            else GREEN)
         # CTR красим по своему порогу: он отвечает на другой вопрос, чем
         # ACOS, — не «дорого ли», а «доходит ли до карточки хоть кто-то»
         ctr_txt = ("—" if pd.isna(r["ctr"])
                    else _cell(f'{r["ctr"]:.2f} %',
                               AMBER if r["ctr"] < CTR_MIN else GREY))
         cpc_txt = "—" if pd.isna(r["cpc"]) else money(r["cpc"], 2)
+        thr_txt = ("—" if pd.isna(r["threshold"])
+                   else f'{r["threshold"]:.0f} %')
         # ASIN из названия — рядом со строкой, а не только у действия:
         # посмотреть товар хочется по любой кампании, а не лишь по той,
         # где мы советуем проверить карточку
@@ -541,14 +568,14 @@ else:
             '<td style="padding:8px;text-align:right">—</td>'
             '<td style="padding:8px;text-align:right">—</td>'
             f'<td style="padding:8px;text-align:right">{_ma}</td>'
+            '<td style="padding:8px;text-align:right">—</td>'
             '<td style="padding:8px">—</td></tr>')
     html.append("</table>")
     st.markdown("".join(html), unsafe_allow_html=True)
     st.caption(t("ads.camp.three_actions"))
     if not _masked.empty:
         st.caption(t("ads.camp.masked_note"))
-    st.caption(t("ads.camp.thresholds", 
-        a=f"{ACOS_TARGET:.0f}", c=f"{CTR_MIN:.1f}"))
+    st.caption(t("ads.camp.thresholds", c=f"{CTR_MIN:.1f}"))
 
 # Кампании без кликов — по строке на каждую пустоту. Одиннадцать пустых
 # строк вытесняют вниз то, ради чего таблицу открывают
