@@ -628,14 +628,6 @@ TRANSLATIONS = {
     },
     "home.sec.sales_range": {
         "ru": "Продажи: {f} — {to}", "uk": "Продажі: {f} — {to}", "en": "Sales: {f} — {to}"},
-    "home.sales.lag_range": {
-        "ru": "Данные есть по {d} включительно — Amazon отдаёт отчёты с задержкой, "
-              "последние {n} дн. ещё не загружены. Конец выбранного периода пока пуст.",
-        "uk": "Дані є по {d} включно — Amazon віддає звіти із затримкою, останні {n} дн. "
-              "ще не завантажені. Кінець обраного періоду поки порожній.",
-        "en": "Data is available up to {d} — Amazon delivers reports with a delay and the "
-              "last {n} days are not loaded. The end of the selected range is still empty.",
-    },
     "home.sec.sales": {"ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
     # Подписи под графиком продаж. Отделены от home.sales.lag: та объясняет
     # задержку Amazon для всей страницы, эти — что именно видно на графике

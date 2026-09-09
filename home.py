@@ -432,13 +432,15 @@ if not money.empty:
 if not money.empty:
     _last = pd.to_datetime(money["sales_date"]).max()
     _lag = (pd.Timestamp(datetime.now().date()) - _last).days
+    # Только для окон 7/30/90. Там ось графика кончается на последнем дне
+    # с данными, разрыва нет, и подпись под графиком не появляется — а
+    # сказать надо: окно «за 7 дней» заканчивается не сегодня.
+    # Для своего диапазона этой подписи здесь нет: разрыв виден на самом
+    # графике, и объясняет его подпись под ним, рядом с тем, что объясняет
     if _lag >= 2 and date_from is None:
         _from = (_last - pd.Timedelta(days=DAYS - 1)).strftime("%d.%m")
         st.caption(t("home.sales.lag", 
             d=_last.strftime("%d.%m"), n=_lag, f=_from))
-    elif _lag >= 2 and date_to is not None and date_to > _last:
-        st.caption(t("home.sales.lag_range", 
-            d=_last.strftime("%d.%m"), n=_lag))
 
 if money.empty:
     st.caption(t("home.sales.no_data"))
