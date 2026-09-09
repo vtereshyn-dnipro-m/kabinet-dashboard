@@ -628,15 +628,24 @@ TRANSLATIONS = {
     },
     "home.sec.sales_range": {
         "ru": "Продажи: {f} — {to}", "uk": "Продажі: {f} — {to}", "en": "Sales: {f} — {to}"},
-    "home.sales.lag_range": {
-        "ru": "Данные есть по {d} включительно — Amazon отдаёт отчёты с задержкой, "
-              "последние {n} дн. ещё не загружены. Конец выбранного периода пока пуст.",
-        "uk": "Дані є по {d} включно — Amazon віддає звіти із затримкою, останні {n} дн. "
-              "ще не завантажені. Кінець обраного періоду поки порожній.",
-        "en": "Data is available up to {d} — Amazon delivers reports with a delay and the "
-              "last {n} days are not loaded. The end of the selected range is still empty.",
-    },
     "home.sec.sales": {"ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
+    # Подписи под графиком продаж. Отделены от home.sales.lag: та объясняет
+    # задержку Amazon для всей страницы, эти — что именно видно на графике
+    "home.chart.data_through": {
+        "ru": "Данные по {d} — за более поздние дни Amazon отчёт ещё не сформировал",
+        "uk": "Дані по {d} — за пізніші дні Amazon звіт ще не сформував",
+        "en": "Data through {d} — Amazon has not generated the report for later days yet",
+    },
+    "home.chart.no_data_period": {
+        "ru": "За выбранный период данных пока нет",
+        "uk": "За обраний період даних поки немає",
+        "en": "No data for the selected period yet",
+    },
+    "home.chart.holes": {
+        "ru": "Разрывы на графике — дни, за которые отчёт не пришёл: {d}",
+        "uk": "Розриви на графіку — дні, за які звіт не надійшов: {d}",
+        "en": "Gaps in the chart are days with no report delivered: {d}",
+    },
     "cov.err.no_table": {
         "ru": "Таблицы расчёта покрытия нет в базе, к которой подключён дашборд. "
               "Расчёт мог отработать в Databricks, но до Lakebase не доехать — это "
