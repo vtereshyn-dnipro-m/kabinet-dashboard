@@ -23,3 +23,32 @@ def as_text(v, default: str = "") -> str:
         # такие значения текстом и так не притворяются
         pass
     return str(v)
+
+
+def day_axis(df: pd.DataFrame, day_col: str, start, end) -> pd.DataFrame:
+    """Растягивает суточный ряд на все дни периода.
+
+    Дни, которых в данных нет, появляются строками с NaN. Что из них
+    считать нулём, а что пропуском, решает вызывающий: из самого факта
+    отсутствия строки это не выводится.
+
+    Пример, на котором это видно. 17.08.2026 в `sales_traffic_daily` — 57
+    штук на 2 848 €, а в `economics_summary` за тот день нет ни одной
+    строки. Продажи были, финансовый отчёт не приехал. Нарисуй мы там
+    ноль — график объявил бы провал, которого не случилось. Поэтому ноль
+    ставится только тогда, когда есть чем подтвердить, что продаж не было.
+
+    Ряд должен быть уже свёрнут по дню: две строки на одну дату сюда не
+    поместятся, reindex на них падает.
+    """
+    axis = pd.date_range(start, end, freq="D")
+    if df.empty:
+        out = pd.DataFrame({day_col: axis})
+        for c in df.columns:
+            if c != day_col:
+                out[c] = pd.NA
+        return out
+    out = df.copy()
+    out[day_col] = pd.to_datetime(out[day_col])
+    return (out.set_index(day_col).reindex(axis)
+               .rename_axis(day_col).reset_index())

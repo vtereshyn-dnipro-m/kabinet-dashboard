@@ -12,7 +12,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
-from util import as_text
+from util import as_text, day_axis
 import period as period_mod
 import catalog
 
@@ -921,13 +921,32 @@ with tab_cov:
 
         # ---- график: заказы против обработанных ----
         st.markdown(f"**{t('rev.chart.orders_vs_processed')}**")
-        gd = by_day.sort_values("day")
+        # .copy(), потому что by_day ниже уходит в таблицу и выгрузку:
+        # менять его колонки здесь нельзя
+        # .copy(), потому что by_day ниже уходит в таблицу и выгрузку:
+        # менять его колонки здесь нельзя
+        gd = by_day.sort_values("day").copy()
+        # Ось — весь выбранный период, а не только дни, где нашлись заказы.
+        # Иначе девятидневное окно с заказами за два дня рисуется двумя
+        # столбцами, и пустые сутки читаются как «такого дня не было»
+        _loaded_to = pd.to_datetime(gd["day"]).max() if len(gd) else pd.NaT
+        gd = day_axis(gd, "day", PERIOD.start, PERIOD.end)
+        _inside = gd["day"] <= _loaded_to
         # сегменты стопки рисуются со сдвигом base — и Plotly показывает
         # в подсказке верхнюю границу стопки вместо самого сегмента.
         # Поэтому значение передаём явно через customdata
+        # Внутри загруженного диапазона пустой день — честный ноль:
+        # orders_history непрерывен, за 70 суток нет ни одного дня без
+        # заказов. За границей загрузки нулей не ставим — там разрыв
         for c in ("orders", "sent", "no_action", "skipped"):
-            gd[c] = pd.to_numeric(gd[c], errors="coerce").fillna(0)
-        gd["coverage"] = pd.to_numeric(gd["coverage"], errors="coerce").fillna(0)
+            gd[c] = pd.to_numeric(gd[c], errors="coerce")
+            gd.loc[_inside, c] = gd.loc[_inside, c].fillna(0)
+        # Покрытие в день без заказов не ноль, а величина неопределённая:
+        # делить не на что. Заполнив нулём, мы уронили бы линию в 0 %
+        # и заявили провал там, где просто не было заказов
+        gd["coverage"] = pd.to_numeric(gd["coverage"], errors="coerce")
+        _has = gd["orders"] > 0
+        gd.loc[_has, "coverage"] = gd.loc[_has, "coverage"].fillna(0)
 
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         fig.add_trace(go.Bar(
@@ -1173,7 +1192,15 @@ with tab_dyn:
             merged = daily.merge(
                 sent.rename(columns={"day": "snapshot_date"}),
                 on="snapshot_date", how="left")
-            merged["sent"] = merged["sent"].fillna(0)
+            # Ось на весь период. Отправок за день могло не быть — это ноль,
+            # он настоящий. А прирост отзывов за несобранный день не ноль,
+            # а неизвестность: скрейп не отработал, и линия должна рваться
+            _rev_to = merged["snapshot_date"].max() if len(merged) else pd.NaT
+            merged = day_axis(merged, "snapshot_date",
+                              PERIOD.start, PERIOD.end)
+            _rev_in = merged["snapshot_date"] <= _rev_to
+            merged["sent"] = pd.to_numeric(merged["sent"], errors="coerce")
+            merged.loc[_rev_in, "sent"] = merged.loc[_rev_in, "sent"].fillna(0)
 
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(go.Bar(

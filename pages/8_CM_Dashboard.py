@@ -12,6 +12,7 @@ import streamlit as st
 from db.connection import get_connection
 from i18n import init_lang, t
 import period as period_mod
+from util import day_axis
 import catalog
 
 init_lang()
@@ -830,15 +831,20 @@ with tab_lm:
 
             # ---- тренд по дням ----
             st.markdown(f"**{t('cm.lm.trend')}**")
+            # Ось на весь период, а не только дни со снимком здоровья.
+            # День без снимка — не ноль заказов и не ноль процентов, а
+            # пропуск: сборщик за него не отработал. Заполнив нулём, мы
+            # нарисовали бы обвал приёмки там, где её просто не измеряли
+            lm_ax = day_axis(lm, "calc_date", PERIOD.start, PERIOD.end)
             fig = make_subplots(specs=[[{"secondary_y": True}]])
-            fig.add_trace(go.Bar(name=t("cm.lm.orders"), x=lm["calc_date"],
-                                 y=lm["orders_total"], marker_color=BLUE),
+            fig.add_trace(go.Bar(name=t("cm.lm.orders"), x=lm_ax["calc_date"],
+                                 y=lm_ax["orders_total"], marker_color=BLUE),
                           secondary_y=False)
-            fig.add_trace(go.Scatter(name=t("cm.lm.acceptance"), x=lm["calc_date"],
-                                     y=lm["acceptance_rate_pct"], mode="lines+markers",
+            fig.add_trace(go.Scatter(name=t("cm.lm.acceptance"), x=lm_ax["calc_date"],
+                                     y=lm_ax["acceptance_rate_pct"], mode="lines+markers",
                                      line=dict(color=GREEN, width=2)), secondary_y=True)
-            fig.add_trace(go.Scatter(name=t("cm.lm.tracking"), x=lm["calc_date"],
-                                     y=lm["tracking_rate_pct"], mode="lines+markers",
+            fig.add_trace(go.Scatter(name=t("cm.lm.tracking"), x=lm_ax["calc_date"],
+                                     y=lm_ax["tracking_rate_pct"], mode="lines+markers",
                                      line=dict(color=AMBER, width=2, dash="dot")),
                           secondary_y=True)
             fig.update_layout(height=340, margin=dict(l=10, r=10, t=10, b=10),

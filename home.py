@@ -11,7 +11,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
-from util import as_text
+from util import as_text, day_axis
 import period as period_mod
 
 init_lang()
@@ -522,16 +522,55 @@ else:
     gl, gr = st.columns([1.6, 1])
 
     with gl:
-        daily = (cur.groupby("sales_date", as_index=False)["revenue"].sum()
-                    .sort_values("sales_date"))
+        # Ось — весь выбранный период, а не только дни, где нашлись строки.
+        # Без этого девятидневный период с данными за два дня рисовался двумя
+        # точками, и Plotly подписывал их часами: выглядело так, будто продажи
+        # шли полдня и кончились
+        if date_from is not None:
+            _ax_from, _ax_to = date_from, date_to
+        else:
+            _ax_from = anchor - pd.Timedelta(days=DAYS - 1)
+            _ax_to = anchor
+        daily = day_axis(
+            cur.groupby("sales_date", as_index=False)["revenue"].sum(),
+            "sales_date", _ax_from, _ax_to)
+
+        # Пустой день бывает двух видов, и различает их только свидетель —
+        # витринная выручка: она приходит другим загрузчиком и другим отчётом.
+        # Показывает продажи, а строки у нас нет — это дыра, ноль там был бы
+        # ложью (17.08: трафик 57 штук, в экономике ни строки). Ноль ставим
+        # только когда свидетель подтверждает, что продаж не было.
+        # Дни за границей загрузки — всегда разрыв, там отчёт ещё не пришёл
+        _witness = (ordered.groupby("sales_date")["ordered_sales"].sum()
+                    if not ordered.empty else pd.Series(dtype=float))
+        _empty = daily["revenue"].isna() & (daily["sales_date"] <= _full_last)
+        _zero = _empty & daily["sales_date"].map(
+            lambda d: _witness.get(d, None) == 0).astype(bool)
+        daily.loc[_zero, "revenue"] = 0.0
+        _holes = daily.loc[_empty & ~_zero, "sales_date"]
+
         fig = px.area(daily, x="sales_date", y="revenue",
                       color_discrete_sequence=[BLUE])
         fig.update_layout(height=190, margin=dict(l=0, r=0, t=6, b=0),
                           xaxis_title=None, yaxis_title=None,
                           yaxis=dict(showgrid=False))
+        fig.update_xaxes(type="date", tickformat="%d.%m",
+                         range=[_ax_from, _ax_to])
         fig.update_traces(line=dict(width=1.5),
                           fillcolor="rgba(31,119,180,0.15)")
         st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+
+        # Подписи под графиком: где кончились данные и где дыры внутри.
+        # Если за период нет вообще ничего, про обрыв говорить нечего
+        if daily["revenue"].isna().all():
+            st.caption(t("home.chart.no_data_period"))
+        else:
+            if pd.notna(_full_last) and _full_last < _ax_to:
+                st.caption(t("home.chart.data_through",
+                             d=_full_last.strftime("%d.%m")))
+            if len(_holes):
+                st.caption(t("home.chart.holes",
+                             d=", ".join(_holes.dt.strftime("%d.%m"))))
 
     with gr:
         # Канал — это площадка (Amazon, Leroy Merlin, ManoMano, Carrefour),
