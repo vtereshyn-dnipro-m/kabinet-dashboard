@@ -34,8 +34,33 @@ TR = {
         "save": "💾 Сохранить изменения", "saved": "Сохранено: {n} запис(ей)",
         "nochange": "Изменений нет", "err": "Ошибка: {e}", "no_data": "Нет данных",
         "del_col": "Удалить", "delete_sel": "🗑 Удалить отмеченные", "deleted": "Удалено: {n}",
-        "wh_hint": "Тип склада и приоритет отгрузки участвуют в расчёте обеспечения. "
-                   "Название, код и связка дублей — только для чтения.",
+        "wh_hint": "Два поля заполняются руками — площадки склада и приоритет "
+                   "обеспечения. Остальное приезжает из ERP и меняется там.",
+        "wh_pick": "Склад", "wh_show_sales": "Показать точки продаж и FBA",
+        "wh_show_sales_hint": "По умолчанию видны только склады хранения — "
+                              "решения принимаются по ним. У FBA площадка "
+                              "определена страной и проставлена сама.",
+        "wh_inactive": "выключен", "wh_active": "активен",
+        "wh_mp_h": "Какие площадки обеспечивает",
+        "wh_mp_hint": "Отметь витрины, товар на которые уезжает с этого склада. "
+                      "Можно несколько — склад обычно кормит не одну.",
+        "wh_mp_missing": "Таблица связей ещё не создана: выполните "
+                         "sql/warehouse_marketplaces.sql. Приоритет пока "
+                         "сохраняется, площадки — нет.",
+        "wh_mp_count": "Отмечено: {n} из {total}",
+        "wh_prio_h": "Приоритет обеспечения",
+        "wh_prio_hint": "Один номер на склад, общий для всех площадок. "
+                        "1 — забираем отсюда в первую очередь. "
+                        "0 — склад в обеспечении не участвует.",
+        "wh_src_h": "Откуда пополняется",
+        "wh_src_none": "Маршрутов подпитки на этот склад пока нет.",
+        "wh_src_hint": "Считается по накладным, менять на вкладке «Подпитка».",
+        "wh_sum_h": "Что уже заполнено",
+        "wh_all": "Все склады одной таблицей",
+        "col_mps": "Площадки", "col_src": "Склад-источник", "col_basis": "Основание",
+        "basis_ttn": "накладных: {n}", "basis_expert": "оценка вручную",
+        "t_sales": "точка продаж", "t_storage": "хранение",
+        "t_transit": "транзит", "t_manufacturer": "производитель",
         "ch_hint": "Кто кого пополняет и за сколько дней. Срок из накладных "
                    "(ttn_planned) надёжнее экспертного (expert).",
         "ch_add": "➕ Добавить связь подпитки",
@@ -79,8 +104,33 @@ TR = {
         "save": "💾 Зберегти зміни", "saved": "Збережено: {n} запис(ів)",
         "nochange": "Змін немає", "err": "Помилка: {e}", "no_data": "Немає даних",
         "del_col": "Видалити", "delete_sel": "🗑 Видалити відмічені", "deleted": "Видалено: {n}",
-        "wh_hint": "Тип складу та пріоритет відвантаження беруть участь у розрахунку. "
-                   "Назва, код і звʼязка дублів — лише для читання.",
+        "wh_hint": "Два поля заповнюються руками — майданчики складу та пріоритет "
+                   "забезпечення. Решта приїздить із ERP і змінюється там.",
+        "wh_pick": "Склад", "wh_show_sales": "Показати точки продажу та FBA",
+        "wh_show_sales_hint": "За замовчуванням видно лише склади зберігання — "
+                              "рішення ухвалюються по них. У FBA майданчик "
+                              "визначений країною і проставлений сам.",
+        "wh_inactive": "вимкнений", "wh_active": "активний",
+        "wh_mp_h": "Які майданчики забезпечує",
+        "wh_mp_hint": "Відміть вітрини, товар на які їде з цього складу. "
+                      "Можна кілька — склад зазвичай годує не одну.",
+        "wh_mp_missing": "Таблиця звʼязків ще не створена: виконайте "
+                         "sql/warehouse_marketplaces.sql. Пріоритет поки "
+                         "зберігається, майданчики — ні.",
+        "wh_mp_count": "Відмічено: {n} з {total}",
+        "wh_prio_h": "Пріоритет забезпечення",
+        "wh_prio_hint": "Один номер на склад, спільний для всіх майданчиків. "
+                        "1 — беремо звідси в першу чергу. "
+                        "0 — склад у забезпеченні не бере участі.",
+        "wh_src_h": "Звідки поповнюється",
+        "wh_src_none": "Маршрутів підживлення на цей склад поки немає.",
+        "wh_src_hint": "Рахується по накладних, змінювати на вкладці «Підживлення».",
+        "wh_sum_h": "Що вже заповнено",
+        "wh_all": "Усі склади однією таблицею",
+        "col_mps": "Майданчики", "col_src": "Склад-джерело", "col_basis": "Підстава",
+        "basis_ttn": "накладних: {n}", "basis_expert": "оцінка вручну",
+        "t_sales": "точка продажу", "t_storage": "зберігання",
+        "t_transit": "транзит", "t_manufacturer": "виробник",
         "ch_hint": "Хто кого поповнює і за скільки днів. Термін із накладних "
                    "(ttn_planned) надійніший за експертний (expert).",
         "ch_add": "➕ Додати звʼязок підживлення",
@@ -124,8 +174,33 @@ TR = {
         "save": "💾 Save changes", "saved": "Saved: {n} row(s)",
         "nochange": "No changes", "err": "Error: {e}", "no_data": "No data",
         "del_col": "Delete", "delete_sel": "🗑 Delete selected", "deleted": "Deleted: {n}",
-        "wh_hint": "Warehouse type and shipping priority drive supply calculations. "
-                   "Name, code and duplicate link are read-only.",
+        "wh_hint": "Two fields are filled by hand — the warehouse marketplaces and "
+                   "the supply priority. The rest comes from ERP and changes there.",
+        "wh_pick": "Warehouse", "wh_show_sales": "Show sales points and FBA",
+        "wh_show_sales_hint": "Storage warehouses only by default — that is where "
+                              "the decisions are made. FBA marketplaces follow "
+                              "from the country and are filled in automatically.",
+        "wh_inactive": "disabled", "wh_active": "active",
+        "wh_mp_h": "Marketplaces served",
+        "wh_mp_hint": "Tick the storefronts supplied from this warehouse. "
+                      "More than one is normal.",
+        "wh_mp_missing": "The link table does not exist yet: run "
+                         "sql/warehouse_marketplaces.sql. Priority still saves, "
+                         "marketplaces do not.",
+        "wh_mp_count": "Ticked: {n} of {total}",
+        "wh_prio_h": "Supply priority",
+        "wh_prio_hint": "One number per warehouse, the same for every marketplace. "
+                        "1 — take from here first. 0 — the warehouse takes no part "
+                        "in supply.",
+        "wh_src_h": "Replenished from",
+        "wh_src_none": "No supply routes into this warehouse yet.",
+        "wh_src_hint": "Computed from invoices, edited on the Supply chains tab.",
+        "wh_sum_h": "Filled in so far",
+        "wh_all": "All warehouses in one table",
+        "col_mps": "Marketplaces", "col_src": "Source warehouse", "col_basis": "Basis",
+        "basis_ttn": "invoices: {n}", "basis_expert": "manual estimate",
+        "t_sales": "sales point", "t_storage": "storage",
+        "t_transit": "transit", "t_manufacturer": "manufacturer",
         "ch_hint": "Who replenishes whom and in how many days. Lead time from invoices "
                    "(ttn_planned) is more reliable than expert estimate.",
         "ch_add": "➕ Add supply link",
@@ -176,6 +251,19 @@ def _tr(key: str) -> str:
     return TR[_lang()].get(key, TR["ru"].get(key, key))
 
 
+def _trf(key: str, **kw) -> str:
+    """Подстановка, которая не роняет страницу.
+
+    Фраза и вызов живут в разных местах файла и расходятся набором
+    плейсхолдеров легко. Обычный .format() на таком расхождении бросает
+    KeyError и уносит с собой всю вкладку — лучше показать строку как есть.
+    """
+    try:
+        return _tr(key).format(**kw)
+    except (KeyError, IndexError, ValueError):
+        return _tr(key)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # БАЗА
 # ═══════════════════════════════════════════════════════════════════════════
@@ -187,6 +275,23 @@ def q(sql: str) -> pd.DataFrame:
         return pd.read_sql(sql, conn)
     finally:
         conn.close()
+
+
+# Связка «склад ↔ площадки» появилась позже остальной схемы: пока
+# sql/warehouse_marketplaces.sql не выполнен, таблицы в базе нет, и вкладка
+# должна открываться без неё, а не падать на «relation does not exist».
+WH_MP = "kabinet_data.warehouse_marketplaces"
+
+
+@st.cache_data(ttl=300)
+def has_table(qualified: str) -> bool:
+    return bool(pd.notna(q(f"SELECT to_regclass('{qualified}') AS t").iloc[0]["t"]))
+
+
+def _int0(v) -> int:
+    """Число или ноль. NULL из базы доезжает то None, то NaN, и `v or 0`
+    на NaN не спасает: NaN истинен, а int(NaN) бросает ValueError."""
+    return 0 if pd.isna(v) else int(v)
 
 
 def _py(v):
@@ -274,39 +379,179 @@ tab_wh, tab_ch, tab_mp, tab_pool, tab_norm = st.tabs(
 # ---------------------------------------------------------------- склады ---
 with tab_wh:
     st.caption(_tr("wh_hint"))
+
     wh = q("""
         SELECT id, name, code, type, marketplace, country,
                shipping_priority, is_active, canonical_id, note
         FROM kabinet_data.warehouses
         ORDER BY type, country, name
     """)
+
     if wh.empty:
         st.info(_tr("no_data"))
     else:
-        ed = st.data_editor(
-            wh, key="ed_wh", use_container_width=True, height=520,
-            hide_index=True, num_rows="fixed",
-            disabled=["id", "name", "code", "canonical_id"],
-            column_config={
-                "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
-                "name": st.column_config.TextColumn(_tr("col_name"), width="large"),
-                "code": st.column_config.TextColumn(_tr("col_code"), width="small"),
-                "type": st.column_config.SelectboxColumn(
-                    _tr("col_type"),
-                    options=["sales", "storage", "transit", "manufacturer"]),
-                "marketplace": st.column_config.TextColumn(_tr("col_mp"), width="small"),
-                "country": st.column_config.TextColumn(_tr("col_country"), width="small"),
-                "shipping_priority": st.column_config.NumberColumn(
-                    _tr("col_ship_prio"), min_value=1, max_value=99, step=1),
-                "is_active": st.column_config.CheckboxColumn(_tr("col_active")),
-                "canonical_id": st.column_config.NumberColumn(_tr("col_canon"), width="small"),
-                "note": st.column_config.TextColumn(_tr("col_note"), width="large"),
-            },
-        )
-        if st.button(_tr("save"), key="save_wh", type="primary"):
-            save_block(wh, ed, "kabinet_data.warehouses", "id",
-                       ["type", "marketplace", "country", "shipping_priority",
-                        "is_active", "note"])
+        mp = q("""
+            SELECT id, code, name, country, channel
+            FROM kabinet_data.marketplaces
+            WHERE is_active IS NOT FALSE
+            ORDER BY channel, name
+        """)
+        links_ok = has_table(WH_MP)
+        links = (q(f"SELECT warehouse_id, marketplace_id FROM {WH_MP}")
+                 if links_ok else
+                 pd.DataFrame(columns=["warehouse_id", "marketplace_id"]))
+        by_wh = {int(k): {int(x) for x in v}
+                 for k, v in links.groupby("warehouse_id")["marketplace_id"]}
+        mp_name = {int(r["id"]): r["name"] for _, r in mp.iterrows()}
+
+        show_all = st.toggle(_tr("wh_show_sales"), value=False, key="wh_show_all")
+        st.caption(_tr("wh_show_sales_hint"))
+        pool = wh if show_all else wh[wh["type"] == "storage"]
+
+        if pool.empty:
+            st.info(_tr("no_data"))
+        else:
+            titles = {int(r["id"]): f'{r["name"]} ({r["code"]})' if r["code"]
+                      else str(r["name"]) for _, r in pool.iterrows()}
+            sel = st.selectbox(_tr("wh_pick"), list(titles),
+                               format_func=lambda i: titles[i], key="wh_pick")
+            row = wh.set_index("id").loc[sel]
+
+            facts = [_tr(f't_{row["type"]}') if row["type"] else "—",
+                     str(row["country"] or "—"),
+                     _tr("wh_inactive") if row["is_active"] is False
+                     else _tr("wh_active")]
+            st.markdown(f'#### {row["name"]}')
+            st.caption(" · ".join(facts))
+
+            # ── площадки ──────────────────────────────────────────────────
+            st.markdown("##### " + _tr("wh_mp_h"))
+            picked, было = set(), by_wh.get(int(sel), set())
+            if not links_ok:
+                st.warning(_tr("wh_mp_missing"))
+            else:
+                st.caption(_tr("wh_mp_hint"))
+                # Amazon отдельной колонкой: десять витрин против четырёх
+                # у всех остальных каналов вместе
+                amz, rest = st.columns(2)
+                with amz:
+                    st.markdown("**Amazon**")
+                    for _, m in mp[mp["channel"] == "Amazon"].iterrows():
+                        if st.checkbox(m["name"], value=int(m["id"]) in было,
+                                       key=f'wm_{sel}_{m["id"]}'):
+                            picked.add(int(m["id"]))
+                with rest:
+                    for ch_name in [c for c in dict.fromkeys(mp["channel"])
+                                    if c != "Amazon"]:
+                        st.markdown(f"**{ch_name}**")
+                        for _, m in mp[mp["channel"] == ch_name].iterrows():
+                            if st.checkbox(m["name"], value=int(m["id"]) in было,
+                                           key=f'wm_{sel}_{m["id"]}'):
+                                picked.add(int(m["id"]))
+                st.caption(_trf("wh_mp_count", n=len(picked), total=len(mp)))
+
+            # ── приоритет ─────────────────────────────────────────────────
+            st.markdown("##### " + _tr("wh_prio_h"))
+            st.caption(_tr("wh_prio_hint"))
+            prio_было = _int0(row["shipping_priority"])
+            prio = st.number_input(_tr("col_ship_prio"), min_value=0, max_value=99,
+                                   step=1, value=prio_было, key=f"wp_{sel}")
+
+            # ── откуда пополняется, только чтение ─────────────────────────
+            st.markdown("##### " + _tr("wh_src_h"))
+            src = q(f"""
+                SELECT f.name AS src_name, c.median_days, c.lead_source, c.sample_size
+                FROM kabinet_data.supply_chains c
+                JOIN kabinet_data.warehouses f ON f.id = c.from_warehouse_id
+                WHERE c.to_warehouse_id = {int(sel)} AND c.is_active IS NOT FALSE
+                ORDER BY c.median_days, f.name
+            """)
+            if src.empty:
+                st.caption(_tr("wh_src_none"))
+            else:
+                st.caption(_tr("wh_src_hint"))
+                st.dataframe(
+                    pd.DataFrame({
+                        _tr("col_src"): src["src_name"],
+                        _tr("col_median"): src["median_days"],
+                        _tr("col_basis"): [
+                            _trf("basis_ttn", n=int(n)) if s == "ttn_planned" and pd.notna(n)
+                            else _tr("basis_expert")
+                            for s, n in zip(src["lead_source"], src["sample_size"])],
+                    }),
+                    use_container_width=True, hide_index=True,
+                )
+
+            # ── сохранение ────────────────────────────────────────────────
+            if st.button(_tr("save"), key="save_wh_card", type="primary"):
+                stmts = []
+                if prio != prio_было:
+                    stmts.append((
+                        "UPDATE kabinet_data.warehouses SET shipping_priority = %s "
+                        "WHERE id = %s", (int(prio), int(sel))))
+                if links_ok:
+                    for m_id in sorted(picked - было):
+                        stmts.append((
+                            f"INSERT INTO {WH_MP} (warehouse_id, marketplace_id, "
+                            "updated_by) VALUES (%s, %s, 'kabinet') "
+                            "ON CONFLICT DO NOTHING", (int(sel), int(m_id))))
+                    if было - picked:
+                        stmts.append((
+                            f"DELETE FROM {WH_MP} WHERE warehouse_id = %s "
+                            "AND marketplace_id = ANY(%s)",
+                            (int(sel), sorted(int(x) for x in было - picked))))
+                if not stmts:
+                    st.info(_tr("nochange"))
+                else:
+                    try:
+                        exec_sql(stmts)
+                        st.cache_data.clear()
+                        st.success(_trf("saved", n=len(stmts)))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
+
+            # ── что уже заполнено ─────────────────────────────────────────
+            st.markdown("##### " + _tr("wh_sum_h"))
+            st.dataframe(
+                pd.DataFrame({
+                    _tr("col_name"): [titles[int(i)] for i in pool["id"]],
+                    _tr("col_mps"): [
+                        ", ".join(mp_name[m] for m in sorted(by_wh.get(int(i), ())))
+                        or "—" for i in pool["id"]],
+                    _tr("col_ship_prio"): [_int0(p) for p in pool["shipping_priority"]],
+                    _tr("col_active"): list(pool["is_active"]),
+                }),
+                use_container_width=True, hide_index=True,
+                column_config={_tr("col_active"): st.column_config.CheckboxColumn()},
+            )
+
+        # ── таблица целиком, для тех, кто правит пачкой ───────────────────
+        with st.expander(_tr("wh_all")):
+            ed = st.data_editor(
+                wh, key="ed_wh", use_container_width=True, height=520,
+                hide_index=True, num_rows="fixed",
+                disabled=["id", "name", "code", "canonical_id"],
+                column_config={
+                    "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
+                    "name": st.column_config.TextColumn(_tr("col_name"), width="large"),
+                    "code": st.column_config.TextColumn(_tr("col_code"), width="small"),
+                    "type": st.column_config.SelectboxColumn(
+                        _tr("col_type"),
+                        options=["sales", "storage", "transit", "manufacturer"]),
+                    "marketplace": st.column_config.TextColumn(_tr("col_mp"), width="small"),
+                    "country": st.column_config.TextColumn(_tr("col_country"), width="small"),
+                    "shipping_priority": st.column_config.NumberColumn(
+                        _tr("col_ship_prio"), min_value=0, max_value=99, step=1),
+                    "is_active": st.column_config.CheckboxColumn(_tr("col_active")),
+                    "canonical_id": st.column_config.NumberColumn(_tr("col_canon"), width="small"),
+                    "note": st.column_config.TextColumn(_tr("col_note"), width="large"),
+                },
+            )
+            if st.button(_tr("save"), key="save_wh", type="primary"):
+                save_block(wh, ed, "kabinet_data.warehouses", "id",
+                           ["type", "marketplace", "country", "shipping_priority",
+                            "is_active", "note"])
 
 # ------------------------------------------------------------- подпитка ---
 with tab_ch:
