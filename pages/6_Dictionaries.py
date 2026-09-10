@@ -83,6 +83,14 @@ TR = {
         "norm_add": "➕ Добавить норматив", "norm_sku": "SKU",
         "norm_target": "Привязка", "norm_target_mp": "Маркетплейс", "norm_target_pool": "Пул",
         "norm_target_val": "Значение", "norm_added": "Норматив добавлен",
+        "norm_manual": "SKU нет в списке — ввести вручную",
+        "norm_no_pools": "Пулов ещё нет, поэтому доступна только привязка к маркетплейсу.",
+        "norm_now": "Сейчас покрытие {w} нед., статус «{st}»",
+        "norm_now_none": "Покрытие по этой паре ещё не считалось",
+        "norm_unused": "Норматив пока только хранится: расчёт покрытия его не читает, "
+                       "статусы на «Остатках» загрузчик считает по своим порогам. "
+                       "Заполнять имеет смысл — цифры понадобятся, когда расчёт переведут на справочник.",
+        "col_product": "Товар",
         "norm_exists": "Норматив для этой связки уже есть — отредактируй в таблице ниже",
         "norm_order": "Должно быть: минимум ≤ цель ≤ максимум",
         "norm_empty": "Укажи SKU", "norm_list": "Действующие нормативы",
@@ -153,6 +161,14 @@ TR = {
         "norm_add": "➕ Додати норматив", "norm_sku": "SKU",
         "norm_target": "Привʼязка", "norm_target_mp": "Маркетплейс", "norm_target_pool": "Пул",
         "norm_target_val": "Значення", "norm_added": "Норматив додано",
+        "norm_manual": "SKU немає в списку — ввести вручну",
+        "norm_no_pools": "Пулів ще немає, тому доступна лише прив'язка до маркетплейсу.",
+        "norm_now": "Зараз покриття {w} тижн., статус «{st}»",
+        "norm_now_none": "Покриття по цій парі ще не рахувалося",
+        "norm_unused": "Норматив поки лише зберігається: розрахунок покриття його не читає, "
+                       "статуси на «Залишках» завантажувач рахує за своїми порогами. "
+                       "Заповнювати має сенс — цифри знадобляться, коли розрахунок переведуть на довідник.",
+        "col_product": "Товар",
         "norm_exists": "Норматив для цієї звʼязки вже є — відредагуй у таблиці нижче",
         "norm_order": "Має бути: мінімум ≤ ціль ≤ максимум",
         "norm_empty": "Вкажи SKU", "norm_list": "Чинні нормативи",
@@ -223,6 +239,15 @@ TR = {
         "norm_add": "➕ Add norm", "norm_sku": "SKU",
         "norm_target": "Target", "norm_target_mp": "Marketplace", "norm_target_pool": "Pool",
         "norm_target_val": "Value", "norm_added": "Norm added",
+        "norm_manual": "SKU not in the list — type it in",
+        "norm_no_pools": "No pools yet, so only a marketplace can be targeted.",
+        "norm_now": "Coverage now {w} weeks, status \u00ab{st}\u00bb",
+        "norm_now_none": "Coverage for this pair has not been computed yet",
+        "norm_unused": "The norm is stored only: the coverage calculation does not read it, "
+                       "and the statuses on Stock come from the loader's own thresholds. "
+                       "Filling it in is still worth it — the numbers are needed once the "
+                       "calculation moves to the dictionary.",
+        "col_product": "Product",
         "norm_exists": "A norm for this combination exists — edit it in the table below",
         "norm_order": "Required: min ≤ target ≤ max",
         "norm_empty": "Enter a SKU", "norm_list": "Active norms",
@@ -292,6 +317,20 @@ def _int0(v) -> int:
     """Число или ноль. NULL из базы доезжает то None, то NaN, и `v or 0`
     на NaN не спасает: NaN истинен, а int(NaN) бросает ValueError."""
     return 0 if pd.isna(v) else int(v)
+
+
+def q1(sql: str, params: tuple) -> pd.DataFrame:
+    """Разовый запрос с параметрами.
+
+    Не через q(): та кэшируется по тексту запроса, а параметры в текст не
+    попадают — на второй SKU кэш вернул бы ответ по первому. И не через
+    склейку строки: апостроф в артикуле роняет запрос.
+    """
+    conn = get_connection()
+    try:
+        return pd.read_sql(sql, conn, params=params)
+    finally:
+        conn.close()
 
 
 def _py(v):
@@ -785,66 +824,121 @@ with tab_pool:
 # ------------------------------------------------------------- нормативы ---
 with tab_norm:
     st.caption(_tr("norm_hint"))
+    st.info(_tr("norm_unused"))
 
-    mps_n = q("SELECT id, code, country FROM kabinet_data.marketplaces ORDER BY code")
+    # SKU берём из coverage_summary: это ровно тот набор, к которому норматив
+    # и применяется. Девяносто с небольшим штук — выбором из списка опечатку
+    # не сделаешь, а свободным вводом норматив легко повесить на SKU, которого
+    # нет, и он молча не сработает никогда.
+    skus = q("""
+        SELECT sku, max(product_name) AS product_name
+        FROM kabinet_data.coverage_summary
+        GROUP BY sku ORDER BY sku
+    """)
+    mps_n = q("""
+        SELECT id, code, country FROM kabinet_data.marketplaces
+        WHERE is_active IS NOT FALSE ORDER BY code
+    """)
     pools_n = q("SELECT id, name FROM kabinet_data.pools ORDER BY name")
+
     mp_opts = {f"{r.code} ({r.country})": int(r.id) for _, r in mps_n.iterrows()}
     pool_opts = {r["name"]: int(r.id) for _, r in pools_n.iterrows()}
+    sku_title = {r["sku"]: (f'{r["sku"]} — {r["product_name"]}'
+                            if r["product_name"] else r["sku"])
+                 for _, r in skus.iterrows()}
 
     with st.expander(_tr("norm_add"), expanded=True):
-        with st.form("add_norm", clear_on_submit=True):
-            a1, a2, a3 = st.columns([2, 1, 2])
-            sku_val = a1.text_input(_tr("norm_sku"))
-            tgt_type = a2.selectbox(_tr("norm_target"),
-                                    [_tr("norm_target_mp"), _tr("norm_target_pool")])
-            is_mp = tgt_type == _tr("norm_target_mp")
-            opts = mp_opts if is_mp else pool_opts
-            tgt_val = a3.selectbox(_tr("norm_target_val"),
-                                   list(opts.keys()) or ["—"])
+        # Без st.form намеренно: подсказка про текущее покрытие должна
+        # обновляться сразу после выбора SKU и рынка, а форма перерисовку
+        # придерживает до отправки.
+        a1, a2, a3 = st.columns([2, 1, 2])
 
-            b1, b2, b3 = st.columns(3)
-            mn = b1.number_input(_tr("col_min"), 0, 999, 30, step=5)
-            tg = b2.number_input(_tr("col_target"), 0, 999, 60, step=5)
-            mx = b3.number_input(_tr("col_max"), 0, 999, 90, step=5)
+        manual = a1.checkbox(_tr("norm_manual"), key="norm_manual")
+        if manual or skus.empty:
+            sku_val = a1.text_input(_tr("norm_sku"), key="norm_sku_txt").strip()
+        else:
+            sku_val = a1.selectbox(_tr("norm_sku"), list(sku_title),
+                                   format_func=lambda s: sku_title[s],
+                                   key="norm_sku_sel")
 
-            if st.form_submit_button(_tr("norm_add"), type="primary"):
-                if not sku_val.strip():
-                    st.error(_tr("norm_empty"))
-                elif not opts:
-                    st.error(_tr("norm_no_target"))
-                elif not (mn <= tg <= mx):
-                    st.error(_tr("norm_order"))
+        if not pool_opts:
+            a2.caption(_tr("norm_no_pools"))
+            is_mp = True
+        else:
+            is_mp = a2.selectbox(_tr("norm_target"),
+                                 [_tr("norm_target_mp"), _tr("norm_target_pool")],
+                                 key="norm_tgt") == _tr("norm_target_mp")
+
+        opts = mp_opts if is_mp else pool_opts
+        tgt_val = a3.selectbox(_tr("norm_target_val"), list(opts) or ["—"],
+                               key="norm_tgt_val")
+
+        # Чем норматив обосновать: что у этой пары с покрытием прямо сейчас
+        if sku_val and is_mp and opts:
+            _mp_code = tgt_val.split(" ")[0]
+            cov = q1("""
+                SELECT round(coverage_weeks::numeric, 1) AS ned, coverage_status
+                FROM kabinet_data.coverage_summary
+                WHERE sku = %s AND marketplace = %s
+                ORDER BY calc_date DESC LIMIT 1
+            """, (sku_val, _mp_code))
+            if cov.empty or pd.isna(cov.iloc[0]["ned"]):
+                st.caption(_tr("norm_now_none"))
+            else:
+                st.caption(_trf("norm_now", w=cov.iloc[0]["ned"],
+                                st=cov.iloc[0]["coverage_status"]))
+
+        b1, b2, b3 = st.columns(3)
+        mn = b1.number_input(_tr("col_min"), 0, 999, 30, step=5, key="norm_mn")
+        tg = b2.number_input(_tr("col_target"), 0, 999, 60, step=5, key="norm_tg")
+        mx = b3.number_input(_tr("col_max"), 0, 999, 90, step=5, key="norm_mx")
+
+        if st.button(_tr("norm_add"), type="primary", key="norm_add_btn"):
+            if not sku_val:
+                st.error(_tr("norm_empty"))
+            elif not opts:
+                st.error(_tr("norm_no_target"))
+            elif not (mn <= tg <= mx):
+                st.error(_tr("norm_order"))
+            else:
+                tid = opts[tgt_val]
+                col = "marketplace_id" if is_mp else "pool_id"
+                # Уникальность в БД — по тройке (marketplace_id, pool_id, sku),
+                # а NULL в Postgres друг другу не равны: вторая строка с тем же
+                # рынком и SKU при пустом пуле ограничение НЕ нарушит. Значит
+                # дубли ловим здесь, и параметром, а не склейкой строки —
+                # апостроф в артикуле иначе роняет запрос.
+                dup = q1(f"SELECT 1 FROM kabinet_data.coverage_norms "
+                         f"WHERE sku = %s AND {col} = %s LIMIT 1",
+                         (sku_val, tid))
+                if not dup.empty:
+                    st.warning(_tr("norm_exists"))
                 else:
-                    tid = opts[tgt_val]
-                    col = "marketplace_id" if is_mp else "pool_id"
-                    dup = q(f"""
-                        SELECT 1 FROM kabinet_data.coverage_norms
-                        WHERE sku = '{sku_val.strip()}' AND {col} = {tid} LIMIT 1
-                    """)
-                    if not dup.empty:
-                        st.warning(_tr("norm_exists"))
-                    else:
-                        try:
-                            exec_sql([(f"""
-                                INSERT INTO kabinet_data.coverage_norms
-                                    (sku, {col}, min_days, target_days, max_days)
-                                VALUES (%s, %s, %s, %s, %s)
-                            """, [sku_val.strip(), tid, int(mn), int(tg), int(mx)])])
-                            st.cache_data.clear()
-                            st.success(_tr("norm_added"))
-                            st.rerun()
-                        except Exception as e:
-                            st.error(_tr("err").format(e=e))
+                    try:
+                        exec_sql([(f"""
+                            INSERT INTO kabinet_data.coverage_norms
+                                (sku, {col}, min_days, target_days, max_days)
+                            VALUES (%s, %s, %s, %s, %s)
+                        """, [sku_val, tid, int(mn), int(tg), int(mx)])])
+                        st.cache_data.clear()
+                        st.success(_tr("norm_added"))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
 
     st.markdown(f"**{_tr('norm_list')}**")
     norms = q("""
-        SELECT n.id, n.sku,
+        SELECT n.id, n.sku, c.product_name,
                m.code AS marketplace,
                p.name AS pool,
                n.min_days, n.target_days, n.max_days
         FROM kabinet_data.coverage_norms n
         LEFT JOIN kabinet_data.marketplaces m ON m.id = n.marketplace_id
         LEFT JOIN kabinet_data.pools p        ON p.id = n.pool_id
+        LEFT JOIN LATERAL (
+            SELECT max(product_name) AS product_name
+            FROM kabinet_data.coverage_summary s WHERE s.sku = n.sku
+        ) c ON true
         ORDER BY n.sku, m.code NULLS LAST, p.name NULLS LAST
     """)
     if norms.empty:
@@ -855,10 +949,11 @@ with tab_norm:
         ed_n = st.data_editor(
             view_n, key="ed_norm", use_container_width=True, height=420,
             hide_index=True, num_rows="fixed",
-            disabled=["id", "sku", "marketplace", "pool"],
+            disabled=["id", "sku", "product_name", "marketplace", "pool"],
             column_config={
                 "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
-                "sku": st.column_config.TextColumn(_tr("norm_sku"), width="medium"),
+                "sku": st.column_config.TextColumn(_tr("norm_sku"), width="small"),
+                "product_name": st.column_config.TextColumn(_tr("col_product"), width="large"),
                 "marketplace": st.column_config.TextColumn(_tr("col_mp"), width="small"),
                 "pool": st.column_config.TextColumn(_tr("col_pool"), width="small"),
                 "min_days": st.column_config.NumberColumn(_tr("col_min"), step=5),
@@ -874,7 +969,8 @@ with tab_norm:
             if not bad.empty:
                 st.error(_tr("norm_order"))
             else:
-                save_block(norms, ed_n.drop(columns=["__del"]),
+                save_block(norms.drop(columns=["product_name"]),
+                           ed_n.drop(columns=["__del", "product_name"]),
                            "kabinet_data.coverage_norms", "id",
                            ["min_days", "target_days", "max_days"])
         if s2.button(_tr("delete_sel"), key="del_norm"):
@@ -886,7 +982,7 @@ with tab_norm:
                     exec_sql([("DELETE FROM kabinet_data.coverage_norms WHERE id = ANY(%s)",
                                [ids])])
                     st.cache_data.clear()
-                    st.success(_tr("deleted").format(n=len(ids)))
+                    st.success(_trf("deleted", n=len(ids)))
                     st.rerun()
                 except Exception as e:
-                    st.error(_tr("err").format(e=e))
+                    st.error(_trf("err", e=e))
