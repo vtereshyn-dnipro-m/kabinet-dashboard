@@ -21,11 +21,14 @@
 
 BEGIN;
 
+-- Без внешних ключей намеренно: чтобы сослаться на чужую таблицу, нужно
+-- право REFERENCES на неё, а оно есть только у владельца. Ключи добавляются
+-- вторым файлом, sql/warehouse_marketplaces_fk.sql, — он же выдаёт право.
+-- Ссылочная целостность до тех пор держится на экране: и склад, и площадка
+-- выбираются из выпадающих списков, собранных из этих же таблиц.
 CREATE TABLE IF NOT EXISTS kabinet_data.warehouse_marketplaces (
-    warehouse_id   integer     NOT NULL
-                   REFERENCES kabinet_data.warehouses(id)   ON DELETE CASCADE,
-    marketplace_id integer     NOT NULL
-                   REFERENCES kabinet_data.marketplaces(id) ON DELETE CASCADE,
+    warehouse_id   integer     NOT NULL,
+    marketplace_id integer     NOT NULL,
     updated_at     timestamptz NOT NULL DEFAULT now(),
     updated_by     text,
     PRIMARY KEY (warehouse_id, marketplace_id)
