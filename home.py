@@ -11,7 +11,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
-from util import as_text, data_boundary, day_axis
+from util import as_text, day_axis
 import period as period_mod
 
 init_lang()
@@ -398,24 +398,44 @@ else:
     _title = t("home.sec.sales", d=DAYS)
 st.markdown(f"##### {_title}")
 
-# Граница данных. Правило одно на все страницы и живёт в
-# util.data_boundary: максимум по каждому рынку, из них минимальный.
+# Граница данных. Здесь она НАМЕРЕННО другая, чем в Деньгах, и это не
+# рассогласование, а разные задачи страниц.
 #
-# Раньше здесь стоял максимум по рынкам Amazon, а в Деньгах — минимум по
-# всем: две соседние страницы показывали разные цифры за один период.
-# Отчёты приходят с разной задержкой по странам, и максимум обещает
-# данные до самой свежей из них, хотя по остальным их нет.
+# Обзор отвечает на вопрос «сколько продали» — ему нужен максимум
+# доступного. Деньги сравнивают страны между собой, и там окна обязаны
+# совпадать, иначе сравнение бессмысленно; правило для этого живёт
+# в util.data_boundary.
 #
-# Обрезка нужна и графику: финансовые отчёты Amazon отстают на 2-3 дня,
-# а каналы Mirakl приходят почти сразу — за свежие дни в economics_summary
-# остаются только они, и хвост проваливался почти в ноль при том, что
-# продажи шли в обычном режиме.
-_bound = data_boundary(money, "sales_date", "marketplace")
-_full_last = _bound.last
+# «Максимум доступного» здесь не равен максимуму по всем рынкам.
+# Финансовые отчёты Amazon отстают на 2-3 дня, а каналы Mirakl приходят
+# почти сразу: за свежие дни в economics_summary остаются только они.
+# 07-09.09.2026 — живой пример: Amazon отсутствует полностью, и всего
+# 906, 661 и 269 € против обычных 1 700-2 800. Показать эти дни значит
+# нарисовать обвал, которого не было. Поэтому берём последний день,
+# за который пришёл Amazon.
+#
+# Канал берём из справочника, а не перечнем кодов: литеральный список
+# протух бы с первой же новой площадкой, как уже протухал «LM»
+_full_last = pd.NaT
+_ahead_mk = pd.Series(dtype="datetime64[ns]")
 if not money.empty:
     money["sales_date"] = pd.to_datetime(money["sales_date"])
+    _ch = load_channels()
+    if not _ch.empty:
+        _amz_codes = set(_ch.loc[_ch["channel"].str.upper() == "AMAZON",
+                                 "marketplace_code"])
+        if _amz_codes:
+            _a_days = money.loc[
+                money["marketplace"].astype(str).str.strip().str.upper()
+                .isin(_amz_codes), "sales_date"]
+            if len(_a_days):
+                _full_last = _a_days.max()
     if pd.isna(_full_last):
+        # справочник недоступен — прежнее поведение, а не пустой экран
         _full_last = money["sales_date"].max()
+    # кто ушёл дальше границы — нужно подписи, чтобы объяснить обрезку
+    _ahead_mk = (money.groupby("marketplace")["sales_date"].max()
+                      .pipe(lambda x: x[x > _full_last]))
     money = money[money["sales_date"] <= _full_last]
     if not money_wide.empty:
         money_wide["sales_date"] = pd.to_datetime(money_wide["sales_date"])
@@ -431,13 +451,13 @@ if not money.empty:
     # сказать надо: окно «за 7 дней» заканчивается не сегодня.
     # Для своего диапазона этой подписи здесь нет: разрыв виден на самом
     # графике, и объясняет его подпись под ним, рядом с тем, что объясняет
-    if len(_bound.ahead):
-        # границы по рынкам разошлись — называем и отстающих, и остальных,
-        # иначе цифра выглядит необъяснимо низкой
-        st.caption(t("period.boundary_mixed", 
-            d=_last.strftime("%d.%m"), mp=", ".join(_bound.behind),
-            more=", ".join(sorted(_bound.ahead.index)),
-            dmax=_bound.ahead.max().strftime("%d.%m")))
+    if len(_ahead_mk):
+        # часть каналов ушла дальше границы — говорим об этом прямо,
+        # иначе непонятно, почему период кончается раньше выбранного
+        st.caption(t("period.boundary_max", 
+            d=_last.strftime("%d.%m"),
+            more=", ".join(sorted(_ahead_mk.index)),
+            dmax=_ahead_mk.max().strftime("%d.%m")))
     elif _lag >= 2 and date_from is None:
         _from = (_last - pd.Timedelta(days=DAYS - 1)).strftime("%d.%m")
         st.caption(t("home.sales.lag", 

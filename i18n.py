@@ -649,6 +649,17 @@ TRANSLATIONS = {
               "For {more} data already runs to {dmax}, but the period is aligned to the "
               "most lagging source: otherwise the sources cannot be compared.",
     },
+    "period.boundary_max": {
+        "ru": "Показаны все доступные данные — по {d} включительно. Глубина по каналам "
+              "разная: по {more} есть уже по {dmax}, но за эти дни не пришёл Amazon, "
+              "и картина была бы неполной.",
+        "uk": "Показано всі доступні дані — по {d} включно. Глибина за каналами різна: "
+              "по {more} є вже по {dmax}, але за ці дні не надійшов Amazon, "
+              "і картина була б неповною.",
+        "en": "Showing all available data — through {d}. Depth differs by channel: "
+              "{more} already run to {dmax}, but Amazon has not arrived for those days, "
+              "so the picture would be incomplete.",
+    },
     "period.boundary_lag": {
         "ru": "Данные есть по {d} включительно — последние {n} дн. ещё не загружены.",
         "uk": "Дані є по {d} включно — останні {n} дн. ще не завантажені.",
