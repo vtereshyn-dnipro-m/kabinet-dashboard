@@ -11,7 +11,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
-from util import as_text, day_axis
+from util import as_text, data_boundary, day_axis
 import period as period_mod
 
 init_lang()
@@ -398,21 +398,9 @@ else:
     _title = t("home.sec.sales", d=DAYS)
 st.markdown(f"##### {_title}")
 
-# Граница данных. Здесь она НАМЕРЕННО другая, чем в Деньгах, и это не
-# рассогласование, а разные задачи страниц.
-#
-# Обзор отвечает на вопрос «сколько продали» — ему нужен максимум
-# доступного. Деньги сравнивают страны между собой, и там окна обязаны
-# совпадать, иначе сравнение бессмысленно; правило для этого живёт
-# в util.data_boundary.
-#
-# «Максимум доступного» здесь не равен максимуму по всем рынкам.
-# Финансовые отчёты Amazon отстают на 2-3 дня, а каналы Mirakl приходят
-# почти сразу: за свежие дни в economics_summary остаются только они.
-# 07-09.09.2026 — живой пример: Amazon отсутствует полностью, и всего
-# 906, 661 и 269 € против обычных 1 700-2 800. Показать эти дни значит
-# нарисовать обвал, которого не было. Поэтому берём последний день,
-# за который пришёл Amazon.
+# Граница данных. Правило одно на обе страницы и живёт в
+# util.data_boundary: день закрыт, если Amazon отдал отчёт за него хоть
+# по одной стране. Держать здесь свою копию нельзя — копии расходятся.
 #
 # Канал берём из справочника, а не перечнем кодов: литеральный список
 # протух бы с первой же новой площадкой, как уже протухал «LM»
@@ -421,21 +409,11 @@ _ahead_mk = pd.Series(dtype="datetime64[ns]")
 if not money.empty:
     money["sales_date"] = pd.to_datetime(money["sales_date"])
     _ch = load_channels()
-    if not _ch.empty:
-        _amz_codes = set(_ch.loc[_ch["channel"].str.upper() == "AMAZON",
-                                 "marketplace_code"])
-        if _amz_codes:
-            _a_days = money.loc[
-                money["marketplace"].astype(str).str.strip().str.upper()
-                .isin(_amz_codes), "sales_date"]
-            if len(_a_days):
-                _full_last = _a_days.max()
-    if pd.isna(_full_last):
-        # справочник недоступен — прежнее поведение, а не пустой экран
-        _full_last = money["sales_date"].max()
-    # кто ушёл дальше границы — нужно подписи, чтобы объяснить обрезку
-    _ahead_mk = (money.groupby("marketplace")["sales_date"].max()
-                      .pipe(lambda x: x[x > _full_last]))
+    _amz_codes = (set(_ch.loc[_ch["channel"].str.upper() == "AMAZON",
+                              "marketplace_code"])
+                  if not _ch.empty else set())
+    _b = data_boundary(money, "sales_date", "marketplace", _amz_codes)
+    _full_last, _ahead_mk = _b.last, _b.ahead
     money = money[money["sales_date"] <= _full_last]
     if not money_wide.empty:
         money_wide["sales_date"] = pd.to_datetime(money_wide["sales_date"])

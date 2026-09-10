@@ -59,31 +59,52 @@ def day_axis(df: pd.DataFrame, day_col: str, start, end) -> pd.DataFrame:
 class Boundary(NamedTuple):
     """Где кончаются данные, если сравнивать источники между собой."""
     last: object          # pd.Timestamp или pd.NaT — общая граница
-    behind: list          # источники, которые её и задают
     ahead: object         # pd.Series: источник -> его дата, у кого данных больше
+    anchored: bool        # границу задал якорный канал, а не общий максимум
 
 
-def data_boundary(df: pd.DataFrame, date_col: str, group_col: str) -> Boundary:
-    """Граница данных по самому отстающему источнику.
+def data_boundary(df: pd.DataFrame, date_col: str, group_col: str,
+                  anchor=None) -> Boundary:
+    """Последний день, за который картина полная.
 
-    Считаем максимум по каждому источнику и берём из них минимальный.
-    Максимум по всей выборке обещал бы данные до самой свежей страны,
-    хотя по остальным их нет: страницы называли дату, которой по части
-    рынков не существует, и две соседние страницы расходились в цифрах.
+    Границу задаёт якорный канал: если Amazon отдал отчёт за дату хоть по
+    одной стране, день закрыт целиком. Страна без строк за этот день не
+    «не отчиталась» — она не продавала, и это разные вещи.
 
-    Ровно то же правило — и та же функция — должно работать на всех
-    страницах. Логика, размноженная по вызовам, однажды разойдётся:
-    так уже было с именами джоб и с расчётом комиссии.
+    Раньше здесь стоял минимум из максимумов по каждому рынку, то есть
+    обрезка по самому отстающему. Правило выглядело осторожным, а на деле
+    врало: Бельгия и Британия торгуют редко, последние их заказы были
+    03.09, и вся страница схлопывалась на эту дату, хотя по Amazon данные
+    шли до 07.09. Подпись при этом объясняла обрезку тем, что «по BE, GB
+    отчёты приходят позже», — а отчёты пришли, просто продаж не было.
+    Четыре дня цифр пропадали из-за двух рынков без заказов.
 
-    Плата за это — обрезка по худшему: один заказ в Бельгии двигает
-    границу для всей страницы. Поэтому подпись обязана назвать, кто
-    именно отстал, иначе цифра выглядит необъяснимо низкой.
+    Обратная крайность — максимум по всем рынкам — тоже неверна. Каналы
+    Mirakl приходят почти сразу, Amazon отстаёт на два-три дня: за свежие
+    дни в витрине остаются только Mirakl, и показать их значит нарисовать
+    обвал, которого не было. Поэтому якорь, а не максимум.
+
+    Без якоря (или если якорных строк в выборке нет — фильтр по одному
+    Leroy Merlin) остаётся общий максимум: это лучше пустого экрана.
     """
+    empty = pd.Series(dtype="datetime64[ns]")
     if df.empty or date_col not in df.columns or group_col not in df.columns:
-        return Boundary(pd.NaT, [], pd.Series(dtype="datetime64[ns]"))
-    per = (df.assign(_d=pd.to_datetime(df[date_col], errors="coerce"))
-             .groupby(group_col)["_d"].max().dropna())
-    if per.empty:
-        return Boundary(pd.NaT, [], pd.Series(dtype="datetime64[ns]"))
-    last = per.min()
-    return Boundary(last, sorted(per[per == last].index), per[per > last])
+        return Boundary(pd.NaT, empty, False)
+
+    d = df.assign(_d=pd.to_datetime(df[date_col], errors="coerce")).dropna(subset=["_d"])
+    if d.empty:
+        return Boundary(pd.NaT, empty, False)
+
+    per = d.groupby(group_col)["_d"].max()
+    last, anchored = pd.NaT, False
+
+    if anchor:
+        codes = {str(a).strip().upper() for a in anchor}
+        rows = d[d[group_col].astype(str).str.strip().str.upper().isin(codes)]
+        if not rows.empty:
+            last, anchored = rows["_d"].max(), True
+
+    if pd.isna(last):
+        last = per.max()
+
+    return Boundary(last, per[per > last], anchored)

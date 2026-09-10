@@ -303,15 +303,14 @@ if df.empty:
 
 # подпись периода — как на Обзоре: показываем выбранный диапазон,
 # а под ним предупреждаем, если данные за конец периода ещё не пришли
-# Граница данных считается по КАЖДОМУ маркетплейсу отдельно, а берётся
-# минимальная. Data Kiosk отдаёт отчёты с разной задержкой по странам:
-# max по всей выборке обещал бы данные до самой свежей из них, хотя по
-# остальным их нет. Раньше стоял именно max, и при нескольких странах
-# подпись называла дату, которой по части из них не существует
-# Правило вынесено в util.data_boundary — оно же работает на Обзоре.
-# Держать его здесь отдельной копией нельзя: копии расходятся
-_bound = data_boundary(df, "sales_date", "marketplace")
-_last, _behind, _ahead = _bound.last, _bound.behind, _bound.ahead
+#
+# Граница — по якорному каналу: день закрыт, если Amazon отчитался за
+# него хоть по одной стране. Раньше здесь брался минимум из максимумов
+# по каждому рынку, и страница схлопывалась на дату последнего заказа в
+# Бельгии. Правило и объяснение — в util.data_boundary, оно же работает
+# на Обзоре. Держать здесь отдельную копию нельзя: копии расходятся
+_bound = data_boundary(df, "sales_date", "marketplace", load_amazon_codes())
+_last, _ahead = _bound.last, _bound.ahead
 
 # заголовок пишет фактическую границу, а не запрошенную: показывать
 # «01.08 — 28.08», когда данных нет после 25-го, значит обещать три дня,
@@ -336,9 +335,10 @@ st.markdown(f"##### {_ptitle}")
 if pd.notna(_last):
     _lag = (pd.Timestamp(pd.Timestamp.now().date()) - _last).days
     if len(_ahead):
-        # границы по странам разошлись — называем и отстающую, и остальные
-        st.caption(t("period.boundary_mixed", 
-            d=_last.strftime("%d.%m"), mp=", ".join(_behind),
+        # часть каналов ушла дальше границы — объясняем, почему период
+        # кончается раньше: за эти дни Amazon ещё не отчитался
+        st.caption(t("period.boundary_max", 
+            d=_last.strftime("%d.%m"),
             more=", ".join(sorted(_ahead.index)),
             dmax=_ahead.max().strftime("%d.%m")))
     elif _lag >= 2:
@@ -710,6 +710,22 @@ with tab_country:
                    ads=("ads", "sum")))
     by_c["cm"] = by_c["net_proceeds"] - by_c["cogs"] - by_c["ads"]
     by_c["cm_pct"] = np.round(safe_div(by_c["cm"], by_c["revenue"]) * 100, 1)
+
+    # Рынок без заказов — это ноль, а не отсутствие рынка. Выкинутый из
+    # таблицы, он читается как «мы там не торгуем», и вопрос «почему нет
+    # Бельгии» возвращается каждый раз заново.
+    #
+    # Нули дописываем отдельными строками, а не fillna по всей таблице:
+    # пустой COGS у рынка с продажами означает «не загружен», и превратить
+    # его в ноль значит показать прибыль, равную выручке.
+    _have = set(by_c["marketplace"].astype(str))
+    _idle = [m for m in (mp_filter or load_marketplaces()) if m not in _have]
+    if _idle:
+        by_c = pd.concat([by_c, pd.DataFrame({
+            "marketplace": _idle, "units": 0, "revenue": 0.0,
+            "net_proceeds": 0.0, "cogs": 0.0, "commission": 0.0,
+            "ads": 0.0, "cm": 0.0, "cm_pct": 0.0})], ignore_index=True)
+
     by_c = by_c.sort_values("cm", ascending=False)
 
     cc = st.columns(min(len(by_c), 5) or 1)
