@@ -11,7 +11,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import init_lang, t
-from util import as_text, day_axis
+from util import as_text, data_boundary, day_axis
 import period as period_mod
 
 init_lang()
@@ -398,29 +398,23 @@ else:
     _title = t("home.sec.sales", d=DAYS)
 st.markdown(f"##### {_title}")
 
-# «Полный день» — тот, за который пришли и амазоновские отчёты. Финансовые
-# отчёты Amazon (комиссии, маржа) отстают на 2-3 дня, а каналы Mirakl
-# приходят почти сразу: за свежие дни в economics_summary остаются только
-# они. Окно растягивалось на эти дни, и хвост графика проваливался почти
-# в ноль — при том что продажи шли в обычном режиме.
+# Граница данных. Правило одно на все страницы и живёт в
+# util.data_boundary: максимум по каждому рынку, из них минимальный.
 #
-# Канал берём из справочника, а не перечнем кодов: литеральный список
-# протух бы с первой же новой площадкой, как уже протухал «LM»
-_full_last = pd.NaT
+# Раньше здесь стоял максимум по рынкам Amazon, а в Деньгах — минимум по
+# всем: две соседние страницы показывали разные цифры за один период.
+# Отчёты приходят с разной задержкой по странам, и максимум обещает
+# данные до самой свежей из них, хотя по остальным их нет.
+#
+# Обрезка нужна и графику: финансовые отчёты Amazon отстают на 2-3 дня,
+# а каналы Mirakl приходят почти сразу — за свежие дни в economics_summary
+# остаются только они, и хвост проваливался почти в ноль при том, что
+# продажи шли в обычном режиме.
+_bound = data_boundary(money, "sales_date", "marketplace")
+_full_last = _bound.last
 if not money.empty:
     money["sales_date"] = pd.to_datetime(money["sales_date"])
-    _ch = load_channels()
-    if not _ch.empty:
-        _amz_codes = set(_ch.loc[_ch["channel"].str.upper() == "AMAZON",
-                                 "marketplace_code"])
-        if _amz_codes:
-            _a_days = money.loc[
-                money["marketplace"].astype(str).str.strip().str.upper()
-                .isin(_amz_codes), "sales_date"]
-            if len(_a_days):
-                _full_last = _a_days.max()
     if pd.isna(_full_last):
-        # справочник недоступен — прежнее поведение, а не пустой экран
         _full_last = money["sales_date"].max()
     money = money[money["sales_date"] <= _full_last]
     if not money_wide.empty:
@@ -437,7 +431,14 @@ if not money.empty:
     # сказать надо: окно «за 7 дней» заканчивается не сегодня.
     # Для своего диапазона этой подписи здесь нет: разрыв виден на самом
     # графике, и объясняет его подпись под ним, рядом с тем, что объясняет
-    if _lag >= 2 and date_from is None:
+    if len(_bound.ahead):
+        # границы по рынкам разошлись — называем и отстающих, и остальных,
+        # иначе цифра выглядит необъяснимо низкой
+        st.caption(t("period.boundary_mixed", 
+            d=_last.strftime("%d.%m"), mp=", ".join(_bound.behind),
+            more=", ".join(sorted(_bound.ahead.index)),
+            dmax=_bound.ahead.max().strftime("%d.%m")))
+    elif _lag >= 2 and date_from is None:
         _from = (_last - pd.Timedelta(days=DAYS - 1)).strftime("%d.%m")
         st.caption(t("home.sales.lag", 
             d=_last.strftime("%d.%m"), n=_lag, f=_from))

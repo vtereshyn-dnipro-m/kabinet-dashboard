@@ -636,6 +636,24 @@ TRANSLATIONS = {
         "uk": "Дані по {d} — за пізніші дні Amazon звіт ще не сформував",
         "en": "Data through {d} — Amazon has not generated the report for later days yet",
     },
+    # Граница данных. Одни и те же фразы на Обзоре и в Деньгах: правило
+    # выравнивания общее, значит и объяснять его надо одинаково
+    "period.boundary_mixed": {
+        "ru": "Данные по {d} включительно — по {mp} отчёты приходят позже остальных. "
+              "По {more} есть уже по {dmax}, но период выровнен по самому отстающему "
+              "источнику: иначе источники нельзя сравнивать между собой.",
+        "uk": "Дані по {d} включно — по {mp} звіти надходять пізніше за інші. "
+              "По {more} є вже по {dmax}, але період вирівняно за найвідстаючішим "
+              "джерелом: інакше джерела не можна порівнювати між собою.",
+        "en": "Data through {d} — reports for {mp} arrive later than the rest. "
+              "For {more} data already runs to {dmax}, but the period is aligned to the "
+              "most lagging source: otherwise the sources cannot be compared.",
+    },
+    "period.boundary_lag": {
+        "ru": "Данные есть по {d} включительно — последние {n} дн. ещё не загружены.",
+        "uk": "Дані є по {d} включно — останні {n} дн. ще не завантажені.",
+        "en": "Data through {d} — the last {n} days are not loaded yet.",
+    },
     "home.chart.no_data_period": {
         "ru": "За выбранный период данных пока нет",
         "uk": "За обраний період даних поки немає",
@@ -1814,29 +1832,6 @@ TRANSLATIONS = {
         "ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
     "money.period_title": {
         "ru": "Период: {f} — {to}", "uk": "Період: {f} — {to}", "en": "Period: {f} — {to}"},
-    "money.period_lag_mixed": {
-        "ru": "Данные по {d} включительно — по {mp} отчёты приходят позже остальных. "
-              "По {more} есть уже по {dmax}, но период выровнен по самой отстающей "
-              "стране: иначе страны нельзя сравнивать между собой. Amazon отдаёт "
-              "отчёты о продажах с задержкой в несколько дней, и задержка по странам "
-              "разная.",
-        "uk": "Дані по {d} включно — по {mp} звіти приходять пізніше за інші. По {more} "
-              "є вже по {dmax}, але період вирівняно за найвідсталішою країною: інакше "
-              "країни не можна порівнювати між собою. Amazon віддає звіти про продажі "
-              "із затримкою в кілька днів, і затримка по країнах різна.",
-        "en": "Data through {d} — reports for {mp} arrive later than the rest. {more} "
-              "already has data through {dmax}, but the period is aligned to the most "
-              "delayed country, otherwise countries cannot be compared. Amazon delivers "
-              "sales reports with a lag of several days, and the lag differs by country.",
-    },
-    "money.period_lag": {
-        "ru": "Данные есть по {d} включительно — Amazon отдаёт отчёты с задержкой, "
-              "последние {n} дн. ещё не загружены.",
-        "uk": "Дані є по {d} включно — Amazon віддає звіти із затримкою, останні {n} дн. "
-              "ще не завантажені.",
-        "en": "Data is available up to {d} — Amazon delivers reports with a delay, "
-              "the last {n} days are not loaded yet.",
-    },
 
     # --- 7_Reviews.py: монитор запросов на отзывы ---
     "nav.reviews": {"ru": "Отзывы", "uk": "Відгуки", "en": "Reviews"},

@@ -7,7 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection
 from i18n import init_lang, t
-from util import as_text
+from util import as_text, data_boundary
 import catalog
 from links import AMAZON_DOMAIN, amazon_url
 import period as period_mod
@@ -308,17 +308,23 @@ if df.empty:
 # max по всей выборке обещал бы данные до самой свежей из них, хотя по
 # остальным их нет. Раньше стоял именно max, и при нескольких странах
 # подпись называла дату, которой по части из них не существует
-_by_mp = (df.assign(_d=pd.to_datetime(df["sales_date"], errors="coerce"))
-            .groupby("marketplace")["_d"].max().dropna())
-_last = _by_mp.min() if len(_by_mp) else pd.NaT
-_behind = sorted(_by_mp[_by_mp == _last].index) if len(_by_mp) else []
-_ahead = _by_mp[_by_mp > _last] if len(_by_mp) else _by_mp
+# Правило вынесено в util.data_boundary — оно же работает на Обзоре.
+# Держать его здесь отдельной копией нельзя: копии расходятся
+_bound = data_boundary(df, "sales_date", "marketplace")
+_last, _behind, _ahead = _bound.last, _bound.behind, _bound.ahead
 
 # заголовок пишет фактическую границу, а не запрошенную: показывать
 # «01.08 — 28.08», когда данных нет после 25-го, значит обещать три дня,
 # которых в цифрах ниже нет
 _to_eff = (min(pd.Timestamp(d_to), _last) if (d_to and pd.notna(_last))
            else (pd.Timestamp(d_to) if d_to else None))
+
+# Данные обрезаем по той же границе, что называет заголовок. Раньше
+# обрезался только заголовок: подпись говорила «данные по 03.09», а KPI
+# ниже суммировали весь запрошенный период по 09.09 — цифра не
+# соответствовала собственной подписи и расходилась с Обзором
+if pd.notna(_last):
+    df = df[pd.to_datetime(df["sales_date"], errors="coerce") <= _last]
 if d_from and d_to:
     _ptitle = t("money.period_title", 
         f=pd.Timestamp(d_from).strftime("%d.%m"),
@@ -331,16 +337,20 @@ if pd.notna(_last):
     _lag = (pd.Timestamp(pd.Timestamp.now().date()) - _last).days
     if len(_ahead):
         # границы по странам разошлись — называем и отстающую, и остальные
-        st.caption(t("money.period_lag_mixed", 
+        st.caption(t("period.boundary_mixed", 
             d=_last.strftime("%d.%m"), mp=", ".join(_behind),
             more=", ".join(sorted(_ahead.index)),
             dmax=_ahead.max().strftime("%d.%m")))
     elif _lag >= 2:
-        st.caption(t("money.period_lag", 
+        st.caption(t("period.boundary_lag", 
             d=_last.strftime("%d.%m"), n=_lag))
 
 # сверяем с контрольной суммой: расхождение означает размножение строк
-_ctrl = (load_control_total(0, d_from, d_to, MK) if (d_from and d_to)
+# Контрольную сумму просим за то же окно, что осталось после обрезки,
+# иначе сверка сравнит обрезанное с необрезанным и поднимет ложную тревогу
+_ctrl_to = (_to_eff.strftime("%Y-%m-%d") if (d_from and d_to and _to_eff is not None)
+            else d_to)
+_ctrl = (load_control_total(0, d_from, _ctrl_to, MK) if (d_from and d_to)
          else load_control_total(WINDOW, markets=MK))
 if _ctrl and _ctrl.get("rows"):
     _mine = float(pd.to_numeric(df["revenue"], errors="coerce").fillna(0).sum())
