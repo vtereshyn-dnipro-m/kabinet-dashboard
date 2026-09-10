@@ -58,6 +58,24 @@ def load_incidents() -> pd.DataFrame:
     conn.close()
     return df
 
+@st.cache_data(ttl=300)
+def load_reorder_skus() -> set:
+    """SKU, по которым уже есть рекомендация к заказу.
+
+    Нужен, чтобы отложенные сигналы «запас на исходе» не выглядели
+    брошенными: по большинству из них заказ уже посчитан.
+    """
+    conn = get_connection()
+    try:
+        r = pd.read_sql("SELECT DISTINCT sku FROM kabinet_data.reorder_recommendations",
+                        conn)
+        return set(r["sku"].dropna().astype(str))
+    except Exception:
+        return set()
+    finally:
+        conn.close()
+
+
 df = load_incidents()
 
 if df.empty:
@@ -78,10 +96,16 @@ df = df.sort_values(
 
 # ---------- фильтры ----------
 c1, c2, c3, c4 = st.columns([1, 1, 1, 1.4])
+# «Низкая» — не инцидент, а рабочее состояние: остаток на исходе. Такой
+# сигнал ведёт Автозаказ, и в потоке сбоев он только мешает — 77 строк из
+# 401 при том, что 68 из них уже стоят в рекомендациях к заказу.
+# Не прячем совсем: убираем из умолчания фильтра, одним кликом возвращаются.
+ROUTINE_SEV = "low"
+
 with c1:
-    sev = st.multiselect(t("inc.filter.severity"),
-                         sorted(df["severity"].unique(), key=sev_rank),
-                         default=sorted(df["severity"].unique(), key=sev_rank),
+    _sev_all = sorted(df["severity"].unique(), key=sev_rank)
+    sev = st.multiselect(t("inc.filter.severity"), _sev_all,
+                         default=[s for s in _sev_all if s != ROUTINE_SEV] or _sev_all,
                          format_func=sev_label)
 with c2:
     statuses = sorted(df["status"].unique(), key=lambda s: STATUS_ORDER.get(s, 9))
@@ -100,7 +124,12 @@ if search:
     f = f[mask]
 
 # ---------- KPI (динамические severity) ----------
-open_df = df[df["status"] == "open"]
+# Счётчик и список обязаны говорить одно и то же. Раньше в «Открытых»
+# стоял 401 — вместе с плановым пополнением; на экране это читалось как
+# четыреста аварий, и настоящие 324 в них терялись.
+open_all = df[df["status"] == "open"]
+open_df = open_all[open_all["severity"] != ROUTINE_SEV]
+routine = open_all[open_all["severity"] == ROUTINE_SEV]
 sev_counts = open_df["severity"].value_counts()
 top_sevs = sorted(sev_counts.index.tolist(), key=sev_rank)[:2]
 
@@ -126,6 +155,12 @@ cols[3].metric(
     t("inc.kpi.resolved"), int((df["status"] == "resolved").sum()),
     help=t("inc.kpi.resolved_help"),
 )
+
+if not routine.empty:
+    # Сколько из отложенных уже ведёт Автозаказ — иначе «плюс 77» звучит
+    # как «мы про них забыли»
+    _in_reorder = int(routine["sku"].isin(load_reorder_skus()).sum())
+    st.caption(t("inc.low_aside", n=len(routine), r=_in_reorder))
 
 st.divider()
 
@@ -180,6 +215,8 @@ with mid:
     st.plotly_chart(fig, use_container_width=True)
 
 with right:
+    # здесь намеренно весь df, включая «низкую»: это история создания
+    # инцидентов, а не счётчик того, на что надо реагировать
     dyn = (df.assign(day=df["created_at"].dt.date)
              .groupby(["day", "severity"]).size().reset_index(name="count"))
     if dyn["day"].nunique() > 1:

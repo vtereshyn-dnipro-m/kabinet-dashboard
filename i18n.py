@@ -1132,10 +1132,27 @@ TRANSLATIONS = {
         "en": "Informational notice, act as needed.",
     },
     "inc.kpi.open": {"ru": "Открытых", "uk": "Відкритих", "en": "Open"},
+    "inc.low_aside": {
+        "ru": "Плюс {n} с важностью «низкая» — это плановое пополнение, а не сбой: "
+              "запас на исходе, и {r} из них уже в Автозаказе. В счётчике их нет, "
+              "в списке появятся по фильтру важности.",
+        "uk": "Плюс {n} з важливістю «низька» — це планове поповнення, а не збій: "
+              "запас на завершенні, і {r} з них уже в Автозамовленні. У лічильнику їх "
+              "немає, у списку зʼявляться за фільтром важливості.",
+        "en": "Plus {n} at low severity — planned replenishment, not a failure: stock is "
+              "running low and {r} of them are already in Reorder. They are out of the "
+              "counter and appear in the list via the severity filter.",
+    },
     "inc.kpi.open_help": {
-        "ru": "Инциденты со статусом open — требуют действия. Закрываются автоматически, когда проблема исчезает из данных.",
-        "uk": "Інциденти зі статусом open — потребують дії. Закриваються автоматично, коли проблема зникає з даних.",
-        "en": "Incidents with status open — need action. Auto-close when the problem disappears from the data.",
+        "ru": "Инциденты со статусом open, требующие действия. Сигналы важности «низкая» "
+              "сюда не входят: остаток на исходе — рабочее состояние, им занимается "
+              "Автозаказ. Закрываются автоматически, когда проблема исчезает из данных.",
+        "uk": "Інциденти зі статусом open, що потребують дії. Сигнали важливості «низька» "
+              "сюди не входять: залишок на завершенні — робочий стан, ним опікується "
+              "Автозамовлення. Закриваються автоматично, коли проблема зникає з даних.",
+        "en": "Incidents with status open that need action. Low-severity signals are excluded: "
+              "running low is a working state and Reorder handles it. Auto-close when the "
+              "problem disappears from the data.",
     },
     "inc.kpi.none_help": {
         "ru": "Инцидентов других уровней сейчас нет.",
