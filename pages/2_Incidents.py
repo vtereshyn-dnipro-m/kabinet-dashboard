@@ -5,6 +5,7 @@ import plotly.express as px
 
 from db.connection import get_connection
 from i18n import init_lang, t
+from util import as_text
 import catalog
 
 init_lang()
@@ -45,7 +46,7 @@ def load_incidents() -> pd.DataFrame:
     conn = get_connection()
     df = pd.read_sql("""
         SELECT i.id, i.created_at, i.incident_type, i.sku, i.warehouse_name,
-               i.severity, i.message, i.status,
+               i.severity, i.message, i.status, i.source,
                s.qty AS current_qty
         FROM kabinet_data.incidents i
         LEFT JOIN (
@@ -86,6 +87,56 @@ STATUS_ORDER = {"open": 0, "acknowledged": 1, "resolved": 2}
 
 df["severity"] = df["severity"].fillna("info").str.lower()
 df["created_at"] = pd.to_datetime(df["created_at"])
+
+# ---------- кто чинит, площадка, страна ----------
+# Группы — по тому, кто чинит, а не по типу алерта. Один список на всех
+# заставляет снабженца листать листинги, а контентщика — остатки; каждому
+# нужен свой срез, и он не совпадает с severity.
+#
+# Ни площадки, ни страны в таблице нет как колонок: они выводятся из
+# source (канал у Mirakl и Amazon-листингов) и из warehouse_name (у
+# складских — «Amazon FBA EU», «ManoMano France»). Где вывести нечего —
+# прочерк, а не догадка.
+SUPPLY_TYPES = {"out_of_stock", "low_stock"}
+DATA_TYPES = {"stale_data", "job_health"}
+SOURCE_CHANNEL = {"leroy_merlin": "Leroy Merlin", "manomano": "ManoMano",
+                  "carrefour": "Carrefour", "amazon_sales": "Amazon"}
+CHANNEL_PREFIX = ("Amazon", "ManoMano", "Leroy Merlin", "Carrefour")
+COUNTRY_WORD = {"spain": "ES", "es": "ES", "france": "FR", "fr": "FR", "eu": "EU",
+                "germany": "DE", "de": "DE", "italy": "IT", "it": "IT",
+                "poland": "PL", "pl": "PL", "uk": "GB", "gb": "GB", "be": "BE"}
+
+
+def _group(itype: str) -> str:
+    if itype in SUPPLY_TYPES:
+        return "supply"
+    if itype in DATA_TYPES:
+        return "data"
+    if (itype == "listing_suppressed" or itype.endswith("_order_not_accepted")
+            or itype.endswith("_health_degraded")):
+        return "channels"
+    return "other"
+
+
+def _channel(source, wh) -> str:
+    src = as_text(source).lower()
+    if src in SOURCE_CHANNEL:
+        return SOURCE_CHANNEL[src]
+    wh = as_text(wh)
+    for k in CHANNEL_PREFIX:
+        if wh.startswith(k):
+            return k
+    return t("inc.channel.warehouse") if wh else "—"
+
+
+def _country(wh) -> str:
+    words = as_text(wh).replace("(", " ").replace(")", " ").split()
+    return COUNTRY_WORD.get(words[-1].lower(), "—") if words else "—"
+
+
+df["group"] = df["incident_type"].map(_group)
+df["channel"] = [_channel(s, w) for s, w in zip(df["source"], df["warehouse_name"])]
+df["country"] = df["warehouse_name"].map(_country)
 df["age_days"] = (pd.Timestamp.now(tz=df["created_at"].dt.tz) - df["created_at"]).dt.days
 df = df.sort_values(
     by=["status", "severity", "created_at"],
@@ -95,6 +146,14 @@ df = df.sort_values(
 )
 
 # ---------- фильтры ----------
+GROUP_ORDER = ["all", "supply", "channels", "data", "other"]
+_groups_present = [g for g in GROUP_ORDER if g == "all" or (df["group"] == g).any()]
+grp = st.radio(t("inc.filter.group"), _groups_present, horizontal=True,
+               format_func=lambda g: t(f"inc.group.{g}"), key="inc_group")
+st.caption(t("inc.group.hint"))
+if grp != "all":
+    df = df[df["group"] == grp]
+
 c1, c2, c3, c4 = st.columns([1, 1, 1, 1.4])
 # «Низкая» — не инцидент, а рабочее состояние: остаток на исходе. Такой
 # сигнал ведёт Автозаказ, и в потоке сбоев он только мешает — 77 строк из
@@ -117,7 +176,16 @@ with c3:
 with c4:
     search = st.text_input(t("inc.filter.search"), placeholder=t("inc.filter.search_placeholder"))
 
-f = df[df["severity"].isin(sev) & df["status"].isin(stat) & df["incident_type"].isin(itype)]
+c5, c6 = st.columns(2)
+with c5:
+    _ch_all = sorted(df["channel"].unique())
+    chan = st.multiselect(t("inc.filter.channel"), _ch_all, default=_ch_all)
+with c6:
+    _co_all = sorted(df["country"].unique())
+    ctry = st.multiselect(t("inc.filter.country"), _co_all, default=_co_all)
+
+f = df[df["severity"].isin(sev) & df["status"].isin(stat) & df["incident_type"].isin(itype)
+       & df["channel"].isin(chan) & df["country"].isin(ctry)]
 if search:
     mask = (f["sku"].str.contains(search, case=False, na=False)
             | f["message"].str.contains(search, case=False, na=False))
@@ -251,7 +319,7 @@ show["asin_url"] = catalog.url_series(skus=show["sku"])
 show["photo"] = catalog.image_series(skus=show["sku"])
 
 event = st.dataframe(
-    show[["photo", "created_str", "severity_icon", "incident_type", "sku",
+    show[["photo", "created_str", "severity_icon", "incident_type", "channel", "sku",
           "asin_url", "warehouse_name", "current_qty", "message", "age_days",
           "status"]],
     use_container_width=True, height=480, hide_index=True,
@@ -261,6 +329,7 @@ event = st.dataframe(
         "created_str": st.column_config.TextColumn(t("inc.tbl.col_created"), width="small"),
         "severity_icon": st.column_config.TextColumn(t("inc.tbl.col_level"), width="small"),
         "incident_type": st.column_config.TextColumn(t("inc.tbl.col_type"), width="small"),
+        "channel": st.column_config.TextColumn(t("inc.tbl.col_channel"), width="small"),
         "asin_url": catalog.asin_column(),
         "current_qty": st.column_config.NumberColumn(t("inc.tbl.col_qty"), width="small",
                                                      help=t("inc.tbl.col_qty_help")),
