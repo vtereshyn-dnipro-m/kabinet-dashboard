@@ -98,7 +98,7 @@ df["created_at"] = pd.to_datetime(df["created_at"])
 # складских — «Amazon FBA EU», «ManoMano France»). Где вывести нечего —
 # прочерк, а не догадка.
 SUPPLY_TYPES = {"out_of_stock", "low_stock"}
-DATA_TYPES = {"stale_data", "job_health"}
+DATA_TYPES = {"stale_data", "job_health", "job_paused"}
 SOURCE_CHANNEL = {"leroy_merlin": "Leroy Merlin", "manomano": "ManoMano",
                   "carrefour": "Carrefour", "amazon_sales": "Amazon"}
 CHANNEL_PREFIX = ("Amazon", "ManoMano", "Leroy Merlin", "Carrefour")
