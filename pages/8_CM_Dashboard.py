@@ -271,8 +271,7 @@ def load_returns(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
                    COALESCE(NULLIF(return_reason, ''), '—') AS reason,
                    fulfillment_type,
                    MAX(product_name)      AS product_name,
-                   SUM(quantity)          AS qty,
-                   SUM(refunded_amount)   AS refunded
+                   SUM(quantity)          AS qty
             FROM kabinet_data.raw_amazon_returns
             WHERE {where}
               AND SUBSTRING(sku FROM '([0-9]{{5,}})') IS NOT NULL
@@ -280,6 +279,42 @@ def load_returns(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
         """, conn)
     except Exception:
         return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_refunded(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
+    """Деньги возвратов по рынкам — из economics_summary, а не из отчёта
+    о возвратах.
+
+    В raw_amazon_returns колонка refunded_amount почти пустая: отчёт FBA
+    Customer Returns сумм не содержит вовсе, flat-file по MFN заполняет её
+    у шести строк из тридцати шести. Метрика на этой колонке показывала
+    394 € на 56 возвратов и выглядела как «ничего не переносится».
+
+    Sales & Traffic считает возмещения сам, по всем заказам: разница
+    ordered − net и есть возвращённые деньги. Отсюда же берётся выручка
+    на «Деньгах», так что цифры сходятся между страницами.
+
+    Даты — по sales_date, то есть по дате заказа, а не возврата: Amazon
+    привязывает возмещение к заказу. Штуки рядом считаются по отчёту о
+    возвратах и по дате возврата — это разные события, и на коротком
+    окне они расходятся по замыслу, а не по ошибке.
+    """
+    where = (f"sales_date BETWEEN '{d_from}' AND '{d_to}'" if d_from
+             else f"sales_date >= CURRENT_DATE - INTERVAL '{days} days'")
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT marketplace,
+                   SUM(ordered_product_sales - net_product_sales)::float AS refunded_eur
+            FROM kabinet_data.economics_summary
+            WHERE {where}
+            GROUP BY 1
+        """, conn)
+    except Exception:
+        return pd.DataFrame(columns=["marketplace", "refunded_eur"])
     finally:
         conn.close()
 
@@ -991,7 +1026,11 @@ with tab_amz:
                   help=(t("cm.amz.returns_range", f=D_FROM_H, to=D_TO_H)
                         if date_from is not None
                         else t("cm.amz.returns_help", d=DAYS)))
-        r2.metric(t("cm.amz.refunded"), fmt_money(scoped_ret["refunded"].sum()))
+        _ref = load_refunded(DAYS, D_FROM, D_TO)
+        if not is_all and not _ref.empty:
+            _ref = _ref[_ref["marketplace"].isin(mp_scope)]
+        r2.metric(t("cm.amz.refunded"), fmt_money(_ref["refunded_eur"].sum()),
+                  help=t("cm.amz.refunded_help"))
         r3.metric(t("cm.amz.return_skus"), f"{scoped_ret['base_sku'].nunique():,}")
 
         rc1, rc2 = st.columns([1, 1])

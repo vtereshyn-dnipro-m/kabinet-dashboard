@@ -2910,6 +2910,19 @@ TRANSLATIONS = {
         "en": "Units returned over the last {d} days",
     },
     "cm.amz.refunded": {"ru": "Возвращено денег", "uk": "Повернуто грошей", "en": "Refunded"},
+    "cm.amz.refunded_help": {
+        "ru": "Возмещения по данным Amazon Sales & Traffic: разница между заказанным и "
+              "чистым, по дате заказа. Штуки слева — физические возвраты по отчёту о "
+              "возвратах, по дате возврата. Это разные события, на коротком окне они "
+              "расходятся.",
+        "uk": "Відшкодування за даними Amazon Sales & Traffic: різниця між замовленим і "
+              "чистим, за датою замовлення. Штуки ліворуч — фізичні повернення за звітом "
+              "про повернення, за датою повернення. Це різні події, на короткому вікні "
+              "вони розходяться.",
+        "en": "Refunds per Amazon Sales & Traffic: ordered minus net, by order date. Units on "
+              "the left are physical returns from the returns report, by return date. "
+              "Different events — they diverge over short windows.",
+    },
     "cm.amz.return_skus": {"ru": "Товаров с возвратами", "uk": "Товарів з поверненнями", "en": "Products returned"},
     "cm.amz.returns_title": {"ru": "Возвраты", "uk": "Повернення", "en": "Returns"},
     "cm.amz.no_returns": {
