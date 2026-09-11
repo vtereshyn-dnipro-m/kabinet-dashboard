@@ -1099,6 +1099,27 @@ TRANSLATIONS = {
     "inc.filter.severity": {"ru": "Уровень серьёзности", "uk": "Рівень серйозності", "en": "Severity level"},
     "inc.filter.status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "inc.filter.type": {"ru": "Тип", "uk": "Тип", "en": "Type"},
+    "inc.filter.group": {"ru": "Кто чинит", "uk": "Хто лагодить", "en": "Owner"},
+    "inc.group.all": {"ru": "Все", "uk": "Усі", "en": "All"},
+    "inc.group.supply": {"ru": "Снабжение", "uk": "Постачання", "en": "Supply"},
+    "inc.group.channels": {"ru": "Площадки", "uk": "Майданчики", "en": "Channels"},
+    "inc.group.data": {"ru": "Данные", "uk": "Дані", "en": "Data"},
+    "inc.group.other": {"ru": "Прочее", "uk": "Інше", "en": "Other"},
+    "inc.group.hint": {
+        "ru": "Снабжение — остатки на складах, к тому, кто пополняет. Площадки — листинги, "
+              "приём заказов и здоровье каналов, к тому, кто ведёт витрины. Данные — "
+              "загрузчики и свежесть, это к нам.",
+        "uk": "Постачання — залишки на складах, до того, хто поповнює. Майданчики — лістинги, "
+              "приймання замовлень і здоровʼя каналів, до того, хто веде вітрини. Дані — "
+              "завантажувачі та свіжість, це до нас.",
+        "en": "Supply — warehouse stock, for whoever replenishes. Channels — listings, order "
+              "acceptance and channel health, for whoever runs the storefronts. Data — loaders "
+              "and freshness, that is on us.",
+    },
+    "inc.filter.channel": {"ru": "Площадка", "uk": "Майданчик", "en": "Channel"},
+    "inc.filter.country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "inc.channel.warehouse": {"ru": "Склад", "uk": "Склад", "en": "Warehouse"},
+    "inc.tbl.col_channel": {"ru": "Площадка", "uk": "Майданчик", "en": "Channel"},
     "inc.filter.search": {"ru": "Поиск (SKU / текст)", "uk": "Пошук (SKU / текст)", "en": "Search (SKU / text)"},
     "inc.filter.search_placeholder": {"ru": "например 22635000", "uk": "наприклад 22635000", "en": "e.g. 22635000"},
     "inc.sev.critical": {"ru": "Critical", "uk": "Critical", "en": "Critical"},
