@@ -73,6 +73,34 @@ def _mk_clause(markets, col: str = "marketplace") -> tuple:
 
 
 @st.cache_data(ttl=600)
+def load_adjustments(d_from: str, d_to: str, markets: tuple = ()) -> pd.DataFrame:
+    """Поправки к марже из расчётных отчётов Amazon — то, чего нет в Data Kiosk.
+
+    Читаем v_margin_adjustments: суммы уже без НДС на сборы, знак как у
+    Amazon (расходы отрицательные). Даты — по проводке (posted_date), а не
+    по заказу: окно берём то же, что у витрины, и честно подписываем, что
+    строки на коротком периоде расходятся.
+
+    Каналы Mirakl расчётных отчётов не имеют — по ним поправка ноль по
+    факту, а не по недосмотру.
+    """
+    mk_sql, mk_params = _mk_clause(markets, "marketplace")
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT marketplace, base_sku, bucket, attributable,
+                   SUM(amount)::float AS amount
+            FROM kabinet_data.v_margin_adjustments
+            WHERE posted_date BETWEEN %s AND %s {mk_sql}
+            GROUP BY 1, 2, 3, 4
+        """, conn, params=(d_from, d_to, *mk_params))
+    except Exception:
+        return pd.DataFrame(columns=["marketplace", "base_sku", "bucket", "attributable", "amount"])
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
 def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = ()):
     conn = get_connection()
     if d_from and d_to:
@@ -362,6 +390,8 @@ if _ctrl and _ctrl.get("rows"):
             rows=int(len(df)), ctrl_rows=int(_ctrl["rows"])))
 
 df["sku_display"] = df["norm_sku"].apply(clean_sku)
+# ключ для стыковки с settlement: там SKU с суффиксами (-FBA, -A_), у нас базовый код
+df["base_sku"] = df["norm_sku"].astype(str).str.extract(r"([0-9]{5,})", expand=False)
 for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "ads"]:
     df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
 # себестоимость и комиссию НЕ заполняем нулём: пустое значение означает
@@ -394,6 +424,28 @@ known = f[pd.notna(f["cogs_total"])]
 cm = (known["net_proceeds"].sum() - known["cogs_total"].sum()
       - known["ads"].sum())
 cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
+
+# ---------- вторая строка маржи: с учётом settlement ----------
+# Data Kiosk не видит промо-скидки, хранение, removal, Vine, подписку:
+# по Испании за июль–август 2026 это 5,5 тыс. € на 69 тыс. выручки —
+# восемь пунктов маржи. Берём их из расчётных отчётов и показываем
+# второй строкой, не подменяя первую: источники разные по датам и по SKU
+_p0, _p1 = f["sales_date"].min(), f["sales_date"].max()
+adj = (load_adjustments(str(pd.Timestamp(_p0).date()), str(pd.Timestamp(_p1).date()), MK)
+       if pd.notna(_p0) and pd.notna(_p1) else pd.DataFrame(
+           columns=["marketplace", "base_sku", "bucket", "attributable", "amount"]))
+adj_attr = adj[adj["attributable"] == True]      # noqa: E712 — из БД приходит object
+adj_free = adj[adj["attributable"] != True]      # noqa: E712
+adj_by_sku = adj_attr.groupby("base_sku")["amount"].sum()
+adj_free_total = float(adj_free["amount"].sum())
+adj_total = float(adj["amount"].sum())
+# к марже по известным SKU применяем только их долю: точные — по ключу,
+# безадресные — пропорционально выручке, иначе чужие расходы лягут на них
+_known_rev = float(known["revenue"].sum())
+cm_settle_adj = (float(adj_by_sku.reindex(known["base_sku"].unique()).fillna(0).sum())
+                 + (adj_free_total * (_known_rev / tot_rev) if tot_rev > 0 else 0.0))
+cm_settle = cm + cm_settle_adj
+cm_settle_pct = (cm_settle / tot_rev * 100) if tot_rev > 0 else 0
 sku_all = f["norm_sku"].nunique()
 sku_known = known["norm_sku"].nunique()
 # доля выручки, покрытая известной себестоимостью. Считать надо именно её,
@@ -453,6 +505,23 @@ k5.metric(t("money.kpi.cm"),
           delta=None if pd.isna(tot_cogs) else f"{cm_pct:.1f}%",
           help=t("money.kpi.cm_help"))
 
+m1, m2, _ = st.columns([1, 1, 4])
+m1.metric(t("money.kpi.cm_dk"),
+          "—" if pd.isna(tot_cogs) else f"{cm:,.0f} €",
+          delta=None if pd.isna(tot_cogs) else f"{cm_pct:.1f}%",
+          help=t("money.kpi.cm_help"))
+m2.metric(t("money.kpi.cm_settle"),
+          "—" if pd.isna(tot_cogs) else f"{cm_settle:,.0f} €",
+          delta=None if pd.isna(tot_cogs) else f"{cm_settle_pct:.1f}%",
+          help=t("money.kpi.cm_settle_help"))
+if adj.empty:
+    st.caption(t("money.settle.none"))
+else:
+    _parts = adj.groupby("bucket")["amount"].sum().sort_values()
+    st.caption(t("money.settle.caption", 
+        amt=f"{adj_total:,.0f}",
+        parts=", ".join(f"{t('money.settle.b.' + b)} {v:,.0f}" for b, v in _parts.items())))
+
 if sku_known < sku_all:
     st.caption(t("money.cogs_partial", 
         n=sku_known, total=sku_all, miss=sku_all - sku_known,
@@ -505,6 +574,15 @@ with tab_pnl:
     by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
     by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
+    # settlement по SKU: промо и сборы с заказа — точно по ключу; хранение,
+    # removal, Vine, подписка приходят без SKU и делятся по доле выручки.
+    # Как с рекламой: распределённую часть не выдаём за точную
+    by_sku["base_sku"] = by_sku["norm_sku"].astype(str).str.extract(r"([0-9]{5,})", expand=False)
+    _rev_total = float(by_sku["revenue"].sum())
+    by_sku["settle_adj"] = (by_sku["base_sku"].map(adj_by_sku).fillna(0.0)
+                            + (by_sku["revenue"] / _rev_total * adj_free_total if _rev_total > 0 else 0.0))
+    by_sku["cm_settle"] = by_sku["cm"] + by_sku["settle_adj"]
+    by_sku["cm_settle_pct"] = np.round(safe_div(by_sku["cm_settle"], by_sku["revenue"]) * 100, 1)
     # страну для ссылки берём амазоновскую: если первым в списке оказался
     # Leroy Merlin, домена Amazon для него нет и ссылка не построится,
     # хотя сам товар на Amazon продаётся
@@ -580,6 +658,14 @@ with tab_pnl:
                     & (by_sku["revenue"] >= MIN_REV_ALERT)]
     thin = by_sku[(by_sku["cm"] >= 0) & (by_sku["cm_pct"] < 5)
                   & (by_sku["revenue"] >= MIN_REV_ALERT * 5)]
+    # тот же порог, но с поправкой из settlement: промо на конкретный SKU
+    # способно увести его в минус, а Data Kiosk этого не покажет
+    losers_settle = by_sku[(by_sku["cm_settle"] < 0) & (by_sku["units"] > 0)
+                           & (by_sku["revenue"] >= MIN_REV_ALERT)]
+    if not adj.empty and not (losers.empty and losers_settle.empty):
+        st.caption(t("money.alert.losers_settle", 
+            n=len(losers_settle), dk=len(losers),
+            new=len(set(losers_settle["sku_display"]) - set(losers["sku_display"]))))
 
     # предупреждения работают как фильтр: нажал — в таблице остались
     # только проблемные позиции, искать их глазами не нужно
@@ -648,7 +734,8 @@ with tab_pnl:
     st.dataframe(
         by_sku[["photo", "flag_col", "ann_col", "sku_display", "product_name",
                 "markets_label", "units", "revenue",
-                "net_proceeds", "cogs", "commission", "ads", "cm", "cm_pct", "acos_pct",
+                "net_proceeds", "cogs", "commission", "ads", "cm", "cm_pct",
+                "settle_adj", "cm_settle", "acos_pct",
                 "rank_now", "rank_delta", "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
         column_config={
@@ -675,6 +762,10 @@ with tab_pnl:
             "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €",
                 help=t("money.col.cm_help")),
             "cm_pct": st.column_config.NumberColumn(t("money.col.cm_pct"), format="%.1f%%"),
+            "settle_adj": st.column_config.NumberColumn(t("money.col.settle_adj"), format="%.0f €",
+                help=t("money.col.settle_adj_help")),
+            "cm_settle": st.column_config.NumberColumn(t("money.col.cm_settle"), format="%.0f €",
+                help=t("money.kpi.cm_settle_help")),
             "acos_pct": st.column_config.NumberColumn("ACOS", format="%.1f%%",
                 help=t("money.col.acos_help")),
             "rank_now": st.column_config.NumberColumn(

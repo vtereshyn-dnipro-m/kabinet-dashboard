@@ -1586,6 +1586,58 @@ TRANSLATIONS = {
         "uk": "Витрати Amazon Ads (SP + SD)",
         "en": "Amazon Ads spend (SP + SD)",
     },
+    "money.kpi.cm_dk": {"ru": "Маржа по Data Kiosk", "uk": "Маржа за Data Kiosk", "en": "Margin per Data Kiosk"},
+    "money.kpi.cm_settle": {"ru": "С учётом settlement", "uk": "З урахуванням settlement", "en": "Incl. settlement"},
+    "money.kpi.cm_settle_help": {
+        "ru": "Та же маржа минус то, чего в отчёте Data Kiosk нет, а в расчётных отчётах Amazon есть: "
+              "промо-скидки, хранение, removal, Vine, подписка, ярлыки возврата, купоны. Суммы без НДС на сборы. "
+              "Даты — по проводке Amazon, а не по дате заказа, поэтому на коротком окне строки расходятся сильнее.",
+        "uk": "Та сама маржа мінус те, чого у звіті Data Kiosk немає, а в розрахункових звітах Amazon є: "
+              "промо-знижки, зберігання, removal, Vine, підписка, ярлики повернення, купони. Суми без ПДВ на збори. "
+              "Дати — за проводкою Amazon, а не за датою замовлення, тому на короткому вікні рядки розходяться сильніше.",
+        "en": "The same margin minus what Data Kiosk lacks and Amazon settlement reports have: promo discounts, "
+              "storage, removal, Vine, subscription, return labels, coupons. Amounts net of VAT on fees. Dated by "
+              "Amazon posting, not order date, so the two lines diverge more over short windows.",
+    },
+    "money.settle.caption": {
+        "ru": "Settlement за период: {amt} € — {parts}. Промо и сборы с заказа привязаны к SKU точно; "
+              "хранение, removal, Vine и подписка приходят без SKU и разложены по товарам пропорционально выручке — "
+              "в таблице ниже это колонка «Settlement».",
+        "uk": "Settlement за період: {amt} € — {parts}. Промо і збори із замовлення привʼязані до SKU точно; "
+              "зберігання, removal, Vine і підписка приходять без SKU і розкладені за товарами пропорційно виручці — "
+              "у таблиці нижче це колонка «Settlement».",
+        "en": "Settlement for the period: {amt} € — {parts}. Promo and order fees are tied to SKUs exactly; "
+              "storage, removal, Vine and subscription arrive without SKU and are spread across products by revenue "
+              "share — the «Settlement» column in the table below.",
+    },
+    "money.settle.none": {
+        "ru": "Расчётных отчётов Amazon за этот период и рынки нет — вторая строка совпадает с первой.",
+        "uk": "Розрахункових звітів Amazon за цей період і ринки немає — другий рядок збігається з першим.",
+        "en": "No Amazon settlement reports for this period and markets — the second line equals the first.",
+    },
+    "money.settle.b.promo": {"ru": "промо", "uk": "промо", "en": "promo"},
+    "money.settle.b.storage": {"ru": "хранение", "uk": "зберігання", "en": "storage"},
+    "money.settle.b.removal": {"ru": "removal", "uk": "removal", "en": "removal"},
+    "money.settle.b.vine": {"ru": "Vine", "uk": "Vine", "en": "Vine"},
+    "money.settle.b.subscription": {"ru": "подписка", "uk": "підписка", "en": "subscription"},
+    "money.settle.b.return_labels": {"ru": "ярлыки возврата", "uk": "ярлики повернення", "en": "return labels"},
+    "money.settle.b.coupons_deals": {"ru": "купоны и акции", "uk": "купони та акції", "en": "coupons & deals"},
+    "money.settle.b.order_fees_other": {"ru": "прочие сборы с заказа", "uk": "інші збори із замовлення", "en": "other order fees"},
+    "money.col.settle_adj": {"ru": "Settlement", "uk": "Settlement", "en": "Settlement"},
+    "money.col.settle_adj_help": {
+        "ru": "Поправка из расчётных отчётов Amazon: промо и сборы с заказа — точно по SKU; хранение, removal, "
+              "Vine, подписка — доля пропорционально выручке SKU за период.",
+        "uk": "Поправка з розрахункових звітів Amazon: промо і збори із замовлення — точно за SKU; зберігання, "
+              "removal, Vine, підписка — частка пропорційно виручці SKU за період.",
+        "en": "Adjustment from Amazon settlement reports: promo and order fees exact per SKU; storage, removal, "
+              "Vine, subscription — a share proportional to the SKU revenue for the period.",
+    },
+    "money.col.cm_settle": {"ru": "Маржа с settlement", "uk": "Маржа з settlement", "en": "Margin incl. settlement"},
+    "money.alert.losers_settle": {
+        "ru": "С учётом settlement убыточных {n}, по Data Kiosk — {dk}. Новых в списке: {new}.",
+        "uk": "З урахуванням settlement збиткових {n}, за Data Kiosk — {dk}. Нових у списку: {new}.",
+        "en": "Incl. settlement {n} loss-makers, per Data Kiosk — {dk}. New to the list: {new}.",
+    },
     "money.kpi.cm": {"ru": "Прибыль (CM)", "uk": "Прибуток (CM)", "en": "Profit (CM)"},
     "money.kpi.cm_help": {
         "ru": "Contribution Margin = выручка − комиссии − себестоимость − реклама. "
