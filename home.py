@@ -391,13 +391,6 @@ except Exception as e:
 # ПРОДАЖИ
 # ═══════════════════════════════════════════════════════════════════
 
-if date_from is not None:
-    _title = t("home.sec.sales_range", 
-        f=date_from.strftime("%d.%m"), to=date_to.strftime("%d.%m.%Y"))
-else:
-    _title = t("home.sec.sales", d=DAYS)
-st.markdown(f"##### {_title}")
-
 # Граница данных. Правило одно на обе страницы и живёт в
 # util.data_boundary: день закрыт, если Amazon отдал отчёт за него хоть
 # по одной стране. Держать здесь свою копию нельзя — копии расходятся.
@@ -418,6 +411,18 @@ if not money.empty:
     if not money_wide.empty:
         money_wide["sales_date"] = pd.to_datetime(money_wide["sales_date"])
         money_wide = money_wide[money_wide["sales_date"] <= _full_last]
+
+# Заголовок пишет фактическую границу, а не запрошенную — как на Деньгах.
+# «01.09 — 13.09» при данных по 10.09 обещает три дня, которых в цифрах
+# ниже нет, и заставляет сверяться с подписью под графиком
+if date_from is not None:
+    _to_eff = (min(pd.Timestamp(date_to), _full_last) if pd.notna(_full_last)
+               else pd.Timestamp(date_to))
+    _title = t("home.sec.sales_range", 
+        f=date_from.strftime("%d.%m"), to=_to_eff.strftime("%d.%m.%Y"))
+else:
+    _title = t("home.sec.sales", d=DAYS)
+st.markdown(f"##### {_title}")
 
 # данные о продажах приходят с задержкой в несколько дней — говорим об этом
 # прямо, иначе «за 7 дней» читается как «включая вчера»
