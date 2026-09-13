@@ -99,7 +99,7 @@ df["created_at"] = pd.to_datetime(df["created_at"])
 # прочерк, а не догадка.
 SUPPLY_TYPES = {"out_of_stock", "low_stock"}
 # listing_pair_unreachable — сбой сборщика, а не товар: к данным
-DATA_TYPES = {"stale_data", "job_health", "job_paused", "listing_pair_unreachable"}
+DATA_TYPES = {"stale_data", "job_health", "job_paused", "listing_pair_unreachable", "dk_market_gap"}
 SOURCE_CHANNEL = {"leroy_merlin": "Leroy Merlin", "manomano": "ManoMano",
                   "carrefour": "Carrefour", "amazon_sales": "Amazon", "listing_pairs": "Amazon"}
 CHANNEL_PREFIX = ("Amazon", "ManoMano", "Leroy Merlin", "Carrefour")
