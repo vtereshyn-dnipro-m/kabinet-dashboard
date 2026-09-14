@@ -20,7 +20,9 @@ st.markdown("""
     border: 1px solid rgba(128, 128, 128, 0.35);
     border-radius: 12px; padding: 14px 18px;
 }
-[data-testid="stMetricValue"] { font-size: 1.9rem; }
+/* значение ужимается, а не режется многоточием: на ноутбуке с сайдбаром
+   шесть колонок — узкие, и «−45 203 €» в 1.9rem не влезает */
+[data-testid="stMetricValue"] { font-size: clamp(1.15rem, 1.75vw, 1.9rem); }
 </style>
 """, unsafe_allow_html=True)
 

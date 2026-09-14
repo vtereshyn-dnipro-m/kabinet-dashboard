@@ -14,3 +14,6 @@ __pycache__/
 
 # Креды MCP к Lakebase — пароли в открытом виде, в git не место
 .mcp.json
+
+# Локальные настройки Claude Code
+.claude/
