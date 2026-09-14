@@ -31,6 +31,19 @@ TR = {
         "sub": "Настройки, на которых считаются остатки, покрытие и автозаказ",
         "tab_wh": "🏭 Склады", "tab_ch": "🔗 Подпитка", "tab_mp": "🌍 Маркетплейсы",
         "tab_pool": "📦 Пулы", "tab_norm": "📏 Нормативы",
+        "tab_assort": "🧭 Ассортимент",
+        "as_hint": "Слева факт — статус по продажам, его считает загрузчик и руками он не правится. "
+                   "Справа намерение — что с этим SKU на этом рынке решено. Прогноз читает намерение: "
+                   "«выводим» и «не продаём» из прогноза исключаются, «запускаем» — попадает без истории.",
+        "as_mp": "Рынок", "as_fact": "Факт", "as_search": "SKU",
+        "as_only_gap": "Только где намерение не задано",
+        "as_col_fact": "Факт (продажи)", "as_col_target": "Намерение", "as_col_note": "Примечание",
+        "as_col_upd": "Изменено",
+        "as_t_": "—", "as_t_keep": "держим", "as_t_launch": "запускаем", "as_t_phase_out": "выводим",
+        "as_t_seasonal": "сезонный", "as_t_stop": "не продаём",
+        "as_f_active": "продаётся", "as_f_not_launched": "не продавался", "as_f_phasing_out": "затухает",
+        "as_f_seasonal_pause": "сезонная пауза", "as_f_discontinued": "снят",
+        "as_summary": "Намерение задано у {n} из {total} пар на этом рынке",
         "save": "💾 Сохранить изменения", "saved": "Сохранено: {n} запис(ей)",
         "nochange": "Изменений нет", "err": "Ошибка: {e}", "no_data": "Нет данных",
         "del_col": "Удалить", "delete_sel": "🗑 Удалить отмеченные", "deleted": "Удалено: {n}",
@@ -109,6 +122,19 @@ TR = {
         "sub": "Налаштування, на яких рахуються залишки, покриття та автозамовлення",
         "tab_wh": "🏭 Склади", "tab_ch": "🔗 Підживлення", "tab_mp": "🌍 Маркетплейси",
         "tab_pool": "📦 Пули", "tab_norm": "📏 Нормативи",
+        "tab_assort": "🧭 Асортимент",
+        "as_hint": "Ліворуч факт — статус за продажами, його рахує завантажувач і руками він не правиться. "
+                   "Праворуч намір — що з цим SKU на цьому ринку вирішено. Прогноз читає намір: "
+                   "«виводимо» і «не продаємо» з прогнозу виключаються, «запускаємо» — потрапляє без історії.",
+        "as_mp": "Ринок", "as_fact": "Факт", "as_search": "SKU",
+        "as_only_gap": "Лише де намір не задано",
+        "as_col_fact": "Факт (продажі)", "as_col_target": "Намір", "as_col_note": "Примітка",
+        "as_col_upd": "Змінено",
+        "as_t_": "—", "as_t_keep": "тримаємо", "as_t_launch": "запускаємо", "as_t_phase_out": "виводимо",
+        "as_t_seasonal": "сезонний", "as_t_stop": "не продаємо",
+        "as_f_active": "продається", "as_f_not_launched": "не продавався", "as_f_phasing_out": "згасає",
+        "as_f_seasonal_pause": "сезонна пауза", "as_f_discontinued": "знятий",
+        "as_summary": "Намір задано у {n} з {total} пар на цьому ринку",
         "save": "💾 Зберегти зміни", "saved": "Збережено: {n} запис(ів)",
         "nochange": "Змін немає", "err": "Помилка: {e}", "no_data": "Немає даних",
         "del_col": "Видалити", "delete_sel": "🗑 Видалити відмічені", "deleted": "Видалено: {n}",
@@ -187,6 +213,19 @@ TR = {
         "sub": "Settings behind stock, coverage and replenishment calculations",
         "tab_wh": "🏭 Warehouses", "tab_ch": "🔗 Supply chains", "tab_mp": "🌍 Marketplaces",
         "tab_pool": "📦 Pools", "tab_norm": "📏 Coverage norms",
+        "tab_assort": "🧭 Assortment",
+        "as_hint": "Left is fact — the sales-derived status, computed by the loader, not editable. "
+                   "Right is intent — what has been decided for this SKU on this market. The forecast reads intent: "
+                   "«phase out» and «stop» are excluded, «launch» enters without history.",
+        "as_mp": "Market", "as_fact": "Fact", "as_search": "SKU",
+        "as_only_gap": "Only where intent is not set",
+        "as_col_fact": "Fact (sales)", "as_col_target": "Intent", "as_col_note": "Note",
+        "as_col_upd": "Updated",
+        "as_t_": "—", "as_t_keep": "keep", "as_t_launch": "launch", "as_t_phase_out": "phase out",
+        "as_t_seasonal": "seasonal", "as_t_stop": "stop",
+        "as_f_active": "selling", "as_f_not_launched": "never sold", "as_f_phasing_out": "fading",
+        "as_f_seasonal_pause": "seasonal pause", "as_f_discontinued": "discontinued",
+        "as_summary": "Intent set for {n} of {total} pairs on this market",
         "save": "💾 Save changes", "saved": "Saved: {n} row(s)",
         "nochange": "No changes", "err": "Error: {e}", "no_data": "No data",
         "del_col": "Delete", "delete_sel": "🗑 Delete selected", "deleted": "Deleted: {n}",
@@ -411,8 +450,9 @@ init_lang()
 st.title(_tr("title"))
 st.caption(_tr("sub"))
 
-tab_wh, tab_ch, tab_mp, tab_pool, tab_norm = st.tabs(
-    [_tr("tab_wh"), _tr("tab_ch"), _tr("tab_mp"), _tr("tab_pool"), _tr("tab_norm")]
+tab_wh, tab_ch, tab_mp, tab_pool, tab_norm, tab_assort = st.tabs(
+    [_tr("tab_wh"), _tr("tab_ch"), _tr("tab_mp"), _tr("tab_pool"), _tr("tab_norm"),
+     _tr("tab_assort")]
 )
 
 # ---------------------------------------------------------------- склады ---
@@ -983,6 +1023,97 @@ with tab_norm:
                                [ids])])
                     st.cache_data.clear()
                     st.success(_trf("deleted", n=len(ids)))
+                    st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+
+# ---------------------------------------------------------- ассортимент ---
+with tab_assort:
+    st.caption(_tr("as_hint"))
+
+    # Факт и намерение живут в разных таблицах намеренно: sku_lifecycle
+    # загрузчик переписывает целиком, ручная колонка в нём не пережила бы
+    # прогона. Намерение — в sku_target_status, ключ тот же (sku, marketplace)
+    TARGETS = ["", "keep", "launch", "phase_out", "seasonal", "stop"]
+    lc = q("""
+        SELECT l.sku, l.marketplace, l.status AS fact,
+               t.target_status, t.note, t.updated_at
+        FROM kabinet_data.sku_lifecycle l
+        LEFT JOIN kabinet_data.sku_target_status t
+               ON t.sku = l.sku AND t.marketplace = l.marketplace
+        ORDER BY l.marketplace, l.sku
+    """)
+    if lc.empty:
+        st.info(_tr("no_data"))
+    else:
+        c1, c2, c3, c4 = st.columns([1, 1.4, 1.4, 1.2])
+        _mps = sorted(lc["marketplace"].dropna().unique())
+        mp_sel = c1.selectbox(_tr("as_mp"), _mps, key="as_mp")
+        _facts = sorted(lc["fact"].dropna().unique())
+        fact_sel = c2.multiselect(_tr("as_fact"), _facts, default=_facts,
+                                  format_func=lambda f: _tr(f"as_f_{f}"), key="as_fact")
+        search = c3.text_input(_tr("as_search"), key="as_search").strip()
+        only_gap = c4.toggle(_tr("as_only_gap"), value=False, key="as_gap")
+
+        view = lc[(lc["marketplace"] == mp_sel) & lc["fact"].isin(fact_sel)].copy()
+        if search:
+            view = view[view["sku"].astype(str).str.contains(search, case=False, na=False)]
+        if only_gap:
+            view = view[view["target_status"].isna()]
+        # В редакторе показываем подписи, а не коды: format_func у
+        # SelectboxColumn появился в Streamlit недавно, а Cloud держит версию
+        # не первой свежести — падение страницы дороже одного словаря туда-обратно
+        _lbl = {c: (_tr(f"as_t_{c}") if c else "—") for c in TARGETS}
+        _code = {v: k for k, v in _lbl.items()}
+        view["target_status"] = view["target_status"].fillna("").map(_lbl)
+        view["fact"] = view["fact"].map(lambda f: _tr(f"as_f_{f}"))
+        view["note"] = view["note"].fillna("")
+        _mp_all = lc[lc["marketplace"] == mp_sel]
+        st.caption(_trf("as_summary", n=int(_mp_all["target_status"].notna().sum()),
+                        total=len(_mp_all)))
+
+        ed = st.data_editor(
+            view[["sku", "fact", "target_status", "note", "updated_at"]],
+            key=f"ed_as_{mp_sel}", use_container_width=True, height=520,
+            hide_index=True, num_rows="fixed", disabled=["sku", "fact", "updated_at"],
+            column_config={
+                "sku": st.column_config.TextColumn("SKU", width="small"),
+                "fact": st.column_config.TextColumn(_tr("as_col_fact"), width="small"),
+                "target_status": st.column_config.SelectboxColumn(
+                    _tr("as_col_target"), options=list(_lbl.values()), width="small"),
+                "note": st.column_config.TextColumn(_tr("as_col_note"), width="large"),
+                "updated_at": st.column_config.DatetimeColumn(_tr("as_col_upd"), width="small",
+                                                              format="DD.MM.YYYY"),
+            },
+        )
+        if st.button(_tr("save"), key="save_as", type="primary"):
+            before = view.set_index("sku")
+            stmts = []
+            for _, r in ed.iterrows():
+                was_t = _code.get(before.at[r["sku"], "target_status"], "")
+                was_n = before.at[r["sku"], "note"]
+                now_t, now_n = _code.get(r["target_status"] or "—", ""), (r["note"] or "")
+                if now_t == was_t and now_n == was_n:
+                    continue
+                if now_t == "":
+                    stmts.append(("DELETE FROM kabinet_data.sku_target_status "
+                                  "WHERE sku = %s AND marketplace = %s", (r["sku"], mp_sel)))
+                else:
+                    stmts.append(("""
+                        INSERT INTO kabinet_data.sku_target_status
+                            (sku, marketplace, target_status, note, updated_by, updated_at)
+                        VALUES (%s, %s, %s, %s, 'kabinet', now())
+                        ON CONFLICT (sku, marketplace) DO UPDATE
+                           SET target_status = EXCLUDED.target_status, note = EXCLUDED.note,
+                               updated_by = EXCLUDED.updated_by, updated_at = now()
+                    """, (r["sku"], mp_sel, now_t, now_n or None)))
+            if not stmts:
+                st.info(_tr("nochange"))
+            else:
+                try:
+                    exec_sql(stmts)
+                    st.cache_data.clear()
+                    st.success(_trf("saved", n=len(stmts)))
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err", e=e))
