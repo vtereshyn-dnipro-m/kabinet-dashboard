@@ -1410,6 +1410,18 @@ TRANSLATIONS = {
     "ro.order.col_velocity": {"ru": "Прод./день", "uk": "Прод./день", "en": "Sold/day"},
     "ro.order.col_cover": {"ru": "Хватит, дней", "uk": "Вистачить, днів", "en": "Lasts, days"},
     "ro.order.col_qty": {"ru": "Заказать, шт", "uk": "Замовити, шт", "en": "Order, pcs"},
+    "ro.order.col_transit": {"ru": "В пути", "uk": "У дорозі", "en": "In transit"},
+    "ro.order.col_transit_help": {
+        "ru": "Уже едет: поставки «В пути» с будущей датой и транзит Польша → Мадрид. Из «Заказать» вычтено.",
+        "uk": "Уже їде: поставки «В дорозі» з майбутньою датою і транзит Польща → Мадрид. Із «Замовити» віднято.",
+        "en": "Already shipped: inbound shipments with a future date and Poland → Madrid transit. Deducted from “Order”.",
+    },
+    "ro.order.col_quarantine": {"ru": "Ожидает проверки", "uk": "Очікує перевірки", "en": "Awaiting check"},
+    "ro.order.col_quarantine_help": {
+        "ru": "Лежит на карантинном складе: пришло, ждёт проверки, через несколько недель станет доступным. В обеспечении не участвует, но из «Заказать» вычтено.",
+        "uk": "Лежить на карантинному складі: прийшло, чекає перевірки, за кілька тижнів стане доступним. У забезпеченні не бере участі, але з «Замовити» віднято.",
+        "en": "Sitting in the quarantine warehouse: arrived, awaiting inspection, becomes available in a few weeks. Not a transfer donor, but deducted from “Order”.",
+    },
     "ro.order.chosen": {"ru": "Выбрано SKU", "uk": "Вибрано SKU", "en": "SKUs selected"},
     "ro.order.total": {"ru": "Итого к заказу, шт", "uk": "Разом до замовлення, шт", "en": "Total to order, pcs"},
     "ro.order.avg_velocity": {"ru": "Средняя скорость", "uk": "Середня швидкість", "en": "Average velocity"},
@@ -1424,25 +1436,31 @@ TRANSLATIONS = {
             "- **Скорость продаж** — среднее за 30 дней\n"
             "- **Хватит дней** = остаток / скорость\n"
             "- **🔴 Срочно** — хватит меньше срока поставки\n"
-            "- **Заказать** — покрыть спрос на 60 дней\n\n"
+            "- **Заказать** — покрыть спрос на 60 дней минус остаток, минус то, что "
+            "уже едет, минус то, что ждёт проверки на карантине\n\n"
             "Сначала система предлагает переброску (свои склады → FBA), "
-            "потом заказ у поставщика на то, что переброской не закрыть."
+            "потом заказ у поставщика на то, что переброской не закрыть. "
+            "Карантин донором не бывает — товар ещё не проверен."
         ),
         "uk": (
             "- **Швидкість продажів** — середнє за 30 днів\n"
             "- **Вистачить днів** = залишок / швидкість\n"
             "- **🔴 Терміново** — вистачить менше терміну поставки\n"
-            "- **Замовити** — покрити попит на 60 днів\n\n"
+            "- **Замовити** — покрити попит на 60 днів мінус залишок, мінус те, що "
+            "вже їде, мінус те, що чекає перевірки на карантині\n\n"
             "Спочатку система пропонує переброс (власні склади → FBA), "
-            "потім замовлення у постачальника на те, що перебросом не закрити."
+            "потім замовлення у постачальника на те, що перебросом не закрити. "
+            "Карантин донором не буває — товар ще не перевірено."
         ),
         "en": (
             "- **Sales velocity** — 30-day average\n"
             "- **Days left** = stock / velocity\n"
             "- **🔴 Urgent** — will last less than the lead time\n"
-            "- **Order** — cover 60 days of demand\n\n"
+            "- **Order** — 60 days of demand minus stock, minus what is already "
+            "in transit, minus what awaits inspection in quarantine\n\n"
             "First the system suggests transfers (own warehouses → FBA), "
-            "then a supplier order for what transfers can't cover."
+            "then a supplier order for what transfers can't cover. "
+            "Quarantine is never a donor — the goods are not inspected yet."
         ),
     },
 

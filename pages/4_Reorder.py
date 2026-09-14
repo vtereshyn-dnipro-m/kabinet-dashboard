@@ -42,14 +42,20 @@ def is_defect_sku(sku: str) -> bool:
 
 # ---------- автозаказ ----------
 @st.cache_data(ttl=300)
-def load_reorder(has_status: bool):
+def load_reorder(has_status: bool, has_pipeline: bool):
     conn = get_connection()
     status_col = "COALESCE(order_status,'new') AS order_status" if has_status \
                  else "'new' AS order_status"
+    # «В пути» и «Ожидает проверки» появились 14.09.2026; до первого прогона
+    # нового загрузчика колонок нет — показываем нули, а не роняем страницу
+    pipeline_cols = ("COALESCE(in_transit_qty, 0) AS in_transit_qty, "
+                     "COALESCE(quarantine_qty, 0) AS quarantine_qty"
+                     if has_pipeline else
+                     "0 AS in_transit_qty, 0 AS quarantine_qty")
     df = pd.read_sql(f"""
         SELECT sku, product_name, current_stock, daily_velocity,
                days_of_cover, reorder_point, suggested_qty, urgency,
-               {status_col}
+               {status_col}, {pipeline_cols}
         FROM kabinet_data.reorder_recommendations
         WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.reorder_recommendations)
     """, conn)
@@ -71,7 +77,7 @@ def mark_ordered(skus, qtys):
 
 
 @st.cache_data(ttl=600)
-def has_order_status() -> bool:
+def has_reorder_col(col: str) -> bool:
     """Проверка наличия колонки без DDL (дашборд не владеет таблицей)."""
     try:
         conn = get_connection(); cur = conn.cursor()
@@ -79,13 +85,17 @@ def has_order_status() -> bool:
             SELECT 1 FROM information_schema.columns
             WHERE table_schema='kabinet_data'
               AND table_name='reorder_recommendations'
-              AND column_name='order_status'
-        """)
+              AND column_name=%s
+        """, (col,))
         ok = cur.fetchone() is not None
         cur.close(); conn.close()
         return ok
     except Exception:
         return False
+
+
+def has_order_status() -> bool:
+    return has_reorder_col("order_status")
 
 
 @st.cache_data(ttl=600)
@@ -108,8 +118,9 @@ def has_incoming_cols() -> bool:
 
 HAS_ORDER_STATUS = has_order_status()
 HAS_INCOMING = has_incoming_cols()
+HAS_PIPELINE = has_reorder_col("quarantine_qty")
 
-df = load_reorder(HAS_ORDER_STATUS)
+df = load_reorder(HAS_ORDER_STATUS, HAS_PIPELINE)
 
 # дефекты/возвраты (amzn.gr.) не заказываем — убираем из рекомендаций
 df = df[~df["sku"].apply(is_defect_sku)].copy()
@@ -366,7 +377,8 @@ if search:
 fdf = fdf.sort_values(["urg_rank", "days_of_cover"])
 
 edit = fdf[["sku_display", "product_name", "current_stock", "daily_velocity",
-            "days_of_cover", "suggested_qty", "urgency", "has_transfer"]].copy()
+            "days_of_cover", "suggested_qty", "urgency", "has_transfer",
+            "in_transit_qty", "quarantine_qty"]].copy()
 edit.insert(0, "✓", edit["urgency"] == "critical")
 edit["Срочность"] = edit["urgency"].map(lambda u: f"{URG_ICON[u]} {urg_label(u)}")
 edit["daily_velocity"] = edit["daily_velocity"].round(1)
@@ -374,8 +386,15 @@ edit["days_of_cover"] = edit["days_of_cover"].round(0)
 edit["Переброска"] = edit["has_transfer"].map(
     lambda x: f"🔄 идёт {int(x)} шт" if x > 0 else "")
 
+# Товар в пути и товар на карантине — один механизм: оба уже вычтены из
+# «Заказать», здесь показываем, из чего сложилась цифра. Пустая ячейка,
+# а не ноль: колонки заполнены у меньшинства SKU, нули шумят.
+for _c in ("in_transit_qty", "quarantine_qty"):
+    edit[_c] = pd.to_numeric(edit[_c], errors="coerce").fillna(0).astype(int)
+    edit[_c] = edit[_c].map(lambda x: int(x) if x > 0 else None)
 edited = st.data_editor(
     edit[["✓", "Срочность", "sku_display", "product_name", "current_stock",
+          "in_transit_qty", "quarantine_qty",
           "daily_velocity", "days_of_cover", "suggested_qty", "Переброска"]],
     use_container_width=True, height=440, hide_index=True,
     column_config={
@@ -384,6 +403,12 @@ edited = st.data_editor(
         "sku_display": st.column_config.TextColumn("SKU", width="small", disabled=True),
         "product_name": st.column_config.TextColumn(t("ro.tr.col_product"), width="large", disabled=True),
         "current_stock": st.column_config.NumberColumn(t("ro.order.col_stock"), width="small", disabled=True),
+        "in_transit_qty": st.column_config.NumberColumn(
+            t("ro.order.col_transit"), width="small", disabled=True, format="%d",
+            help=t("ro.order.col_transit_help")),
+        "quarantine_qty": st.column_config.NumberColumn(
+            t("ro.order.col_quarantine"), width="small", disabled=True, format="%d",
+            help=t("ro.order.col_quarantine_help")),
         "daily_velocity": st.column_config.NumberColumn(t("ro.order.col_velocity"), width="small", disabled=True),
         "days_of_cover": st.column_config.ProgressColumn(
             t("ro.order.col_cover"), width="small", min_value=0, max_value=60, format="%d"),
