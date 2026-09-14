@@ -23,7 +23,7 @@ st.markdown("""
     border-radius: 12px;
     padding: 12px 14px;
 }
-[data-testid="stMetricValue"] { font-size: 1.6rem; }
+[data-testid="stMetricValue"] { font-size: clamp(1.05rem, 1.5vw, 1.6rem); }
 [data-testid="stMetricLabel"] { font-size: 0.78rem; }
 h1 { margin-bottom: 0.1rem; font-size: 2rem; }
 [data-testid="stCaptionContainer"] { margin-top: -0.3rem; }

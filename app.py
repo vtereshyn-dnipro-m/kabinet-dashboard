@@ -38,6 +38,16 @@ st.markdown(
     '[data-testid="stAppViewContainer"] > .main{padding-top:0 !important;}'
     '[data-testid="stMain"]{padding-top:0 !important;}'
     "h1{margin-top:0 !important;padding-top:0 !important;}"
+    # Подписи метрик Streamlit режет многоточием в одну строку: в шести
+    # колонках «Продажи по заказам» превращается в «Продажи по зака…».
+    # Разрешаем перенос по словам — подпись занимает две строки, но
+    # читается целиком. Правило одно на все страницы, потому что метрики
+    # в узких колонках есть на восьми из них.
+    '[data-testid="stMetricLabel"]{white-space:normal !important;}'
+    '[data-testid="stMetricLabel"] p{white-space:normal !important;'
+    "overflow:visible !important;text-overflow:clip !important;"
+    "line-height:1.2 !important;}"
+    '[data-testid="stMetricLabel"] > div{overflow:visible !important;}'
     # в сайдбаре между логотипом и пунктами меню остаётся пустая полоса —
     # поджимаем, чтобы навигация начиналась сразу под лого
     '[data-testid="stSidebarHeader"]{padding:0.6rem 1rem 0.2rem !important;}'
