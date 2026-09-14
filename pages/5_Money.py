@@ -5,7 +5,7 @@ import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from db.connection import get_connection
+from db.connection import get_connection, data_version
 from i18n import init_lang, t
 from util import as_text, data_boundary
 import catalog
@@ -101,7 +101,7 @@ def load_adjustments(d_from: str, d_to: str, markets: tuple = ()) -> pd.DataFram
 
 
 @st.cache_data(ttl=600)
-def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = ()):
+def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
     conn = get_connection()
     if d_from and d_to:
         where = f"e.sales_date BETWEEN '{d_from}' AND '{d_to}'"
@@ -189,7 +189,7 @@ def load_bsr(days: int) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_ordered_sales(days: int, d_from=None, d_to=None, markets: tuple = ()):
+def load_ordered_sales(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
     """Витринная выручка — то же число, что в Seller Central.
     Рынки передаём кортежем: он хешируется и попадает в ключ кеша."""
     if d_from and d_to:
@@ -267,7 +267,7 @@ def load_period_bounds(days: int, d_from=None, d_to=None) -> tuple:
 
 
 @st.cache_data(ttl=600)
-def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = ()):
+def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
     """Контрольная выручка прямо из таблицы, без соединений.
     Если основной запрос разойдётся с ней — значит строки размножились
     при JOIN, и цифры на странице завышены. Такое уже случалось."""
@@ -322,8 +322,11 @@ MK = tuple(sorted(mp_filter))
 WINDOW = PERIOD.days
 # «Этот месяц» и свой период приходят готовыми границами, остальные —
 # отступом от сегодня: у диапазона конец может быть в прошлом
-df = (load_pnl(0, d_from, d_to, MK) if PERIOD.is_range
-      else load_pnl(WINDOW, markets=MK))
+# _v — отметка последней записи в ключе кеша: страницы обновляются вместе
+_ver_econ = data_version("economics_summary", "updated_at")
+_ver_std = data_version("sales_traffic_daily", "loaded_at")
+df = (load_pnl(0, d_from, d_to, MK, _ver_econ) if PERIOD.is_range
+      else load_pnl(WINDOW, markets=MK, _v=_ver_econ))
 
 if df.empty:
     st.info(t("money.empty"))
@@ -378,8 +381,8 @@ if pd.notna(_last):
 # иначе сверка сравнит обрезанное с необрезанным и поднимет ложную тревогу
 _ctrl_to = (_to_eff.strftime("%Y-%m-%d") if (d_from and d_to and _to_eff is not None)
             else d_to)
-_ctrl = (load_control_total(0, d_from, _ctrl_to, MK) if (d_from and d_to)
-         else load_control_total(WINDOW, markets=MK))
+_ctrl = (load_control_total(0, d_from, _ctrl_to, MK, _ver_econ) if (d_from and d_to)
+         else load_control_total(WINDOW, markets=MK, _v=_ver_econ))
 if _ctrl and _ctrl.get("rows"):
     _mine = float(pd.to_numeric(df["revenue"], errors="coerce").fillna(0).sum())
     _real = float(_ctrl["revenue"])
@@ -480,8 +483,8 @@ else:
     # объясняла НДС и возвратами, хотя часть её была просто разным периодом
     if _b1 and pd.notna(_last):
         _b1 = min(pd.Timestamp(_b1), _last).date()
-    _ordered = (load_ordered_sales(0, _b0, _b1, _amz) if (_b0 and _b1)
-                else load_ordered_sales(WINDOW, markets=_amz))
+    _ordered = (load_ordered_sales(0, _b0, _b1, _amz, _ver_std) if (_b0 and _b1)
+                else load_ordered_sales(WINDOW, markets=_amz, _v=_ver_std))
 
 k0, k1, k2, k3, k4, k5 = st.columns(6)
 k0.metric(t("money.kpi.ordered"),

@@ -39,3 +39,31 @@ def execute(query: str, params: tuple = None):
     cur.execute(query, params)
     conn.commit()
     cur.close() 
+
+
+@st.cache_data(ttl=60)
+def data_version(table: str, col: str) -> str:
+    """Отметка последней записи в таблицу — ключ согласованности кешей.
+
+    Страницы кешируют одни и те же запросы независимо, с разными TTL и в
+    разные моменты. Загрузчик переписал последние семь дней в 08:50 —
+    Обзор перечитал в 08:52, Деньги держат снимок с 08:45 ещё десять минут,
+    и «Продажи по заказам» на двух страницах расходятся на 11 €. Обе правы,
+    просто в разное время.
+
+    Значение отсюда передаётся параметром в кеширующие загрузчики: оно
+    входит в ключ, и когда загрузчик пишет, все страницы обновляются вместе,
+    не дожидаясь чужого TTL. Само оно живёт минуту — это цена одного
+    MAX() по индексу.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"SELECT MAX({col})::text FROM kabinet_data.{table}")
+        row = cur.fetchone()
+        cur.close()
+        return (row[0] if row else "") or ""
+    except Exception:
+        return ""
+    finally:
+        conn.close()

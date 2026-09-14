@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from db.connection import get_connection
+from db.connection import get_connection, data_version
 from i18n import init_lang, t
 from util import as_text, data_boundary, day_axis
 import period as period_mod
@@ -110,7 +110,7 @@ def table_exists(name: str) -> bool:
 
 
 @st.cache_data(ttl=300)
-def load_money(days: int = 30) -> pd.DataFrame:
+def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
     if not table_exists("economics_summary"):
         return pd.DataFrame()
     conn = get_connection()
@@ -148,7 +148,7 @@ def load_money(days: int = 30) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
-def load_ordered_sales(days: int = 30) -> pd.DataFrame:
+def load_ordered_sales(days: int = 30, _v: str = "") -> pd.DataFrame:
     """Витринная выручка — то же число, что видно в Seller Central.
     С НДС, по дате заказа, отменённые не вычитаются."""
     if not table_exists("sales_traffic_daily"):
@@ -372,11 +372,14 @@ try:
     # чтобы предыдущий период тоже был полным
     _load_days = (DAYS if date_from is None
                   else (today - date_from).days + DAYS + 10)
-    money = load_money(_load_days)
-    ordered = load_ordered_sales(_load_days)
+    # _v — отметка последней записи: входит в ключ кеша, чтобы Обзор и
+    # Деньги обновлялись вместе, а не каждый по своему TTL
+    money = load_money(_load_days, data_version("economics_summary", "updated_at"))
+    ordered = load_ordered_sales(_load_days, data_version("sales_traffic_daily", "loaded_at"))
     # отдельно берём 90 дней: нужно понять, какие страны продавали раньше,
     # но замолчали в выбранном периоде
-    money_wide = load_money(90) if DAYS < 90 else money
+    money_wide = (load_money(90, data_version("economics_summary", "updated_at"))
+                  if DAYS < 90 else money)
     cov = load_coverage()
     inc = load_incidents()
     transfers = load_transfers()
