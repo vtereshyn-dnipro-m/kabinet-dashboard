@@ -21,3 +21,9 @@ ON CONFLICT DO NOTHING;
 UPDATE kabinet_data.job_health_rules
    SET is_active = TRUE, schedule_description = '19:00 Madrid daily'
  WHERE job_id = 760565204236769;
+
+-- SQP Loader ходит раз в 4 часа (periodic trigger), а правило говорило «hourly, 3h»:
+-- сторож в 13:00 Kyiv попадал в окно 2,5 ч после прогона 10:30 и молчал случайно.
+UPDATE kabinet_data.job_health_rules
+   SET expected_interval_hours = 6, schedule_description = 'every 4h (periodic trigger)'
+ WHERE job_id = 597550726435861;
