@@ -13,10 +13,14 @@
 -- DDL (ALTER TABLE warehouses ADD COLUMN stock_role; reorder_recommendations
 -- ADD COLUMN in_transit_qty, quarantine_qty) живёт в ячейке 5 Stock Loader:
 -- таблицами владеет загрузчик, у claude_code_rw прав на ALTER нет.
+-- Только европейское плечо. Тернопольский карантин (159 тыс. шт) — сторона
+-- завода: звено UA→PL считает Дарина, и вычитать его из заказа нельзя —
+-- иначе автозаказ решит, что всё уже «почти приехало».
 UPDATE kabinet_data.warehouses
    SET stock_role = 'quarantine', shipping_priority = 0
  WHERE name IN ('RS Warszawa Piasecznie (Карантин)',
-                'RS Warszawa Spain (Карантин)',
-                'Тернополь Подольская, 21 Європа (Карантин)');
+                'RS Warszawa Spain (Карантин)');
+UPDATE kabinet_data.warehouses SET stock_role = 'available'
+ WHERE name = 'Тернополь Подольская, 21 Європа (Карантин)';
 
 SELECT id, name, stock_role, shipping_priority, is_active FROM kabinet_data.warehouses WHERE stock_role <> 'available' ORDER BY id;
