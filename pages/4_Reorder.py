@@ -50,9 +50,11 @@ def load_reorder(has_status: bool, has_pipeline: bool):
     # нового загрузчика колонок нет — показываем нули, а не роняем страницу
     pipeline_cols = ("COALESCE(in_transit_qty, 0) AS in_transit_qty, "
                      "COALESCE(quarantine_qty, 0) AS quarantine_qty, "
-                     "COALESCE(planned_qty, 0) AS planned_qty"
+                     "COALESCE(planned_qty, 0) AS planned_qty, "
+                     "lead_time_days, lead_source"
                      if has_pipeline else
-                     "0 AS in_transit_qty, 0 AS quarantine_qty, 0 AS planned_qty")
+                     "0 AS in_transit_qty, 0 AS quarantine_qty, 0 AS planned_qty, "
+                     "NULL::int AS lead_time_days, NULL::text AS lead_source")
     df = pd.read_sql(f"""
         SELECT sku, product_name, current_stock, daily_velocity,
                days_of_cover, reorder_point, suggested_qty, urgency,
@@ -119,7 +121,7 @@ def has_incoming_cols() -> bool:
 
 HAS_ORDER_STATUS = has_order_status()
 HAS_INCOMING = has_incoming_cols()
-HAS_PIPELINE = has_reorder_col("planned_qty")
+HAS_PIPELINE = has_reorder_col("lead_source")
 
 df = load_reorder(HAS_ORDER_STATUS, HAS_PIPELINE)
 
@@ -379,7 +381,8 @@ fdf = fdf.sort_values(["urg_rank", "days_of_cover"])
 
 edit = fdf[["sku_display", "product_name", "current_stock", "daily_velocity",
             "days_of_cover", "suggested_qty", "urgency", "has_transfer",
-            "in_transit_qty", "quarantine_qty", "planned_qty"]].copy()
+            "in_transit_qty", "quarantine_qty", "planned_qty",
+            "lead_time_days", "lead_source"]].copy()
 edit.insert(0, "✓", edit["urgency"] == "critical")
 edit["Срочность"] = edit["urgency"].map(lambda u: f"{URG_ICON[u]} {urg_label(u)}")
 edit["daily_velocity"] = edit["daily_velocity"].round(1)
@@ -393,10 +396,15 @@ edit["Переброска"] = edit["has_transfer"].map(
 for _c in ("in_transit_qty", "quarantine_qty", "planned_qty"):
     edit[_c] = pd.to_numeric(edit[_c], errors="coerce").fillna(0).astype(int)
     edit[_c] = edit[_c].map(lambda x: int(x) if x > 0 else None)
+# Срок поставки — по плечу, откуда ближайшее пополнение (PL / UA / поставщик);
+# у поставщика маршрута в справочнике нет, срок помечен как оценка
+edit["lead"] = edit.apply(
+    lambda r: (f"{int(r['lead_time_days'])} · {as_text(r['lead_source'])}"
+               if pd.notna(r["lead_time_days"]) else ""), axis=1)
 edited = st.data_editor(
     edit[["✓", "Срочность", "sku_display", "product_name", "current_stock",
           "in_transit_qty", "quarantine_qty", "planned_qty",
-          "daily_velocity", "days_of_cover", "suggested_qty", "Переброска"]],
+          "daily_velocity", "days_of_cover", "lead", "suggested_qty", "Переброска"]],
     use_container_width=True, height=440, hide_index=True,
     column_config={
         "✓": st.column_config.CheckboxColumn(t("ro.order.col_do"), width="small"),
@@ -416,6 +424,9 @@ edited = st.data_editor(
         "daily_velocity": st.column_config.NumberColumn(t("ro.order.col_velocity"), width="small", disabled=True),
         "days_of_cover": st.column_config.ProgressColumn(
             t("ro.order.col_cover"), width="small", min_value=0, max_value=60, format="%d"),
+        "lead": st.column_config.TextColumn(
+            t("ro.order.col_lead"), width="small", disabled=True,
+            help=t("ro.order.col_lead_help")),
         "suggested_qty": st.column_config.NumberColumn(
             t("ro.order.col_qty"), width="small", min_value=0, step=1),
         "Переброска": st.column_config.TextColumn(

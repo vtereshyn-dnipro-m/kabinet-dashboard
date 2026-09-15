@@ -1416,6 +1416,12 @@ TRANSLATIONS = {
         "uk": "Уже їде: поставки «В дорозі» з майбутньою датою і транзит Польща → Мадрид. Із «Замовити» віднято.",
         "en": "Already shipped: inbound shipments with a future date and Poland → Madrid transit. Deducted from “Order”.",
     },
+    "ro.order.col_lead": {"ru": "Срок, дн", "uk": "Термін, дн", "en": "Lead, days"},
+    "ro.order.col_lead_help": {
+        "ru": "Срок поставки по плечу, откуда ближайшее пополнение: PL — Piasecznie → Мадрид → FBA (8 + ожидание рейса + 3), UA — плюс Тернополь → Piasecznie 14. Из справочника маршрутов. «поставщик (оценка)» — маршрута нет, срок из настроек.",
+        "uk": "Термін поставки за плечем, звідки найближче поповнення: PL — Piasecznie → Мадрид → FBA (8 + очікування рейсу + 3), UA — плюс Тернопіль → Piasecznie 14. З довідника маршрутів. «поставщик (оценка)» — маршруту немає, термін з налаштувань.",
+        "en": "Lead time of the leg the next replenishment comes from: PL — Piasecznie → Madrid → FBA (8 + dispatch wait + 3), UA — plus Ternopil → Piasecznie 14. From the routes dictionary. “supplier (estimate)” — no route on record, value from settings.",
+    },
     "ro.order.col_planned": {"ru": "План снабжения", "uk": "План постачання", "en": "Supply plan"},
     "ro.order.col_planned_help": {
         "ru": "Запланировано к отправке в Испанию по листу Poland-Spain (снабжение), но ещё не отгружено. Из «Заказать» вычтено.",
@@ -1441,7 +1447,8 @@ TRANSLATIONS = {
         "ru": (
             "- **Скорость продаж** — среднее за 30 дней\n"
             "- **Хватит дней** = остаток / скорость\n"
-            "- **🔴 Срочно** — хватит меньше срока поставки\n"
+            "- **🔴 Срочно** — хватит меньше срока поставки; срок берётся по плечу "
+            "(Польша / Украина / поставщик) из справочника маршрутов\n"
             "- **Заказать** — покрыть спрос на 60 дней минус остаток, минус то, что "
             "уже едет, минус то, что ждёт проверки на карантине, минус план снабжения "
             "(лист Poland-Spain)\n\n"
