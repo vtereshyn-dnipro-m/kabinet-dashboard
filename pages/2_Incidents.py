@@ -228,7 +228,10 @@ cols[3].metric(
 if not routine.empty:
     # Сколько из отложенных уже ведёт Автозаказ — иначе «плюс 77» звучит
     # как «мы про них забыли»
-    _in_reorder = int(routine["sku"].isin(load_reorder_skus()).sum())
+    # автозаказ с 15.09.2026 ведётся по базовому артикулу («41324000»), а инцидент
+    # приходит с SKU канала («41324000-FBA») — сравниваем по базовому
+    _base = routine["sku"].astype(str).str.replace(r"-(FBA|FBM).*$", "", regex=True)
+    _in_reorder = int(_base.isin(load_reorder_skus()).sum())
     st.caption(t("inc.low_aside", n=len(routine), r=_in_reorder))
 
 st.divider()
