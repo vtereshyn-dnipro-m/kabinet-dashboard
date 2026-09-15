@@ -434,8 +434,10 @@ with a1:
     if st.button(t("ro.order.form", n=len(chosen)),
                  type="primary", use_container_width=True,
                  disabled=chosen.empty or not HAS_ORDER_STATUS):
-        skus_orig = [active[active["sku"].apply(clean_sku) == sd].iloc[0]["sku"]
-                     for sd in chosen["sku_display"]]
+        # исходный sku — по индексу строки, не по отображаемому артикулу:
+        # clean_sku схлопывает «41324000-A» в «41324000», и поиск по строке
+        # отметил бы заказанным не тот вариант
+        skus_orig = fdf.loc[chosen.index, "sku"].tolist()
         mark_ordered(skus_orig, chosen["suggested_qty"].tolist())
         st.cache_data.clear()
         st.success(t("ro.order.formed", 
