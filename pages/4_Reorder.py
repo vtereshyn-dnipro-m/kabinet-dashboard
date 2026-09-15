@@ -49,9 +49,10 @@ def load_reorder(has_status: bool, has_pipeline: bool):
     # «В пути» и «Ожидает проверки» появились 14.09.2026; до первого прогона
     # нового загрузчика колонок нет — показываем нули, а не роняем страницу
     pipeline_cols = ("COALESCE(in_transit_qty, 0) AS in_transit_qty, "
-                     "COALESCE(quarantine_qty, 0) AS quarantine_qty"
+                     "COALESCE(quarantine_qty, 0) AS quarantine_qty, "
+                     "COALESCE(planned_qty, 0) AS planned_qty"
                      if has_pipeline else
-                     "0 AS in_transit_qty, 0 AS quarantine_qty")
+                     "0 AS in_transit_qty, 0 AS quarantine_qty, 0 AS planned_qty")
     df = pd.read_sql(f"""
         SELECT sku, product_name, current_stock, daily_velocity,
                days_of_cover, reorder_point, suggested_qty, urgency,
@@ -118,7 +119,7 @@ def has_incoming_cols() -> bool:
 
 HAS_ORDER_STATUS = has_order_status()
 HAS_INCOMING = has_incoming_cols()
-HAS_PIPELINE = has_reorder_col("quarantine_qty")
+HAS_PIPELINE = has_reorder_col("planned_qty")
 
 df = load_reorder(HAS_ORDER_STATUS, HAS_PIPELINE)
 
@@ -378,7 +379,7 @@ fdf = fdf.sort_values(["urg_rank", "days_of_cover"])
 
 edit = fdf[["sku_display", "product_name", "current_stock", "daily_velocity",
             "days_of_cover", "suggested_qty", "urgency", "has_transfer",
-            "in_transit_qty", "quarantine_qty"]].copy()
+            "in_transit_qty", "quarantine_qty", "planned_qty"]].copy()
 edit.insert(0, "✓", edit["urgency"] == "critical")
 edit["Срочность"] = edit["urgency"].map(lambda u: f"{URG_ICON[u]} {urg_label(u)}")
 edit["daily_velocity"] = edit["daily_velocity"].round(1)
@@ -389,12 +390,12 @@ edit["Переброска"] = edit["has_transfer"].map(
 # Товар в пути и товар на карантине — один механизм: оба уже вычтены из
 # «Заказать», здесь показываем, из чего сложилась цифра. Пустая ячейка,
 # а не ноль: колонки заполнены у меньшинства SKU, нули шумят.
-for _c in ("in_transit_qty", "quarantine_qty"):
+for _c in ("in_transit_qty", "quarantine_qty", "planned_qty"):
     edit[_c] = pd.to_numeric(edit[_c], errors="coerce").fillna(0).astype(int)
     edit[_c] = edit[_c].map(lambda x: int(x) if x > 0 else None)
 edited = st.data_editor(
     edit[["✓", "Срочность", "sku_display", "product_name", "current_stock",
-          "in_transit_qty", "quarantine_qty",
+          "in_transit_qty", "quarantine_qty", "planned_qty",
           "daily_velocity", "days_of_cover", "suggested_qty", "Переброска"]],
     use_container_width=True, height=440, hide_index=True,
     column_config={
@@ -409,6 +410,9 @@ edited = st.data_editor(
         "quarantine_qty": st.column_config.NumberColumn(
             t("ro.order.col_quarantine"), width="small", disabled=True, format="%d",
             help=t("ro.order.col_quarantine_help")),
+        "planned_qty": st.column_config.NumberColumn(
+            t("ro.order.col_planned"), width="small", disabled=True, format="%d",
+            help=t("ro.order.col_planned_help")),
         "daily_velocity": st.column_config.NumberColumn(t("ro.order.col_velocity"), width="small", disabled=True),
         "days_of_cover": st.column_config.ProgressColumn(
             t("ro.order.col_cover"), width="small", min_value=0, max_value=60, format="%d"),
