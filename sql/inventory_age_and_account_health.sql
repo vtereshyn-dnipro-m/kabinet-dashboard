@@ -47,3 +47,9 @@ INSERT INTO kabinet_data.job_health_rules (job_id, job_name, expected_interval_h
  (73306181318180,  'Kabinet - Inventory Age Loader',   30, '04:15 Kyiv daily', 'GET_FBA_INVENTORY_PLANNING_DATA по ES/DE/FR/IT: возраст запасов, AIS, хранение'),
  (383948740025305, 'Kabinet - Account Health Loader',  30, '04:45 Kyiv daily', 'GET_V2_SELLER_PERFORMANCE_REPORT по 8 рынкам: AHR, ODR, нарушения политик')
 ON CONFLICT DO NOTHING;
+
+-- Порог возраста запаса для сигнала «пора вывозить / скоро надбавка»: 181 день, как считает Amazon
+-- (решение владельца 16.09.2026; не 271). Читается сторожем и страницей, не константой.
+INSERT INTO kabinet_data.reorder_params (key, value, note) VALUES
+ ('inventory_age_alert_days', 181, 'возраст запаса FBA, с которого единицы считаем проблемными (надбавка за возраст у Amazon с 181 дня)')
+ON CONFLICT (key) DO NOTHING;
