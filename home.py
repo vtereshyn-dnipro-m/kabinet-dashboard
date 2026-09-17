@@ -149,22 +149,21 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
-def load_plan_month(_v: str = "") -> tuple:   # (свод, порог темпа, текст ошибки или None)
-    """План текущего месяца против факта по объектам реестра прогноза и порог темпа.
+def load_plan_month(_v: str = "") -> tuple:   # (строки по маркетплейсам и пулам, порог темпа, текст ошибки или None)
+    """План текущего месяца против факта с начала месяца — сырьё для трёх разрезов.
 
-    v_forecast_current — представление, table_exists его не видит; пробуем и
-    отступаем на пустое: без реестра блок просто не показывается."""
+    Всегда текущий календарный месяц, период страницы сюда не передаётся намеренно.
+    v_forecast_current — представление, table_exists его не видит; ошибка чтения
+    возвращается текстом: «плана нет» и «не смогли прочитать» — разные вещи."""
     conn = get_connection()
     try:
         today = datetime.now().date()
-        df = plan_fact.load(conn, today.replace(day=1), today)
+        df = plan_fact.load_month(conn, today)
         thr = pd.read_sql("SELECT value FROM kabinet_data.reorder_params "
                           "WHERE key = 'forecast_pace_threshold_pct'", conn)
         thr = float(thr.iloc[0, 0]) if not thr.empty else 25.0
-        return plan_fact.summarize(df), thr, None
+        return df, thr, None
     except Exception as e:
-        # «Плана нет» и «не смогли прочитать» — разные вещи: первое про реестр,
-        # второе про права или схему, и второе не должно выглядеть как первое
         return pd.DataFrame(), 25.0, f"{type(e).__name__}: {str(e)[:160]}"
     finally:
         conn.close()
@@ -710,27 +709,59 @@ else:
     if ord_cur and rev_cur:
         st.caption(t("home.sales.two_numbers", 
             gap=ord_cur - rev_cur, pct=(ord_cur - rev_cur) / ord_cur * 100))
-    # План месяца из реестра прогноза (ТЗ 010): ожидание — доля дней с данными,
-    # темп — факт / ожидание − 1. Пулы сравниваются справочно: план там только Amazon
-    plan_sum, pace_thr, plan_err = load_plan_month(data_version("economics_summary", "updated_at"))
-    st.markdown(f"**{t('home.plan.title')}**")
+    # План текущего месяца из реестра прогноза (ТЗ 010) в трёх разрезах. От периода
+    # страницы не зависит: человек менял период и думал, что план пересчитался
+    _today = datetime.now().date()
+    plan_raw, pace_thr, plan_err = load_plan_month(data_version("economics_summary", "updated_at"))
+    st.markdown(f"**{t('home.plan.month_title', m=_today.strftime('%m.%Y'))}**")
+    st.caption(t("home.plan.always_current"))
     if plan_err:
         st.caption(t("home.plan.error", e=plan_err))
-    elif plan_sum.empty:
+    elif plan_raw.empty or plan_raw["plan_units"].notna().sum() == 0:
         st.caption(t("home.plan.none"))
     else:
+        _modes = {"country": t("home.plan.mode_country"), "country_mp": t("home.plan.mode_country_mp"),
+                  "platform": t("home.plan.mode_platform")}
+        pm1, pm2 = st.columns([3, 1])
+        _mode_lbl = pm1.radio(t("home.plan.mode"), list(_modes.values()), horizontal=True,
+                              key="plan_mode", label_visibility="collapsed")
+        _mode = next(k for k, v in _modes.items() if v == _mode_lbl)
+        _units = pm2.toggle(t("home.plan.units_toggle"), value=False, key="plan_units")
+        rows, total, _share = plan_fact.month_view(plan_raw, _mode, _today)
+
+        # итог — по всем объектам плана, одинаковый во всех разрезах
+        _pace_total = ((total["fact_rev"] / total["expected_rev"] - 1) * 100
+                       if total.get("expected_rev") else None)
+        tt1, tt2, tt3 = st.columns(3)
+        tt1.metric(t("home.plan.total_plan"), fmt_money(total["plan_rev"]), help=t("home.plan.total_help"))
+        tt2.metric(t("home.plan.total_expected"), fmt_money(total["expected_rev"]),
+                   help=t("home.plan.total_expected_help", k=total["covered"], n=total["days_in_month"]))
+        tt3.metric(t("home.plan.total_fact"), fmt_money(total["fact_rev"]),
+                   delta=(None if _pace_total is None else f"{_pace_total:+.0f}%"),
+                   help=t("home.plan.col_pace_help"))
+
         def _pace_txt(v):
             if v is None or pd.isna(v):
                 return "—"
             mark = "▲" if v > pace_thr else ("▼" if v < -pace_thr else "•")
             return f"{mark} {v:+.0f}%"
-        # евро первой строкой, штуки второй: клиент сравнивает план-факт в деньгах
-        _pt = plan_fact.two_rows(plan_sum)
-        _pt["pace"] = [_pace_txt(v) for v in _pt["pace"]]
-        _pt["plan"] = _pt["plan"].round(0); _pt["expected"] = _pt["expected"].round(0); _pt["fact"] = _pt["fact"].round(0)
-        st.dataframe(_pt, hide_index=True, use_container_width=True,
+        _out = []
+        for _, r in rows.iterrows():
+            nm = r["name"] if r["level"] == 0 else f"      ↳ {r['name']}"
+            _out.append(dict(name=nm, sub=r["sub"], unit="€", plan=r["plan_rev"], expected=r["expected_rev"],
+                             fact=r["fact_rev"], done=r["done_rev"], pace=_pace_txt(r["pace_rev"]), skus=r["plan_skus"]))
+            if _units:
+                _out.append(dict(name="", sub="", unit="шт", plan=r["plan_units"], expected=r["expected_units"],
+                                 fact=r["fact_units"], done=r["done_units"], pace=_pace_txt(r["pace_units"]), skus=None))
+        _pt = pd.DataFrame(_out)
+        for c in ("plan", "expected", "fact"):
+            _pt[c] = _pt[c].round(0)
+        _cols = ["name", "unit", "plan", "expected", "fact", "done", "pace", "skus", "sub"] if _units \
+            else ["name", "plan", "expected", "fact", "done", "pace", "skus", "sub"]
+        st.dataframe(_pt[_cols], hide_index=True, use_container_width=True,
+                     height=min(600, 38 + 35 * len(_pt)),
                      column_config={
-                         "obj": st.column_config.TextColumn(t("home.plan.col_obj"), width="small"),
+                         "name": st.column_config.TextColumn(t("home.plan.col_name"), width="medium"),
                          "unit": st.column_config.TextColumn(t("home.plan.col_unit"), width="small"),
                          "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%,.0f",
                                                                help=t("home.plan.col_plan_help")),
@@ -742,11 +773,13 @@ else:
                          "pace": st.column_config.TextColumn(t("home.plan.col_pace"),
                                                              help=t("home.plan.col_pace_help")),
                          "skus": st.column_config.NumberColumn(t("home.plan.col_skus"), format="%d"),
+                         "sub": st.column_config.TextColumn(t("home.plan.col_sub"), width="medium"),
                      })
-        _dt = plan_sum["data_through"].max()
-        _row = plan_sum.iloc[0]
-        st.caption(t("home.plan.note", d=(_dt.strftime("%d.%m") if pd.notna(_dt) else "—"),
-                     k=int(_row["days_covered"]), n=int(_row["days_in_month"]), thr=f"{pace_thr:.0f}"))
+        _dt = total.get("data_through")
+        st.caption(t("home.plan.note", d=(_dt.strftime("%d.%m") if _dt else "—"),
+                     k=total["covered"], n=total["days_in_month"], thr=f"{pace_thr:.0f}"))
+        if total.get("pool_note"):
+            st.caption(t("home.plan.pool_note", pools="; ".join(total["pool_note"])))
     st.page_link("pages/5_Money.py", label=t("home.link.money"),
                  icon=":material/euro:")
 

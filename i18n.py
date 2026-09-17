@@ -741,21 +741,15 @@ TRANSLATIONS = {
     "home.plan.title": {
         "ru": "План месяца", "uk": "План місяця", "en": "Month plan"},
     "home.plan.note": {
-        "ru": "Строка «€» — выручка (план по целевой цене листа, факт — чистые продажи), строка «шт» — штуки. "
-              "Факт по дате заказа до {d} против плана из реестра прогноза, ожидание — "
+        "ru": "Выручка: план по целевой цене листа, факт — чистые продажи по дате заказа до {d}. Ожидание — "
               "доля календарных дней месяца с данными ({k} из {n}). Темп по ТЗ 010 §13: "
-              "факт / ожидание − 1, порог {thr}%. Пулы Spain и France: план только по Amazon, "
-              "факт — по всем каналам пула, поэтому их темп — справочно.",
-        "uk": "Рядок «€» — виручка (план за цільовою ціною листа, факт — чисті продажі), рядок «шт» — штуки. "
-              "Факт за датою замовлення до {d} проти плану з реєстру прогнозу, очікування — "
+              "факт / ожидание − 1, порог {thr}%.",
+        "uk": "Виручка: план за цільовою ціною листа, факт — чисті продажі за датою замовлення до {d}. Очікування — "
               "частка календарних днів місяця з даними ({k} з {n}). Темп за ТЗ 010 §13: "
-              "факт / очікування − 1, поріг {thr}%. Пули Spain і France: план лише по Amazon, "
-              "факт — по всіх каналах пулу, тому їхній темп — довідково.",
-        "en": "«€» row — revenue (plan at the sheet's target price, fact — net sales), «шт» row — units. "
-              "Fact by order date through {d} against the forecast register plan; expectation is "
+              "факт / очікування − 1, поріг {thr}%.",
+        "en": "Revenue: plan at the sheet's target price, fact — net sales by order date through {d}. Expectation is "
               "the share of calendar days with data ({k} of {n}). Pace per spec 010 §13: "
-              "fact / expected − 1, threshold {thr}%. Spain and France pools: plan covers Amazon only, "
-              "fact covers all pool channels, so their pace is indicative.",
+              "fact / expected − 1, threshold {thr}%.",
     },
     "home.plan.none": {
         "ru": "Плана на этот месяц в реестре прогноза нет.",
@@ -765,6 +759,37 @@ TRANSLATIONS = {
         "ru": "Реестр прогноза не прочитался: {e}. Это про права или схему, а не про отсутствие плана.",
         "uk": "Реєстр прогнозу не прочитався: {e}. Це про права або схему, а не про відсутність плану.",
         "en": "Could not read the forecast register: {e}. This is about permissions or schema, not a missing plan."},
+    "home.plan.month_title": {
+        "ru": "План месяца · {m}", "uk": "План місяця · {m}", "en": "Month plan · {m}"},
+    "home.plan.always_current": {
+        "ru": "Всегда текущий календарный месяц — от периода, выбранного вверху страницы, не зависит.",
+        "uk": "Завжди поточний календарний місяць — від періоду, обраного вгорі сторінки, не залежить.",
+        "en": "Always the current calendar month — independent of the period selected at the top of the page."},
+    "home.plan.mode": {"ru": "Разрез", "uk": "Розріз", "en": "View"},
+    "home.plan.mode_country": {"ru": "По стране", "uk": "За країною", "en": "By country"},
+    "home.plan.mode_country_mp": {"ru": "Страна с маркетплейсами", "uk": "Країна з маркетплейсами", "en": "Country with marketplaces"},
+    "home.plan.mode_platform": {"ru": "По площадкам", "uk": "За майданчиками", "en": "By platform"},
+    "home.plan.units_toggle": {"ru": "Показать штуки", "uk": "Показати штуки", "en": "Show units"},
+    "home.plan.total_plan": {"ru": "План, €", "uk": "План, €", "en": "Plan, €"},
+    "home.plan.total_expected": {"ru": "Ожидание, €", "uk": "Очікування, €", "en": "Expected, €"},
+    "home.plan.total_fact": {"ru": "Факт, €", "uk": "Факт, €", "en": "Fact, €"},
+    "home.plan.total_expected_help": {
+        "ru": "План × {k} дней с данными / {n} дней в месяце",
+        "uk": "План × {k} днів з даними / {n} днів у місяці",
+        "en": "Plan × {k} days with data / {n} days in month"},
+    "home.plan.total_help": {
+        "ru": "Сумма по всем объектам плана текущего месяца; одинакова во всех разрезах",
+        "uk": "Сума за всіма обʼєктами плану поточного місяця; однакова в усіх розрізах",
+        "en": "Sum over all plan objects of the current month; the same in every view"},
+    "home.plan.pool_note": {
+        "ru": "План {pools} задан на страну целиком (пул), между маркетплейсами не делится — у них в строке плана прочерк, "
+              "а факт показан свой. Площадка, у которой план есть не по всем странам, итога по плану не получает.",
+        "uk": "План {pools} задано на країну цілком (пул), між маркетплейсами не ділиться — у них у рядку плану прочерк, "
+              "а факт показано свій. Майданчик, у якого план є не за всіма країнами, підсумку за планом не отримує.",
+        "en": "The plan for {pools} is set for the whole country (pool) and is not split across marketplaces — their plan cell "
+              "is blank while fact is their own. A platform without a plan for every country gets no plan total."},
+    "home.plan.col_name": {"ru": "Страна / маркетплейс", "uk": "Країна / маркетплейс", "en": "Country / marketplace"},
+    "home.plan.col_sub": {"ru": "Состав", "uk": "Склад", "en": "Members"},
     "home.plan.col_obj": {"ru": "Объект", "uk": "Обʼєкт", "en": "Object"},
     "home.plan.col_plan": {"ru": "План", "uk": "План", "en": "Plan"},
     "home.plan.col_unit": {"ru": "Ед.", "uk": "Од.", "en": "Unit"},
