@@ -32,6 +32,24 @@ TR = {
         "tab_wh": "🏭 Склады", "tab_ch": "🔗 Подпитка", "tab_mp": "🌍 Маркетплейсы",
         "tab_pool": "📦 Пулы", "tab_norm": "📏 Нормативы",
         "tab_assort": "🧭 Ассортимент",
+        "tab_alerts": "🔔 Алерты",
+        "al_hint": "Справочник типов алертов Кабинета. Указан список ClickUp — задачи уходят туда; "
+                   "список пуст — тип живёт только в «Инцидентах». Других включателей нет. "
+                   "Исполнитель — роль ClickUp, не человек; роли заведёт Владислав. "
+                   "«Контроль закрытия»: Кабинет сам закрывает задачу, когда причина ушла из данных, и "
+                   "переоткрывает, если её закрыли руками при живой причине; без контроля — задачу создали и отдали.",
+        "al_hint2": "Идентификатор алерта обязателен в задаче: в списке ClickUp должно быть текстовое поле "
+                    "«Alert ID». Пока его нет, джоба задачи не создаёт — причина в колонке «Проверка списка».",
+        "al_only_routed": "Только со списком", "al_search": "Тип",
+        "al_col_type": "Тип", "al_col_title": "Название", "al_col_descr": "Что означает",
+        "al_col_list": "Список ClickUp (id)", "al_col_list_name": "Путь списка",
+        "al_col_mode": "Режим", "al_col_watch": "Контроль закрытия", "al_col_risk": "Risk",
+        "al_col_due": "Срок, дн", "al_col_role": "Роль ClickUp", "al_col_role_id": "id роли",
+        "al_col_since": "Задачи с даты", "al_col_open": "Открыто", "al_col_tasks": "Задач в ClickUp",
+        "al_col_check": "Проверка списка", "al_col_checked": "Проверено",
+        "al_mode_task": "задача на инцидент", "al_mode_digest": "дайджест",
+        "al_summary": "Типов: {total}, со списком ClickUp: {routed}, открытых инцидентов: {open}",
+        "al_sync_hint": "Джоба «Kabinet - ClickUp Sync» ходит раз в час; изменения здесь подхватываются следующим прогоном.",
         "as_hint": "Слева факт — статус по продажам, его считает загрузчик и руками он не правится. "
                    "Справа намерение — что с этим SKU на этом рынке решено. Прогноз читает намерение: "
                    "«выводим» и «не продаём» из прогноза исключаются, «запускаем» — попадает без истории.",
@@ -123,6 +141,24 @@ TR = {
         "tab_wh": "🏭 Склади", "tab_ch": "🔗 Підживлення", "tab_mp": "🌍 Маркетплейси",
         "tab_pool": "📦 Пули", "tab_norm": "📏 Нормативи",
         "tab_assort": "🧭 Асортимент",
+        "tab_alerts": "🔔 Алерти",
+        "al_hint": "Довідник типів алертів Кабінету. Вказано список ClickUp — задачі йдуть туди; "
+                   "список порожній — тип живе лише в «Інцидентах». Інших вмикачів немає. "
+                   "Виконавець — роль ClickUp, не людина; ролі заведе Владислав. "
+                   "«Контроль закриття»: Кабінет сам закриває задачу, коли причина зникла з даних, і "
+                   "перевідкриває, якщо її закрили руками при живій причині; без контролю — задачу створили й віддали.",
+        "al_hint2": "Ідентифікатор алерту обов'язковий у задачі: у списку ClickUp має бути текстове поле "
+                    "«Alert ID». Поки його немає, джоба задач не створює — причина в колонці «Перевірка списку».",
+        "al_only_routed": "Лише зі списком", "al_search": "Тип",
+        "al_col_type": "Тип", "al_col_title": "Назва", "al_col_descr": "Що означає",
+        "al_col_list": "Список ClickUp (id)", "al_col_list_name": "Шлях списку",
+        "al_col_mode": "Режим", "al_col_watch": "Контроль закриття", "al_col_risk": "Risk",
+        "al_col_due": "Термін, дн", "al_col_role": "Роль ClickUp", "al_col_role_id": "id ролі",
+        "al_col_since": "Задачі з дати", "al_col_open": "Відкрито", "al_col_tasks": "Задач у ClickUp",
+        "al_col_check": "Перевірка списку", "al_col_checked": "Перевірено",
+        "al_mode_task": "задача на інцидент", "al_mode_digest": "дайджест",
+        "al_summary": "Типів: {total}, зі списком ClickUp: {routed}, відкритих інцидентів: {open}",
+        "al_sync_hint": "Джоба «Kabinet - ClickUp Sync» ходить раз на годину; зміни тут підхоплюються наступним прогоном.",
         "as_hint": "Ліворуч факт — статус за продажами, його рахує завантажувач і руками він не правиться. "
                    "Праворуч намір — що з цим SKU на цьому ринку вирішено. Прогноз читає намір: "
                    "«виводимо» і «не продаємо» з прогнозу виключаються, «запускаємо» — потрапляє без історії.",
@@ -214,6 +250,24 @@ TR = {
         "tab_wh": "🏭 Warehouses", "tab_ch": "🔗 Supply chains", "tab_mp": "🌍 Marketplaces",
         "tab_pool": "📦 Pools", "tab_norm": "📏 Coverage norms",
         "tab_assort": "🧭 Assortment",
+        "tab_alerts": "🔔 Alerts",
+        "al_hint": "Dictionary of Kabinet alert types. A ClickUp list set — tasks go there; "
+                   "list empty — the type lives only in «Incidents». There is no other switch. "
+                   "Assignee is a ClickUp role, not a person; roles will be created by Vladyslav. "
+                   "«Watch close»: Kabinet closes the task itself once the cause is gone from data and "
+                   "reopens it if closed by hand while the cause persists; unwatched — created and handed over.",
+        "al_hint2": "The alert identifier is mandatory on the task: the ClickUp list must have a text field "
+                    "«Alert ID». Until it exists the job creates no tasks — see the «List check» column.",
+        "al_only_routed": "Only with a list", "al_search": "Type",
+        "al_col_type": "Type", "al_col_title": "Title", "al_col_descr": "Meaning",
+        "al_col_list": "ClickUp list (id)", "al_col_list_name": "List path",
+        "al_col_mode": "Mode", "al_col_watch": "Watch close", "al_col_risk": "Risk",
+        "al_col_due": "Due, days", "al_col_role": "ClickUp role", "al_col_role_id": "role id",
+        "al_col_since": "Tasks since", "al_col_open": "Open", "al_col_tasks": "Tasks in ClickUp",
+        "al_col_check": "List check", "al_col_checked": "Checked",
+        "al_mode_task": "task per incident", "al_mode_digest": "digest",
+        "al_summary": "Types: {total}, with a ClickUp list: {routed}, open incidents: {open}",
+        "al_sync_hint": "The «Kabinet - ClickUp Sync» job runs hourly; changes here are picked up on the next run.",
         "as_hint": "Left is fact — the sales-derived status, computed by the loader, not editable. "
                    "Right is intent — what has been decided for this SKU on this market. The forecast reads intent: "
                    "«phase out» and «stop» are excluded, «launch» enters without history.",
@@ -450,9 +504,9 @@ init_lang()
 st.title(_tr("title"))
 st.caption(_tr("sub"))
 
-tab_wh, tab_ch, tab_mp, tab_pool, tab_norm, tab_assort = st.tabs(
+tab_wh, tab_ch, tab_mp, tab_pool, tab_norm, tab_assort, tab_alerts = st.tabs(
     [_tr("tab_wh"), _tr("tab_ch"), _tr("tab_mp"), _tr("tab_pool"), _tr("tab_norm"),
-     _tr("tab_assort")]
+     _tr("tab_assort"), _tr("tab_alerts")]
 )
 
 # ---------------------------------------------------------------- склады ---
@@ -1107,6 +1161,135 @@ with tab_assort:
                            SET target_status = EXCLUDED.target_status, note = EXCLUDED.note,
                                updated_by = EXCLUDED.updated_by, updated_at = now()
                     """, (r["sku"], mp_sel, now_t, now_n or None)))
+            if not stmts:
+                st.info(_tr("nochange"))
+            else:
+                try:
+                    exec_sql(stmts)
+                    st.cache_data.clear()
+                    st.success(_trf("saved", n=len(stmts)))
+                    st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+
+
+# ------------------------------------------------------------------ алерты ---
+with tab_alerts:
+    st.caption(_tr("al_hint"))
+    st.caption(_tr("al_hint2"))
+
+    # Справочник заполняет джоба синка (новые типы из журнала — пустой строкой) и этот
+    # экран. Список ClickUp — единственный включатель: пусто значит «не отправляем».
+    IT = "kabinet_data.incident_types"
+    if not has_table(IT):
+        st.info(_tr("no_data"))
+    else:
+        types = q(f"""
+            SELECT t.incident_type, t.title, t.description, t.clickup_list_id, t.clickup_list_name,
+                   t.mode, t.watch_close, t.risk, t.due_days, t.assignee_group_name, t.assignee_group_id,
+                   t.enabled_since, t.last_check_note, t.last_check_at, t.note,
+                   COALESCE(o.n_open, 0)  AS n_open,
+                   COALESCE(c.n_tasks, 0) AS n_tasks
+            FROM {IT} t
+            LEFT JOIN (SELECT incident_type, count(*) AS n_open FROM kabinet_data.incidents
+                       WHERE status IN ('open', 'acknowledged') GROUP BY 1) o USING (incident_type)
+            LEFT JOIN (SELECT incident_type, count(*) AS n_tasks FROM kabinet_data.clickup_tasks
+                       WHERE closed_at IS NULL GROUP BY 1) c USING (incident_type)
+            ORDER BY (t.clickup_list_id IS NULL), t.incident_type
+        """)
+        c1, c2 = st.columns([1.2, 2])
+        only_routed = c1.toggle(_tr("al_only_routed"), value=False, key="al_routed")
+        search = c2.text_input(_tr("al_search"), key="al_search").strip()
+        view = types.copy()
+        if only_routed:
+            view = view[view["clickup_list_id"].notna()]
+        if search:
+            view = view[view["incident_type"].str.contains(search, case=False, na=False)
+                        | view["title"].fillna("").str.contains(search, case=False, na=False)]
+        st.caption(_trf("al_summary", total=len(types), routed=int(types["clickup_list_id"].notna().sum()),
+                        open=int(types["n_open"].sum())))
+
+        _mode_lbl = {"task": _tr("al_mode_task"), "digest": _tr("al_mode_digest")}
+        _mode_code = {v: k for k, v in _mode_lbl.items()}
+        RISKS = ["", "Low", "Medium", "High", "Critical"]
+        view["mode"] = view["mode"].map(_mode_lbl)
+        view["risk"] = view["risk"].fillna("")
+        # id списка — целое, а не float: иначе 901222107497 в редакторе превратится в 9.01e11
+        view["clickup_list_id"] = view["clickup_list_id"].astype("Int64")
+        view["enabled_since"] = pd.to_datetime(view["enabled_since"])
+        for c in ("title", "description", "clickup_list_name", "assignee_group_name", "assignee_group_id",
+                  "last_check_note", "note"):
+            view[c] = view[c].fillna("")
+
+        cols = ["incident_type", "title", "n_open", "clickup_list_id", "mode", "watch_close", "risk",
+                "due_days", "assignee_group_name", "assignee_group_id", "enabled_since", "n_tasks",
+                "clickup_list_name", "last_check_note", "last_check_at", "description", "note"]
+        ed = st.data_editor(
+            view[cols], key="ed_alerts", use_container_width=True, height=560, hide_index=True,
+            num_rows="fixed",
+            disabled=["incident_type", "n_open", "n_tasks", "clickup_list_name", "last_check_note", "last_check_at"],
+            column_config={
+                "incident_type": st.column_config.TextColumn(_tr("al_col_type"), width="medium"),
+                "title": st.column_config.TextColumn(_tr("al_col_title"), width="medium"),
+                "n_open": st.column_config.NumberColumn(_tr("al_col_open"), width="small"),
+                "clickup_list_id": st.column_config.NumberColumn(_tr("al_col_list"), width="medium",
+                                                                 format="%d", step=1),
+                "mode": st.column_config.SelectboxColumn(_tr("al_col_mode"), options=list(_mode_lbl.values()),
+                                                         width="small"),
+                "watch_close": st.column_config.CheckboxColumn(_tr("al_col_watch"), width="small"),
+                "risk": st.column_config.SelectboxColumn(_tr("al_col_risk"), options=RISKS, width="small"),
+                "due_days": st.column_config.NumberColumn(_tr("al_col_due"), width="small", min_value=0, step=1),
+                "assignee_group_name": st.column_config.TextColumn(_tr("al_col_role"), width="small"),
+                "assignee_group_id": st.column_config.TextColumn(_tr("al_col_role_id"), width="small"),
+                "enabled_since": st.column_config.DateColumn(_tr("al_col_since"), width="small",
+                                                             format="DD.MM.YYYY"),
+                "n_tasks": st.column_config.NumberColumn(_tr("al_col_tasks"), width="small"),
+                "clickup_list_name": st.column_config.TextColumn(_tr("al_col_list_name"), width="medium"),
+                "last_check_note": st.column_config.TextColumn(_tr("al_col_check"), width="large"),
+                "last_check_at": st.column_config.DatetimeColumn(_tr("al_col_checked"), width="small",
+                                                                 format="DD.MM HH:mm"),
+                "description": st.column_config.TextColumn(_tr("al_col_descr"), width="large"),
+                "note": st.column_config.TextColumn(_tr("col_note"), width="medium"),
+            },
+        )
+        st.caption(_tr("al_sync_hint"))
+        if st.button(_tr("save"), key="save_alerts", type="primary"):
+            before = view.set_index("incident_type")
+            stmts = []
+            for _, r in ed.iterrows():
+                it = r["incident_type"]
+                new = {
+                    "title": _py(r["title"]), "description": _py(r["description"]),
+                    "clickup_list_id": None if pd.isna(r["clickup_list_id"]) else int(r["clickup_list_id"]),
+                    "mode": _mode_code.get(r["mode"], "task"),
+                    "watch_close": bool(r["watch_close"]),
+                    "risk": _py(r["risk"]), "due_days": _int0(r["due_days"]),
+                    "assignee_group_name": _py(r["assignee_group_name"]),
+                    "assignee_group_id": _py(r["assignee_group_id"]),
+                    "enabled_since": _py(r["enabled_since"]), "note": _py(r["note"]),
+                }
+                old = {
+                    "title": _py(before.at[it, "title"]), "description": _py(before.at[it, "description"]),
+                    "clickup_list_id": None if pd.isna(before.at[it, "clickup_list_id"]) else int(before.at[it, "clickup_list_id"]),
+                    "mode": _mode_code.get(before.at[it, "mode"], "task"),
+                    "watch_close": bool(before.at[it, "watch_close"]),
+                    "risk": _py(before.at[it, "risk"]), "due_days": _int0(before.at[it, "due_days"]),
+                    "assignee_group_name": _py(before.at[it, "assignee_group_name"]),
+                    "assignee_group_id": _py(before.at[it, "assignee_group_id"]),
+                    "enabled_since": _py(before.at[it, "enabled_since"]), "note": _py(before.at[it, "note"]),
+                }
+                changed = {k: v for k, v in new.items() if not _same(v, old[k])}
+                if not changed:
+                    continue
+                # список появился впервые — задачи только с сегодняшнего дня, висящее не переносим
+                if changed.get("clickup_list_id") and old["clickup_list_id"] is None and not new["enabled_since"]:
+                    changed["enabled_since"] = date.today()
+                # список сняли — путь и результат проверки больше не про этот тип
+                if "clickup_list_id" in changed and changed["clickup_list_id"] is None:
+                    changed["clickup_list_name"] = None; changed["last_check_note"] = None
+                sets = ", ".join(f"{k} = %s" for k in changed)
+                stmts.append((f"UPDATE {IT} SET {sets}, updated_by = 'kabinet', updated_at = now() "
+                              f"WHERE incident_type = %s", list(changed.values()) + [it]))
             if not stmts:
                 st.info(_tr("nochange"))
             else:
