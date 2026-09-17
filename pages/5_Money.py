@@ -270,15 +270,15 @@ def load_period_bounds(days: int, d_from=None, d_to=None) -> tuple:
 
 
 @st.cache_data(ttl=600)
-def load_plan_fact(d0, d1, _v: str = "") -> pd.DataFrame:
+def load_plan_fact(d0, d1, _v: str = "") -> tuple:   # (свод, текст ошибки или None)
     """Факт / план по объектам реестра прогноза за период (общий расчёт с Обзором)."""
     if not d0 or not d1:
-        return pd.DataFrame()
+        return pd.DataFrame(), None
     conn = get_connection()
     try:
-        return plan_fact.summarize(plan_fact.load(conn, d0, d1))
-    except Exception:
-        return pd.DataFrame()
+        return plan_fact.summarize(plan_fact.load(conn, d0, d1)), None
+    except Exception as e:
+        return pd.DataFrame(), f"{type(e).__name__}: {str(e)[:160]}"
     finally:
         conn.close()
 
@@ -883,8 +883,10 @@ with tab_country:
     # страницы — общий якорь: те же границы, что у карточек сверху
     st.markdown(f"**{t('money.plan.title')}**")
     _pb0, _pb1 = load_period_bounds(WINDOW, d_from, d_to)
-    pf = load_plan_fact(_pb0, _pb1, _ver_econ)
-    if pf.empty:
+    pf, pf_err = load_plan_fact(_pb0, _pb1, _ver_econ)
+    if pf_err:
+        st.caption(t("home.plan.error", e=pf_err))
+    elif pf.empty:
         st.caption(t("money.plan.none"))
     else:
         _pf = pd.DataFrame({
