@@ -738,6 +738,58 @@ TRANSLATIONS = {
         "en": "Plan comparison will appear once the sales forecast is connected. "
               "For now we compare with the previous period.",
     },
+    "home.plan.title": {
+        "ru": "План месяца", "uk": "План місяця", "en": "Month plan"},
+    "home.plan.note": {
+        "ru": "Факт по дате заказа до {d} против плана из реестра прогноза, ожидание — "
+              "доля календарных дней месяца с данными ({k} из {n}). Темп по ТЗ 010 §13: "
+              "факт / ожидание − 1, порог {thr}%. Пулы Spain и France: план только по Amazon, "
+              "факт — по всем каналам пула, поэтому их темп — справочно.",
+        "uk": "Факт за датою замовлення до {d} проти плану з реєстру прогнозу, очікування — "
+              "частка календарних днів місяця з даними ({k} з {n}). Темп за ТЗ 010 §13: "
+              "факт / очікування − 1, поріг {thr}%. Пули Spain і France: план лише по Amazon, "
+              "факт — по всіх каналах пулу, тому їхній темп — довідково.",
+        "en": "Fact by order date through {d} against the forecast register plan; expectation is "
+              "the share of calendar days with data ({k} of {n}). Pace per spec 010 §13: "
+              "fact / expected − 1, threshold {thr}%. Spain and France pools: plan covers Amazon only, "
+              "fact covers all pool channels, so their pace is indicative.",
+    },
+    "home.plan.none": {
+        "ru": "Плана на этот месяц в реестре прогноза нет.",
+        "uk": "Плану на цей місяць у реєстрі прогнозу немає.",
+        "en": "No plan for this month in the forecast register."},
+    "home.plan.col_obj": {"ru": "Объект", "uk": "Обʼєкт", "en": "Object"},
+    "home.plan.col_plan": {"ru": "План, шт", "uk": "План, шт", "en": "Plan, units"},
+    "home.plan.col_expected": {"ru": "Ожидание", "uk": "Очікування", "en": "Expected"},
+    "home.plan.col_fact": {"ru": "Факт", "uk": "Факт", "en": "Fact"},
+    "home.plan.col_done": {"ru": "Выполнение", "uk": "Виконання", "en": "Done"},
+    "home.plan.col_pace": {"ru": "Темп", "uk": "Темп", "en": "Pace"},
+    "home.plan.col_skus": {"ru": "SKU с планом", "uk": "SKU з планом", "en": "SKUs planned"},
+    "home.plan.col_plan_help": {
+        "ru": "Сумма действующего прогноза по SKU объекта на месяц",
+        "uk": "Сума чинного прогнозу за SKU обʼєкта на місяць",
+        "en": "Sum of the current forecast over the object's SKUs for the month"},
+    "home.plan.col_expected_help": {
+        "ru": "План × дней с данными / дней в месяце",
+        "uk": "План × днів з даними / днів у місяці",
+        "en": "Plan × days with data / days in month"},
+    "home.plan.col_pace_help": {
+        "ru": "Факт / ожидание − 1. Выше порога — продаём быстрее плана, ниже минус порога — отстаём",
+        "uk": "Факт / очікування − 1. Вище порогу — продаємо швидше плану, нижче мінус порогу — відстаємо",
+        "en": "Fact / expected − 1. Above threshold — ahead of plan, below minus threshold — behind"},
+    "money.plan.title": {
+        "ru": "Факт / план за период", "uk": "Факт / план за період", "en": "Fact vs plan for the period"},
+    "money.plan.note": {
+        "ru": "План из реестра прогноза берётся пропорционально календарным дням периода, по "
+              "которым есть факт ({months}). Плановой выручки в реестре пока нет — сравниваются штуки.",
+        "uk": "План із реєстру прогнозу береться пропорційно календарним дням періоду, за "
+              "якими є факт ({months}). Планової виручки в реєстрі поки немає — порівнюються штуки.",
+        "en": "The forecast register plan is prorated by the calendar days of the period that "
+              "have fact ({months}). No planned revenue in the register yet — units are compared."},
+    "money.plan.none": {
+        "ru": "На месяцы выбранного периода плана в реестре нет.",
+        "uk": "На місяці обраного періоду плану в реєстрі немає.",
+        "en": "No plan in the register for the months of the selected period."},
     "home.kpi.ordered": {
         "ru": "Продажи по заказам", "uk": "Продажі за замовленнями", "en": "Ordered sales"},
     "home.kpi.ordered_help_span": {

@@ -11,6 +11,7 @@ from util import as_text, data_boundary
 import catalog
 from links import AMAZON_DOMAIN, amazon_url
 import period as period_mod
+import plan_fact
 
 init_lang()
 
@@ -264,6 +265,20 @@ def load_period_bounds(days: int, d_from=None, d_to=None) -> tuple:
         return pd.Timestamp(d0).date(), pd.Timestamp(d1).date()
     except Exception:
         return None, None
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_plan_fact(d0, d1, _v: str = "") -> pd.DataFrame:
+    """Факт / план по объектам реестра прогноза за период (общий расчёт с Обзором)."""
+    if not d0 or not d1:
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        return plan_fact.summarize(plan_fact.load(conn, d0, d1))
+    except Exception:
+        return pd.DataFrame()
     finally:
         conn.close()
 
@@ -863,6 +878,36 @@ with tab_country:
             "cm_pct": st.column_config.NumberColumn(t("money.col.cm_pct"), format="%.1f%%"),
         },
     )
+
+    # Факт / план за период по объектам реестра прогноза (ТЗ 010 §13). Период
+    # страницы — общий якорь: те же границы, что у карточек сверху
+    st.markdown(f"**{t('money.plan.title')}**")
+    _pb0, _pb1 = load_period_bounds(WINDOW, d_from, d_to)
+    pf = load_plan_fact(_pb0, _pb1, _ver_econ)
+    if pf.empty:
+        st.caption(t("money.plan.none"))
+    else:
+        _pf = pd.DataFrame({
+            "obj": pf["object_name"],
+            "plan": pf["expected_units"].round(0).astype(int),
+            "fact": pf["fact_units"].astype(int),
+            "done": [None if pd.isna(e) or e <= 0 else min(200.0, f / e * 100)
+                     for f, e in zip(pf["fact_units"], pf["expected_units"])],
+            "pace": pf["pace_pct"],
+            "skus": pf["plan_skus"].astype(int),
+        })
+        st.dataframe(_pf, hide_index=True, use_container_width=True, column_config={
+            "obj": st.column_config.TextColumn(t("home.plan.col_obj")),
+            "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%d",
+                                                  help=t("home.plan.col_expected_help")),
+            "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%d"),
+            "done": st.column_config.ProgressColumn(t("home.plan.col_done"), format="%.0f%%",
+                                                    min_value=0, max_value=200),
+            "pace": st.column_config.NumberColumn(t("home.plan.col_pace"), format="%+.0f%%",
+                                                  help=t("home.plan.col_pace_help")),
+            "skus": st.column_config.NumberColumn(t("home.plan.col_skus"), format="%d"),
+        })
+        st.caption(t("money.plan.note", months=int(pf["months"].max())))
 
 # ---------- комиссии/структура ----------
 with tab_fees:
