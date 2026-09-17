@@ -13,6 +13,7 @@ from db.connection import get_connection, data_version
 from i18n import init_lang, t
 from util import as_text, data_boundary, day_axis
 import period as period_mod
+import plan_fact
 
 init_lang()
 
@@ -143,6 +144,26 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
         """, conn)
     except Exception:
         return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=300)
+def load_plan_month(_v: str = "") -> tuple:
+    """План текущего месяца против факта по объектам реестра прогноза и порог темпа.
+
+    v_forecast_current — представление, table_exists его не видит; пробуем и
+    отступаем на пустое: без реестра блок просто не показывается."""
+    conn = get_connection()
+    try:
+        today = datetime.now().date()
+        df = plan_fact.load(conn, today.replace(day=1), today)
+        thr = pd.read_sql("SELECT value FROM kabinet_data.reorder_params "
+                          "WHERE key = 'forecast_pace_threshold_pct'", conn)
+        thr = float(thr.iloc[0, 0]) if not thr.empty else 25.0
+        return plan_fact.summarize(df), thr
+    except Exception:
+        return pd.DataFrame(), 25.0
     finally:
         conn.close()
 
@@ -687,7 +708,45 @@ else:
     if ord_cur and rev_cur:
         st.caption(t("home.sales.two_numbers", 
             gap=ord_cur - rev_cur, pct=(ord_cur - rev_cur) / ord_cur * 100))
-    st.caption(t("home.sales.no_plan"))
+    # План месяца из реестра прогноза (ТЗ 010): ожидание — доля дней с данными,
+    # темп — факт / ожидание − 1. Пулы сравниваются справочно: план там только Amazon
+    plan_sum, pace_thr = load_plan_month(data_version("economics_summary", "updated_at"))
+    st.markdown(f"**{t('home.plan.title')}**")
+    if plan_sum.empty:
+        st.caption(t("home.plan.none"))
+    else:
+        def _pace_txt(v):
+            if v is None or pd.isna(v):
+                return "—"
+            mark = "▲" if v > pace_thr else ("▼" if v < -pace_thr else "•")
+            return f"{mark} {v:+.0f}%"
+        _pt = pd.DataFrame({
+            "obj": plan_sum["object_name"],
+            "plan": plan_sum["plan_units"].astype(int),
+            "expected": plan_sum["expected_units"].round(0).astype(int),
+            "fact": plan_sum["fact_units"].astype(int),
+            "done": plan_sum["done_pct"],
+            "pace": [_pace_txt(v) for v in plan_sum["pace_pct"]],
+            "skus": plan_sum["plan_skus"].astype(int),
+        })
+        st.dataframe(_pt, hide_index=True, use_container_width=True,
+                     column_config={
+                         "obj": st.column_config.TextColumn(t("home.plan.col_obj")),
+                         "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%d",
+                                                               help=t("home.plan.col_plan_help")),
+                         "expected": st.column_config.NumberColumn(t("home.plan.col_expected"), format="%d",
+                                                                   help=t("home.plan.col_expected_help")),
+                         "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%d"),
+                         "done": st.column_config.ProgressColumn(t("home.plan.col_done"), format="%.0f%%",
+                                                                 min_value=0, max_value=100),
+                         "pace": st.column_config.TextColumn(t("home.plan.col_pace"),
+                                                             help=t("home.plan.col_pace_help")),
+                         "skus": st.column_config.NumberColumn(t("home.plan.col_skus"), format="%d"),
+                     })
+        _dt = plan_sum["data_through"].max()
+        _row = plan_sum.iloc[0]
+        st.caption(t("home.plan.note", d=(_dt.strftime("%d.%m") if pd.notna(_dt) else "—"),
+                     k=int(_row["days_covered"]), n=int(_row["days_in_month"]), thr=f"{pace_thr:.0f}"))
     st.page_link("pages/5_Money.py", label=t("home.link.money"),
                  icon=":material/euro:")
 
