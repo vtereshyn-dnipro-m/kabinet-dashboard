@@ -724,23 +724,19 @@ else:
                 return "—"
             mark = "▲" if v > pace_thr else ("▼" if v < -pace_thr else "•")
             return f"{mark} {v:+.0f}%"
-        _pt = pd.DataFrame({
-            "obj": plan_sum["object_name"],
-            "plan": plan_sum["plan_units"].astype(int),
-            "expected": plan_sum["expected_units"].round(0).astype(int),
-            "fact": plan_sum["fact_units"].astype(int),
-            "done": plan_sum["done_pct"],
-            "pace": [_pace_txt(v) for v in plan_sum["pace_pct"]],
-            "skus": plan_sum["plan_skus"].astype(int),
-        })
+        # евро первой строкой, штуки второй: клиент сравнивает план-факт в деньгах
+        _pt = plan_fact.two_rows(plan_sum)
+        _pt["pace"] = [_pace_txt(v) for v in _pt["pace"]]
+        _pt["plan"] = _pt["plan"].round(0); _pt["expected"] = _pt["expected"].round(0); _pt["fact"] = _pt["fact"].round(0)
         st.dataframe(_pt, hide_index=True, use_container_width=True,
                      column_config={
-                         "obj": st.column_config.TextColumn(t("home.plan.col_obj")),
-                         "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%d",
+                         "obj": st.column_config.TextColumn(t("home.plan.col_obj"), width="small"),
+                         "unit": st.column_config.TextColumn(t("home.plan.col_unit"), width="small"),
+                         "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%,.0f",
                                                                help=t("home.plan.col_plan_help")),
-                         "expected": st.column_config.NumberColumn(t("home.plan.col_expected"), format="%d",
+                         "expected": st.column_config.NumberColumn(t("home.plan.col_expected"), format="%,.0f",
                                                                    help=t("home.plan.col_expected_help")),
-                         "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%d"),
+                         "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%,.0f"),
                          "done": st.column_config.ProgressColumn(t("home.plan.col_done"), format="%.0f%%",
                                                                  min_value=0, max_value=100),
                          "pace": st.column_config.TextColumn(t("home.plan.col_pace"),

@@ -105,7 +105,9 @@ def load(conn, d_from: date, d_to: date) -> pd.DataFrame:
 def summarize(df: pd.DataFrame) -> pd.DataFrame:
     """Свод по объекту за весь период: план (пропорционально дням с данными),
     факт, выполнение и относительное отклонение темпа по ТЗ §13
-    (факт / ожидание − 1). Без ожидания (план 0) отклонение не считается."""
+    (факт / ожидание − 1) — и в штуках, и в евро (`*_rev_*`). Без ожидания
+    (план 0) отклонение не считается. Выручка плана — `forecast_revenue`
+    реестра (штуки × целевая цена из листа), факт — `net_product_sales`."""
     if df.empty:
         return df
     g = (df.groupby("object_name", as_index=False)
@@ -115,8 +117,22 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
                 plan_skus=("plan_skus", "max"), data_through=("data_through", "max"),
                 days_covered=("days_covered", "sum"), days_in_month=("days_in_month", "sum"),
                 months=("month", "nunique")))
-    g["pace_pct"] = [((f / e - 1) * 100) if e and e > 0 else None
-                     for f, e in zip(g["fact_units"], g["expected_units"])]
-    g["done_pct"] = [((f / p) * 100) if p and p > 0 else None
-                     for f, p in zip(g["fact_units"], g["plan_units"])]
-    return g.sort_values("plan_units", ascending=False)
+    def _ratio(num, den, shift):
+        return [((n / d - 1 + shift) * 100) if d and d > 0 else None for n, d in zip(num, den)]
+    g["pace_pct"] = _ratio(g["fact_units"], g["expected_units"], 0)
+    g["done_pct"] = _ratio(g["fact_units"], g["plan_units"], 1)
+    g["pace_rev_pct"] = _ratio(g["fact_rev"], g["expected_rev"], 0)
+    g["done_rev_pct"] = _ratio(g["fact_rev"], g["plan_rev"], 1)
+    return g.sort_values("plan_rev", ascending=False)
+
+
+def two_rows(g: pd.DataFrame) -> pd.DataFrame:
+    """Свод в две строки на объект: евро первой, штуки второй — клиент читает деньги,
+    штуки нужны рядом для проверки. Колонки одинаковые, единица — отдельным полем."""
+    rows = []
+    for _, r in g.iterrows():
+        rows.append(dict(obj=r["object_name"], unit="€", plan=r["plan_rev"], expected=r["expected_rev"],
+                         fact=r["fact_rev"], done=r["done_rev_pct"], pace=r["pace_rev_pct"], skus=r["plan_skus"]))
+        rows.append(dict(obj="", unit="шт", plan=r["plan_units"], expected=r["expected_units"],
+                         fact=r["fact_units"], done=r["done_pct"], pace=r["pace_pct"], skus=None))
+    return pd.DataFrame(rows)

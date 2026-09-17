@@ -889,20 +889,16 @@ with tab_country:
     elif pf.empty:
         st.caption(t("money.plan.none"))
     else:
-        _pf = pd.DataFrame({
-            "obj": pf["object_name"],
-            "plan": pf["expected_units"].round(0).astype(int),
-            "fact": pf["fact_units"].astype(int),
-            "done": [None if pd.isna(e) or e <= 0 else min(200.0, f / e * 100)
-                     for f, e in zip(pf["fact_units"], pf["expected_units"])],
-            "pace": pf["pace_pct"],
-            "skus": pf["plan_skus"].astype(int),
-        })
-        st.dataframe(_pf, hide_index=True, use_container_width=True, column_config={
-            "obj": st.column_config.TextColumn(t("home.plan.col_obj")),
-            "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%d",
+        _pf = plan_fact.two_rows(pf)
+        _pf["done"] = [None if pd.isna(v) else min(200.0, v) for v in _pf["done"]]
+        _pf["plan"] = _pf["expected"].round(0); _pf["fact"] = _pf["fact"].round(0)
+        st.dataframe(_pf[["obj", "unit", "plan", "fact", "done", "pace", "skus"]], hide_index=True,
+                     use_container_width=True, column_config={
+            "obj": st.column_config.TextColumn(t("home.plan.col_obj"), width="small"),
+            "unit": st.column_config.TextColumn(t("home.plan.col_unit"), width="small"),
+            "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%,.0f",
                                                   help=t("home.plan.col_expected_help")),
-            "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%d"),
+            "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%,.0f"),
             "done": st.column_config.ProgressColumn(t("home.plan.col_done"), format="%.0f%%",
                                                     min_value=0, max_value=200),
             "pace": st.column_config.NumberColumn(t("home.plan.col_pace"), format="%+.0f%%",
