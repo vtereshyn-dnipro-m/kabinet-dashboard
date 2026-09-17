@@ -205,8 +205,9 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     mode: 'country' — страна одной строкой; 'country_mp' — страна и её маркетплейсы;
     'platform' — площадка и её маркетплейсы по странам. Возвращает (строки, итог, share):
     итог — по всем объектам плана текущего месяца, одинаковый во всех разрезах.
-    План пула лежит на стране целиком: у маркетплейсов-участников своего плана нет,
-    и делить его между ними здесь нельзя — в строке маркетплейса план пустой.
+    Узел считает план и факт по одному набору маркетплейсов — тем, у кого план есть;
+    остальные видны детьми со своим фактом. Пул (если у него ещё есть свой план)
+    прибавляется к стране целиком.
     """
     if df.empty:
         return pd.DataFrame(), {}, 0.0
@@ -224,33 +225,39 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     def add(level, name, sub, r):
         rows.append(dict(level=level, name=name, sub=sub, **r))
 
+    def node(level, name, group, pool_rows):
+        """Узел (страна или площадка): план и факт считаются по одному набору — маркетплейсам
+        с планом (плюс план пула, если он ещё есть). Факт маркетплейсов без плана в узел не
+        входит, иначе выполнение и темп сравнивали бы план Amazon с продажами всех каналов;
+        такие маркетплейсы перечислены в составе и видны детьми со своим фактом."""
+        planned = group[group["plan_units"].notna()]
+        unplanned = sorted(group.loc[group["plan_units"].isna(), "code"])
+        base = planned if (len(planned) or not len(pool_rows)) else group
+        sub = ", ".join(sorted(planned["code"]))
+        if unplanned: sub += (" · " if sub else "") + "без плана: " + ", ".join(unplanned)
+        add(level, name, sub, _agg(base, pool_rows, share))
+
     if mode in ("country", "country_mp"):
         for c in sorted(plan_countries):
             m_c, p_c = in_scope[in_scope["country"] == c], pools[pools["country"] == c]
-            add(0, c, ", ".join(sorted(m_c["code"])) if mode == "country" else "", _agg(m_c, p_c, share))
+            node(0, c, m_c, p_c)
             if mode == "country_mp":
                 for _, m in m_c.sort_values("code").iterrows():
                     add(1, m["code"], m["name"], _agg(m.to_frame().T, pools.iloc[0:0], share))
     else:
         for pf in sorted(in_scope["platform"].dropna().unique()):
             m_p = in_scope[in_scope["platform"] == pf]
-            agg = _agg(m_p, pools.iloc[0:0], share)
-            with_plan = sorted(m_p.loc[m_p["plan_units"].notna(), "code"])
-            if 0 < len(with_plan) < len(m_p):
-                # у части маркетплейсов площадки план лежит на пуле страны: сумма по площадке
-                # была бы планом двух стран против факта четырёх — не показываем её вовсе
-                for k in ("plan_units", "plan_rev", "expected_units", "expected_rev", "plan_skus"): agg[k] = None
-                sub = "план только: " + ", ".join(with_plan)
-            else:
-                sub = ", ".join(sorted(m_p["code"]))
-            add(0, pf, sub, agg)
+            if m_p["plan_units"].isna().all():
+                continue   # площадка без единого плана — не про этот блок
+            node(0, pf, m_p, pools.iloc[0:0])
             for _, m in m_p.sort_values("code").iterrows():
                 add(1, m["code"], m["name"], _agg(m.to_frame().T, pools.iloc[0:0], share))
     out = pd.DataFrame(rows)
     for k in ("units", "rev"):
         out[f"done_{k}"] = [((f / p) * 100) if p else None for f, p in zip(out[f"fact_{k}"], out[f"plan_{k}"])]
         out[f"pace_{k}"] = [((f / e - 1) * 100) if e else None for f, e in zip(out[f"fact_{k}"], out[f"expected_{k}"])]
-    total = _agg(in_scope, pools, share)
+    # итог — тем же правилом: план и факт по маркетплейсам с планом (+ план пулов)
+    total = _agg(in_scope[in_scope["plan_units"].notna()] if len(pools) == 0 else in_scope, pools, share)
     total["covered"], total["days_in_month"] = covered, dim
     total["data_through"] = max(dt) if len(dt) else None
     total["pool_note"] = sorted(f"{p['name']} ({', '.join(p['members'] or [])})" for _, p in pools.iterrows())
