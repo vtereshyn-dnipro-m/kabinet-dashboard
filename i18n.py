@@ -758,6 +758,10 @@ TRANSLATIONS = {
         "ru": "Плана на этот месяц в реестре прогноза нет.",
         "uk": "Плану на цей місяць у реєстрі прогнозу немає.",
         "en": "No plan for this month in the forecast register."},
+    "home.plan.error": {
+        "ru": "Реестр прогноза не прочитался: {e}. Это про права или схему, а не про отсутствие плана.",
+        "uk": "Реєстр прогнозу не прочитався: {e}. Це про права або схему, а не про відсутність плану.",
+        "en": "Could not read the forecast register: {e}. This is about permissions or schema, not a missing plan."},
     "home.plan.col_obj": {"ru": "Объект", "uk": "Обʼєкт", "en": "Object"},
     "home.plan.col_plan": {"ru": "План, шт", "uk": "План, шт", "en": "Plan, units"},
     "home.plan.col_expected": {"ru": "Ожидание", "uk": "Очікування", "en": "Expected"},

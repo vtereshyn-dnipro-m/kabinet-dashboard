@@ -149,7 +149,7 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
-def load_plan_month(_v: str = "") -> tuple:
+def load_plan_month(_v: str = "") -> tuple:   # (свод, порог темпа, текст ошибки или None)
     """План текущего месяца против факта по объектам реестра прогноза и порог темпа.
 
     v_forecast_current — представление, table_exists его не видит; пробуем и
@@ -161,9 +161,11 @@ def load_plan_month(_v: str = "") -> tuple:
         thr = pd.read_sql("SELECT value FROM kabinet_data.reorder_params "
                           "WHERE key = 'forecast_pace_threshold_pct'", conn)
         thr = float(thr.iloc[0, 0]) if not thr.empty else 25.0
-        return plan_fact.summarize(df), thr
-    except Exception:
-        return pd.DataFrame(), 25.0
+        return plan_fact.summarize(df), thr, None
+    except Exception as e:
+        # «Плана нет» и «не смогли прочитать» — разные вещи: первое про реестр,
+        # второе про права или схему, и второе не должно выглядеть как первое
+        return pd.DataFrame(), 25.0, f"{type(e).__name__}: {str(e)[:160]}"
     finally:
         conn.close()
 
@@ -710,9 +712,11 @@ else:
             gap=ord_cur - rev_cur, pct=(ord_cur - rev_cur) / ord_cur * 100))
     # План месяца из реестра прогноза (ТЗ 010): ожидание — доля дней с данными,
     # темп — факт / ожидание − 1. Пулы сравниваются справочно: план там только Amazon
-    plan_sum, pace_thr = load_plan_month(data_version("economics_summary", "updated_at"))
+    plan_sum, pace_thr, plan_err = load_plan_month(data_version("economics_summary", "updated_at"))
     st.markdown(f"**{t('home.plan.title')}**")
-    if plan_sum.empty:
+    if plan_err:
+        st.caption(t("home.plan.error", e=plan_err))
+    elif plan_sum.empty:
         st.caption(t("home.plan.none"))
     else:
         def _pace_txt(v):
