@@ -356,15 +356,19 @@ def load_channels() -> pd.DataFrame:
     conn = get_connection()
     try:
         df = pd.read_sql("SELECT * FROM kabinet_data.v_marketplaces", conn)
+        # каноничный код справочника (AMZ-ES, LM-ES, MM-FR) — для подписей; в витринах
+        # лежит legacy-код (ES, LM, MM_ES), и на экране он читается как страна, а не рынок
+        canon = pd.read_sql("SELECT id, code AS label FROM kabinet_data.marketplaces_new", conn)
     except Exception:
-        return pd.DataFrame(columns=["marketplace_code", "channel"])
+        return pd.DataFrame(columns=["marketplace_code", "channel", "label"])
     finally:
         conn.close()
     if df.empty or not {"marketplace_code", "channel"} <= set(df.columns):
-        return pd.DataFrame(columns=["marketplace_code", "channel"])
-    out = df[["marketplace_code", "channel"]].copy()
+        return pd.DataFrame(columns=["marketplace_code", "channel", "label"])
+    out = df[["id", "marketplace_code", "channel"]].merge(canon, on="id", how="left")[["marketplace_code", "channel", "label"]]
     out["marketplace_code"] = out["marketplace_code"].astype(str).str.strip().str.upper()
     out["channel"] = out["channel"].astype(str).str.strip()
+    out["label"] = out["label"].fillna(out["marketplace_code"])
     return out[out["channel"].ne("") & out["channel"].ne("None")].drop_duplicates()
 
 
@@ -610,6 +614,10 @@ else:
         # справочника — следующая появится сама
         ch_map = load_channels()
         _ch_lookup = dict(zip(ch_map["marketplace_code"], ch_map["channel"]))
+        _label_of = dict(zip(ch_map["marketplace_code"], ch_map.get("label", ch_map["marketplace_code"])))
+        def _lbl(code) -> str:
+            c = as_text(code).strip().upper()
+            return _label_of.get(c, c)
 
         def _channel_of(code) -> str:
             return _ch_lookup.get(as_text(code).strip().upper(),
@@ -645,7 +653,7 @@ else:
             if not codes:
                 sub = ""
             elif len(codes) <= 2:
-                sub = ", ".join(codes)
+                sub = ", ".join(_lbl(c) for c in codes)
             else:
                 sub = t("home.sales.n_countries", n=len(codes))
             value = (t("home.sales.silent") if r["revenue"] <= 0
@@ -698,9 +706,9 @@ else:
             col = color_of[r["channel"]]
             mine = sold_mp[sold_mp["channel"] == r["channel"]]
             for _, m in mine.sort_values("revenue", ascending=False).iterrows():
-                chips += _chip(m["marketplace"], m["revenue"], col)
+                chips += _chip(_lbl(m["marketplace"]), m["revenue"], col)
             for code in silent_by_ch.get(r["channel"], []):
-                chips += _chip(code, 0.0, ACCENT, muted=True)
+                chips += _chip(_lbl(code), 0.0, ACCENT, muted=True)
 
         st.markdown(
             f'<div style="margin-top:6px;line-height:2">{chips}</div>',
