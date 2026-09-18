@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from db.connection import get_connection, data_version
-from i18n import init_lang, t
+from i18n import init_lang, t, incident_type_label
 from util import as_text, data_boundary, day_axis
 import period as period_mod
 import plan_fact
@@ -240,6 +240,19 @@ def load_coverage() -> pd.DataFrame:
 # ttl=60: инциденты и пульс — сигналы «прямо сейчас», их держат ради
 # реакции, а не ради экономии запросов. Остальные загрузчики оставлены
 # на своих 300 с: они тянут агрегаты за месяц, там минута роли не играет
+@st.cache_data(ttl=600)
+def load_incident_titles() -> dict:
+    """Названия типов из справочника incident_types — запас для типов без строки в словаре."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("SELECT incident_type, title FROM kabinet_data.incident_types WHERE title IS NOT NULL", conn)
+        return dict(zip(df["incident_type"], df["title"]))
+    except Exception:
+        return {}
+    finally:
+        conn.close()
+
+
 @st.cache_data(ttl=60)
 def load_incidents() -> pd.DataFrame:
     conn = get_connection()
@@ -902,18 +915,11 @@ with il:
                   help=t("home.kpi.inc_oldest_help"))
 
         if len(open_inc):
-            TYPE_LABEL = {
-                "low_stock": t("home.inc.low_stock"),
-                "out_of_stock": t("home.inc.out_of_stock"),
-                "stale_data": t("home.inc.stale_data"),
-                "negative_stock": t("home.inc.negative_stock"),
-                "lm_order_not_accepted": t("home.inc.lm_not_accepted"),
-                "lm_offer_out_of_stock": t("home.inc.lm_offer_zero"),
-                "lm_health_degraded": t("home.inc.lm_degraded"),
-            }
+            # подпись типа: словарь → название из справочника «Алерты» → код
+            _titles = load_incident_titles()
             open_inc = open_inc.copy()
             open_inc["type_label"] = open_inc["incident_type"].map(
-                lambda v: TYPE_LABEL.get(v, v))
+                lambda v: incident_type_label(v, _titles))
             by_type = (open_inc.groupby("type_label", as_index=False)
                                .size().rename(columns={"size": "n"})
                                .sort_values("n", ascending=True).tail(5))

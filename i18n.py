@@ -1071,6 +1071,17 @@ TRANSLATIONS = {
         "ru": "Оффер обнулён", "uk": "Оффер обнулено", "en": "Offer out of stock"},
     "inc.type.lm_health_degraded": {
         "ru": "Показатели канала просели", "uk": "Показники каналу просіли", "en": "Channel health down"},
+    "inc.type.listing_pair_blocked": {"ru": "Листинг заблокирован", "uk": "Лістинг заблоковано", "en": "Listing blocked"},
+    "inc.type.listing_pair_missing": {"ru": "ASIN не найден", "uk": "ASIN не знайдено", "en": "ASIN not found"},
+    "inc.type.listing_pair_unreachable": {"ru": "Снимок не собран", "uk": "Знімок не зібрано", "en": "Snapshot failed"},
+    "inc.type.listing_suppressed": {"ru": "Листинг подавлен", "uk": "Лістинг приховано", "en": "Listing suppressed"},
+    "inc.type.manomano_health_degraded": {"ru": "ManoMano: приёмка заказов", "uk": "ManoMano: приймання замовлень", "en": "ManoMano: order acceptance"},
+    "inc.type.carrefour_health_degraded": {"ru": "Carrefour: приёмка заказов", "uk": "Carrefour: приймання замовлень", "en": "Carrefour: order acceptance"},
+    "inc.type.carrefour_order_not_accepted": {"ru": "Carrefour: заказ без акцепта", "uk": "Carrefour: замовлення без акцепту", "en": "Carrefour: order not accepted"},
+    "inc.type.leroy_merlin_order_not_accepted": {"ru": "LM: заказ без акцепта", "uk": "LM: замовлення без акцепту", "en": "LM: order not accepted"},
+    "inc.type.forecast_pace": {"ru": "Продаём быстрее плана", "uk": "Продаємо швидше плану", "en": "Selling ahead of plan"},
+    "inc.type.missing_forecast": {"ru": "Прогноза нет", "uk": "Прогнозу немає", "en": "No forecast"},
+    "inc.type.partial_forecast": {"ru": "Прогноз не на все месяцы", "uk": "Прогноз не на всі місяці", "en": "Forecast incomplete"},
     "inc.status.open": {"ru": "Открыт", "uk": "Відкрито", "en": "Open"},
     "inc.status.acknowledged": {"ru": "В работе", "uk": "В роботі", "en": "In progress"},
     "inc.status.resolved": {"ru": "Закрыт", "uk": "Закрито", "en": "Resolved"},
@@ -3516,6 +3527,21 @@ def t(key: str, **kw) -> str:
     except (IndexError, ValueError):
         # фигурные скобки в самом тексте, не подстановка
         return txt
+
+
+def incident_type_label(code: str, titles: dict | None = None) -> str:
+    """Человеческая подпись типа инцидента.
+
+    Сначала словарь (`inc.type.<код>`), потом название из справочника
+    `incident_types` (его ведут на «Справочники → Алерты»), и только потом
+    сам код. Голый `listing_pair_blocked` на Обзоре — это не подпись,
+    а признак, что тип завели, а слово для него нет."""
+    key = f"inc.type.{code}"
+    if key in TRANSLATIONS:
+        return t(key)
+    if titles and titles.get(code):
+        return titles[code]
+    return code
 
 
 def language_toggle(location=None):

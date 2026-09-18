@@ -4,7 +4,7 @@ import streamlit as st
 import plotly.express as px
 
 from db.connection import get_connection
-from i18n import init_lang, t
+from i18n import init_lang, t, incident_type_label
 from util import as_text
 import catalog
 
@@ -172,8 +172,9 @@ with c2:
     default_status = [s for s in ("open", "acknowledged") if s in statuses] or statuses
     stat = st.multiselect(t("inc.filter.status"), statuses, default=default_status)
 with c3:
-    itype = st.multiselect(t("inc.filter.type"), sorted(df["incident_type"].unique()),
-                           default=sorted(df["incident_type"].unique()))
+    _types_all = sorted(df["incident_type"].unique())
+    itype = st.multiselect(t("inc.filter.type"), _types_all, default=_types_all,
+                           format_func=incident_type_label)
 with c4:
     search = st.text_input(t("inc.filter.search"), placeholder=t("inc.filter.search_placeholder"))
 
@@ -261,8 +262,9 @@ left, mid, right = st.columns(3)
 
 with left:
     by_type = open_df.groupby("incident_type").size().reset_index(name="count")
+    by_type["type_label"] = by_type["incident_type"].map(incident_type_label)
     if not by_type.empty:
-        fig = px.pie(by_type, names="incident_type", values="count",
+        fig = px.pie(by_type, names="type_label", values="count",
                      hole=0.55, title=t("inc.chart.by_type_title"),
                      color="incident_type",
                      color_discrete_map={"out_of_stock": "#e24b4a",
@@ -317,6 +319,7 @@ def update_status(ids: list, new_status: str):
 show = f.reset_index(drop=True).copy()
 show["severity_icon"] = show["severity"].map(lambda s: f"{SEV_ICON.get(s, '⚪')} {sev_label(s)}")
 show["created_str"] = show["created_at"].dt.strftime("%d.%m.%Y %H:%M")
+show["incident_type"] = show["incident_type"].map(incident_type_label)   # код типа → подпись; ключи строк не трогаем
 # ASIN в инцидентах не хранится — добираем по артикулу, чтобы из строки
 # инцидента можно было сразу открыть карточку и посмотреть, что там
 show["asin_url"] = catalog.url_series(skus=show["sku"])
