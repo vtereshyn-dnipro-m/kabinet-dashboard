@@ -12,6 +12,7 @@
 Язык берётся из i18n.get_lang() — общий с остальными страницами.
 """
 
+import json
 from datetime import date
 
 import pandas as pd
@@ -33,6 +34,25 @@ TR = {
         "tab_pool": "📦 Пулы", "tab_norm": "📏 Нормативы",
         "tab_assort": "🧭 Ассортимент",
         "tab_alerts": "🔔 Алерты",
+        "tab_sku": "🧱 SKU",
+        "sku_hint": "Справочник SKU по ТЗ 005: базовые и составные товары компании. Тип и имя — из Odoo, вес брутто — из ERP, "
+                    "габариты упаковки и EAN — из Amazon, дата ввода — оценка по первому остатку/листингу/продаже. "
+                    "Поле, поправленное здесь, помечается «manual» и загрузчиком больше не трогается.",
+        "sku_search": "Код или название", "sku_type_f": "Тип", "sku_check_f": "Проблема",
+        "sku_only_issues": "Только с проблемами",
+        "sku_t_base": "базовый", "sku_t_composite": "составной", "sku_t_none": "не определён",
+        "sku_summary": "SKU: {total} (базовых {base}, составных {comp}, без типа {none}) · с ошибками контроля {err}",
+        "sku_col_sku": "SKU", "sku_col_type": "Тип", "sku_col_name": "Название", "sku_col_ean": "EAN",
+        "sku_col_supplier": "Код поставщика", "sku_col_intro": "Дата ввода", "sku_col_exit": "Дата вывода",
+        "sku_col_h": "В, мм", "sku_col_w": "Ш, мм", "sku_col_l": "Д, мм", "sku_col_vol": "Объём, м³",
+        "sku_col_weight": "Брутто, кг", "sku_col_restr": "Ограничения", "sku_col_passport": "Паспорт",
+        "sku_col_issues": "Контроль", "sku_col_scope": "Где", "sku_col_src": "Источники",
+        "sku_restr_help": "Коды marketplace или стран через запятую, где применение запрещено (ТЗ 005 §6)",
+        "sku_comp_pick": "Состав набора", "sku_comp_none": "Состав не найден",
+        "sku_comp_col_base": "Базовый SKU", "sku_comp_col_qty": "Кол-во", "sku_comp_col_name": "Название",
+        "sku_comp_note": "Состав неизменяем (ТЗ 005 §7): другой набор — это новый SKU. Источник — Odoo.",
+        "sku_intro_estimate": "оценка",
+        "sku_saved_manual": "Сохранено: {n} полей помечены как введённые вручную",
         "al_hint": "Справочник типов алертов Кабинета. Указан список ClickUp — задачи уходят туда; "
                    "список пуст — тип живёт только в «Инцидентах». Других включателей нет. "
                    "Исполнитель — роль ClickUp, не человек; роли заведёт Владислав. "
@@ -142,6 +162,25 @@ TR = {
         "tab_pool": "📦 Пули", "tab_norm": "📏 Нормативи",
         "tab_assort": "🧭 Асортимент",
         "tab_alerts": "🔔 Алерти",
+        "tab_sku": "🧱 SKU",
+        "sku_hint": "Довідник SKU за ТЗ 005: базові та складені товари компанії. Тип і назва — з Odoo, вага брутто — з ERP, "
+                    "габарити упаковки та EAN — з Amazon, дата введення — оцінка за першим залишком/лістингом/продажем. "
+                    "Поле, виправлене тут, позначається «manual» і завантажувачем більше не чіпається.",
+        "sku_search": "Код або назва", "sku_type_f": "Тип", "sku_check_f": "Проблема",
+        "sku_only_issues": "Лише з проблемами",
+        "sku_t_base": "базовий", "sku_t_composite": "складений", "sku_t_none": "не визначено",
+        "sku_summary": "SKU: {total} (базових {base}, складених {comp}, без типу {none}) · з помилками контролю {err}",
+        "sku_col_sku": "SKU", "sku_col_type": "Тип", "sku_col_name": "Назва", "sku_col_ean": "EAN",
+        "sku_col_supplier": "Код постачальника", "sku_col_intro": "Дата введення", "sku_col_exit": "Дата виведення",
+        "sku_col_h": "В, мм", "sku_col_w": "Ш, мм", "sku_col_l": "Д, мм", "sku_col_vol": "Обʼєм, м³",
+        "sku_col_weight": "Брутто, кг", "sku_col_restr": "Обмеження", "sku_col_passport": "Паспорт",
+        "sku_col_issues": "Контроль", "sku_col_scope": "Де", "sku_col_src": "Джерела",
+        "sku_restr_help": "Коди marketplace або країн через кому, де застосування заборонене (ТЗ 005 §6)",
+        "sku_comp_pick": "Склад набору", "sku_comp_none": "Склад не знайдено",
+        "sku_comp_col_base": "Базовий SKU", "sku_comp_col_qty": "К-сть", "sku_comp_col_name": "Назва",
+        "sku_comp_note": "Склад незмінний (ТЗ 005 §7): інший набір — це новий SKU. Джерело — Odoo.",
+        "sku_intro_estimate": "оцінка",
+        "sku_saved_manual": "Збережено: {n} полів позначено як введені вручну",
         "al_hint": "Довідник типів алертів Кабінету. Вказано список ClickUp — задачі йдуть туди; "
                    "список порожній — тип живе лише в «Інцидентах». Інших вмикачів немає. "
                    "Виконавець — роль ClickUp, не людина; ролі заведе Владислав. "
@@ -251,6 +290,25 @@ TR = {
         "tab_pool": "📦 Pools", "tab_norm": "📏 Coverage norms",
         "tab_assort": "🧭 Assortment",
         "tab_alerts": "🔔 Alerts",
+        "tab_sku": "🧱 SKU",
+        "sku_hint": "SKU directory per spec 005: base and composite company products. Type and name from Odoo, gross weight from ERP, "
+                    "package dimensions and EAN from Amazon, intro date estimated from first stock/listing/sale. "
+                    "A field edited here is marked «manual» and the loader never overwrites it again.",
+        "sku_search": "Code or name", "sku_type_f": "Type", "sku_check_f": "Issue",
+        "sku_only_issues": "Only with issues",
+        "sku_t_base": "base", "sku_t_composite": "composite", "sku_t_none": "undefined",
+        "sku_summary": "SKUs: {total} (base {base}, composite {comp}, untyped {none}) · with control errors {err}",
+        "sku_col_sku": "SKU", "sku_col_type": "Type", "sku_col_name": "Name", "sku_col_ean": "EAN",
+        "sku_col_supplier": "Supplier code", "sku_col_intro": "Intro date", "sku_col_exit": "Exit date",
+        "sku_col_h": "H, mm", "sku_col_w": "W, mm", "sku_col_l": "L, mm", "sku_col_vol": "Volume, m³",
+        "sku_col_weight": "Gross, kg", "sku_col_restr": "Restrictions", "sku_col_passport": "Passport",
+        "sku_col_issues": "Control", "sku_col_scope": "Where", "sku_col_src": "Sources",
+        "sku_restr_help": "Comma-separated marketplace or country codes where use is prohibited (spec 005 §6)",
+        "sku_comp_pick": "Kit composition", "sku_comp_none": "No composition found",
+        "sku_comp_col_base": "Base SKU", "sku_comp_col_qty": "Qty", "sku_comp_col_name": "Name",
+        "sku_comp_note": "Composition is immutable (spec 005 §7): a different kit is a new SKU. Source — Odoo.",
+        "sku_intro_estimate": "estimate",
+        "sku_saved_manual": "Saved: {n} fields marked as manually entered",
         "al_hint": "Dictionary of Kabinet alert types. A ClickUp list set — tasks go there; "
                    "list empty — the type lives only in «Incidents». There is no other switch. "
                    "Assignee is a ClickUp role, not a person; roles will be created by Vladyslav. "
@@ -504,9 +562,9 @@ init_lang()
 st.title(_tr("title"))
 st.caption(_tr("sub"))
 
-tab_wh, tab_ch, tab_mp, tab_pool, tab_norm, tab_assort, tab_alerts = st.tabs(
+tab_wh, tab_ch, tab_mp, tab_pool, tab_norm, tab_assort, tab_alerts, tab_sku = st.tabs(
     [_tr("tab_wh"), _tr("tab_ch"), _tr("tab_mp"), _tr("tab_pool"), _tr("tab_norm"),
-     _tr("tab_assort"), _tr("tab_alerts")]
+     _tr("tab_assort"), _tr("tab_alerts"), _tr("tab_sku")]
 )
 
 # ---------------------------------------------------------------- склады ---
@@ -1300,3 +1358,148 @@ with tab_alerts:
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err", e=e))
+
+
+# --------------------------------------------------------------------- SKU ---
+with tab_sku:
+    st.caption(_tr("sku_hint"))
+    SM = "kabinet_data.sku_master"
+    if not has_table(SM):
+        st.info(_tr("no_data"))
+    else:
+        sm = q(f"""
+            SELECT m.sku, m.sku_type, m.name, m.ean, m.supplier_code, m.intro_date, m.intro_source, m.exit_date,
+                   m.height_mm, m.width_mm, m.length_mm, m.volume_m3, m.gross_weight_kg, m.weight_source,
+                   m.dims_source, m.ean_source, m.type_source,
+                   array_to_string(ARRAY(SELECT jsonb_array_elements_text(m.restrictions)), ', ') AS restrictions,
+                   m.passport_ref, array_to_string(m.in_scope, ', ') AS in_scope,
+                   c.issues, c.n_err
+            FROM {SM} m
+            LEFT JOIN (SELECT sku, string_agg(check_code || CASE severity WHEN 'error' THEN ' ⛔' WHEN 'warning' THEN ' ⚠' ELSE '' END,
+                                              ', ' ORDER BY severity, check_code) AS issues,
+                              count(*) FILTER (WHERE severity = 'error') AS n_err
+                       FROM kabinet_data.sku_checks GROUP BY sku) c USING (sku)
+            ORDER BY (c.n_err IS NULL), c.n_err DESC, m.sku
+        """)
+        _types = {"base": _tr("sku_t_base"), "composite": _tr("sku_t_composite")}
+        f1, f2, f3, f4 = st.columns([1.6, 1, 1.4, 1])
+        search = f1.text_input(_tr("sku_search"), key="sku_search").strip()
+        type_sel = f2.multiselect(_tr("sku_type_f"), ["base", "composite", "none"],
+                                  format_func=lambda x: _types.get(x, _tr("sku_t_none")), key="sku_type_f")
+        _codes = sorted({c.split(" ")[0] for v in sm["issues"].dropna() for c in v.split(", ")})
+        check_sel = f3.multiselect(_tr("sku_check_f"), _codes, key="sku_check_f")
+        only_issues = f4.toggle(_tr("sku_only_issues"), value=False, key="sku_only_issues")
+
+        view = sm.copy()
+        if search:
+            view = view[view["sku"].str.contains(search, case=False, na=False)
+                        | view["name"].fillna("").str.contains(search, case=False, na=False)]
+        if type_sel:
+            view = view[view["sku_type"].fillna("none").isin(type_sel)]
+        if check_sel:
+            view = view[view["issues"].fillna("").apply(lambda v: any(c in v for c in check_sel))]
+        if only_issues:
+            view = view[view["issues"].notna()]
+        st.caption(_trf("sku_summary", total=len(sm), base=int((sm["sku_type"] == "base").sum()),
+                        comp=int((sm["sku_type"] == "composite").sum()), none=int(sm["sku_type"].isna().sum()),
+                        err=int((sm["n_err"].fillna(0) > 0).sum())))
+
+        # тип показываем подписью; дату ввода-оценку помечаем в отдельной колонке источников
+        view["sku_type"] = view["sku_type"].map(_types).fillna(_tr("sku_t_none"))
+        view["sources"] = [", ".join(x for x in (
+            f"{_tr('sku_col_intro').lower()}: {_tr('sku_intro_estimate')}" if str(r.intro_source or "").startswith("estimate") else "",
+            f"{_tr('sku_col_weight').split(',')[0].lower()}: {r.weight_source}" if r.weight_source else "",
+            f"{_tr('sku_col_h').split(',')[0].lower()}: {r.dims_source}" if r.dims_source else "") if x)
+            for r in view.itertuples()]
+        for c in ("ean", "supplier_code", "restrictions", "passport_ref", "issues", "in_scope", "name"):
+            view[c] = view[c].fillna("")
+        view["intro_date"] = pd.to_datetime(view["intro_date"]); view["exit_date"] = pd.to_datetime(view["exit_date"])
+        cols = ["sku", "sku_type", "name", "issues", "ean", "intro_date", "exit_date", "height_mm", "width_mm", "length_mm",
+                "volume_m3", "gross_weight_kg", "supplier_code", "restrictions", "passport_ref", "in_scope", "sources"]
+        ed = st.data_editor(
+            view[cols], key="ed_sku", use_container_width=True, height=560, hide_index=True, num_rows="fixed",
+            disabled=["sku", "name", "issues", "volume_m3", "in_scope", "sources"],
+            column_config={
+                "sku": st.column_config.TextColumn(_tr("sku_col_sku"), width="small"),
+                "sku_type": st.column_config.SelectboxColumn(_tr("sku_col_type"), options=list(_types.values()), width="small"),
+                "name": st.column_config.TextColumn(_tr("sku_col_name"), width="large"),
+                "issues": st.column_config.TextColumn(_tr("sku_col_issues"), width="medium"),
+                "ean": st.column_config.TextColumn(_tr("sku_col_ean"), width="small"),
+                "intro_date": st.column_config.DateColumn(_tr("sku_col_intro"), format="DD.MM.YYYY", width="small"),
+                "exit_date": st.column_config.DateColumn(_tr("sku_col_exit"), format="DD.MM.YYYY", width="small"),
+                "height_mm": st.column_config.NumberColumn(_tr("sku_col_h"), format="%d", step=1, width="small"),
+                "width_mm": st.column_config.NumberColumn(_tr("sku_col_w"), format="%d", step=1, width="small"),
+                "length_mm": st.column_config.NumberColumn(_tr("sku_col_l"), format="%d", step=1, width="small"),
+                "volume_m3": st.column_config.NumberColumn(_tr("sku_col_vol"), format="%.4f", width="small"),
+                "gross_weight_kg": st.column_config.NumberColumn(_tr("sku_col_weight"), format="%.3f", step=0.001, width="small"),
+                "supplier_code": st.column_config.TextColumn(_tr("sku_col_supplier"), width="small"),
+                "restrictions": st.column_config.TextColumn(_tr("sku_col_restr"), width="small", help=_tr("sku_restr_help")),
+                "passport_ref": st.column_config.TextColumn(_tr("sku_col_passport"), width="small"),
+                "in_scope": st.column_config.TextColumn(_tr("sku_col_scope"), width="small"),
+                "sources": st.column_config.TextColumn(_tr("sku_col_src"), width="medium"),
+            },
+        )
+        if st.button(_tr("save"), key="save_sku", type="primary"):
+            _code_of = {v: k for k, v in _types.items()}
+            before = view.set_index("sku")
+            stmts, n_fields = [], 0
+            MANUAL = {"sku_type": "type_source", "ean": "ean_source", "intro_date": "intro_source",
+                      "exit_date": "exit_source", "gross_weight_kg": "weight_source"}
+            for _, r in ed.iterrows():
+                sku = r["sku"]; sets, params = [], []
+                for f in ("sku_type", "ean", "intro_date", "exit_date", "gross_weight_kg", "supplier_code", "passport_ref"):
+                    new_v, old_v = _py(r[f]), _py(before.at[sku, f])
+                    if f == "sku_type":
+                        new_v, old_v = _code_of.get(new_v), _code_of.get(old_v)
+                    if _same(new_v, old_v):
+                        continue
+                    sets.append(f"{f} = %s"); params.append(new_v)
+                    if f in MANUAL:
+                        sets.append(f"{MANUAL[f]} = 'manual'")
+                    stmts.append(("INSERT INTO kabinet_data.sku_change_log (sku, field, old_value, new_value, source, actor) "
+                                  "VALUES (%s, %s, %s, %s, 'manual', 'kabinet')", (sku, f, str(old_v), str(new_v))))
+                    n_fields += 1
+                dims_new = tuple(_py(r[c]) for c in ("height_mm", "width_mm", "length_mm"))
+                dims_old = tuple(_py(before.at[sku, c]) for c in ("height_mm", "width_mm", "length_mm"))
+                if dims_new != dims_old:
+                    sets += ["height_mm = %s", "width_mm = %s", "length_mm = %s", "dims_source = 'manual'"]
+                    params += [None if v is None else int(v) for v in dims_new]
+                    if all(dims_new):
+                        sets.append("volume_m3 = %s"); params.append(round(dims_new[0] * dims_new[1] * dims_new[2] / 1e9, 6))
+                    n_fields += 1
+                restr_new = [x.strip() for x in str(r["restrictions"] or "").split(",") if x.strip()]
+                restr_old = [x.strip() for x in str(before.at[sku, "restrictions"] or "").split(",") if x.strip()]
+                if restr_new != restr_old:
+                    sets.append("restrictions = %s::jsonb"); params.append(json.dumps(restr_new)); n_fields += 1
+                if sets:
+                    stmts.append((f"UPDATE {SM} SET {', '.join(sets)}, updated_at = now(), updated_by = 'kabinet' WHERE sku = %s",
+                                  params + [sku]))
+            if not stmts:
+                st.info(_tr("nochange"))
+            else:
+                try:
+                    exec_sql(stmts)
+                    st.cache_data.clear()
+                    st.success(_trf("sku_saved_manual", n=n_fields))
+                    st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+
+        # состав выбранного набора
+        _kits = sm.loc[sm["sku_type"] == "composite", "sku"].tolist()
+        if _kits:
+            kit = st.selectbox(_tr("sku_comp_pick"), _kits, key="sku_kit")
+            comp = q1("""SELECT c.base_sku, c.quantity, m.name, m.gross_weight_kg, m.volume_m3
+                         FROM kabinet_data.sku_composition c LEFT JOIN kabinet_data.sku_master m ON m.sku = c.base_sku
+                         WHERE c.composite_sku = %s ORDER BY c.base_sku""", (kit,))
+            if comp.empty:
+                st.caption(_tr("sku_comp_none"))
+            else:
+                st.dataframe(comp, hide_index=True, use_container_width=True, column_config={
+                    "base_sku": st.column_config.TextColumn(_tr("sku_comp_col_base")),
+                    "quantity": st.column_config.NumberColumn(_tr("sku_comp_col_qty"), format="%d"),
+                    "name": st.column_config.TextColumn(_tr("sku_comp_col_name"), width="large"),
+                    "gross_weight_kg": st.column_config.NumberColumn(_tr("sku_col_weight"), format="%.3f"),
+                    "volume_m3": st.column_config.NumberColumn(_tr("sku_col_vol"), format="%.4f"),
+                })
+                st.caption(_tr("sku_comp_note"))
