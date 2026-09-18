@@ -751,15 +751,14 @@ else:
         rows, total, _share = plan_fact.month_view(plan_raw, _mode, _today)
 
         # итог — по всем объектам плана, одинаковый во всех разрезах
-        _pace_total = ((total["fact_rev"] / total["expected_rev"] - 1) * 100
-                       if total.get("expected_rev") else None)
+        _pace_total = total.get("pace_rev")   # темп итога — по строкам с планом; факт — по всем
         tt1, tt2, tt3 = st.columns(3)
         tt1.metric(t("home.plan.total_plan"), fmt_money(total["plan_rev"]), help=t("home.plan.total_help"))
         tt2.metric(t("home.plan.total_expected"), fmt_money(total["expected_rev"]),
                    help=t("home.plan.total_expected_help", k=total["covered"], n=total["days_in_month"]))
         tt3.metric(t("home.plan.total_fact"), fmt_money(total["fact_rev"]),
                    delta=(None if _pace_total is None else f"{_pace_total:+.0f}%"),
-                   help=t("home.plan.col_pace_help"))
+                   help=t("home.plan.total_fact_help"))
 
         def _pace_txt(v):
             if v is None or pd.isna(v):
@@ -799,8 +798,7 @@ else:
         _dt = total.get("data_through")
         st.caption(t("home.plan.note", d=(_dt.strftime("%d.%m") if _dt else "—"),
                      k=total["covered"], n=total["days_in_month"], thr=f"{pace_thr:.0f}"))
-        if total.get("pool_note"):
-            st.caption(t("home.plan.pool_note", pools="; ".join(total["pool_note"])))
+        st.caption(t("home.plan.pool_note"))
     st.page_link("pages/5_Money.py", label=t("home.link.money"),
                  icon=":material/euro:")
 

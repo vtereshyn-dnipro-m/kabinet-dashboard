@@ -777,17 +777,21 @@ TRANSLATIONS = {
         "ru": "План × {k} дней с данными / {n} дней в месяце",
         "uk": "План × {k} днів з даними / {n} днів у місяці",
         "en": "Plan × {k} days with data / {n} days in month"},
+    "home.plan.total_fact_help": {
+        "ru": "Продажи по заказам с НДС по всем строкам блока, включая страны и каналы без плана. Темп в дельте — только по строкам, у которых план есть",
+        "uk": "Продажі за замовленнями з ПДВ за всіма рядками блоку, включно з країнами й каналами без плану. Темп у дельті — лише за рядками, де план є",
+        "en": "Ordered sales incl. VAT across all rows, including countries and channels without a plan. The pace delta covers only rows that have a plan"},
     "home.plan.total_help": {
         "ru": "Сумма по всем объектам плана текущего месяца; одинакова во всех разрезах",
         "uk": "Сума за всіма обʼєктами плану поточного місяця; однакова в усіх розрізах",
         "en": "Sum over all plan objects of the current month; the same in every view"},
     "home.plan.pool_note": {
-        "ru": "План {pools} задан на страну целиком (пул), между маркетплейсами не делится — у них в строке плана прочерк, "
-              "а факт показан свой. Площадка, у которой план есть не по всем странам, итога по плану не получает.",
-        "uk": "План {pools} задано на країну цілком (пул), між маркетплейсами не ділиться — у них у рядку плану прочерк, "
-              "а факт показано свій. Майданчик, у якого план є не за всіма країнами, підсумку за планом не отримує.",
-        "en": "The plan for {pools} is set for the whole country (pool) and is not split across marketplaces — their plan cell "
-              "is blank while fact is their own. A platform without a plan for every country gets no plan total."},
+        "ru": "Строки без плана (например BE, GB, LM-ES, CF-ES, MM-ES, MM-FR): план и ожидание 0, факт настоящий, выполнение и темп не считаются — "
+              "сравнивать нечего, и это показано честно. У страны и площадки выполнение и темп считаются только по маркетплейсам с планом.",
+        "uk": "Рядки без плану (наприклад BE, GB, LM-ES, CF-ES, MM-ES, MM-FR): план і очікування 0, факт справжній, виконання й темп не рахуються — "
+              "порівнювати нічого, і це показано чесно. У країни та майданчика виконання й темп рахуються лише за маркетплейсами з планом.",
+        "en": "Rows without a plan (e.g. BE, GB, LM-ES, CF-ES, MM-ES, MM-FR): plan and expectation 0, real fact, no completion or pace — "
+              "nothing to compare, shown honestly. For a country or platform, completion and pace use only marketplaces with a plan."},
     "home.plan.col_name": {"ru": "Страна / маркетплейс", "uk": "Країна / маркетплейс", "en": "Country / marketplace"},
     "home.plan.col_sub": {"ru": "Состав", "uk": "Склад", "en": "Members"},
     "home.plan.col_obj": {"ru": "Объект", "uk": "Обʼєкт", "en": "Object"},

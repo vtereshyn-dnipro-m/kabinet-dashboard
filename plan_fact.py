@@ -184,12 +184,13 @@ SQL_MONTH = """
     SELECT 'marketplace' AS kind, mp.id, mp.code, mp.name, mp.platform_short AS platform, mp.country_alpha2 AS country,
            NULL::text[] AS members,
            COALESCE(f.fact_units, 0) AS fact_units, COALESCE(f.fact_rev, 0) AS fact_rev, f.data_through,
-           p.plan_units, p.plan_rev, p.plan_skus
+           p.plan_units, p.plan_rev, p.plan_skus,
+           EXISTS (SELECT 1 FROM kabinet_data.pool_members pm WHERE pm.marketplace_id = mp.id) AS in_pool
     FROM mp LEFT JOIN fact f USING (econ_code)
     LEFT JOIN plan p ON p.object_type = 'marketplace' AND p.object_id = mp.id
     UNION ALL
     SELECT 'pool', p.object_id, p.object_name, p.object_name, NULL, pc.country, pc.members,
-           0, 0, NULL, p.plan_units, p.plan_rev, p.plan_skus
+           0, 0, NULL, p.plan_units, p.plan_rev, p.plan_skus, true
     FROM plan p JOIN pool_country pc ON pc.pool_id = p.object_id WHERE p.object_type = 'pool'
 """
 
@@ -204,14 +205,25 @@ def load_month(conn, today: date) -> pd.DataFrame:
 
 
 def _agg(rows: pd.DataFrame, pools: pd.DataFrame, share: float) -> dict:
-    plan_u = float(rows["plan_units"].fillna(0).sum() + pools["plan_units"].fillna(0).sum())
-    plan_r = float(rows["plan_rev"].fillna(0).sum() + pools["plan_rev"].fillna(0).sum())
-    has_plan = bool(rows["plan_units"].notna().any() or len(pools))
-    return dict(plan_units=plan_u if has_plan else None, plan_rev=plan_r if has_plan else None,
-                expected_units=plan_u * share if has_plan else None, expected_rev=plan_r * share if has_plan else None,
+    """Узел или лист таблицы «План месяца».
+
+    Факт — по всем строкам узла (сходится с карточкой «Продажи по заказам»);
+    план, ожидание, выполнение и темп — только по строкам, у которых план есть.
+    У маркетплейса без плана план и ожидание 0, выполнение и темп не считаются
+    (решение Ярослава, 18.09.2026): строка видна, факт виден, сравнивать нечего."""
+    planned = rows[rows["plan_units"].notna()]
+    has_plan = bool(len(planned) or len(pools))
+    plan_u = float(planned["plan_units"].sum() + pools["plan_units"].fillna(0).sum())
+    plan_r = float(planned["plan_rev"].fillna(0).sum() + pools["plan_rev"].fillna(0).sum())
+    # факт против плана — только у тех, у кого план есть (иначе Amazon-план сравнивался бы с продажами LM)
+    pf_u, pf_r = float(planned["fact_units"].sum()), float(planned["fact_rev"].sum())
+    exp_u, exp_r = plan_u * share, plan_r * share
+    return dict(plan_units=plan_u, plan_rev=plan_r, expected_units=exp_u, expected_rev=exp_r,
                 fact_units=float(rows["fact_units"].sum()), fact_rev=float(rows["fact_rev"].sum()),
-                plan_skus=(int(max(rows["plan_skus"].fillna(0).max() if len(rows) else 0,
-                                pools["plan_skus"].fillna(0).max() if len(pools) else 0)) if has_plan else None))
+                done_units=(pf_u / plan_u * 100) if plan_u else None, done_rev=(pf_r / plan_r * 100) if plan_r else None,
+                pace_units=(pf_u / exp_u - 1) * 100 if exp_u else None, pace_rev=(pf_r / exp_r - 1) * 100 if exp_r else None,
+                plan_skus=int(planned["plan_skus"].fillna(0).sum() + pools["plan_skus"].fillna(0).sum()) if has_plan else 0,
+                has_plan=has_plan)
 
 
 def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
@@ -232,25 +244,24 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     covered = min(today, max(dt)).day if len(dt) else 0
     share = covered / dim
     pool_countries = set(pools["country"].dropna())
-    # страны, где есть план (свой или пула); факт без плана в блок плана не тянем
-    plan_countries = set(mps.loc[mps["plan_units"].notna(), "country"]) | pool_countries
-    in_scope = mps[mps["country"].isin(plan_countries)]
+    # периметр — маркетплейсы с планом ИЛИ с продажами в этом месяце: страны без плана (BE, GB)
+    # и каналы без плана (LM, CF, MM) — отдельными строками с нулевым планом, не текстом
+    # плюс участники пулов (MM-FR без продаж в этом месяце — всё равно рынок страны, показываем нулём)
+    in_scope = mps[mps["plan_units"].notna() | (mps["fact_units"] > 0) | (mps["fact_rev"] > 0) | mps["in_pool"].fillna(False).astype(bool)]
+    plan_countries = set(in_scope["country"].dropna()) | pool_countries
 
     rows = []
     def add(level, name, sub, r):
         rows.append(dict(level=level, name=name, sub=sub, **r))
 
     def node(level, name, group, pool_rows):
-        """Узел (страна или площадка): план и факт считаются по одному набору — маркетплейсам
-        с планом (плюс план пула, если он ещё есть). Факт маркетплейсов без плана в узел не
-        входит, иначе выполнение и темп сравнивали бы план Amazon с продажами всех каналов;
-        такие маркетплейсы перечислены в составе и видны детьми со своим фактом."""
-        planned = group[group["plan_units"].notna()]
+        """Узел (страна или площадка): факт — по всем маркетплейсам узла, выполнение и темп —
+        по тем, у кого есть план (см. _agg). В составе видно, по кому считается темп."""
+        planned = sorted(group.loc[group["plan_units"].notna(), "code"])
         unplanned = sorted(group.loc[group["plan_units"].isna(), "code"])
-        base = planned if (len(planned) or not len(pool_rows)) else group
-        sub = ", ".join(sorted(planned["code"]))
+        sub = ("план: " + ", ".join(planned)) if planned else ""
         if unplanned: sub += (" · " if sub else "") + "без плана: " + ", ".join(unplanned)
-        add(level, name, sub, _agg(base, pool_rows, share))
+        add(level, name, sub, _agg(group, pool_rows, share))
 
     if mode in ("country", "country_mp"):
         for c in sorted(plan_countries):
@@ -262,17 +273,12 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     else:
         for pf in sorted(in_scope["platform"].dropna().unique()):
             m_p = in_scope[in_scope["platform"] == pf]
-            if m_p["plan_units"].isna().all():
-                continue   # площадка без единого плана — не про этот блок
             node(0, pf, m_p, pools.iloc[0:0])
             for _, m in m_p.sort_values("code").iterrows():
                 add(1, m["code"], m["name"], _agg(m.to_frame().T, pools.iloc[0:0], share))
     out = pd.DataFrame(rows)
-    for k in ("units", "rev"):
-        out[f"done_{k}"] = [((f / p) * 100) if p else None for f, p in zip(out[f"fact_{k}"], out[f"plan_{k}"])]
-        out[f"pace_{k}"] = [((f / e - 1) * 100) if e else None for f, e in zip(out[f"fact_{k}"], out[f"expected_{k}"])]
-    # итог — тем же правилом: план и факт по маркетплейсам с планом (+ план пулов)
-    total = _agg(in_scope[in_scope["plan_units"].notna()] if len(pools) == 0 else in_scope, pools, share)
+    # итог: факт по всем строкам периметра, темп — по строкам с планом (одинаково в любом разрезе)
+    total = _agg(in_scope, pools, share)
     total["covered"], total["days_in_month"] = covered, dim
     total["data_through"] = max(dt) if len(dt) else None
     total["pool_note"] = sorted(f"{p['name']} ({', '.join(p['members'] or [])})" for _, p in pools.iterrows())
