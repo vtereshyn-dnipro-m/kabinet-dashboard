@@ -8,10 +8,12 @@
 равномерное потребление, рабочие дни не подставляются). Поэтому ожидание —
 это `план × дней_с_данными / дней_в_месяце`, а не весь план.
 
-Факт здесь — по дате заказа (`sales_date`), а не отгрузки: страницы целиком
-считаются на этой витрине, и второй, отгрузочный факт рядом с ней читался бы
-как расхождение в данных. Отгрузочный факт по ТЗ применяется в алертах темпа
-сторожа, где он и обязан быть.
+Факт — продажи по заказам **с НДС**, как план в листе и как карточка «Продажи
+по заказам» на Обзоре: для Amazon — `sales_traffic_daily.ordered_sales` (сходится
+с кабинетом Amazon), для каналов без витринного отчёта — `economics_summary.
+ordered_product_sales`. Чистые продажи без НДС и возвратов (`net_product_sales`)
+здесь не годятся: 18.09.2026 они давали −63 % к плану при реальных −40 %.
+Факт по дате заказа, не отгрузки; отгрузочный факт по ТЗ живёт в алертах темпа.
 """
 import calendar
 from datetime import date
@@ -43,15 +45,23 @@ SQL = """
         WHERE month BETWEEN %(m0)s AND %(m1)s
         GROUP BY 1, 2, 3, 4
     ),
+    amz AS (SELECT DISTINCT marketplace FROM kabinet_data.sales_traffic_daily),
+    daily AS (
+        SELECT marketplace, snapshot_date AS d, units_ordered, ordered_sales AS gross
+        FROM kabinet_data.sales_traffic_daily WHERE snapshot_date BETWEEN %(d0)s AND %(d1)s
+        UNION ALL
+        SELECT marketplace, sales_date, units_ordered, ordered_product_sales
+        FROM kabinet_data.economics_summary
+        WHERE sales_date BETWEEN %(d0)s AND %(d1)s AND marketplace NOT IN (SELECT marketplace FROM amz)
+    ),
     fact AS (
         SELECT c.object_type, c.object_id,
-               date_trunc('month', e.sales_date)::date AS month,
+               date_trunc('month', e.d)::date AS month,
                SUM(e.units_ordered)::int    AS fact_units,
-               SUM(e.net_product_sales)     AS fact_rev,
-               MAX(e.sales_date)            AS data_through
-        FROM kabinet_data.economics_summary e
+               SUM(e.gross)                 AS fact_rev,
+               MAX(e.d)                     AS data_through
+        FROM daily e
         JOIN codes c ON c.code = CASE WHEN e.marketplace = 'GB' THEN 'CO.UK' ELSE e.marketplace END
-        WHERE e.sales_date BETWEEN %(d0)s AND %(d1)s
         GROUP BY 1, 2, 3
     )
     SELECT p.object_type, p.object_id, p.object_name, p.month, p.plan_units, p.plan_rev, p.plan_skus,
@@ -149,12 +159,17 @@ SQL_MONTH = """
                CASE WHEN upper(legacy_code) = 'CO.UK' THEN 'GB' ELSE upper(legacy_code) END AS econ_code
         FROM kabinet_data.marketplaces_new
     ),
+    amz AS (SELECT DISTINCT marketplace FROM kabinet_data.sales_traffic_daily),
     fact AS (
-        SELECT marketplace AS econ_code, SUM(units_ordered)::int AS fact_units,
-               SUM(net_product_sales) AS fact_rev, MAX(sales_date) AS data_through
-        FROM kabinet_data.economics_summary
-        WHERE sales_date >= %(m0)s AND sales_date <= %(d1)s
-        GROUP BY 1
+        SELECT marketplace AS econ_code, SUM(units_ordered)::int AS fact_units, SUM(gross) AS fact_rev, MAX(d) AS data_through
+        FROM (
+            SELECT marketplace, snapshot_date AS d, units_ordered, ordered_sales AS gross
+            FROM kabinet_data.sales_traffic_daily WHERE snapshot_date >= %(m0)s AND snapshot_date <= %(d1)s
+            UNION ALL
+            SELECT marketplace, sales_date, units_ordered, ordered_product_sales
+            FROM kabinet_data.economics_summary
+            WHERE sales_date >= %(m0)s AND sales_date <= %(d1)s AND marketplace NOT IN (SELECT marketplace FROM amz)
+        ) x GROUP BY 1
     ),
     plan AS (
         SELECT object_type, object_id, object_name, SUM(quantity)::int AS plan_units,

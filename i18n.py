@@ -741,13 +741,13 @@ TRANSLATIONS = {
     "home.plan.title": {
         "ru": "План месяца", "uk": "План місяця", "en": "Month plan"},
     "home.plan.note": {
-        "ru": "Выручка: план по целевой цене листа, факт — чистые продажи по дате заказа до {d}. Ожидание — "
+        "ru": "Деньги с НДС: план — по листу, факт — продажи по заказам до {d} (как в кабинете Amazon и в карточке «Продажи по заказам»). Ожидание — "
               "доля календарных дней месяца с данными ({k} из {n}). Темп по ТЗ 010 §13: "
               "факт / ожидание − 1, порог {thr}%.",
-        "uk": "Виручка: план за цільовою ціною листа, факт — чисті продажі за датою замовлення до {d}. Очікування — "
+        "uk": "Гроші з ПДВ: план — за листом, факт — продажі за замовленнями до {d} (як у кабінеті Amazon і в картці «Продажі за замовленнями»). Очікування — "
               "частка календарних днів місяця з даними ({k} з {n}). Темп за ТЗ 010 §13: "
               "факт / очікування − 1, поріг {thr}%.",
-        "en": "Revenue: plan at the sheet's target price, fact — net sales by order date through {d}. Expectation is "
+        "en": "Money incl. VAT: plan per the sheet, fact — ordered sales through {d} (as in Seller Central and the «Ordered sales» card). Expectation is "
               "the share of calendar days with data ({k} of {n}). Pace per spec 010 §13: "
               "fact / expected − 1, threshold {thr}%.",
     },
@@ -799,7 +799,7 @@ TRANSLATIONS = {
     "home.plan.col_pace": {"ru": "Темп", "uk": "Темп", "en": "Pace"},
     "home.plan.col_skus": {"ru": "SKU с планом", "uk": "SKU з планом", "en": "SKUs planned"},
     "home.plan.col_plan_help": {
-        "ru": "Сумма действующего прогноза по SKU объекта на месяц: строка «€» — выручка (штуки × целевая цена из листа), строка «шт» — штуки",
+        "ru": "Сумма действующего прогноза по SKU объекта на месяц: строка «€» — деньги с НДС (штуки × цена из листа), строка «шт» — штуки",
         "uk": "Сума чинного прогнозу за SKU обʼєкта на місяць: рядок «€» — виручка (штуки × цільова ціна з листа), рядок «шт» — штуки",
         "en": "Sum of the current forecast over the object's SKUs for the month: «€» row — revenue (units × target price from the sheet), «шт» row — units"},
     "home.plan.col_expected_help": {
@@ -814,14 +814,14 @@ TRANSLATIONS = {
         "ru": "Факт / план за период", "uk": "Факт / план за період", "en": "Fact vs plan for the period"},
     "money.plan.note": {
         "ru": "План из реестра прогноза берётся пропорционально календарным дням периода, по "
-              "которым есть факт (месяцев: {months}). Строка «€» — выручка: план по целевой цене листа, "
-              "факт — чистые продажи; строка «шт» — штуки.",
+              "которым есть факт (месяцев: {months}). Строка «€» — с НДС: план по листу, "
+              "факт — продажи по заказам; строка «шт» — штуки.",
         "uk": "План із реєстру прогнозу береться пропорційно календарним дням періоду, за "
-              "якими є факт (місяців: {months}). Рядок «€» — виручка: план за цільовою ціною листа, "
-              "факт — чисті продажі; рядок «шт» — штуки.",
+              "якими є факт (місяців: {months}). Рядок «€» — з ПДВ: план за листом, "
+              "факт — продажі за замовленнями; рядок «шт» — штуки.",
         "en": "The forecast register plan is prorated by the calendar days of the period that "
-              "have fact (months: {months}). «€» row — revenue: plan at the sheet's target price, "
-              "fact — net sales; «шт» row — units."},
+              "have fact (months: {months}). «€» row — incl. VAT: plan per the sheet, "
+              "fact — ordered sales; «шт» row — units."},
     "money.plan.none": {
         "ru": "На месяцы выбранного периода плана в реестре нет.",
         "uk": "На місяці обраного періоду плану в реєстрі немає.",
