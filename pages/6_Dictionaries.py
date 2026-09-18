@@ -128,6 +128,12 @@ TR = {
         "as_summary": "Намерение задано у {n} из {total} пар на этом рынке",
         "save": "💾 Сохранить изменения", "saved": "Сохранено: {n} запис(ей)",
         "nochange": "Изменений нет", "err": "Ошибка: {e}", "no_data": "Нет данных",
+        "del_confirm_q": "Удалить {what}?", "del_confirm_yes": "Да, удалить", "del_confirm_no": "Отмена",
+        "del_blocked": "Удалить нельзя: на объект есть ссылки — {refs}. Закрой связи датой или деактивируй; история должна остаться (ТЗ 004 §11).",
+        "del_one_only": "Удаление — по одной записи и с подтверждением. Массового удаления в справочниках нет намеренно.",
+        "pool_del_what": "пул «{name}» и {n} его связей",
+        "pool_members_history": "Снятый маркетплейс не удаляется из истории: связь закрывается сегодняшней датой.",
+        "norm_pick_del": "Норматив для удаления", "norm_del_what": "норматив {sku} · {target}",
         "del_col": "Удалить", "delete_sel": "🗑 Удалить отмеченные", "deleted": "Удалено: {n}",
         "wh_hint": "Два поля заполняются руками — площадки склада и приоритет "
                    "обеспечения. Остальное приезжает из ERP и меняется там.",
@@ -300,6 +306,12 @@ TR = {
         "as_summary": "Намір задано у {n} з {total} пар на цьому ринку",
         "save": "💾 Зберегти зміни", "saved": "Збережено: {n} запис(ів)",
         "nochange": "Змін немає", "err": "Помилка: {e}", "no_data": "Немає даних",
+        "del_confirm_q": "Видалити {what}?", "del_confirm_yes": "Так, видалити", "del_confirm_no": "Скасувати",
+        "del_blocked": "Видалити не можна: на обʼєкт є посилання — {refs}. Закрий звʼязки датою або деактивуй; історія має лишитися (ТЗ 004 §11).",
+        "del_one_only": "Видалення — по одному запису і з підтвердженням. Масового видалення в довідниках немає навмисно.",
+        "pool_del_what": "пул «{name}» і {n} його звʼязків",
+        "pool_members_history": "Знятий маркетплейс не видаляється з історії: звʼязок закривається сьогоднішньою датою.",
+        "norm_pick_del": "Норматив для видалення", "norm_del_what": "норматив {sku} · {target}",
         "del_col": "Видалити", "delete_sel": "🗑 Видалити відмічені", "deleted": "Видалено: {n}",
         "wh_hint": "Два поля заповнюються руками — майданчики складу та пріоритет "
                    "забезпечення. Решта приїздить із ERP і змінюється там.",
@@ -472,6 +484,12 @@ TR = {
         "as_summary": "Intent set for {n} of {total} pairs on this market",
         "save": "💾 Save changes", "saved": "Saved: {n} row(s)",
         "nochange": "No changes", "err": "Error: {e}", "no_data": "No data",
+        "del_confirm_q": "Delete {what}?", "del_confirm_yes": "Yes, delete", "del_confirm_no": "Cancel",
+        "del_blocked": "Cannot delete: the object is referenced — {refs}. Close the links by date or deactivate; history must remain (spec 004 §11).",
+        "del_one_only": "Deletion is one record at a time with confirmation. There is no bulk delete in dictionaries by design.",
+        "pool_del_what": "pool «{name}» and its {n} links",
+        "pool_members_history": "A removed marketplace is not deleted from history: the link is closed with today's date.",
+        "norm_pick_del": "Norm to delete", "norm_del_what": "norm {sku} · {target}",
         "del_col": "Delete", "delete_sel": "🗑 Delete selected", "deleted": "Deleted: {n}",
         "wh_hint": "Two fields are filled by hand — the warehouse marketplaces and "
                    "the supply priority. The rest comes from ERP and changes there.",
@@ -654,6 +672,48 @@ def _same(a, b) -> bool:
         except Exception:
             return str(a) == str(b)
     return str(a) == str(b)
+
+
+def confirm_delete(key: str, what: str) -> bool:
+    """Удаление в два шага: кнопка ставит флаг, второе нажатие — «Да, удалить».
+
+    Одно нажатие, которое сносит справочник, у нас уже было (пулы, 18.09.2026).
+    Возвращает True ровно один раз — когда подтверждение получено; вызывающий
+    код после этого сам делает запрос и сбрасывает состояние через rerun."""
+    flag = f"confirm_{key}"
+    if not st.session_state.get(flag):
+        if st.button(f"🗑 {_tr('del_col')}", key=f"ask_{key}"):
+            st.session_state[flag] = True
+            st.rerun()
+        return False
+    st.warning(_trf("del_confirm_q", what=what))
+    c1, c2 = st.columns(2)
+    yes = c1.button(_tr("del_confirm_yes"), key=f"yes_{key}", type="primary")
+    if c2.button(_tr("del_confirm_no"), key=f"no_{key}"):
+        st.session_state.pop(flag, None)
+        st.rerun()
+    if yes:
+        st.session_state.pop(flag, None)
+    return yes
+
+
+def pool_references(pool_id: int) -> list:
+    """Где пул используется: связи с датами, прогноз, правила, нормативы. Непустой список — удалять нельзя."""
+    refs = []
+    for label, sql in (
+        ("связи с маркетплейсами (история)", "SELECT count(*) FROM kabinet_data.pool_members WHERE pool_id = %s"),
+        ("документы прогноза", "SELECT count(*) FROM kabinet_data.forecast_documents WHERE object_type = 'pool' AND object_id = %s"),
+        ("записи реестра прогноза", "SELECT count(*) FROM kabinet_data.forecast_register WHERE object_type = 'pool' AND object_id = %s"),
+        ("правила алертов прогноза", "SELECT count(*) FROM kabinet_data.forecast_alert_rules WHERE object_type = 'pool' AND object_id = %s"),
+        ("нормативы покрытия", "SELECT count(*) FROM kabinet_data.coverage_norms WHERE pool_id = %s"),
+    ):
+        try:
+            n = int(q1(sql, (pool_id,)).iloc[0, 0])
+        except Exception:
+            n = 0   # таблицы может ещё не быть — это не ссылка
+        if n:
+            refs.append(f"{label}: {n}")
+    return refs
 
 
 def build_updates(orig, edited, table, pk, cols):
@@ -1054,7 +1114,7 @@ with tab_pool:
             st.markdown(f"**{_tr('pool_members')}**")
             members = q(f"""
                 SELECT marketplace_id FROM kabinet_data.pool_members
-                WHERE pool_id = {sel_pool}
+                WHERE pool_id = {sel_pool} AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)
             """)
             cur_ids = set(members["marketplace_id"].astype(int)) if not members.empty else set()
             picked = st.multiselect(
@@ -1080,14 +1140,24 @@ with tab_pool:
                     st.error(_tr("pool_conflict").format(mp=", ".join(sorted(set(clash)))))
                 else:
                     try:
-                        stmts = [("DELETE FROM kabinet_data.pool_members WHERE pool_id = %s",
-                                  [sel_pool])]
+                        # история связей сохраняется (ТЗ 004 §11): снятые закрываем датой, новые добавляем,
+                        # оставшиеся не трогаем. Раньше здесь был DELETE всех связей пула и вставка заново
+                        stmts = []
+                        removed = sorted(cur_ids - set(picked_ids))
+                        if removed:
+                            stmts.append(("""UPDATE kabinet_data.pool_members SET valid_to = CURRENT_DATE
+                                             WHERE pool_id = %s AND marketplace_id = ANY(%s) AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)""",
+                                          [sel_pool, removed]))
                         for mid in picked_ids:
+                            if mid in cur_ids:
+                                continue
                             stmts.append((
                                 "INSERT INTO kabinet_data.pool_members "
                                 "(pool_id, marketplace_id, valid_from, valid_to) "
                                 "VALUES (%s, %s, %s, %s)",
                                 [sel_pool, mid, v_from, v_to or None]))
+                        if not stmts:
+                            st.info(_tr("nochange")); st.stop()
                         exec_sql(stmts)
                         st.cache_data.clear()
                         st.success(_tr("saved").format(n=len(picked_ids)))
@@ -1095,12 +1165,15 @@ with tab_pool:
                     except Exception as e:
                         st.error(_tr("err").format(e=e))
 
-            if st.button(_tr("pool_delete"), key=f"pd_{sel_pool}"):
+            st.caption(_tr("pool_members_history"))
+            # удаление: только пул без единой ссылки (свежий и пустой), по одному и с подтверждением.
+            # Пул с историей связей, прогнозом или нормативами физически не удаляется (ТЗ 004 §11)
+            _refs = pool_references(sel_pool)
+            if _refs:
+                st.caption(_trf("del_blocked", refs="; ".join(_refs)))
+            elif confirm_delete(f"pool_{sel_pool}", _trf("pool_del_what", name=sel_name, n=0)):
                 try:
-                    exec_sql([
-                        ("DELETE FROM kabinet_data.pool_members WHERE pool_id = %s", [sel_pool]),
-                        ("DELETE FROM kabinet_data.pools WHERE id = %s", [sel_pool]),
-                    ])
+                    exec_sql([("DELETE FROM kabinet_data.pools WHERE id = %s", [sel_pool])])
                     st.cache_data.clear()
                     st.success(_tr("pool_deleted"))
                     st.rerun()
@@ -1231,7 +1304,6 @@ with tab_norm:
         st.info(_tr("norm_none"))
     else:
         view_n = norms.copy()
-        view_n["__del"] = False
         ed_n = st.data_editor(
             view_n, key="ed_norm", use_container_width=True, height=420,
             hide_index=True, num_rows="fixed",
@@ -1245,30 +1317,28 @@ with tab_norm:
                 "min_days": st.column_config.NumberColumn(_tr("col_min"), step=5),
                 "target_days": st.column_config.NumberColumn(_tr("col_target"), step=5),
                 "max_days": st.column_config.NumberColumn(_tr("col_max"), step=5),
-                "__del": st.column_config.CheckboxColumn(_tr("del_col"), width="small"),
             },
         )
-        s1, s2 = st.columns(2)
-        if s1.button(_tr("save"), key="save_norm", type="primary"):
+        if st.button(_tr("save"), key="save_norm", type="primary"):
             bad = ed_n[~((ed_n["min_days"] <= ed_n["target_days"]) &
                          (ed_n["target_days"] <= ed_n["max_days"]))]
             if not bad.empty:
                 st.error(_tr("norm_order"))
             else:
                 save_block(norms.drop(columns=["product_name"]),
-                           ed_n.drop(columns=["__del", "product_name"]),
+                           ed_n.drop(columns=["product_name"]),
                            "kabinet_data.coverage_norms", "id",
                            ["min_days", "target_days", "max_days"])
-        if s2.button(_tr("delete_sel"), key="del_norm"):
-            ids = [int(i) for i in ed_n.loc[ed_n["__del"], "id"].tolist()]
-            if not ids:
-                st.info(_tr("nochange"))
-            else:
+        # удаление — по одной записи и с подтверждением; чекбокс «удалить отмеченные» снят 18.09.2026
+        st.caption(_tr("del_one_only"))
+        _opts = {int(r.id): f"{r.sku} · {r.marketplace or r.pool or '—'}" for _, r in norms.iterrows()}
+        if _opts:
+            _del_id = st.selectbox(_tr("norm_pick_del"), list(_opts), format_func=_opts.get, key="norm_del_pick")
+            if confirm_delete(f"norm_{_del_id}", _trf("norm_del_what", sku=_opts[_del_id].split(" · ")[0], target=_opts[_del_id].split(" · ")[1])):
                 try:
-                    exec_sql([("DELETE FROM kabinet_data.coverage_norms WHERE id = ANY(%s)",
-                               [ids])])
+                    exec_sql([("DELETE FROM kabinet_data.coverage_norms WHERE id = %s", [_del_id])])
                     st.cache_data.clear()
-                    st.success(_trf("deleted", n=len(ids)))
+                    st.success(_trf("deleted", n=1))
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err", e=e))
