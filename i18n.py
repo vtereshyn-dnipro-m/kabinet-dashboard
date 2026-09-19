@@ -1513,6 +1513,20 @@ TRANSLATIONS = {
     "ro.order.col_velocity": {"ru": "Прод./день", "uk": "Прод./день", "en": "Sold/day"},
     "ro.order.col_cover": {"ru": "Хватит, дней", "uk": "Вистачить, днів", "en": "Lasts, days"},
     "ro.order.col_qty": {"ru": "Заказать, шт", "uk": "Замовити, шт", "en": "Order, pcs"},
+    "ro.order.col_stock_help": {
+        "ru": "FBA + Мадрид (склад отгрузки на все витрины). Офферы Mirakl не остаток, а квота на витрине; Tiendas — точки продаж, не источник.",
+        "uk": "FBA + Мадрид (склад відвантаження на всі вітрини). Оффери Mirakl — не залишок, а квота на вітрині; Tiendas — точки продажу, не джерело.",
+        "en": "FBA + Madrid (the dispatch warehouse for all storefronts). Mirakl offers are a storefront quota, not stock; Tiendas are points of sale, not a source."},
+    "ro.order.col_madrid": {"ru": "Мадрид", "uk": "Мадрид", "en": "Madrid"},
+    "ro.order.col_madrid_help": {
+        "ru": "Доступно на RS Spain Madrid (Stock) по Odoo. Входит в «Остаток» и в покрытие.",
+        "uk": "Доступно на RS Spain Madrid (Stock) за Odoo. Входить у «Залишок» і в покриття.",
+        "en": "Available at RS Spain Madrid (Stock) per Odoo. Included in “Stock” and in cover."},
+    "ro.order.col_kit": {"ru": "Комплект", "uk": "Комплект", "en": "Kit"},
+    "ro.order.col_kit_help": {
+        "ru": "🧩 — комплект: собирается на складе, заказ не по нему, а по компонентам (строка справочная). «+N» — спрос, пришедший к базовому артикулу из комплектов, шт/день.",
+        "uk": "🧩 — комплект: збирається на складі, замовлення не по ньому, а по компонентах (рядок довідковий). «+N» — попит, що прийшов до базового артикула з комплектів, шт/день.",
+        "en": "🧩 — kit: assembled at the warehouse, ordered via components (informational row). “+N” — demand that reached the base SKU from kits, units/day."},
     "ro.order.col_transit": {"ru": "В пути", "uk": "У дорозі", "en": "In transit"},
     "ro.order.col_transit_help": {
         "ru": "Уже едет: поставки «В пути» с будущей датой и транзит Польша → Мадрид. Из «Заказать» вычтено.",
@@ -1521,7 +1535,7 @@ TRANSLATIONS = {
     },
     "ro.order.col_lead": {"ru": "Срок, дн", "uk": "Термін, дн", "en": "Lead, days"},
     "ro.order.col_lead_help": {
-        "ru": "Срок поставки по плечу, откуда ближайшее пополнение: PL — Piasecznie → Мадрид → FBA (8 + ожидание рейса + 3), UA — плюс Тернополь → Piasecznie 14. Из справочника маршрутов. «поставщик (оценка)» — маршрута нет, срок из настроек.",
+        "ru": "Срок поставки по плечу, откуда приедет заказ: PL — Piasecznie → Мадрид → FBA (8 + ожидание рейса + 3), UA — плюс Тернополь → Piasecznie 14. Из справочника маршрутов. «поставщик (оценка)» — маршрута нет, срок из настроек. «Мадрид N дн» — на сколько дней продаж хватит мадридского остатка; сам Мадрид уже в «Остатке».",
         "uk": "Термін поставки за плечем, звідки найближче поповнення: PL — Piasecznie → Мадрид → FBA (8 + очікування рейсу + 3), UA — плюс Тернопіль → Piasecznie 14. З довідника маршрутів. «поставщик (оценка)» — маршруту немає, термін з налаштувань.",
         "en": "Lead time of the leg the next replenishment comes from: PL — Piasecznie → Madrid → FBA (8 + dispatch wait + 3), UA — plus Ternopil → Piasecznie 14. From the routes dictionary. “supplier (estimate)” — no route on record, value from settings.",
     },

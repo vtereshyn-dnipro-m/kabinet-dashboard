@@ -48,13 +48,18 @@ def load_reorder(has_status: bool, has_pipeline: bool):
                  else "'new' AS order_status"
     # «В пути» и «Ожидает проверки» появились 14.09.2026; до первого прогона
     # нового загрузчика колонок нет — показываем нули, а не роняем страницу
+    # 19.09.2026: остаток раскладывается на FBA и Мадрид, комплекты помечены; до первого прогона
+    # нового загрузчика колонок нет — показываем пустые, а не роняем страницу
+    split_cols = ("fba_stock, madrid_stock, COALESCE(is_kit, false) AS is_kit, component_velocity"
+                  if has_reorder_col("madrid_stock") else
+                  "NULL::int AS fba_stock, NULL::int AS madrid_stock, false AS is_kit, NULL::float AS component_velocity")
     pipeline_cols = ("COALESCE(in_transit_qty, 0) AS in_transit_qty, "
                      "COALESCE(quarantine_qty, 0) AS quarantine_qty, "
                      "COALESCE(planned_qty, 0) AS planned_qty, "
-                     "lead_time_days, lead_source"
+                     "lead_time_days, lead_source, " + split_cols
                      if has_pipeline else
                      "0 AS in_transit_qty, 0 AS quarantine_qty, 0 AS planned_qty, "
-                     "NULL::int AS lead_time_days, NULL::text AS lead_source")
+                     "NULL::int AS lead_time_days, NULL::text AS lead_source, " + split_cols)
     df = pd.read_sql(f"""
         SELECT sku, product_name, current_stock, daily_velocity,
                days_of_cover, reorder_point, suggested_qty, urgency,
@@ -382,13 +387,20 @@ fdf = fdf.sort_values(["urg_rank", "days_of_cover"])
 edit = fdf[["sku_display", "product_name", "current_stock", "daily_velocity",
             "days_of_cover", "suggested_qty", "urgency", "has_transfer",
             "in_transit_qty", "quarantine_qty", "planned_qty",
-            "lead_time_days", "lead_source"]].copy()
+            "lead_time_days", "lead_source", "fba_stock", "madrid_stock", "is_kit", "component_velocity"]].copy()
 edit.insert(0, "✓", edit["urgency"] == "critical")
 edit["Срочность"] = edit["urgency"].map(lambda u: f"{URG_ICON[u]} {urg_label(u)}")
 edit["daily_velocity"] = edit["daily_velocity"].round(1)
 edit["days_of_cover"] = edit["days_of_cover"].round(0)
 edit["Переброска"] = edit["has_transfer"].map(
     lambda x: f"🔄 идёт {int(x)} шт" if x > 0 else "")
+# Остаток = FBA + Мадрид (склад отгрузки на все витрины); показываем и сумму, и слагаемые.
+# Комплект формируется на складе: его строка справочная, заказ уходит компонентам
+for _c in ("fba_stock", "madrid_stock"):
+    edit[_c] = pd.to_numeric(edit[_c], errors="coerce")
+    edit[_c] = edit[_c].map(lambda x: int(x) if pd.notna(x) and x > 0 else None)
+edit["kit"] = edit.apply(lambda r: "🧩" if bool(r["is_kit"]) else
+                         (f"+{float(r['component_velocity']):.1f}" if pd.notna(r["component_velocity"]) and float(r["component_velocity"]) > 0 else ""), axis=1)
 
 # Товар в пути и товар на карантине — один механизм: оба уже вычтены из
 # «Заказать», здесь показываем, из чего сложилась цифра. Пустая ячейка,
@@ -402,16 +414,22 @@ edit["lead"] = edit.apply(
     lambda r: (f"{int(r['lead_time_days'])} · {as_text(r['lead_source'])}"
                if pd.notna(r["lead_time_days"]) else ""), axis=1)
 edited = st.data_editor(
-    edit[["✓", "Срочность", "sku_display", "product_name", "current_stock",
+    edit[["✓", "Срочность", "sku_display", "product_name", "current_stock", "fba_stock", "madrid_stock",
           "in_transit_qty", "quarantine_qty", "planned_qty",
-          "daily_velocity", "days_of_cover", "lead", "suggested_qty", "Переброска"]],
+          "daily_velocity", "kit", "days_of_cover", "lead", "suggested_qty", "Переброска"]],
     use_container_width=True, height=440, hide_index=True,
     column_config={
         "✓": st.column_config.CheckboxColumn(t("ro.order.col_do"), width="small"),
         "Срочность": st.column_config.TextColumn(t("ro.order.col_urgency"), width="small", disabled=True),
         "sku_display": st.column_config.TextColumn("SKU", width="small", disabled=True),
         "product_name": st.column_config.TextColumn(t("ro.tr.col_product"), width="large", disabled=True),
-        "current_stock": st.column_config.NumberColumn(t("ro.order.col_stock"), width="small", disabled=True),
+        "current_stock": st.column_config.NumberColumn(t("ro.order.col_stock"), width="small", disabled=True,
+                                                       help=t("ro.order.col_stock_help")),
+        "fba_stock": st.column_config.NumberColumn("FBA", width="small", disabled=True, format="%d"),
+        "madrid_stock": st.column_config.NumberColumn(t("ro.order.col_madrid"), width="small", disabled=True, format="%d",
+                                                      help=t("ro.order.col_madrid_help")),
+        "kit": st.column_config.TextColumn(t("ro.order.col_kit"), width="small", disabled=True,
+                                           help=t("ro.order.col_kit_help")),
         "in_transit_qty": st.column_config.NumberColumn(
             t("ro.order.col_transit"), width="small", disabled=True, format="%d",
             help=t("ro.order.col_transit_help")),
