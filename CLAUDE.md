@@ -129,17 +129,29 @@ SP-API даёт на создание отчёта один запрос в ми
 
 Data Kiosk и Finances API этой квоты не касаются — у них свои.
 
-Карта окна с 19.09.2026 (Киев): 02:30 SQP · 03:30 ср Brand Analytics · 04:15 Inventory Age · 04:45 Account
-Health · 05:30 Suppressed Listings · 06:00 Returns · 06:30 SQP · 07:00 MYI · 07:15 FBA Charges · **08:00–10:30
-Дарина: Sales & Traffic for Tableau (150 мин), 09:30 FBA Fees + Listings (50 мин), 10:25 Ledger Summary** ·
-11:00 Ledger Detail + Listing Cards · 11:30 SQP · 12:30 Economics · 15:30 / 19:30 / 23:30 SQP. Наши отчётные
-джобы из окна 08:00–11:00 выведены (MYI был 08:00, FBA Charges 09:00, Ledger Detail 09:30, SQP плавал
-«каждые 4 часа» и попадал в 10:30). Новый отчётный загрузчик ставить только в свободные слоты этой карты.
+Карта createReport с 19.09.2026 вечера (Киев; в скобках обычная длительность), только джобы, которые
+создают отчёты, — остальные квоту не трогают: 02:30 SQP (55 мин) · 03:30 ср Brand Analytics (9–20) · 04:00
+Inventory Age (3) · 04:15 Account Health (5) · 04:30 SQP · 05:30 Suppressed Listings (9) · 06:00 Returns (6) ·
+**06:15 Дарина FBA Fees + Listings (50)** · 07:15 MYI (1) · 07:30 FBA Charges (3) · **07:40 Дарина Ledger
+Summary (1–8)** · **08:00–10:40 Дарина Sales & Traffic for Tableau (150–160)** · 11:00 Ledger Detail + Listing
+Cards (2) · 11:30 SQP · 12:30 Economics (40, восемь отчётов Sales & Traffic) · 13:30 / 17:30 / 22:30 SQP.
+Джобы Дарины двигать можно (разрешение владельца 19.09): FBA Fees + Listings стоял 09:30 внутри Sales &
+Traffic, Ledger Summary 10:25 — на её хвосте; оба вынесены до 08:00, потому что их таблицы читают её же
+джобы в 10:30–10:45 (Listed Asins, Report for Andrian, Write data to spredsheet, S&OP) и наши с 11:00 — сдвиг
+позже 10:30 оставил бы всех потребителей на вчерашних данных. Amazon Ads (First/Second) и SendCloud к квоте
+не относятся (Ads API и Orders API). SQP-прогон длится 55 мин, не 20, — поэтому шесть слотов расставлены
+вне чужих окон, а порог правила поднят до 8 ч (самый длинный промежуток 05:25 → 12:25). Наши SKU Master /
+Product Entities / Assortment (07:15 / 07:30 / 07:45) квоту не трогают, но читают merchant listings — стоят
+после FBA Fees, чтобы брать сегодняшний срез. Новый отчётный загрузчик — только в свободный слот карты;
+смотреть фактические длительности через `runs/list`, а не по памяти.
 
 На 429 при createReport все наши загрузчики ждут по минуте до 40 минут и падают с маркером `[QUOTA_429]`
 в тексте ошибки; сторож читает ошибку последнего прогона через `get_run_output` и заводит `report_quota`
 (warning, дайджест в ClickUp) вместо `job_health` (critical) — квота и поломка кода различаются. До 19.09
 Suppressed Listings на 429 печатал ERROR и молча пропускал рынок, Returns крутил рекурсию без предела.
+Economics Loader (ячейка Sales & Traffic) до 19.09 на любой не-202 от createReport печатал `create failed` и
+возвращал пустой список — рынок молча выпадал из `sales_traffic_daily`; теперь сбои рынков копятся, строки
+остальных рынков и пульс пишутся, и ячейка падает после них (с `[QUOTA_429]`, если причина — квота).
 
 ### Квантификатор регулярки внутри f-строки — только в двойных скобках
 
