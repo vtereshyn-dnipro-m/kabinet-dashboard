@@ -129,6 +129,18 @@ SP-API даёт на создание отчёта один запрос в ми
 
 Data Kiosk и Finances API этой квоты не касаются — у них свои.
 
+Карта окна с 19.09.2026 (Киев): 02:30 SQP · 03:30 ср Brand Analytics · 04:15 Inventory Age · 04:45 Account
+Health · 05:30 Suppressed Listings · 06:00 Returns · 06:30 SQP · 07:00 MYI · 07:15 FBA Charges · **08:00–10:30
+Дарина: Sales & Traffic for Tableau (150 мин), 09:30 FBA Fees + Listings (50 мин), 10:25 Ledger Summary** ·
+11:00 Ledger Detail + Listing Cards · 11:30 SQP · 12:30 Economics · 15:30 / 19:30 / 23:30 SQP. Наши отчётные
+джобы из окна 08:00–11:00 выведены (MYI был 08:00, FBA Charges 09:00, Ledger Detail 09:30, SQP плавал
+«каждые 4 часа» и попадал в 10:30). Новый отчётный загрузчик ставить только в свободные слоты этой карты.
+
+На 429 при createReport все наши загрузчики ждут по минуте до 40 минут и падают с маркером `[QUOTA_429]`
+в тексте ошибки; сторож читает ошибку последнего прогона через `get_run_output` и заводит `report_quota`
+(warning, дайджест в ClickUp) вместо `job_health` (critical) — квота и поломка кода различаются. До 19.09
+Suppressed Listings на 429 печатал ERROR и молча пропускал рынок, Returns крутил рекурсию без предела.
+
 ### Квантификатор регулярки внутри f-строки — только в двойных скобках
 
 SQL для Spark часто собирается f-строкой, и `'^[0-9]{6}'` внутри неё — это не
@@ -246,6 +258,7 @@ Loader` с 12.07 по 14.09.2026 брал из Odoo только SKU со вто
 - Справочник SKU (ТЗ 005, с 18.09.2026): `kabinet_data.sku_master`, `sku_composition`, `sku_checks`, `sku_change_log`; загрузчик `Kabinet - SKU Master Loader` (06:00 Kyiv). Мастер кодов — Odoo (`raw_odoo_sku_mapping`: `website_kit` → составной, `mono` → базовый); варианты записи одного кода сводятся к коду Odoo (`S2_08455000` ↔ `S2_08455000_`, `41500000-A_` ↔ `41500000-A`), Amazon местами теряет ведущий ноль (`8455000` → `08455000`), в BOM Odoo тоже. Периметр — всё выставленное на 8 рынках Amazon, MM, LM, CF, плюс компоненты этих наборов и продажи за 365 дней: 536 SKU (331 базовых, 203 составных). 141 строка листингов — не SKU, а контейнеры вариаций (`…_variants`, `…PARENT`, случайные коды Amazon) — материал ТЗ 006. Вес брутто — `raw_weight_child_sku` из ERP (совпадает с `item_package_weight` Amazon до сотых — это брутто), закрывает 316/331 базовых; габариты — только упаковка Amazon (`item_package_dimensions`, 140/331) и только для SKU, выставленных как есть — у составного своих габаритов нет (§7.8), объём и вес считаются из состава. Дата ввода — всегда ОЦЕНКА (`intro_source = estimate:*`): min(первый остаток в ERP с 01.01.2025, открытие листинга, первая продажа). Поле с `*_source = 'manual'` загрузчик не трогает. Экран — «Справочники → SKU».
 - Справочники ТЗ 008 и 006 (с 18.09.2026): `product_entities` (PeID по marketplace: ASIN, `id_me` ManoMano, `product_sku` LM/CF; `is_parent` — Parent ASIN как сущность группы), `product_entity_listings` (под каким seller-SKU/SKU сущность выставлена — наблюдение площадки, не решение; исходник регистра представления ТЗ 007), `variation_groups` (одна на Parent ASIN в marketplace, имя — из родительской строки листинга или заголовка первого ребёнка), `product_entities.variation_group_id` + `group_source` (auto/manual), журнал `product_entity_change_log`, контроль `product_entity_checks` / `variation_group_checks`. Один загрузчик `Kabinet - Product Entities Loader` (06:15 Kyiv, после SKU Master 06:00 — периметр SKU берётся оттуда). FK на `marketplaces_new` не объявлены: у rw нет REFERENCES на таблицы владельца. Связь ребёнок → родитель есть только там, где тянули каталог SP-API (ES, FR) или снимки витрины: 687 вариантов в 230 группах, 1 693 варианта без группы — лечится прогоном каталога по DE/IT/IE/BE/NL/GB. Экраны — «Справочники → PeID» (группа правится при одном выбранном маркетплейсе) и «→ Вариации».
 - В отчёте merchant listings по Франции `asin1` пуст у всех строк — ASIN лежит в `product_id` при `product_id_type = '1'`; в Испании `product_id` — это EAN (`type 4`) у половины строк, а `asin1` заполнен. ASIN брать как `COALESCE(asin1, product_id при type 1)`; EAN — `product_id` при type 4.
+- Ноутбуки Дарины с ключами открытым текстом переведены на скоупы 19.09.2026 (правка только строк присваивания, копии «до» — `/Users/v.tereshyn@dniprom.com/_backup/… (до секретов, 2026-09-19)`): SP-API (`amazon-sp-api/lwa-app-id`, `lwa-client-secret`, `refresh-token`) — FBA Inventory Ledger Summary, Sales & Traffic, FBA Fees + Listings, SendCloud tracking; Ads (`ads_lwa_*`) — Amazon Ads API (First)/(Second); `odoo/username`, `api-key` (+ `url`, `db`) — Odoo Stock; `sendcloud/api-key`, `api-secret` — SendCloud tracking. Ключи в её коде были байт в байт равны нашим (сверка по sha256 в ноутбуке). Её джобы идут под ней — Дарине выдан READ на скоупы; принципалу нужен CAN_EDIT на ноутбук, права на папку на вложенные не наследуются. Код её ноутбуков читается через `jobs/runs/export?views_to_export=CODE` (модель в `__DATABRICKS_NOTEBOOK_MODEL`, base64 + urlencode) даже без прав на сам файл. Перевыпуск ключей отложен: refresh token SP-API обновляется сам.
 - Дата отгрузки по Mirakl есть только у Leroy Merlin — `raw_lm_order_lines.shipped_date`, заполнена на 100 %. У ManoMano и Carrefour такого поля нет ни в заказах, ни в строках: есть статус `SHIPPED`, но не дата его наступления, а истории смены статусов мы не храним.
 
 ## Удаление в справочниках
