@@ -79,6 +79,13 @@ TR = {
         "pe_col_status": "Статусы листингов", "pe_col_parent": "Parent", "pe_col_group": "Группа вариаций", "pe_col_active": "Активен",
         "pe_col_seen": "Источники", "pe_col_last": "Последний раз", "pe_col_issues": "Контроль", "pe_col_comment": "Комментарий",
         "pe_saved": "Сохранено: {n} записей",
+        "pe_add_title": "Добавить PeID/ASIN", "pe_add_hint": "Добавление — при одном выбранном маркетплейсе (ТЗ 008 §8): значение уникально внутри маркетплейса, в том числе против групповых PeID (§11); группа — только из групп этого маркетплейса.",
+        "pe_add_peid": "PeID/ASIN", "pe_add_name": "Название (как на площадке)", "pe_add_group": "Группа вариаций", "pe_add_comment": "Комментарий", "pe_add_btn": "Добавить",
+        "pe_add_empty": "Укажите PeID/ASIN.", "pe_add_dup": "PeID/ASIN «{p}» уже есть в {mp}.", "pe_add_dup_group": "«{p}» — групповой PeID группы «{g}» в {mp}: вариант с тем же значением недопустим (§11).",
+        "pe_add_ok": "Добавлен {p} в {mp}.",
+        "pe_links_title": "Связи в матрице", "pe_links_pick": "PeID/ASIN", "pe_links_none": "Представлений в матрице нет: PeID ни один SKU на этом маркетплейсе не представляет.",
+        "pe_links_col_sku": "SKU", "pe_links_col_from": "С", "pe_links_col_to": "По", "pe_links_col_role": "Роль", "pe_links_col_adm": "Допуск с", "pe_links_col_adm_to": "Допуск по", "pe_links_col_state": "Связь",
+        "pe_links_active": "действующая", "pe_links_hist": "историческая",
         "sku_hint": "Справочник SKU по ТЗ 005: базовые и составные товары компании. Тип и имя — из Odoo, вес брутто — из ERP, "
                     "габариты упаковки и EAN — из Amazon, дата ввода — оценка по первому остатку/листингу/продаже. "
                     "Поле, поправленное здесь, помечается «manual» и загрузчиком больше не трогается.",
@@ -257,6 +264,13 @@ TR = {
         "pe_col_status": "Статуси лістингів", "pe_col_parent": "Parent", "pe_col_group": "Група варіацій", "pe_col_active": "Активний",
         "pe_col_seen": "Джерела", "pe_col_last": "Востаннє", "pe_col_issues": "Контроль", "pe_col_comment": "Коментар",
         "pe_saved": "Збережено: {n} записів",
+        "pe_add_title": "Додати PeID/ASIN", "pe_add_hint": "Додавання — за одного обраного маркетплейсу (ТЗ 008 §8): значення унікальне всередині маркетплейсу, зокрема проти групових PeID (§11); група — лише з груп цього маркетплейсу.",
+        "pe_add_peid": "PeID/ASIN", "pe_add_name": "Назва (як на майданчику)", "pe_add_group": "Група варіацій", "pe_add_comment": "Коментар", "pe_add_btn": "Додати",
+        "pe_add_empty": "Вкажіть PeID/ASIN.", "pe_add_dup": "PeID/ASIN «{p}» уже є в {mp}.", "pe_add_dup_group": "«{p}» — груповий PeID групи «{g}» у {mp}: варіант із тим самим значенням неприпустимий (§11).",
+        "pe_add_ok": "Додано {p} у {mp}.",
+        "pe_links_title": "Звʼязки в матриці", "pe_links_pick": "PeID/ASIN", "pe_links_none": "Представлень у матриці немає: PeID жоден SKU на цьому маркетплейсі не представляє.",
+        "pe_links_col_sku": "SKU", "pe_links_col_from": "З", "pe_links_col_to": "По", "pe_links_col_role": "Роль", "pe_links_col_adm": "Допуск з", "pe_links_col_adm_to": "Допуск по", "pe_links_col_state": "Звʼязок",
+        "pe_links_active": "чинний", "pe_links_hist": "історичний",
         "sku_hint": "Довідник SKU за ТЗ 005: базові та складені товари компанії. Тип і назва — з Odoo, вага брутто — з ERP, "
                     "габарити упаковки та EAN — з Amazon, дата введення — оцінка за першим залишком/лістингом/продажем. "
                     "Поле, виправлене тут, позначається «manual» і завантажувачем більше не чіпається.",
@@ -435,6 +449,13 @@ TR = {
         "pe_col_status": "Listing statuses", "pe_col_parent": "Parent", "pe_col_group": "Variation group", "pe_col_active": "Active",
         "pe_col_seen": "Sources", "pe_col_last": "Last seen", "pe_col_issues": "Control", "pe_col_comment": "Comment",
         "pe_saved": "Saved: {n} records",
+        "pe_add_title": "Add PeID/ASIN", "pe_add_hint": "Adding works with one marketplace selected (spec 008 §8): the value is unique within the marketplace, including against group PeIDs (§11); the group comes from this marketplace only.",
+        "pe_add_peid": "PeID/ASIN", "pe_add_name": "Title (as on the marketplace)", "pe_add_group": "Variation group", "pe_add_comment": "Comment", "pe_add_btn": "Add",
+        "pe_add_empty": "Enter the PeID/ASIN.", "pe_add_dup": "PeID/ASIN «{p}» already exists in {mp}.", "pe_add_dup_group": "«{p}» is the group PeID of «{g}» in {mp}: a variant with the same value is not allowed (§11).",
+        "pe_add_ok": "Added {p} to {mp}.",
+        "pe_links_title": "Matrix links", "pe_links_pick": "PeID/ASIN", "pe_links_none": "No representations in the matrix: this PeID represents no SKU on the marketplace.",
+        "pe_links_col_sku": "SKU", "pe_links_col_from": "From", "pe_links_col_to": "To", "pe_links_col_role": "Role", "pe_links_col_adm": "Admitted from", "pe_links_col_adm_to": "Admitted to", "pe_links_col_state": "Link",
+        "pe_links_active": "active", "pe_links_hist": "historical",
         "sku_hint": "SKU directory per spec 005: base and composite company products. Type and name from Odoo, gross weight from ERP, "
                     "package dimensions and EAN from Amazon, intro date estimated from first stock/listing/sale. "
                     "A field edited here is marked «manual» and the loader never overwrites it again.",
@@ -1625,6 +1646,8 @@ with tab_peid:
     if not has_table(PE):
         st.info(_tr("no_data"))
     else:
+        # джойны l и c — явным ON: после присоединения variation_groups (у неё тоже marketplace_id) USING давал
+        # «common column name marketplace_id appears more than once», и вкладка падала на живой базе (20.09.2026)
         pe = q(f"""
             SELECT e.id, m.code AS mp, e.peid, e.title, e.url, e.is_parent, e.is_active, e.active_source,
                    e.variation_group_id, g.name AS group_name,
@@ -1635,12 +1658,12 @@ with tab_peid:
             LEFT JOIN kabinet_data.variation_groups g ON g.id = e.variation_group_id
             LEFT JOIN (SELECT marketplace_id, peid, string_agg(DISTINCT sku, ', ') AS skus,
                               string_agg(DISTINCT listing_status, ', ') AS statuses
-                       FROM kabinet_data.product_entity_listings GROUP BY 1, 2) l USING (marketplace_id, peid)
+                       FROM kabinet_data.product_entity_listings GROUP BY 1, 2) l ON l.marketplace_id = e.marketplace_id AND l.peid = e.peid
             LEFT JOIN (SELECT marketplace_id, peid,
                               string_agg(check_code || CASE severity WHEN 'error' THEN ' ⛔' WHEN 'warning' THEN ' ⚠' ELSE '' END,
                                          ', ' ORDER BY severity, check_code) AS issues,
                               count(*) FILTER (WHERE severity = 'error') AS n_err
-                       FROM kabinet_data.product_entity_checks GROUP BY 1, 2) c USING (marketplace_id, peid)
+                       FROM kabinet_data.product_entity_checks GROUP BY 1, 2) c ON c.marketplace_id = e.marketplace_id AND c.peid = e.peid
             ORDER BY m.code, (c.n_err IS NULL), c.n_err DESC, e.peid
         """) if has_table("kabinet_data.variation_groups") else q(f"""
             SELECT e.id, m.code AS mp, e.peid, e.title, e.url, e.is_parent, e.is_active, e.active_source,
@@ -1651,12 +1674,12 @@ with tab_peid:
             JOIN kabinet_data.marketplaces_new m ON m.id = e.marketplace_id
             LEFT JOIN (SELECT marketplace_id, peid, string_agg(DISTINCT sku, ', ') AS skus,
                               string_agg(DISTINCT listing_status, ', ') AS statuses
-                       FROM kabinet_data.product_entity_listings GROUP BY 1, 2) l USING (marketplace_id, peid)
+                       FROM kabinet_data.product_entity_listings GROUP BY 1, 2) l ON l.marketplace_id = e.marketplace_id AND l.peid = e.peid
             LEFT JOIN (SELECT marketplace_id, peid,
                               string_agg(check_code || CASE severity WHEN 'error' THEN ' ⛔' WHEN 'warning' THEN ' ⚠' ELSE '' END,
                                          ', ' ORDER BY severity, check_code) AS issues,
                               count(*) FILTER (WHERE severity = 'error') AS n_err
-                       FROM kabinet_data.product_entity_checks GROUP BY 1, 2) c USING (marketplace_id, peid)
+                       FROM kabinet_data.product_entity_checks GROUP BY 1, 2) c ON c.marketplace_id = e.marketplace_id AND c.peid = e.peid
             ORDER BY m.code, (c.n_err IS NULL), c.n_err DESC, e.peid
         """)
         f1, f2, f3, f4, f5 = st.columns([1.2, 1.8, 1, 1, 1])
@@ -1745,6 +1768,66 @@ with tab_peid:
                 except Exception as e:
                     st.error(_trf("err", e=e))
 
+        # ── создание записи (ТЗ 008 §8): в контексте одного маркетплейса, уникальность и против групповых PeID (§11)
+        if _one_mp:
+            with st.expander(_tr("pe_add_title")):
+                st.caption(_tr("pe_add_hint"))
+                a1, a2 = st.columns([1, 2])
+                _np = a1.text_input(_tr("pe_add_peid"), key="pe_add_peid").strip()
+                _nt = a2.text_input(_tr("pe_add_name"), key="pe_add_name").strip()
+                a3, a4 = st.columns(2)
+                _ng = a3.selectbox(_tr("pe_add_group"), [""] + _grp_opts, key="pe_add_group")
+                _nc = a4.text_input(_tr("pe_add_comment"), key="pe_add_comment").strip()
+                if st.button(_tr("pe_add_btn"), key="pe_add_btn"):
+                    if not _np:
+                        st.error(_tr("pe_add_empty"))
+                    else:
+                        _mpid = int(q1("SELECT id FROM kabinet_data.marketplaces_new WHERE code = %s", (_one_mp,))["id"].iloc[0])
+                        _dup = q1("SELECT 1 FROM kabinet_data.product_entities WHERE marketplace_id = %s AND upper(peid) = upper(%s)", (_mpid, _np))
+                        _dupg = q1("SELECT name FROM kabinet_data.variation_groups WHERE marketplace_id = %s AND upper(group_peid) = upper(%s)", (_mpid, _np)) \
+                            if has_table("kabinet_data.variation_groups") else pd.DataFrame()
+                        if len(_dup):
+                            st.error(_trf("pe_add_dup", p=_np, mp=_one_mp))
+                        elif len(_dupg):
+                            st.error(_trf("pe_add_dup_group", p=_np, g=_dupg["name"].iloc[0], mp=_one_mp))
+                        else:
+                            try:
+                                _gid = _grp_id.get(_ng) if _ng else None
+                                exec_sql([
+                                    (f"INSERT INTO {PE} (marketplace_id, peid, variation_group_id, group_source, title, is_parent, is_active, active_source, seen_in, comment, updated_by) "
+                                     f"VALUES (%s, %s, %s, %s, %s, FALSE, TRUE, 'manual', ARRAY['manual'], %s, 'kabinet')",
+                                     (_mpid, _np, _gid, "manual" if _gid else None, _nt or None, _nc or None)),
+                                    ("INSERT INTO kabinet_data.product_entity_change_log (marketplace_id, peid, field, old_value, new_value, source, actor) VALUES (%s, %s, 'created', NULL, %s, 'manual', 'kabinet')",
+                                     (_mpid, _np, _ng or None)),
+                                ])
+                                st.cache_data.clear()
+                                st.success(_trf("pe_add_ok", p=_np, mp=_one_mp))
+                                st.rerun()
+                            except Exception as e:
+                                st.error(_trf("err", e=e))
+
+        # ── связи в матрице (ТЗ 008 §5, §8): PeID ↔ SKU только через регистр представления, история видна
+        if _one_mp and has_table("kabinet_data.assortment_representations") and len(view):
+            with st.expander(_tr("pe_links_title")):
+                _lp = st.selectbox(_tr("pe_links_pick"), sorted(view["peid"].astype(str)), key="pe_links_pick")
+                _lk = q1("""SELECT a.sku, r.valid_from, r.valid_to, r.commercial_role, a.added_on, a.removed_on
+                            FROM kabinet_data.assortment_representations r
+                            JOIN kabinet_data.assortment_admissions a ON a.id = r.admission_id
+                            JOIN kabinet_data.marketplaces_new m ON m.id = r.marketplace_id
+                            WHERE m.code = %s AND r.peid = %s ORDER BY r.valid_to IS NULL DESC, r.valid_from DESC""", (_one_mp, _lp))
+                if _lk.empty:
+                    st.caption(_tr("pe_links_none"))
+                else:
+                    _vt = pd.to_datetime(_lk.get("valid_to"), errors="coerce")
+                    _lk["state"] = [(_tr("pe_links_active") if (pd.isna(v) or v.date() > date.today()) else _tr("pe_links_hist")) for v in _vt]
+                    for c in ("sku", "valid_from", "valid_to", "commercial_role", "added_on", "removed_on"):
+                        if c not in _lk.columns:
+                            _lk[c] = None
+                    _lk = _lk[["sku", "state", "valid_from", "valid_to", "commercial_role", "added_on", "removed_on"]]
+                    _lk.columns = [_tr("pe_links_col_sku"), _tr("pe_links_col_state"), _tr("pe_links_col_from"), _tr("pe_links_col_to"),
+                                   _tr("pe_links_col_role"), _tr("pe_links_col_adm"), _tr("pe_links_col_adm_to")]
+                    st.dataframe(_lk, hide_index=True, use_container_width=True, height=min(300, 38 + 35 * len(_lk)))
+
 
 # ---------------------------------------------------------------- вариации ---
 with tab_vg:
@@ -1830,7 +1913,7 @@ with tab_vg:
             mem = q1("""SELECT e.peid, e.title, l.skus, e.is_active, e.group_source
                         FROM kabinet_data.product_entities e
                         LEFT JOIN (SELECT marketplace_id, peid, string_agg(DISTINCT sku, ', ') AS skus
-                                   FROM kabinet_data.product_entity_listings GROUP BY 1, 2) l USING (marketplace_id, peid)
+                                   FROM kabinet_data.product_entity_listings GROUP BY 1, 2) l ON l.marketplace_id = e.marketplace_id AND l.peid = e.peid
                         WHERE e.variation_group_id = %s ORDER BY e.peid""", (gid,))
             if mem.empty:
                 st.caption(_tr("vg_members_none"))
