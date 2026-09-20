@@ -741,13 +741,13 @@ TRANSLATIONS = {
     "home.plan.title": {
         "ru": "План месяца", "uk": "План місяця", "en": "Month plan"},
     "home.plan.note": {
-        "ru": "Деньги с НДС: план — по листу, факт — продажи по заказам до {d} (как в кабинете Amazon и в карточке «Продажи по заказам»). Ожидание — "
+        "ru": "Деньги с НДС, только Amazon: план — по листу, факт — продажи по заказам до {d} (как в кабинете Amazon и в карточке «Продажи по заказам» — при периоде «текущий месяц» суммы совпадают). Ожидание — "
               "доля календарных дней месяца с данными ({k} из {n}). Темп по ТЗ 010 §13: "
               "факт / ожидание − 1, порог {thr}%.",
-        "uk": "Гроші з ПДВ: план — за листом, факт — продажі за замовленнями до {d} (як у кабінеті Amazon і в картці «Продажі за замовленнями»). Очікування — "
+        "uk": "Гроші з ПДВ, лише Amazon: план — за листом, факт — продажі за замовленнями до {d} (як у кабінеті Amazon і в картці «Продажі за замовленнями» — за періоду «поточний місяць» суми збігаються). Очікування — "
               "частка календарних днів місяця з даними ({k} з {n}). Темп за ТЗ 010 §13: "
               "факт / очікування − 1, поріг {thr}%.",
-        "en": "Money incl. VAT: plan per the sheet, fact — ordered sales through {d} (as in Seller Central and the «Ordered sales» card). Expectation is "
+        "en": "Money incl. VAT, Amazon only: plan per the sheet, fact — ordered sales through {d} (as in Seller Central and the «Ordered sales» card — with the period set to the current month the sums match). Expectation is "
               "the share of calendar days with data ({k} of {n}). Pace per spec 010 §13: "
               "fact / expected − 1, threshold {thr}%.",
     },
@@ -778,21 +778,24 @@ TRANSLATIONS = {
         "uk": "План × {k} днів з даними / {n} днів у місяці",
         "en": "Plan × {k} days with data / {n} days in month"},
     "home.plan.total_fact_help": {
-        "ru": "Продажи по заказам с НДС по всем строкам блока, включая страны и каналы без плана. Темп в дельте — только по строкам, у которых план есть",
-        "uk": "Продажі за замовленнями з ПДВ за всіма рядками блоку, включно з країнами й каналами без плану. Темп у дельті — лише за рядками, де план є",
-        "en": "Ordered sales incl. VAT across all rows, including countries and channels without a plan. The pace delta covers only rows that have a plan"},
+        "ru": "Продажи по заказам Amazon с НДС по всем строкам блока, включая страны без плана (BE, GB) — та же сумма, что в карточке «Продажи по заказам» за тот же период. Каналы Mirakl в блок не входят: план есть только по Amazon. Темп в дельте — только по строкам, у которых план есть",
+        "uk": "Продажі за замовленнями Amazon з ПДВ за всіма рядками блоку, включно з країнами без плану (BE, GB) — та сама сума, що в картці «Продажі за замовленнями» за той самий період. Канали Mirakl до блоку не входять: план є лише за Amazon. Темп у дельті — лише за рядками, де план є",
+        "en": "Amazon ordered sales incl. VAT across all rows, including countries without a plan (BE, GB) — the same sum as the «Ordered sales» card for the same period. Mirakl channels are not in this block: the plan exists for Amazon only. The pace delta covers only rows that have a plan"},
     "home.plan.total_help": {
         "ru": "Сумма по всем объектам плана текущего месяца; одинакова во всех разрезах",
         "uk": "Сума за всіма обʼєктами плану поточного місяця; однакова в усіх розрізах",
         "en": "Sum over all plan objects of the current month; the same in every view"},
     "home.plan.pool_note": {
-        "ru": "Строки без плана (например BE, GB, LM-ES, CF-ES, MM-ES, MM-FR): план и ожидание 0, факт настоящий, выполнение и темп не считаются — "
+        "ru": "Строки без плана (BE, GB): план и ожидание 0, факт настоящий, выполнение и темп не считаются — "
               "сравнивать нечего, и это показано честно. У страны и площадки выполнение и темп считаются только по маркетплейсам с планом.",
-        "uk": "Рядки без плану (наприклад BE, GB, LM-ES, CF-ES, MM-ES, MM-FR): план і очікування 0, факт справжній, виконання й темп не рахуються — "
+        "uk": "Рядки без плану (BE, GB): план і очікування 0, факт справжній, виконання й темп не рахуються — "
               "порівнювати нічого, і це показано чесно. У країни та майданчика виконання й темп рахуються лише за маркетплейсами з планом.",
-        "en": "Rows without a plan (e.g. BE, GB, LM-ES, CF-ES, MM-ES, MM-FR): plan and expectation 0, real fact, no completion or pace — "
+        "en": "Rows without a plan (BE, GB): plan and expectation 0, real fact, no completion or pace — "
               "nothing to compare, shown honestly. For a country or platform, completion and pace use only marketplaces with a plan."},
-    "home.plan.col_name": {"ru": "Страна / маркетплейс", "uk": "Країна / маркетплейс", "en": "Country / marketplace"},
+    "home.plan.col_country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "home.plan.col_platform": {"ru": "Площадка", "uk": "Майданчик", "en": "Platform"},
+    "home.plan.col_name": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
+    "home.plan.node_total": {"ru": "итого", "uk": "разом", "en": "total"},
     "home.plan.col_sub": {"ru": "Состав", "uk": "Склад", "en": "Members"},
     "home.plan.col_obj": {"ru": "Объект", "uk": "Обʼєкт", "en": "Object"},
     "home.plan.col_plan": {"ru": "План", "uk": "План", "en": "Plan"},
