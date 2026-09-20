@@ -788,17 +788,22 @@ else:
         # кликом по заголовку, и строка с отступом «↳ CF-ES» после сортировки оказывалась под Бельгией
         _out = []
         for _, r in rows.iterrows():
-            grp, nm = r["parent"], (t("home.plan.node_total") if r["level"] == 0 else r["name"])
+            # строка узла: «Σ итого» — после сортировки по колонке она оказывается среди маркетплейсов,
+            # и без метки читалась как ещё один рынок (QA 21.09)
+            grp, nm = r["parent"], (("Σ " + t("home.plan.node_total")) if r["level"] == 0 else r["name"])
             _out.append(dict(group=grp, name=nm, sub=r["sub"], unit="€", plan=r["plan_rev"], expected=r["expected_rev"],
                              fact=r["fact_rev"], done=r["done_rev"], pace=_pace_txt(r["pace_rev"]), skus=r["plan_skus"]))
             if _units:
                 _out.append(dict(group=grp, name=nm, sub=r["sub"], unit="шт", plan=r["plan_units"], expected=r["expected_units"],
-                                 fact=r["fact_units"], done=r["done_units"], pace=_pace_txt(r["pace_units"]), skus=None))
+                                 fact=r["fact_units"], done=r["done_units"], pace=_pace_txt(r["pace_units"]), skus=pd.NA))
         _pt = pd.DataFrame(_out)
         for c in ("plan", "expected", "fact"):
             _pt[c] = _pt[c].round(0)
-        _cols = ["group", "name", "unit", "plan", "expected", "fact", "done", "pace", "skus", "sub"] if _units \
-            else ["group", "name", "plan", "expected", "fact", "done", "pace", "skus", "sub"]
+        _pt["skus"] = pd.to_numeric(_pt["skus"], errors="coerce").astype("Int64")   # у строки «шт» счётчика нет — пусто, не None
+        # в разрезе «По стране» строка узла — единственная, колонка «Маркетплейс» сплошь «итого» — не показываем
+        _has_mp = _mode != "country"
+        _cols = [c for c in (["group", "name", "unit", "plan", "expected", "fact", "done", "pace", "skus", "sub"] if _units
+                             else ["group", "name", "plan", "expected", "fact", "done", "pace", "skus", "sub"]) if _has_mp or c != "name"]
         _grp_lbl = t("home.plan.col_platform") if _mode == "platform" else t("home.plan.col_country")
         st.dataframe(_pt[_cols], hide_index=True, use_container_width=True,
                      height=min(600, 38 + 35 * len(_pt)),
