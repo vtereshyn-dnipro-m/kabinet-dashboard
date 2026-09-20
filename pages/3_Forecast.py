@@ -309,6 +309,19 @@ def tx(fn):
         conn.close()
 
 
+def is_empty(v) -> bool:
+    """Пусто ли значение ячейки: None, NaN, pd.NA (nullable Float64 из редактора) или пустая строка.
+    `v == ""` на pd.NA бросает «boolean value of NA is ambiguous», поэтому сравнение — последним и только для строк."""
+    if v is None or v is pd.NA:
+        return True
+    if isinstance(v, str):
+        return v.strip() == ""
+    try:
+        return bool(pd.isna(v))
+    except (TypeError, ValueError):
+        return False
+
+
 def month_label(m) -> str:
     m = pd.Timestamp(m)
     return f"{m.month:02d}.{m.year}"
@@ -474,7 +487,7 @@ def save_grid(doc, rows: pd.DataFrame, edited: pd.DataFrame, months: list) -> tu
             if col not in edited.columns:
                 continue
             v = er.get(col)
-            new = None if (v is None or (isinstance(v, float) and pd.isna(v)) or v == "") else v
+            new = None if is_empty(v) else v
             old_r = by_key.get((sku, m))
             if old_r is None:
                 continue
@@ -515,7 +528,7 @@ def save_prices(doc, rows: pd.DataFrame, edited: pd.DataFrame, months: list) -> 
             if m < CUR_MONTH or month_label(m) not in edited.columns:
                 continue
             v = er.get(month_label(m))
-            new = None if (v is None or (isinstance(v, float) and pd.isna(v))) else round(float(v), 4)
+            new = None if is_empty(v) else round(float(v), 4)
             r = by_key.get((er["sku"], m))
             if r is None:
                 continue
@@ -741,17 +754,18 @@ with tab_new:
 # ───────────────────────────── список ─────────────────────────────
 with tab_docs:
     f1, f2, f3 = st.columns(3)
-    f_obj = f1.selectbox(_tr("f_object"), [None] + list(obj_labels.keys()), format_func=lambda k: _tr("all") if k is None else obj_labels[k], key="fc_f_obj")
-    f_st = f2.selectbox(_tr("f_status"), [None, "draft", "posted"], format_func=lambda s: _tr("all") if s is None else _tr("st_" + s), key="fc_f_st")
-    f_m = f3.selectbox(_tr("f_month"), [None] + [add_months(CUR_MONTH, i) for i in range(-3, 13)],
-                       format_func=lambda m: _tr("all") if m is None else month_label(m), key="fc_f_m")
+    ALL = "__all__"
+    f_obj = f1.selectbox(_tr("f_object"), [ALL] + list(obj_labels.keys()), format_func=lambda k: _tr("all") if k == ALL else obj_labels[k], key="fc_f_obj")
+    f_st = f2.selectbox(_tr("f_status"), [ALL, "draft", "posted"], format_func=lambda s: _tr("all") if s == ALL else _tr("st_" + s), key="fc_f_st")
+    f_m = f3.selectbox(_tr("f_month"), [ALL] + [add_months(CUR_MONTH, i) for i in range(-3, 13)],
+                       format_func=lambda m: _tr("all") if m == ALL else month_label(m), key="fc_f_m")
     view = docs.copy()
-    if f_obj:
+    if f_obj != ALL:
         ot, oid = f_obj.split(":")
         view = view[(view["object_type"] == ot) & (view["object_id"] == int(oid))]
-    if f_st:
+    if f_st != ALL:
         view = view[view["status"] == f_st]
-    if f_m:
+    if f_m != ALL:
         view = view[(pd.to_datetime(view["first_month"]).dt.date <= f_m) & (pd.to_datetime(view["last_month"]).dt.date >= f_m)]
 
     if view.empty:
@@ -858,7 +872,7 @@ with tab_docs:
         grid = grid.reset_index().merge(sku_meta, on="sku", how="left")
         for c in grid.columns:
             if c != "sku" and c not in ("sku_type", "sku_name"):
-                grid[c] = pd.to_numeric(grid[c], errors="coerce").astype("float64")   # NaN рисуется пустой ячейкой, None — словом None
+                grid[c] = pd.to_numeric(grid[c], errors="coerce").astype("Float64")   # nullable: pd.NA рисуется пустой ячейкой; NaN float64 редактор писал словом
         stat = rows.groupby("sku").agg(n=("status", "size"), a=("status", lambda s: int((s == "approved").sum())),
                                        e=("quantity", lambda s: int(s.isna().sum())),
                                        sup=("status", lambda s: int((s == "superseded").sum()))).reset_index()
@@ -873,11 +887,11 @@ with tab_docs:
         grid["type"] = grid["sku_type"].map({"base": _tr("type_base"), "composite": _tr("type_composite")}).fillna(_tr("type_unknown"))
         mcols = [month_label(m) for m in months]
         grid[_tr("col_total")] = grid[mcols].fillna(0).sum(axis=1).astype(int)
-        show_cols = ["sku", "type", "state"] + mcols + [_tr("col_total"), "sku_name"]
+        show_cols = ["sku", "sku_name", "type", "state"] + mcols + [_tr("col_total")]
         cfg = {"sku": st.column_config.TextColumn(_tr("col_sku"), disabled=True, width="small", pinned=True),
                "type": st.column_config.TextColumn(_tr("col_type"), disabled=True, width="small"),
                "state": st.column_config.TextColumn(_tr("col_state"), disabled=True, width="small"),
-               "sku_name": st.column_config.TextColumn(_tr("col_name"), disabled=True, width="medium"),
+               "sku_name": st.column_config.TextColumn(_tr("col_name"), disabled=True, width="medium", pinned=True),
                _tr("col_total"): st.column_config.NumberColumn(_tr("col_total"), disabled=True, format="%d")}
         for m in months:
             cfg[month_label(m)] = st.column_config.NumberColumn(month_label(m), min_value=0, step=1, format="%d",
@@ -914,7 +928,7 @@ with tab_docs:
             pg_.columns = mcols
             pg_ = pg_.reset_index()
             for c in mcols:
-                pg_[c] = pd.to_numeric(pg_[c], errors="coerce").astype("float64")
+                pg_[c] = pd.to_numeric(pg_[c], errors="coerce").astype("Float64")
             pcfg = {"sku": st.column_config.TextColumn(_tr("col_sku"), disabled=True, pinned=True)}
             for m in months:
                 pcfg[month_label(m)] = st.column_config.NumberColumn(month_label(m), min_value=0.0, format="%.2f", disabled=(not is_draft) or m < CUR_MONTH)
@@ -1057,17 +1071,18 @@ with tab_log:
     l1, l2, l3, l4, l5 = st.columns(5)
     d_from = l1.date_input(_tr("log_from"), value=TODAY.replace(day=1), key="fc_log_from")
     d_to = l2.date_input(_tr("log_to"), value=TODAY, key="fc_log_to")
-    lo = l3.selectbox(_tr("f_object"), [None] + list(obj_labels.keys()), format_func=lambda k: _tr("all") if k is None else obj_labels[k], key="fc_log_obj")
+    ALL = "__all__"
+    lo = l3.selectbox(_tr("f_object"), [ALL] + list(obj_labels.keys()), format_func=lambda k: _tr("all") if k == ALL else obj_labels[k], key="fc_log_obj")
     lsku = l4.text_input(_tr("log_sku"), key="fc_log_sku")
-    lm = l5.selectbox(_tr("log_month"), [None] + [add_months(CUR_MONTH, i) for i in range(-6, 13)],
-                      format_func=lambda m: _tr("all") if m is None else month_label(m), key="fc_log_month")
+    lm = l5.selectbox(_tr("log_month"), [ALL] + [add_months(CUR_MONTH, i) for i in range(-6, 13)],
+                      format_func=lambda m: _tr("all") if m == ALL else month_label(m), key="fc_log_month")
     where, params = ["l.changed_at >= %s", "l.changed_at < %s + INTERVAL '1 day'"], [d_from, d_to]
-    if lo:
+    if lo != ALL:
         ot, oid = lo.split(":")
         where.append("d.object_type = %s AND d.object_id = %s"); params += [ot, int(oid)]
     if lsku.strip():
         where.append("l.sku ILIKE %s"); params.append(f"%{lsku.strip()}%")
-    if lm:
+    if lm != ALL:
         where.append("l.month = %s"); params.append(lm)
     try:
         lg = q(f"""SELECT l.changed_at, l.actor, d.number, COALESCE(m.code, p.name) AS object_name, d.status, l.sku, l.month, l.field,
