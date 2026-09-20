@@ -1963,6 +1963,8 @@ with tab_vg:
         with st.expander(_tr("vg_add_title")):
             st.caption(_tr("vg_add_hint"))
             _fam = q("SELECT id, code FROM kabinet_data.marketplaces_new WHERE is_active AND variation_group_label IS NOT NULL ORDER BY code")
+            if _fam.empty or "code" not in _fam.columns:
+                _fam = pd.DataFrame(columns=["id", "code"])
             c1, c2 = st.columns([1, 2])
             _vmp = c1.selectbox(_tr("vg_col_mp"), _fam["code"].tolist(), key="vg_add_mp")
             _vname = c2.text_input(_tr("vg_col_name"), key="vg_add_name").strip()
@@ -1970,7 +1972,7 @@ with tab_vg:
             _vpeid = c3.text_input(_tr("vg_add_peid"), key="vg_add_peid").strip()
             _vurl = c4.text_input("URL", key="vg_add_url").strip()
             _vcom = st.text_input(_tr("vg_col_comment"), key="vg_add_comment").strip()
-            if st.button(_tr("vg_add_btn"), key="vg_add_btn"):
+            if st.button(_tr("vg_add_btn"), key="vg_add_btn", disabled=_vmp is None):
                 _vmid = int(_fam.loc[_fam["code"] == _vmp, "id"].iloc[0])
                 if not _vname:
                     st.error(_tr("vg_add_no_name"))
