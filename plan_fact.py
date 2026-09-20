@@ -260,6 +260,12 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     if mode in ("country", "country_mp"):
         for c in sorted(plan_countries):
             m_c, p_c = in_scope[in_scope["country"] == c], pools[pools["country"] == c]
+            # узел из одного маркетплейса и без пула — одна строка, не «итого» плюс тот же маркетплейс под ним:
+            # после перевода блока на только-Amazon (20.09) у каждой страны ровно один рынок, и строки задваивались
+            if mode == "country_mp" and len(m_c) == 1 and p_c.empty:
+                m = m_c.iloc[0]
+                add(1, m["code"], m["name"], _agg(m_c, p_c, share), parent=c)
+                continue
             node(0, c, m_c, p_c)
             if mode == "country_mp":
                 for _, m in m_c.sort_values("code").iterrows():
@@ -267,6 +273,10 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     else:
         for pf in sorted(in_scope["platform"].dropna().unique()):
             m_p = in_scope[in_scope["platform"] == pf]
+            if len(m_p) == 1:
+                m = m_p.iloc[0]
+                add(1, m["code"], m["name"], _agg(m_p, pools.iloc[0:0], share), parent=pf)
+                continue
             node(0, pf, m_p, pools.iloc[0:0])
             for _, m in m_p.sort_values("code").iterrows():
                 add(1, m["code"], m["name"], _agg(m.to_frame().T, pools.iloc[0:0], share), parent=pf)
