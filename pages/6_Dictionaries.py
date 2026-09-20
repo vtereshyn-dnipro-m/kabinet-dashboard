@@ -67,7 +67,15 @@ TR = {
         "vg_col_family": "Семья площадки", "vg_col_active": "Активна", "vg_col_issues": "Контроль", "vg_col_comment": "Комментарий",
         "vg_col_src": "Источник",
         "vg_members_pick": "Состав группы", "vg_members_none": "Вариантов нет",
-        "vg_saved": "Сохранено: {n} групп",
+        "vg_saved": "Сохранено: {n} изменений",
+        "vg_url_help": "Ссылка на страницу группы на площадке; если отдельной страницы нет — пусто (ТЗ 006 §5)",
+        "vg_bad_url": "URL должен начинаться с http:// или https:// — не записано: {names}",
+        "vg_deactivated": "Группы деактивированы, связи вариантов и коммерческие роли закрыты и записаны в историю (§11): {groups}",
+        "vg_add_title": "Добавить группу вариаций", "vg_add_hint": "Группа создаётся в контексте одного маркетплейса с вариационными семьями (Amazon, TikTok Shop). Групповой PeID — при наличии; он не может совпадать с PeID варианта того же маркетплейса (§11).",
+        "vg_add_peid": "Групповой PeID / ASIN", "vg_add_btn": "Создать группу", "vg_add_no_name": "Название группы обязательно (§8).",
+        "vg_add_dup": "Групповой PeID «{p}» уже у группы «{g}» в {mp}.", "vg_add_is_variant": "«{p}» в {mp} — PeID варианта, групповым быть не может (§11).",
+        "vg_add_ok": "Создана группа «{g}» в {mp}. Варианты привязываются на вкладке PeID.",
+        "vg_log_title": "История группы ({n})", "vg_log_none": "Записей нет.",
         "pe_group_edit_hint": "Группу можно менять, когда выбран один маркетплейс: список — группы этого маркетплейса.",
         "pe_hint": "Товарные сущности площадок по ТЗ 008: ASIN у Amazon, model id у ManoMano, product_sku у Leroy Merlin и Carrefour. "
                    "Собираются из листингов и офферов ежедневно. Связь с SKU по ТЗ живёт в матрице; здесь показано, под каким SKU сущность "
@@ -252,7 +260,15 @@ TR = {
         "vg_col_family": "Сімʼя майданчика", "vg_col_active": "Активна", "vg_col_issues": "Контроль", "vg_col_comment": "Коментар",
         "vg_col_src": "Джерело",
         "vg_members_pick": "Склад групи", "vg_members_none": "Варіантів немає",
-        "vg_saved": "Збережено: {n} груп",
+        "vg_saved": "Збережено: {n} змін",
+        "vg_url_help": "Посилання на сторінку групи на майданчику; якщо окремої сторінки немає — порожньо (ТЗ 006 §5)",
+        "vg_bad_url": "URL має починатися з http:// або https:// — не записано: {names}",
+        "vg_deactivated": "Групи деактивовано, звʼязки варіантів і комерційні ролі закрито й записано в історію (§11): {groups}",
+        "vg_add_title": "Додати групу варіацій", "vg_add_hint": "Група створюється в контексті одного маркетплейсу з варіаційними сімʼями (Amazon, TikTok Shop). Груповий PeID — за наявності; він не може збігатися з PeID варіанта того самого маркетплейсу (§11).",
+        "vg_add_peid": "Груповий PeID / ASIN", "vg_add_btn": "Створити групу", "vg_add_no_name": "Назва групи обовʼязкова (§8).",
+        "vg_add_dup": "Груповий PeID «{p}» уже в групи «{g}» у {mp}.", "vg_add_is_variant": "«{p}» у {mp} — PeID варіанта, груповим бути не може (§11).",
+        "vg_add_ok": "Створено групу «{g}» у {mp}. Варіанти привʼязуються на вкладці PeID.",
+        "vg_log_title": "Історія групи ({n})", "vg_log_none": "Записів немає.",
         "pe_group_edit_hint": "Групу можна змінювати, коли обрано один маркетплейс: список — групи цього маркетплейсу.",
         "pe_hint": "Товарні сутності майданчиків за ТЗ 008: ASIN в Amazon, model id у ManoMano, product_sku у Leroy Merlin і Carrefour. "
                    "Збираються з лістингів та офферів щодня. Звʼязок із SKU за ТЗ живе в матриці; тут показано, під яким SKU сутність "
@@ -438,6 +454,14 @@ TR = {
         "vg_col_src": "Source",
         "vg_members_pick": "Group members", "vg_members_none": "No variants",
         "vg_saved": "Saved: {n} groups",
+        "vg_url_help": "Link to the group page on the marketplace; empty if there is no separate page (spec 006 §5)",
+        "vg_bad_url": "URL must start with http:// or https:// — not saved: {names}",
+        "vg_deactivated": "Groups deactivated; variant links and commercial roles closed and logged (§11): {groups}",
+        "vg_add_title": "Add variation group", "vg_add_hint": "A group is created within one marketplace that supports variation families (Amazon, TikTok Shop). Group PeID is optional and must not equal a variant PeID of the same marketplace (§11).",
+        "vg_add_peid": "Group PeID / ASIN", "vg_add_btn": "Create group", "vg_add_no_name": "Group name is required (§8).",
+        "vg_add_dup": "Group PeID «{p}» already belongs to group «{g}» in {mp}.", "vg_add_is_variant": "«{p}» in {mp} is a variant PeID and cannot be a group PeID (§11).",
+        "vg_add_ok": "Group «{g}» created in {mp}. Variants are linked on the PeID tab.",
+        "vg_log_title": "Group history ({n})", "vg_log_none": "No records.",
         "pe_group_edit_hint": "The group can be changed when a single marketplace is selected: the list holds that marketplace's groups.",
         "pe_hint": "Marketplace product entities per spec 008: ASIN on Amazon, model id on ManoMano, product_sku on Leroy Merlin and Carrefour. "
                    "Collected daily from listings and offers. The SKU link per spec lives in the matrix; here you see which SKU the entity "
@@ -1864,11 +1888,13 @@ with tab_vg:
                         issues=int(vg["issues"].notna().sum())))
         for c in ("group_peid", "comment", "issues", "url"):
             view[c] = view[c].fillna("")
-        cols = ["mp", "name", "group_peid", "members", "is_family", "is_active", "issues", "source", "comment", "url"]
+        cols = ["id", "mp", "name", "group_peid", "members", "is_family", "is_active", "issues", "source", "comment", "url"]
+        # ключ строки — id: у групп, заведённых руками, группового PeID может не быть (ТЗ 006 §3 «условно»)
         ed = st.data_editor(
             view[cols], key="ed_vg", use_container_width=True, height=480, hide_index=True, num_rows="fixed",
-            disabled=["mp", "group_peid", "members", "issues", "source", "url"],
+            disabled=["id", "mp", "group_peid", "members", "issues", "source"],
             column_config={
+                "id": None,
                 "mp": st.column_config.TextColumn(_tr("vg_col_mp"), width="small"),
                 "name": st.column_config.TextColumn(_tr("vg_col_name"), width="large"),
                 "group_peid": st.column_config.TextColumn(_tr("vg_col_peid"), width="small"),
@@ -1878,35 +1904,101 @@ with tab_vg:
                 "issues": st.column_config.TextColumn(_tr("vg_col_issues"), width="medium"),
                 "source": st.column_config.TextColumn(_tr("vg_col_src"), width="small"),
                 "comment": st.column_config.TextColumn(_tr("vg_col_comment"), width="medium"),
-                "url": st.column_config.LinkColumn("URL", width="small", display_text="↗"),
+                "url": st.column_config.TextColumn("URL", width="medium", help=_tr("vg_url_help")),
             },
         )
         if st.button(_tr("save"), key="save_vg", type="primary"):
-            before = view.set_index(["mp", "group_peid"]); ids = before["id"]
-            stmts = []
+            before = view.set_index("id")
+            stmts, closed, bad_url = [], [], []
+            VGL = "INSERT INTO kabinet_data.variation_group_change_log (group_id, field, old_value, new_value, source, actor) VALUES (%s, %s, %s, %s, 'manual', 'kabinet')"
             for _, r in ed.iterrows():
-                key = (r["mp"], r["group_peid"]); sets, params = [], []
-                if (r["name"] or "") != (before.at[key, "name"] or ""):
-                    sets += ["name = %s", "name_source = 'manual'"]; params.append(r["name"])
-                if bool(r["is_family"]) != bool(before.at[key, "is_family"]):
-                    sets.append("is_family = %s"); params.append(bool(r["is_family"]))
-                if bool(r["is_active"]) != bool(before.at[key, "is_active"]):
-                    sets += ["is_active = %s", "active_source = 'manual'"]; params.append(bool(r["is_active"]))
-                if (r["comment"] or "") != (before.at[key, "comment"] or ""):
-                    sets.append("comment = %s"); params.append(r["comment"] or None)
+                gid = int(r["id"]); sets, params = [], []
+                if (r["name"] or "") != (before.at[gid, "name"] or ""):
+                    if not (r["name"] or "").strip():
+                        continue                                            # название обязательно (§8) — пустое не записываем
+                    sets += ["name = %s", "name_source = 'manual'"]; params.append(r["name"]); stmts.append((VGL, (gid, "name", before.at[gid, "name"], r["name"])))
+                if (r["url"] or "") != (before.at[gid, "url"] or ""):
+                    if r["url"] and not str(r["url"]).lower().startswith(("http://", "https://")):
+                        bad_url.append(r["name"]); continue                 # §8: URL проверяется как URL
+                    sets.append("url = %s"); params.append(r["url"] or None); stmts.append((VGL, (gid, "url", before.at[gid, "url"] or None, r["url"] or None)))
+                if bool(r["is_family"]) != bool(before.at[gid, "is_family"]):
+                    sets.append("is_family = %s"); params.append(bool(r["is_family"])); stmts.append((VGL, (gid, "is_family", str(bool(before.at[gid, "is_family"])), str(bool(r["is_family"])))))
+                if bool(r["is_active"]) != bool(before.at[gid, "is_active"]):
+                    sets += ["is_active = %s", "active_source = 'manual'"]; params.append(bool(r["is_active"])); stmts.append((VGL, (gid, "is_active", str(bool(before.at[gid, "is_active"])), str(bool(r["is_active"])))))
+                    if not bool(r["is_active"]):
+                        # §11: деактивированная группа недоступна вариантам и ролям — действующие связи закрываем и оставляем в истории
+                        stmts.append(("INSERT INTO kabinet_data.product_entity_change_log (marketplace_id, peid, field, old_value, new_value, source, actor) "
+                                      "SELECT marketplace_id, peid, 'variation_group_id', %s, NULL, 'group_deactivated', 'kabinet' FROM kabinet_data.product_entities WHERE variation_group_id = %s", (str(gid), gid)))
+                        stmts.append(("INSERT INTO kabinet_data.assortment_change_log (register, record_id, field, old_value, new_value, source, actor) "
+                                      "SELECT 'representation', r.id, 'commercial_role', r.commercial_role, NULL, 'group_deactivated', 'kabinet' "
+                                      "FROM kabinet_data.assortment_representations r JOIN kabinet_data.product_entities e ON e.marketplace_id = r.marketplace_id AND e.peid = r.peid "
+                                      "WHERE e.variation_group_id = %s AND r.commercial_role IS NOT NULL AND (r.valid_to IS NULL OR r.valid_to > current_date)", (gid,)))
+                        stmts.append(("UPDATE kabinet_data.assortment_representations r SET commercial_role = NULL, role_since = NULL, updated_at = now() "
+                                      "FROM kabinet_data.product_entities e WHERE e.marketplace_id = r.marketplace_id AND e.peid = r.peid AND e.variation_group_id = %s "
+                                      "AND r.commercial_role IS NOT NULL AND (r.valid_to IS NULL OR r.valid_to > current_date)", (gid,)))
+                        stmts.append(("UPDATE kabinet_data.product_entities SET variation_group_id = NULL, group_source = 'manual', updated_at = now(), updated_by = 'kabinet' WHERE variation_group_id = %s", (gid,)))
+                        closed.append(f"{r['name']} ({int(before.at[gid, 'members'] or 0)})")
+                if (r["comment"] or "") != (before.at[gid, "comment"] or ""):
+                    sets.append("comment = %s"); params.append(r["comment"] or None); stmts.append((VGL, (gid, "comment", before.at[gid, "comment"] or None, r["comment"] or None)))
                 if sets:
-                    stmts.append((f"UPDATE {VG} SET {', '.join(sets)}, updated_at = now(), updated_by = 'kabinet' WHERE id = %s",
-                                  params + [int(ids.at[key])]))
+                    stmts.append((f"UPDATE {VG} SET {', '.join(sets)}, updated_at = now(), updated_by = 'kabinet' WHERE id = %s", params + [gid]))
+            if bad_url:
+                st.error(_trf("vg_bad_url", names=", ".join(bad_url[:10])))
             if not stmts:
-                st.info(_tr("nochange"))
+                if not bad_url:
+                    st.info(_tr("nochange"))
             else:
                 try:
                     exec_sql(stmts)
                     st.cache_data.clear()
                     st.success(_trf("vg_saved", n=len(stmts)))
+                    if closed:
+                        st.warning(_trf("vg_deactivated", groups="; ".join(closed)))
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err", e=e))
+
+        # ── создание группы (ТЗ 006 §2, §8): только на маркетплейсах с вариационными семьями, групповой PeID уникален
+        #    внутри маркетплейса и против вариантных PeID (§11)
+        with st.expander(_tr("vg_add_title")):
+            st.caption(_tr("vg_add_hint"))
+            _fam = q("SELECT id, code FROM kabinet_data.marketplaces_new WHERE is_active AND variation_group_label IS NOT NULL ORDER BY code")
+            if _fam.empty or "code" not in _fam.columns:
+                _fam = pd.DataFrame(columns=["id", "code"])
+            c1, c2 = st.columns([1, 2])
+            _vmp = c1.selectbox(_tr("vg_col_mp"), _fam["code"].tolist(), key="vg_add_mp")
+            _vname = c2.text_input(_tr("vg_col_name"), key="vg_add_name").strip()
+            c3, c4 = st.columns(2)
+            _vpeid = c3.text_input(_tr("vg_add_peid"), key="vg_add_peid").strip()
+            _vurl = c4.text_input("URL", key="vg_add_url").strip()
+            _vcom = st.text_input(_tr("vg_col_comment"), key="vg_add_comment").strip()
+            if st.button(_tr("vg_add_btn"), key="vg_add_btn", disabled=_vmp is None):
+                _vmid = int(_fam.loc[_fam["code"] == _vmp, "id"].iloc[0])
+                if not _vname:
+                    st.error(_tr("vg_add_no_name"))
+                elif _vurl and not _vurl.lower().startswith(("http://", "https://")):
+                    st.error(_trf("vg_bad_url", names=_vname))
+                else:
+                    _dup = q1("SELECT name FROM kabinet_data.variation_groups WHERE marketplace_id = %s AND upper(group_peid) = upper(%s)", (_vmid, _vpeid)) if _vpeid else pd.DataFrame()
+                    _var = q1("SELECT peid, is_parent FROM kabinet_data.product_entities WHERE marketplace_id = %s AND upper(peid) = upper(%s)", (_vmid, _vpeid)) if _vpeid else pd.DataFrame()
+                    if len(_dup):
+                        st.error(_trf("vg_add_dup", p=_vpeid, g=_dup["name"].iloc[0], mp=_vmp))
+                    elif len(_var) and not bool(_var["is_parent"].iloc[0]):
+                        st.error(_trf("vg_add_is_variant", p=_vpeid, mp=_vmp))
+                    else:
+                        try:
+                            exec_sql([
+                                (f"INSERT INTO {VG} (marketplace_id, name, name_source, group_peid, url, is_family, is_active, active_source, source, comment, updated_by) "
+                                 f"VALUES (%s, %s, 'manual', %s, %s, TRUE, TRUE, 'manual', 'manual', %s, 'kabinet')", (_vmid, _vname, _vpeid or None, _vurl or None, _vcom or None)),
+                                ("INSERT INTO kabinet_data.variation_group_change_log (group_id, field, old_value, new_value, source, actor) "
+                                 "SELECT id, 'created', NULL, %s, 'manual', 'kabinet' FROM kabinet_data.variation_groups WHERE marketplace_id = %s AND name = %s ORDER BY id DESC LIMIT 1",
+                                 (_vpeid or _vname, _vmid, _vname)),
+                            ])
+                            st.cache_data.clear()
+                            st.success(_trf("vg_add_ok", g=_vname, mp=_vmp))
+                            st.rerun()
+                        except Exception as e:
+                            st.error(_trf("err", e=e))
         if not view.empty:
             pick = st.selectbox(_tr("vg_members_pick"), view["name"].tolist(), key="vg_pick")
             gid = int(view.loc[view["name"] == pick, "id"].iloc[0])
@@ -1922,6 +2014,14 @@ with tab_vg:
                     "peid": st.column_config.TextColumn(_tr("pe_col_peid")), "title": st.column_config.TextColumn(_tr("pe_col_title"), width="large"),
                     "skus": st.column_config.TextColumn(_tr("pe_col_skus")), "is_active": st.column_config.CheckboxColumn(_tr("pe_col_active")),
                     "group_source": st.column_config.TextColumn(_tr("vg_col_src"))})
+            if has_table("kabinet_data.variation_group_change_log"):
+                _gl = q1("SELECT changed_at, actor, field, old_value, new_value, source FROM kabinet_data.variation_group_change_log WHERE group_id = %s ORDER BY changed_at DESC LIMIT 200", (gid,))
+                with st.expander(_trf("vg_log_title", n=len(_gl))):
+                    if _gl.empty:
+                        st.caption(_tr("vg_log_none"))
+                    else:
+                        _gl["changed_at"] = pd.to_datetime(_gl["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+                        st.dataframe(_gl, hide_index=True, use_container_width=True, height=min(300, 38 + 35 * len(_gl)))
 
 
 # ----------------------------------------------------------------- матрица ---
