@@ -32,13 +32,18 @@ TR = {
                  "Действующий прогноз — только из проведённых документов; проведённый документ не правится, изменение — новым документом.",
         "tab_docs": "Документы", "tab_log": "Журнал изменений", "tab_new": "Новый документ",
         "f_object": "Объект", "f_status": "Статус", "f_month": "Месяц в периоде", "all": "все",
-        "st_draft": "Черновик", "st_posted": "Проведён", "full": "Полный", "partial": "Частичный",
-        "col_number": "Номер", "col_date": "Дата", "col_object": "Объект", "col_period": "Период", "col_compl": "Полнота",
+        "st_draft": "Черновик", "st_posted": "Проведён", "full": "весь ассортимент матрицы", "partial": "часть ассортимента",
+        "col_number": "Номер", "col_date": "Дата", "col_object": "Объект", "col_period": "Период", "col_compl": "Охват матрицы",
         "col_status": "Статус", "col_rows": "SKU", "col_filled": "Заполнено", "col_approved": "Утверждено", "col_source": "Источник",
         "col_created_by": "Создал", "col_posted_at": "Проведён", "col_comment": "Комментарий",
         "no_docs": "Документов по фильтру нет.", "open_doc": "Открыть документ",
         "new_object_type": "Тип объекта", "mp": "Marketplace", "pool": "Пул", "new_first": "Первый месяц", "new_last": "Последний месяц",
-        "new_compl": "Полнота прогноза", "new_comment": "Комментарий", "btn_create": "Создать черновик",
+        "new_compl": "Охват матрицы", "new_comment": "Комментарий", "btn_create": "Создать черновик",
+        "ph_pick_sku": "выберите SKU", "lbl_liquidation": "распродажа", "lbl_no_admission": "нет допуска",
+        "btn_matrix_help": "Сценарий 16: добавляются только продажные SKU матрицы, которых ещё нет; существующие строки и значения не трогаются",
+        "lost_admission": "SKU без допуска на объекте (строки не удаляются автоматически, сценарий 16): ",
+        "src_sheet": "загрузка из листа", "btn_post_confirm": "Да, провести",
+        "post_confirm": "Проведение необратимо: {n} станет действующим прогнозом по {k} значениям, проведённый документ не правится — изменение только новым документом. Нажмите «Да, провести».",
         "err_period": "Последний месяц не раньше первого и не дальше 13 месяцев (§4).",
         "err_past": "Первый месяц — текущий или будущий: прошедшие месяцы заблокированы (§4).",
         "created": "Создан черновик {n}.",
@@ -57,7 +62,7 @@ TR = {
         "rej_past": "{sku} · {m}: прошедший месяц заблокирован.",
         "rej_value": "{sku} · {m}: допускаются целые числа не меньше нуля.",
         "rejected": "Не записано {n} значений:", "grid_posted": "Документ проведён — значения только для чтения.",
-        "sec_add": "Добавить SKU", "add_pick": "SKU из справочника", "btn_add": "Добавить выбранные",
+        "sec_add": "Добавить SKU", "add_pick": "SKU из справочника (допущенных на объекте: {a}, всего: {n})", "btn_add": "Добавить выбранные",
         "btn_matrix": "Заполнить по матрице", "matrix_added": "Добавлено по матрице: {n} SKU.", "matrix_none": "Все продажные SKU матрицы уже в документе.",
         "add_done": "Добавлено: {n}. Отклонено: {r}.", "add_no_admission": "{sku}: нет допуска к самостоятельной продаже на объекте (§3).",
         "add_liquidation": "{sku}: допуск закрыт — добавлен как распродажа по прежнему допуску (§7).", "add_dup": "{sku}: уже в документе.",
@@ -84,20 +89,25 @@ TR = {
         "log_col_at": "Когда", "log_col_actor": "Кто", "log_col_doc": "Документ", "log_col_field": "Поле", "log_col_old": "Было", "log_col_new": "Стало", "log_col_src": "Источник",
         "log_empty": "Записей нет.",
         "err_read": "Не прочиталось: {e}", "err_write": "Не записалось: {e}",
-        "actor_unknown": "kabinet-app",
+        "actor_unknown": "kabinet-app", "actor_loader": "загрузчик (принципал)",
     },
     "uk": {
         "title": "Прогноз продажів", "caption": "Документи прогнозу за ТЗ 010: чернетка → затвердження значень → проведення. "
                  "Чинний прогноз — лише з проведених документів; проведений документ не правиться, зміна — новим документом.",
         "tab_docs": "Документи", "tab_log": "Журнал змін", "tab_new": "Новий документ",
         "f_object": "Обʼєкт", "f_status": "Статус", "f_month": "Місяць у періоді", "all": "усі",
-        "st_draft": "Чернетка", "st_posted": "Проведено", "full": "Повний", "partial": "Частковий",
-        "col_number": "Номер", "col_date": "Дата", "col_object": "Обʼєкт", "col_period": "Період", "col_compl": "Повнота",
+        "st_draft": "Чернетка", "st_posted": "Проведено", "full": "увесь асортимент матриці", "partial": "частина асортименту",
+        "col_number": "Номер", "col_date": "Дата", "col_object": "Обʼєкт", "col_period": "Період", "col_compl": "Охоплення матриці",
         "col_status": "Статус", "col_rows": "SKU", "col_filled": "Заповнено", "col_approved": "Затверджено", "col_source": "Джерело",
         "col_created_by": "Створив", "col_posted_at": "Проведено", "col_comment": "Коментар",
         "no_docs": "Документів за фільтром немає.", "open_doc": "Відкрити документ",
         "new_object_type": "Тип обʼєкта", "mp": "Marketplace", "pool": "Пул", "new_first": "Перший місяць", "new_last": "Останній місяць",
-        "new_compl": "Повнота прогнозу", "new_comment": "Коментар", "btn_create": "Створити чернетку",
+        "new_compl": "Охоплення матриці", "new_comment": "Коментар", "btn_create": "Створити чернетку",
+        "ph_pick_sku": "виберіть SKU", "lbl_liquidation": "розпродаж", "lbl_no_admission": "немає допуску",
+        "btn_matrix_help": "Сценарій 16: додаються лише продажні SKU матриці, яких ще немає; наявні рядки та значення не чіпаються",
+        "lost_admission": "SKU без допуску на обʼєкті (рядки не видаляються автоматично, сценарій 16): ",
+        "src_sheet": "завантаження з аркуша", "btn_post_confirm": "Так, провести",
+        "post_confirm": "Проведення незворотне: {n} стане чинним прогнозом за {k} значеннями, проведений документ не правиться — зміна лише новим документом. Натисніть «Так, провести».",
         "err_period": "Останній місяць не раніше першого і не далі 13 місяців (§4).",
         "err_past": "Перший місяць — поточний або майбутній: минулі місяці заблоковано (§4).",
         "created": "Створено чернетку {n}.",
@@ -116,7 +126,7 @@ TR = {
         "rej_past": "{sku} · {m}: минулий місяць заблоковано.",
         "rej_value": "{sku} · {m}: допускаються цілі числа не менше нуля.",
         "rejected": "Не записано {n} значень:", "grid_posted": "Документ проведено — значення лише для читання.",
-        "sec_add": "Додати SKU", "add_pick": "SKU з довідника", "btn_add": "Додати вибрані",
+        "sec_add": "Додати SKU", "add_pick": "SKU з довідника (допущених на обʼєкті: {a}, усього: {n})", "btn_add": "Додати вибрані",
         "btn_matrix": "Заповнити за матрицею", "matrix_added": "Додано за матрицею: {n} SKU.", "matrix_none": "Усі продажні SKU матриці вже в документі.",
         "add_done": "Додано: {n}. Відхилено: {r}.", "add_no_admission": "{sku}: немає допуску до самостійного продажу на обʼєкті (§3).",
         "add_liquidation": "{sku}: допуск закрито — додано як розпродаж за попереднім допуском (§7).", "add_dup": "{sku}: вже в документі.",
@@ -143,20 +153,25 @@ TR = {
         "log_col_at": "Коли", "log_col_actor": "Хто", "log_col_doc": "Документ", "log_col_field": "Поле", "log_col_old": "Було", "log_col_new": "Стало", "log_col_src": "Джерело",
         "log_empty": "Записів немає.",
         "err_read": "Не прочиталося: {e}", "err_write": "Не записалося: {e}",
-        "actor_unknown": "kabinet-app",
+        "actor_unknown": "kabinet-app", "actor_loader": "завантажувач (принципал)",
     },
     "en": {
         "title": "Sales forecast", "caption": "Forecast documents per spec 010: draft → approve values → post. "
                  "The effective forecast comes only from posted documents; a posted document is immutable, changes go through a new one.",
         "tab_docs": "Documents", "tab_log": "Change log", "tab_new": "New document",
         "f_object": "Object", "f_status": "Status", "f_month": "Month within period", "all": "all",
-        "st_draft": "Draft", "st_posted": "Posted", "full": "Full", "partial": "Partial",
-        "col_number": "Number", "col_date": "Date", "col_object": "Object", "col_period": "Period", "col_compl": "Completeness",
+        "st_draft": "Draft", "st_posted": "Posted", "full": "whole matrix assortment", "partial": "part of the assortment",
+        "col_number": "Number", "col_date": "Date", "col_object": "Object", "col_period": "Period", "col_compl": "Matrix coverage",
         "col_status": "Status", "col_rows": "SKUs", "col_filled": "Filled", "col_approved": "Approved", "col_source": "Source",
         "col_created_by": "Created by", "col_posted_at": "Posted", "col_comment": "Comment",
         "no_docs": "No documents match the filter.", "open_doc": "Open document",
         "new_object_type": "Object type", "mp": "Marketplace", "pool": "Pool", "new_first": "First month", "new_last": "Last month",
-        "new_compl": "Completeness", "new_comment": "Comment", "btn_create": "Create draft",
+        "new_compl": "Matrix coverage", "new_comment": "Comment", "btn_create": "Create draft",
+        "ph_pick_sku": "pick SKUs", "lbl_liquidation": "sell-off", "lbl_no_admission": "no admission",
+        "btn_matrix_help": "Scenario 16: adds only sellable matrix SKUs not yet present; existing rows and values are kept",
+        "lost_admission": "SKUs without admission on this object (rows are not removed automatically, scenario 16): ",
+        "src_sheet": "sheet import", "btn_post_confirm": "Yes, post",
+        "post_confirm": "Posting is irreversible: {n} becomes the effective forecast for {k} values; a posted document cannot be edited — changes only via a new document. Click «Yes, post».",
         "err_period": "Last month must not precede the first one and the period is at most 13 months (§4).",
         "err_past": "First month must be the current or a future month: past months are locked (§4).",
         "created": "Draft {n} created.",
@@ -175,7 +190,7 @@ TR = {
         "rej_past": "{sku} · {m}: past month is locked.",
         "rej_value": "{sku} · {m}: only non-negative integers are allowed.",
         "rejected": "Not written: {n} values:", "grid_posted": "Document is posted — values are read-only.",
-        "sec_add": "Add SKUs", "add_pick": "SKUs from the directory", "btn_add": "Add selected",
+        "sec_add": "Add SKUs", "add_pick": "SKUs from the directory (admitted on this object: {a}, total: {n})", "btn_add": "Add selected",
         "btn_matrix": "Fill from matrix", "matrix_added": "Added from matrix: {n} SKUs.", "matrix_none": "All sellable matrix SKUs are already in the document.",
         "add_done": "Added: {n}. Rejected: {r}.", "add_no_admission": "{sku}: no admission for standalone sale on this object (§3).",
         "add_liquidation": "{sku}: admission closed — added as sell-off under the former admission (§7).", "add_dup": "{sku}: already in the document.",
@@ -202,7 +217,7 @@ TR = {
         "log_col_at": "When", "log_col_actor": "Who", "log_col_doc": "Document", "log_col_field": "Field", "log_col_old": "Old", "log_col_new": "New", "log_col_src": "Source",
         "log_empty": "No records.",
         "err_read": "Read failed: {e}", "err_write": "Write failed: {e}",
-        "actor_unknown": "kabinet-app",
+        "actor_unknown": "kabinet-app", "actor_loader": "loader (service principal)",
     },
 }
 
@@ -224,6 +239,34 @@ def _trf(key: str, **kw) -> str:
         return _tr(key).format(**kw)
     except (KeyError, IndexError, ValueError):
         return _tr(key)
+
+
+FIELD_LBL = {"ru": {"quantity": "количество", "target_price": "целевая цена", "approval": "утверждение", "row": "строка SKU", "document": "документ", "header": "шапка"},
+             "uk": {"quantity": "кількість", "target_price": "цільова ціна", "approval": "затвердження", "row": "рядок SKU", "document": "документ", "header": "шапка"},
+             "en": {"quantity": "quantity", "target_price": "target price", "approval": "approval", "row": "SKU row", "document": "document", "header": "header"}}
+VALUE_LBL = {"ru": {"unapproved": "не утверждено", "approved": "утверждено", "draft": "черновик", "posted": "проведён", "added": "добавлена", "deleted": "удалена", "present": "была",
+                    "added (liquidation)": "добавлена (распродажа)"},
+             "uk": {"unapproved": "не затверджено", "approved": "затверджено", "draft": "чернетка", "posted": "проведено", "added": "додано", "deleted": "видалено", "present": "була",
+                    "added (liquidation)": "додано (розпродаж)"},
+             "en": {}}
+SOURCE_LBL = {"ru": {"manual": "вручную", "manual:fill_zeros": "пустоты → 0", "approve": "утверждение", "unapprove": "снятие утверждения", "post": "проведение"},
+              "uk": {"manual": "вручну", "manual:fill_zeros": "порожні → 0", "approve": "затвердження", "unapprove": "зняття затвердження", "post": "проведення"},
+              "en": {"manual": "manual", "manual:fill_zeros": "empty → 0", "approve": "approve", "unapprove": "unapprove", "post": "post"}}
+
+
+def _log_view(lg: pd.DataFrame) -> pd.DataFrame:
+    """Журнал на языке интерфейса: токены полей и источников — в слова, импорт из листа — как «загрузка из листа»."""
+    L = _lang()
+    lg = lg.copy()
+    lg["field"] = lg["field"].map(lambda f: FIELD_LBL[L].get(f, f))
+    for c in ("old_value", "new_value"):
+        lg[c] = lg[c].map(lambda v: "" if v is None or (isinstance(v, float) and pd.isna(v)) or str(v) == "None" else VALUE_LBL[L].get(str(v), str(v)))
+    # джобы принципала пишут в журнал свой UUID — человеку он ни о чём
+    lg["actor"] = lg["actor"].map(lambda a: _tr("actor_loader") if str(a).startswith("b1698364-") else a)
+    lg["source"] = lg["source"].map(lambda x: _tr("src_sheet") if str(x).startswith("import:sheet") else SOURCE_LBL[L].get(str(x), str(x)))
+    lg["month"] = lg["month"].map(lambda m: month_label(m) if pd.notna(m) else "")
+    lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M:%S")
+    return lg
 
 
 def _actor() -> str:
@@ -501,17 +544,19 @@ def approve(doc, rows, skus, months) -> tuple:
     sel = _cells(rows, skus, [m for m in months if m >= CUR_MONTH])
     sel = sel[sel["status"] == "unapproved"]
     empty = sel[sel["quantity"].isna()]
-    if len(empty):
-        return 0, [f"{r.sku} · {month_label(r.month)}" for r in empty.itertuples()]
+    empties = [f"{r.sku} · {month_label(r.month)}" for r in empty.itertuples()]
+    # пустые не утверждаются и перечисляются (сценарий 6), но заполненные из того же выбора — утверждаются:
+    # до 20.09 при первой же пустой ячейке функция выходила с нулём, а сообщение читалось как «остальные прошли»
+    sel = sel[sel["quantity"].notna()]
     if sel.empty:
-        return 0, []
+        return 0, empties
     def _do(cur):
         for r in sel.itertuples():
             cur.execute("""UPDATE kabinet_data.forecast_register SET status = 'approved', approved_by = %s, approved_at = now()
                            WHERE id = %s AND status = 'unapproved' AND quantity IS NOT NULL""", (actor, int(r.id)))
             log(cur, doc["id"], r.sku, pd.Timestamp(r.month).date(), "approval", "unapproved", "approved", "approve", actor)
     tx(_do)
-    return len(sel), []
+    return len(sel), empties
 
 
 def unapprove(doc, rows, skus, months) -> int:
@@ -637,6 +682,17 @@ def post_document(doc, rows: pd.DataFrame) -> tuple:
     return tx(_do)
 
 
+def flash(kind: str, text: str) -> None:
+    """Сообщение после действия: st.rerun() стирает всё, что нарисовано до него, поэтому кладём в session_state
+    и показываем при следующем прогоне над карточкой."""
+    st.session_state.setdefault("fc_flash", []).append((kind, text))
+
+
+def show_flash() -> None:
+    for kind, text in st.session_state.pop("fc_flash", []):
+        getattr(st, kind, st.info)(text)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # ЭКРАН
 # ═══════════════════════════════════════════════════════════════════════════
@@ -676,7 +732,7 @@ with tab_new:
         else:
             try:
                 no = create_document(cands[cands["object_id"] == pick].iloc[0], first, last, compl, comment)
-                st.success(_trf("created", n=no))
+                flash("success", _trf("created", n=no))
                 st.session_state["fc_open_number"] = no
                 st.rerun()
             except Exception as e:
@@ -738,6 +794,7 @@ with tab_docs:
         # ── шапка ──
         st.divider()
         st.subheader(f"{doc['number']} · {doc['object_name']}" + (f" ({_tr('pool')})" if doc["object_type"] == "pool" else ""))
+        show_flash()
         h1, h2, h3, h4 = st.columns(4)
         h1.markdown(f"**{_tr('hdr_period')}**: {month_label(doc['first_month'])} – {month_label(doc['last_month'])}")
         h2.markdown(f"**{_tr('col_status')}**: {_tr('st_' + doc['status'])} · {_tr(doc['completeness'])}")
@@ -787,7 +844,7 @@ with tab_docs:
                     else:
                         try:
                             save_header(doc, ef, el, ec, ecm, has_approved)
-                            st.success(_tr("hdr_saved"))
+                            flash("success", _tr("hdr_saved"))
                             st.rerun()
                         except Exception as e:
                             st.error(_trf("err_write", e=e))
@@ -799,6 +856,9 @@ with tab_docs:
         grid = grid.reindex(columns=months)
         grid.columns = [month_label(m) for m in months]
         grid = grid.reset_index().merge(sku_meta, on="sku", how="left")
+        for c in grid.columns:
+            if c != "sku" and c not in ("sku_type", "sku_name"):
+                grid[c] = pd.to_numeric(grid[c], errors="coerce").astype("float64")   # NaN рисуется пустой ячейкой, None — словом None
         stat = rows.groupby("sku").agg(n=("status", "size"), a=("status", lambda s: int((s == "approved").sum())),
                                        e=("quantity", lambda s: int(s.isna().sum())),
                                        sup=("status", lambda s: int((s == "superseded").sum()))).reset_index()
@@ -814,7 +874,7 @@ with tab_docs:
         mcols = [month_label(m) for m in months]
         grid[_tr("col_total")] = grid[mcols].fillna(0).sum(axis=1).astype(int)
         show_cols = ["sku", "type", "state"] + mcols + [_tr("col_total"), "sku_name"]
-        cfg = {"sku": st.column_config.TextColumn(_tr("col_sku"), disabled=True, width="small"),
+        cfg = {"sku": st.column_config.TextColumn(_tr("col_sku"), disabled=True, width="small", pinned=True),
                "type": st.column_config.TextColumn(_tr("col_type"), disabled=True, width="small"),
                "state": st.column_config.TextColumn(_tr("col_state"), disabled=True, width="small"),
                "sku_name": st.column_config.TextColumn(_tr("col_name"), disabled=True, width="medium"),
@@ -829,11 +889,12 @@ with tab_docs:
             try:
                 n, rej = save_grid(doc, rows, edited, months)
                 if n:
-                    st.success(_trf("saved", n=n))
+                    flash("success", _trf("saved", n=n))
                 elif not rej:
                     st.info(_tr("nothing_changed"))
                 if rej:
-                    st.warning(_trf("rejected", n=len(rej)) + "\n\n" + "\n".join(f"- {x}" for x in rej[:20]))
+                    msg = _trf("rejected", n=len(rej)) + "\n\n" + "\n".join(f"- {x}" for x in rej[:20])
+                    flash("warning", msg) if n else st.warning(msg)   # при rerun — через flash, иначе сообщение сотрётся
                 if n:
                     st.rerun()
             except Exception as e:
@@ -852,7 +913,9 @@ with tab_docs:
             pg_ = rows.pivot_table(index="sku", columns="month", values="target_price", aggfunc="first", dropna=False).reindex(columns=months)
             pg_.columns = mcols
             pg_ = pg_.reset_index()
-            pcfg = {"sku": st.column_config.TextColumn(_tr("col_sku"), disabled=True)}
+            for c in mcols:
+                pg_[c] = pd.to_numeric(pg_[c], errors="coerce").astype("float64")
+            pcfg = {"sku": st.column_config.TextColumn(_tr("col_sku"), disabled=True, pinned=True)}
             for m in months:
                 pcfg[month_label(m)] = st.column_config.NumberColumn(month_label(m), min_value=0.0, format="%.2f", disabled=(not is_draft) or m < CUR_MONTH)
             pe = st.data_editor(pg_, column_config=pcfg, hide_index=True, use_container_width=True, disabled=not is_draft,
@@ -860,9 +923,10 @@ with tab_docs:
             if is_draft and st.button(_tr("btn_prices_save"), key=f"fc_psave_{doc['id']}"):
                 try:
                     n = save_prices(doc, rows, pe, months)
-                    st.success(_trf("prices_saved", n=n)) if n else st.info(_tr("nothing_changed"))
                     if n:
+                        flash("success", _trf("prices_saved", n=n))
                         st.rerun()
+                    st.info(_tr("nothing_changed"))
                 except Exception as e:
                     st.error(_trf("err_write", e=e))
 
@@ -871,33 +935,35 @@ with tab_docs:
             st.markdown(f"##### {_tr('sec_add')}")
             a1, a2, a3 = st.columns([3, 1, 1])
             present = set(rows["sku"])
-            cand = sorted((active_matrix | former_matrix | known) - present)
-            picked = a1.multiselect(_tr("add_pick"), cand, key=f"fc_add_{doc['id']}",
-                                    format_func=lambda s: s if s in active_matrix else (f"{s} · распродажа" if s in former_matrix else f"{s} · нет допуска"))
+            # допущенные первыми: список из 500 SKU по алфавиту начинался с «нет допуска», и казалось, что допущенных нет вовсе (QA 20.09)
+            cand = sorted(active_matrix - present) + sorted(former_matrix - present - active_matrix) + sorted(known - present - active_matrix - former_matrix)
+            picked = a1.multiselect(_trf("add_pick", a=len(active_matrix - present), n=len(cand)), cand, key=f"fc_add_{doc['id']}", placeholder=_tr("ph_pick_sku"),
+                                    format_func=lambda s: s if s in active_matrix else (f"{s} · {_tr('lbl_liquidation')}" if s in former_matrix else f"{s} · {_tr('lbl_no_admission')}"))
             if a2.button(_tr("btn_add"), disabled=not picked, key=f"fc_addbtn_{doc['id']}"):
                 try:
                     n, rej = add_skus(doc, rows, picked, active_matrix, former_matrix, known)
-                    st.success(_trf("add_done", n=n, r=len(rej)))
+                    say = flash if n else (lambda kind, text: getattr(st, kind)(text))
+                    say("success", _trf("add_done", n=n, r=len(rej)))
                     if rej:
-                        st.warning("\n".join(f"- {x}" for x in rej[:20]))
+                        say("warning", "\n".join(f"- {x}" for x in rej[:20]))
                     if n:
                         st.rerun()
                 except Exception as e:
                     st.error(_trf("err_write", e=e))
-            if a3.button(_tr("btn_matrix"), key=f"fc_matrix_{doc['id']}", help="Сценарий 16: добавляются только продажные SKU матрицы, которых ещё нет; существующие строки и значения не трогаются"):
+            if a3.button(_tr("btn_matrix"), key=f"fc_matrix_{doc['id']}", help=_tr("btn_matrix_help")):
                 todo = sorted(active_matrix - present)
                 if not todo:
                     st.info(_tr("matrix_none"))
                 else:
                     try:
                         n, _ = add_skus(doc, rows, todo, active_matrix, former_matrix, known | active_matrix)
-                        st.success(_trf("matrix_added", n=n))
+                        flash("success", _trf("matrix_added", n=n))
                         st.rerun()
                     except Exception as e:
                         st.error(_trf("err_write", e=e))
             lost = sorted(present - active_matrix - former_matrix) if present else []
             if lost:
-                st.warning("SKU без допуска на объекте (строки не удаляются автоматически, сценарий 16): " + ", ".join(lost[:20]))
+                st.warning(_tr("lost_admission") + ", ".join(lost[:20]))
 
             st.markdown(f"##### {_tr('sec_actions')}")
             b1, b2 = st.columns(2)
@@ -908,24 +974,26 @@ with tab_docs:
             if c1.button(_tr("btn_approve"), type="primary", key=f"fc_appr_{doc['id']}"):
                 try:
                     n, empty = approve(doc, rows, sel_skus, eff_months)
+                    say = flash if n else (lambda kind, text: getattr(st, kind)(text))
+                    if n:
+                        say("success", _trf("approved_n", n=n))
                     if empty:
-                        st.warning(_trf("approve_empty", cells=", ".join(empty[:15]) + ("…" if len(empty) > 15 else "")))
-                    else:
-                        st.success(_trf("approved_n", n=n))
+                        say("warning", _trf("approve_empty", cells=", ".join(empty[:15]) + ("…" if len(empty) > 15 else "")))
+                    if n:
                         st.rerun()
                 except Exception as e:
                     st.error(_trf("err_write", e=e))
             if c2.button(_tr("btn_unapprove"), key=f"fc_unappr_{doc['id']}"):
                 try:
                     n = unapprove(doc, rows, sel_skus, eff_months)
-                    st.success(_trf("unapproved_n", n=n))
+                    flash("success", _trf("unapproved_n", n=n))
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err_write", e=e))
             if c3.button(_tr("btn_zeros"), key=f"fc_zeros_{doc['id']}"):
                 try:
                     n = fill_zeros(doc, rows)
-                    st.success(_trf("zeros_n", n=n))
+                    flash("success", _trf("zeros_n", n=n))
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err_write", e=e))
@@ -943,7 +1011,7 @@ with tab_docs:
                         try:
                             n = delete_rows(doc, rows, sel_skus)
                             st.session_state.pop(ck, None)
-                            st.success(_trf("deleted_n", n=n))
+                            flash("success", _trf("deleted_n", n=n))
                             st.rerun()
                         except Exception as e:
                             st.error(_trf("err_write", e=e))
@@ -952,10 +1020,19 @@ with tab_docs:
             problems = post_checks(doc, rows, active_matrix)
             if problems:
                 st.warning(_tr("post_block") + "\n\n" + "\n".join(f"- {p}" for p in problems))
-            if st.button(_tr("btn_post"), type="primary", disabled=bool(problems), key=f"fc_post_{doc['id']}"):
+            # проведение необратимо (проведённый документ не правится, §9) — два нажатия, как удаление в справочниках
+            pk = f"fc_post_confirm_{doc['id']}"
+            armed = st.session_state.get(pk) == len(rows)
+            if armed:
+                st.warning(_trf("post_confirm", n=doc["number"], k=len(rows)))
+            if st.button(_tr("btn_post_confirm") if armed else _tr("btn_post"), type="primary", disabled=bool(problems), key=f"fc_post_{doc['id']}"):
+                if not armed:
+                    st.session_state[pk] = len(rows)
+                    st.rerun()
                 try:
                     k, r = post_document(doc, rows)
-                    st.success(_trf("post_ok", n=doc["number"], k=k, r=r))
+                    st.session_state.pop(pk, None)
+                    flash("success", _trf("post_ok", n=doc["number"], k=k, r=r))
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err_write", e=e))
@@ -971,8 +1048,7 @@ with tab_docs:
             if lg.empty:
                 st.caption(_tr("log_empty"))
             else:
-                lg["month"] = lg["month"].map(lambda m: month_label(m) if pd.notna(m) else "")
-                lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M:%S")
+                lg = _log_view(lg)
                 lg.columns = [_tr("log_col_at"), _tr("log_col_actor"), _tr("col_sku"), _tr("log_month"), _tr("log_col_field"), _tr("log_col_old"), _tr("log_col_new"), _tr("log_col_src")]
                 st.dataframe(lg, hide_index=True, use_container_width=True, height=min(400, 38 + 35 * len(lg)))
 
@@ -1006,8 +1082,7 @@ with tab_log:
     if lg.empty:
         st.info(_tr("log_empty"))
     else:
-        lg["month"] = lg["month"].map(lambda m: month_label(m) if pd.notna(m) else "")
-        lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M:%S")
+        lg = _log_view(lg)
         lg["status"] = lg["status"].map(lambda s: _tr("st_" + s))
         lg.columns = [_tr("log_col_at"), _tr("log_col_actor"), _tr("log_col_doc"), _tr("col_object"), _tr("col_status"), _tr("col_sku"),
                       _tr("log_month"), _tr("log_col_field"), _tr("log_col_old"), _tr("log_col_new"), _tr("log_col_src")]
