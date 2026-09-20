@@ -251,8 +251,10 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     plan_countries = set(in_scope["country"].dropna()) | pool_countries
 
     rows = []
-    def add(level, name, sub, r):
-        rows.append(dict(level=level, name=name, sub=sub, **r))
+    def add(level, name, sub, r, parent=None):
+        # parent — узел (страна/площадка) у каждой строки: таблица на экране сортируется
+        # по любой колонке, и без него дочерние строки теряют страну (CF-ES «под Бельгией»)
+        rows.append(dict(level=level, parent=parent or name, name=name, sub=sub, **r))
 
     def node(level, name, group, pool_rows):
         """Узел (страна или площадка): факт — по всем маркетплейсам узла, выполнение и темп —
@@ -269,13 +271,13 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
             node(0, c, m_c, p_c)
             if mode == "country_mp":
                 for _, m in m_c.sort_values("code").iterrows():
-                    add(1, m["code"], m["name"], _agg(m.to_frame().T, pools.iloc[0:0], share))
+                    add(1, m["code"], m["name"], _agg(m.to_frame().T, pools.iloc[0:0], share), parent=c)
     else:
         for pf in sorted(in_scope["platform"].dropna().unique()):
             m_p = in_scope[in_scope["platform"] == pf]
             node(0, pf, m_p, pools.iloc[0:0])
             for _, m in m_p.sort_values("code").iterrows():
-                add(1, m["code"], m["name"], _agg(m.to_frame().T, pools.iloc[0:0], share))
+                add(1, m["code"], m["name"], _agg(m.to_frame().T, pools.iloc[0:0], share), parent=pf)
     out = pd.DataFrame(rows)
     # итог: факт по всем строкам периметра, темп — по строкам с планом (одинаково в любом разрезе)
     total = _agg(in_scope, pools, share)

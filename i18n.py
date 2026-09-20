@@ -792,7 +792,10 @@ TRANSLATIONS = {
               "порівнювати нічого, і це показано чесно. У країни та майданчика виконання й темп рахуються лише за маркетплейсами з планом.",
         "en": "Rows without a plan (e.g. BE, GB, LM-ES, CF-ES, MM-ES, MM-FR): plan and expectation 0, real fact, no completion or pace — "
               "nothing to compare, shown honestly. For a country or platform, completion and pace use only marketplaces with a plan."},
-    "home.plan.col_name": {"ru": "Страна / маркетплейс", "uk": "Країна / маркетплейс", "en": "Country / marketplace"},
+    "home.plan.col_country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "home.plan.col_platform": {"ru": "Площадка", "uk": "Майданчик", "en": "Platform"},
+    "home.plan.col_name": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
+    "home.plan.node_total": {"ru": "итого", "uk": "разом", "en": "total"},
     "home.plan.col_sub": {"ru": "Состав", "uk": "Склад", "en": "Members"},
     "home.plan.col_obj": {"ru": "Объект", "uk": "Обʼєкт", "en": "Object"},
     "home.plan.col_plan": {"ru": "План", "uk": "План", "en": "Plan"},

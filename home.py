@@ -765,22 +765,26 @@ else:
                 return "—"
             mark = "▲" if v > pace_thr else ("▼" if v < -pace_thr else "•")
             return f"{mark} {v:+.0f}%"
+        # узел и маркетплейс — две колонки, заполненные в каждой строке: таблицу сортируют
+        # кликом по заголовку, и строка с отступом «↳ CF-ES» после сортировки оказывалась под Бельгией
         _out = []
         for _, r in rows.iterrows():
-            nm = r["name"] if r["level"] == 0 else f"      ↳ {r['name']}"
-            _out.append(dict(name=nm, sub=r["sub"], unit="€", plan=r["plan_rev"], expected=r["expected_rev"],
+            grp, nm = r["parent"], (t("home.plan.node_total") if r["level"] == 0 else r["name"])
+            _out.append(dict(group=grp, name=nm, sub=r["sub"], unit="€", plan=r["plan_rev"], expected=r["expected_rev"],
                              fact=r["fact_rev"], done=r["done_rev"], pace=_pace_txt(r["pace_rev"]), skus=r["plan_skus"]))
             if _units:
-                _out.append(dict(name="", sub="", unit="шт", plan=r["plan_units"], expected=r["expected_units"],
+                _out.append(dict(group=grp, name=nm, sub=r["sub"], unit="шт", plan=r["plan_units"], expected=r["expected_units"],
                                  fact=r["fact_units"], done=r["done_units"], pace=_pace_txt(r["pace_units"]), skus=None))
         _pt = pd.DataFrame(_out)
         for c in ("plan", "expected", "fact"):
             _pt[c] = _pt[c].round(0)
-        _cols = ["name", "unit", "plan", "expected", "fact", "done", "pace", "skus", "sub"] if _units \
-            else ["name", "plan", "expected", "fact", "done", "pace", "skus", "sub"]
+        _cols = ["group", "name", "unit", "plan", "expected", "fact", "done", "pace", "skus", "sub"] if _units \
+            else ["group", "name", "plan", "expected", "fact", "done", "pace", "skus", "sub"]
+        _grp_lbl = t("home.plan.col_platform") if _mode == "platform" else t("home.plan.col_country")
         st.dataframe(_pt[_cols], hide_index=True, use_container_width=True,
                      height=min(600, 38 + 35 * len(_pt)),
                      column_config={
+                         "group": st.column_config.TextColumn(_grp_lbl, width="small"),
                          "name": st.column_config.TextColumn(t("home.plan.col_name"), width="medium"),
                          "unit": st.column_config.TextColumn(t("home.plan.col_unit"), width="small"),
                          "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%,.0f",
