@@ -9,11 +9,13 @@
 это `план × дней_с_данными / дней_в_месяце`, а не весь план.
 
 Факт — продажи по заказам **с НДС**, как план в листе и как карточка «Продажи
-по заказам» на Обзоре: для Amazon — `sales_traffic_daily.ordered_sales` (сходится
-с кабинетом Amazon), для каналов без витринного отчёта — `economics_summary.
-ordered_product_sales`. Чистые продажи без НДС и возвратов (`net_product_sales`)
-здесь не годятся: 18.09.2026 они давали −63 % к плану при реальных −40 %.
-Факт по дате заказа, не отгрузки; отгрузочный факт по ТЗ живёт в алертах темпа.
+по заказам» на Обзоре: только Amazon, `sales_traffic_daily.ordered_sales` (сходится
+с кабинетом Amazon). Каналы Mirakl в блок не входят — план есть только по Amazon,
+а с ними (19–20.09.2026) факт блока расходился с карточкой на их продажи: 48 720
+против 43 547 €. Одна цифра — один источник. Чистые продажи без НДС и возвратов
+(`net_product_sales`) здесь не годятся: 18.09.2026 они давали −63 % к плану при
+реальных −40 %. Факт по дате заказа, не отгрузки; отгрузочный факт по ТЗ живёт
+в алертах темпа.
 """
 import calendar
 from datetime import date
@@ -45,14 +47,9 @@ SQL = """
         WHERE month BETWEEN %(m0)s AND %(m1)s
         GROUP BY 1, 2, 3, 4
     ),
-    amz AS (SELECT DISTINCT marketplace FROM kabinet_data.sales_traffic_daily),
-    daily AS (
+    daily AS (   -- только Amazon: тот же источник, что у карточки «Продажи по заказам»
         SELECT marketplace, snapshot_date AS d, units_ordered, ordered_sales AS gross
         FROM kabinet_data.sales_traffic_daily WHERE snapshot_date BETWEEN %(d0)s AND %(d1)s
-        UNION ALL
-        SELECT marketplace, sales_date, units_ordered, ordered_product_sales
-        FROM kabinet_data.economics_summary
-        WHERE sales_date BETWEEN %(d0)s AND %(d1)s AND marketplace NOT IN (SELECT marketplace FROM amz)
     ),
     fact AS (
         SELECT c.object_type, c.object_id,
@@ -159,17 +156,11 @@ SQL_MONTH = """
                CASE WHEN upper(legacy_code) = 'CO.UK' THEN 'GB' ELSE upper(legacy_code) END AS econ_code
         FROM kabinet_data.marketplaces_new
     ),
-    amz AS (SELECT DISTINCT marketplace FROM kabinet_data.sales_traffic_daily),
-    fact AS (
-        SELECT marketplace AS econ_code, SUM(units_ordered)::int AS fact_units, SUM(gross) AS fact_rev, MAX(d) AS data_through
-        FROM (
-            SELECT marketplace, snapshot_date AS d, units_ordered, ordered_sales AS gross
-            FROM kabinet_data.sales_traffic_daily WHERE snapshot_date >= %(m0)s AND snapshot_date <= %(d1)s
-            UNION ALL
-            SELECT marketplace, sales_date, units_ordered, ordered_product_sales
-            FROM kabinet_data.economics_summary
-            WHERE sales_date >= %(m0)s AND sales_date <= %(d1)s AND marketplace NOT IN (SELECT marketplace FROM amz)
-        ) x GROUP BY 1
+    fact AS (   -- только Amazon: тот же источник и та же сумма, что у карточки «Продажи по заказам»
+        SELECT marketplace AS econ_code, SUM(units_ordered)::int AS fact_units, SUM(ordered_sales) AS fact_rev,
+               MAX(snapshot_date) AS data_through
+        FROM kabinet_data.sales_traffic_daily WHERE snapshot_date >= %(m0)s AND snapshot_date <= %(d1)s
+        GROUP BY 1
     ),
     plan AS (
         SELECT object_type, object_id, object_name, SUM(quantity)::int AS plan_units,
@@ -188,6 +179,7 @@ SQL_MONTH = """
            EXISTS (SELECT 1 FROM kabinet_data.pool_members pm WHERE pm.marketplace_id = mp.id) AS in_pool
     FROM mp LEFT JOIN fact f USING (econ_code)
     LEFT JOIN plan p ON p.object_type = 'marketplace' AND p.object_id = mp.id
+    WHERE mp.platform_short = 'AMZ'
     UNION ALL
     SELECT 'pool', p.object_id, p.object_name, p.object_name, NULL, pc.country, pc.members,
            0, 0, NULL, p.plan_units, p.plan_rev, p.plan_skus, true
@@ -244,10 +236,10 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     covered = min(today, max(dt)).day if len(dt) else 0
     share = covered / dim
     pool_countries = set(pools["country"].dropna())
-    # периметр — маркетплейсы с планом ИЛИ с продажами в этом месяце: страны без плана (BE, GB)
-    # и каналы без плана (LM, CF, MM) — отдельными строками с нулевым планом, не текстом
-    # плюс участники пулов (MM-FR без продаж в этом месяце — всё равно рынок страны, показываем нулём)
-    in_scope = mps[mps["plan_units"].notna() | (mps["fact_units"] > 0) | (mps["fact_rev"] > 0) | mps["in_pool"].fillna(False).astype(bool)]
+    # периметр — рынки Amazon с планом ИЛИ с продажами в этом месяце: страны без плана (BE, GB)
+    # отдельными строками с нулевым планом. Каналов Mirakl здесь нет: план только по Amazon,
+    # и факт блока обязан совпадать с карточкой «Продажи по заказам» (20.09.2026, третье расхождение)
+    in_scope = mps[mps["plan_units"].notna() | (mps["fact_units"] > 0) | (mps["fact_rev"] > 0)]
     plan_countries = set(in_scope["country"].dropna()) | pool_countries
 
     rows = []
