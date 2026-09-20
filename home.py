@@ -659,6 +659,10 @@ else:
 
         sold_mp = by_mp[by_mp["revenue"] > 0]
 
+        # это не «Продажи по заказам» из карточки сверху: здесь выручка без НДС и после
+        # возвратов — база маржи. Без подписи «Amazon · продажи в 6 странах» читалось как
+        # то же число, что в карточке, и разница в 12 тыс. € выглядела ошибкой (20.09.2026)
+        st.caption(t("home.sales.channels_basis"))
         for _, r in by_ch.iterrows():
             share = r["revenue"] / rev_cur * 100 if rev_cur else 0
             codes = sorted(sold_mp.loc[sold_mp["channel"] == r["channel"],
@@ -728,8 +732,23 @@ else:
             unsafe_allow_html=True)
 
     if ord_cur and rev_cur:
-        st.caption(t("home.sales.two_numbers", 
-            gap=ord_cur - rev_cur, pct=(ord_cur - rev_cur) / ord_cur * 100))
+        # Разница карточки и выручки каналов — НДС, отмены, возвраты И лаг: за последний день
+        # экономика обычно неполная (18.09.2026: 116 € против 1 753 € в витрине), а даты
+        # у источников совпадают, поэтому проверка «окна разные» молчала и лаг читался как отмены.
+        # Неполным считаем день, где экономика без НДС меньше 60 % витрины с НДС: одна ставка
+        # НДС (≤ 25 %) и отмены такого провала не дают.
+        _LAG_RATIO = 0.6
+        _lag = ""
+        _amz_codes = set(ordered["marketplace"].dropna().astype(str).str.upper()) if not ordered.empty else set()
+        _ecur = cur[cur["marketplace"].astype(str).str.upper().isin(_amz_codes)] if len(cur) else cur
+        if len(_ecur) and len(_o):
+            _d = pd.Timestamp(_ecur["sales_date"].max())
+            _e_last = float(_ecur.loc[_ecur["sales_date"] == _d, "gross_revenue"].sum())
+            _s_last = float(_o.loc[_o["sales_date"] == _d, "ordered_sales"].sum())
+            if _s_last > 0 and _e_last < _s_last * _LAG_RATIO:
+                _lag = t("home.sales.two_numbers_lag", d=_d.strftime("%d.%m"), e=_e_last, s=_s_last)
+        st.caption(t("home.sales.two_numbers",
+            gap=ord_cur - rev_cur, pct=(ord_cur - rev_cur) / ord_cur * 100) + _lag)
     # План текущего месяца из реестра прогноза (ТЗ 010) в трёх разрезах. От периода
     # страницы не зависит: человек менял период и думал, что план пересчитался
     _today = datetime.now().date()

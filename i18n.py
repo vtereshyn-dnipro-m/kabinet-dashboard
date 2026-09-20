@@ -860,6 +860,14 @@ TRANSLATIONS = {
         "en": "The same figure you see in Seller Central: buyer price with VAT and shipping, "
               "by order date, cancellations not deducted. This is the storefront, not cash",
     },
+    "home.sales.channels_basis": {
+        "ru": "Выручка без НДС и после возвратов — база для маржи. Это не «Продажи по заказам» из карточки сверху: та с НДС и до отмен.",
+        "uk": "Виручка без ПДВ і після повернень — база для маржі. Це не «Продажі за замовленнями» з картки згори: та з ПДВ і до скасувань.",
+        "en": "Revenue net of VAT and refunds — the margin base. Not the «Ordered sales» card above: that one is VAT-inclusive and before cancellations."},
+    "home.sales.two_numbers_lag": {
+        "ru": " Четвёртое слагаемое — лаг: экономика за {d} ещё неполная, {e:,.0f} € против {s:,.0f} € в витрине, доедет с ближайшим прогоном.",
+        "uk": " Четвертий доданок — лаг: економіка за {d} ще неповна, {e:,.0f} € проти {s:,.0f} € у вітрині, доїде з найближчим прогоном.",
+        "en": " The fourth component is lag: economics for {d} is still incomplete, {e:,.0f} € vs {s:,.0f} € in the storefront report; it arrives with the next load."},
     "home.sales.two_numbers": {
         "ru": "Разница между двумя числами — {gap:,.0f} € ({pct:.0f}%): НДС уходит "
               "государству, часть заказов отменяют и возвращают. Первое число сходится "
