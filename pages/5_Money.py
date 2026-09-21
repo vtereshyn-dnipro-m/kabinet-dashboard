@@ -125,8 +125,13 @@ def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = "
                e.cogs               AS cogs_unit,
                e.commission_fee     AS commission,
                COALESCE(a.total_spend, 0) AS ads,
+               -- упаковка и доставка (правила витрины Дарины, 21.09.2026): отдельная таблица с тем же ключом,
+               -- потому что economics_summary принадлежит владельцу и от приложения не расширяется
+               COALESCE(l.packing_cost, 0) + COALESCE(l.shipping_cost, 0) AS logistics,
                s.asin
         FROM kabinet_data.economics_summary e
+        LEFT JOIN kabinet_data.economics_logistics l
+          ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace AND l.norm_sku = e.norm_sku
         LEFT JOIN (
             -- схлопываем рекламу до одной строки на ключ: иначе несколько
             -- кампаний по одному SKU размножат строку экономики,
@@ -412,8 +417,8 @@ if _ctrl and _ctrl.get("rows"):
 df["sku_display"] = df["norm_sku"].apply(clean_sku)
 # ключ для стыковки с settlement: там SKU с суффиксами (-FBA, -A_), у нас базовый код
 df["base_sku"] = df["norm_sku"].astype(str).str.extract(r"([0-9]{5,})", expand=False)
-for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "ads"]:
-    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "ads", "logistics"]:
+    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0) if c in df.columns else 0.0
 # себестоимость и комиссию НЕ заполняем нулём: пустое значение означает
 # «не загружено», и ноль на его месте даёт фейковую прибыль
 for c in ["cogs_unit", "commission"]:
@@ -429,6 +434,7 @@ if search:
 tot_rev = f["revenue"].sum()
 tot_net = f["net_proceeds"].sum()
 tot_ads = f["ads"].sum()
+tot_log = f["logistics"].sum()   # упаковка + доставка
 # min_count=1 оставляет NaN, если по выборке не известна ни одна строка:
 # обычный sum() вернул бы 0 и был бы неотличим от честного нуля
 tot_cogs = f["cogs_total"].sum(min_count=1)
@@ -442,7 +448,7 @@ tot_comm = f["commission"].sum(min_count=1)
 # не содержит. Вычесть ещё раз означало бы посчитать комиссию дважды
 known = f[pd.notna(f["cogs_total"])]
 cm = (known["net_proceeds"].sum() - known["cogs_total"].sum()
-      - known["ads"].sum())
+      - known["ads"].sum() - known["logistics"].sum())
 cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
 
 # ---------- вторая строка маржи: с учётом settlement ----------
@@ -503,7 +509,7 @@ else:
     _ordered = (load_ordered_sales(0, _b0, _b1, _amz, _ver_std) if (_b0 and _b1)
                 else load_ordered_sales(WINDOW, markets=_amz, _v=_ver_std))
 
-k0, k1, k2, k3, k4, k5 = st.columns(6)
+k0, k1, k2, k3, k3b, k4, k5 = st.columns(7)
 k0.metric(t("money.kpi.ordered"),
           "—" if pd.isna(_ordered) else f"{_ordered:,.0f} €",
           help=t("money.kpi.ordered_help"))
@@ -514,6 +520,7 @@ k3.metric(t("money.kpi.cogs"),
           "—" if pd.isna(tot_cogs) else f"−{tot_cogs:,.0f} €",
           help=(t("money.kpi.cogs_missing") if pd.isna(tot_cogs)
                 else t("money.kpi.cogs_help")))
+k3b.metric(t("money.kpi.logistics"), f"−{tot_log:,.0f} €", help=t("money.kpi.logistics_help"))
 k4.metric(t("money.kpi.ads"), f"−{tot_ads:,.0f} €", help=t("money.kpi.ads_help"))
 # Период уезжает вместе с переходом: он общий для Кабинета и лежит в
 # session_state, отдельно передавать нечего
@@ -581,7 +588,7 @@ with tab_pnl:
                      fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum"),
                      cogs=("cogs_total", lambda x: x.sum(min_count=1)),
                      commission=("commission", lambda x: x.sum(min_count=1)),
-                     ads=("ads", "sum")))
+                     ads=("ads", "sum"), logistics=("logistics", "sum")))
 
     # где товар продаётся: одна страна — её код, несколько — сколько их
     _mk = (f.groupby("sku_display")["marketplace"]
@@ -591,7 +598,7 @@ with tab_pnl:
     # «Чистыми» уже за вычетом комиссий, а у LM commission_fee и total_fees
     # это одно поле. В рекламу её тоже не подмешиваем: на Mirakl нет PPC,
     # и ноль в рекламе по LM — правда, а не пропуск данных
-    by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"]
+    by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"] - by_sku["logistics"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
     by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
     # settlement по SKU: промо и сборы с заказа — точно по ключу; хранение,
@@ -723,12 +730,12 @@ with tab_pnl:
     st.markdown(f"**{t('money.waterfall_title')}**")
     wf = go.Figure(go.Waterfall(
         orientation="v",
-        measure=["absolute", "relative", "relative", "relative", "total"],
+        measure=["absolute", "relative", "relative", "relative", "relative", "total"],
         x=[t("money.wf.revenue"), t("money.wf.fees"), t("money.wf.cogs"),
-           t("money.wf.ads"), t("money.wf.cm")],
-        y=[tot_rev, -(tot_rev - tot_net), -tot_cogs, -tot_ads, 0],
+           t("money.wf.logistics"), t("money.wf.ads"), t("money.wf.cm")],
+        y=[tot_rev, -(tot_rev - tot_net), -tot_cogs, -tot_log, -tot_ads, 0],
         text=[f"{tot_rev:,.0f}€", f"−{tot_rev - tot_net:,.0f}€",
-              f"−{tot_cogs:,.0f}€", f"−{tot_ads:,.0f}€", f"{cm:,.0f}€"],
+              f"−{tot_cogs:,.0f}€", f"−{tot_log:,.0f}€", f"−{tot_ads:,.0f}€", f"{cm:,.0f}€"],
         textposition="outside",
         connector={"line": {"color": "#9aa4b2"}},
         decreasing={"marker": {"color": ACCENT}},
@@ -818,8 +825,8 @@ with tab_country:
                    net_proceeds=("net_proceeds", "sum"),
                    cogs=("cogs_total", lambda x: x.sum(min_count=1)),
                    commission=("commission", lambda x: x.sum(min_count=1)),
-                   ads=("ads", "sum")))
-    by_c["cm"] = by_c["net_proceeds"] - by_c["cogs"] - by_c["ads"]
+                   ads=("ads", "sum"), logistics=("logistics", "sum")))
+    by_c["cm"] = by_c["net_proceeds"] - by_c["cogs"] - by_c["ads"] - by_c["logistics"]
     by_c["cm_pct"] = np.round(safe_div(by_c["cm"], by_c["revenue"]) * 100, 1)
 
     # Рынок без заказов — это ноль, а не отсутствие рынка. Выкинутый из

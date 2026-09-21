@@ -896,11 +896,11 @@ TRANSLATIONS = {
     },
     "home.kpi.margin": {"ru": "Маржа и её доля", "uk": "Маржа та її частка", "en": "Margin and its share"},
     "home.kpi.margin_help": {
-        "ru": "Выручка минус комиссии площадки, себестоимость и реклама. Логистика "
+        "ru": "Выручка минус комиссии площадки, себестоимость, упаковка и доставка покупателю, реклама. Логистика "
               "внутренних перемещений сюда не входит — разбивка на странице «Деньги»",
-        "uk": "Виручка мінус комісії майданчика, собівартість і реклама. Логістика "
+        "uk": "Виручка мінус комісії майданчика, собівартість, пакування й доставка покупцеві, реклама. Логістика "
               "внутрішніх переміщень сюди не входить — розбивка на сторінці «Гроші»",
-        "en": "Revenue minus channel fees, COGS and ads. Internal logistics is not "
+        "en": "Revenue minus channel fees, COGS, packing & shipping to the customer, and ads. Internal logistics is not "
               "included — see the Money page for the breakdown",
     },
     "home.kpi.units": {"ru": "Продано штук", "uk": "Продано штук", "en": "Units sold"},
@@ -1800,17 +1800,17 @@ TRANSLATIONS = {
     },
     "money.kpi.cm": {"ru": "Прибыль (CM)", "uk": "Прибуток (CM)", "en": "Profit (CM)"},
     "money.kpi.cm_help": {
-        "ru": "Contribution Margin = выручка − комиссии − себестоимость − реклама. "
+        "ru": "Contribution Margin = выручка − комиссии − себестоимость − упаковка и доставка − реклама. "
               "Комиссия площадки отдельно не вычитается: она уже внутри комиссий. "
-              "Без логистики. Считается только по SKU с загруженной себестоимостью, "
+              "Считается только по SKU с загруженной себестоимостью, "
               "доля выручки указана под карточками.",
-        "uk": "Contribution Margin = виручка − комісії − собівартість − реклама. "
+        "uk": "Contribution Margin = виручка − комісії − собівартість − пакування й доставка − реклама. "
               "Комісія майданчика окремо не віднімається: вона вже всередині комісій. "
-              "Без логістики. Рахується лише за SKU із завантаженою собівартістю, "
+              "Рахується лише за SKU із завантаженою собівартістю, "
               "частка виручки вказана під картками.",
-        "en": "Contribution Margin = revenue − fees − COGS − ads. The marketplace "
+        "en": "Contribution Margin = revenue − fees − COGS − packing & shipping − ads. The marketplace "
               "commission is not deducted separately: it is already inside the fees. "
-              "Logistics not included. Computed only over SKUs that have COGS loaded; "
+              "Computed only over SKUs that have COGS loaded; "
               "the share of revenue covered is shown under the cards.",
     },
     "money.kpi.cogs_missing": {
@@ -2029,6 +2029,12 @@ TRANSLATIONS = {
     "money.wf.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
     "money.wf.fees": {"ru": "Комиссии маркетплейса", "uk": "Комісії маркетплейсу", "en": "Marketplace fees"},
     "money.wf.cogs": {"ru": "Себестоимость", "uk": "Собівартість", "en": "COGS"},
+    "money.wf.logistics": {"ru": "Упаковка и доставка", "uk": "Пакування й доставка", "en": "Packing & shipping"},
+    "money.kpi.logistics": {"ru": "Упаковка и доставка", "uk": "Пакування й доставка", "en": "Packing & shipping"},
+    "money.kpi.logistics_help": {
+        "ru": "Упаковка 1,5 € за проданную единицу и доставка по весу SKU из тарифной сетки (у Amazon — только единицы FBM, у FBA сбор уже в комиссиях; у Mirakl — все). Те же правила, что в витрине Дарины; ставки — в reorder_params.",
+        "uk": "Пакування 1,5 € за продану одиницю і доставка за вагою SKU з тарифної сітки (в Amazon — лише одиниці FBM, у FBA збір уже в комісіях; у Mirakl — усі). Ті самі правила, що у вітрині Дарини; ставки — у reorder_params.",
+        "en": "Packing 1.5 € per unit sold and shipping by SKU weight from the rate card (Amazon — FBM units only, the FBA fee is already in fees; Mirakl — all units). Same rules as Darina's mart; rates live in reorder_params."},
     "money.wf.ads": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
     "money.wf.cm": {"ru": "Прибыль (CM)", "uk": "Прибуток (CM)", "en": "Profit (CM)"},
     "money.waterfall_caption": {
