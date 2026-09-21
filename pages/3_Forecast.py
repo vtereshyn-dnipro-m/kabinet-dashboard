@@ -16,7 +16,8 @@
 """
 import calendar
 import json
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -28,7 +29,7 @@ init_lang()
 
 TR = {
     "ru": {
-        "title": "Прогноз продаж", "caption": "Документы прогноза по ТЗ 010: черновик → утверждение значений → проведение. "
+        "title": "Прогноз продаж", "caption": "Документы прогноза: черновик → утверждение значений → проведение. "
                  "Действующий прогноз — только из проведённых документов; проведённый документ не правится, изменение — новым документом.",
         "tab_docs": "Документы", "tab_log": "Журнал изменений", "tab_new": "Новый документ",
         "f_object": "Объект", "f_status": "Статус", "f_month": "Месяц в периоде", "all": "все",
@@ -81,7 +82,7 @@ TR = {
         "post_missing": "полный прогноз: в матрице есть продажные SKU, которых нет в документе ({n}): {skus} — добавьте их или переключите на «Частичный» (сценарий 17);",
         "hdr_edit": "Шапка", "hdr_locked": "Объект и период заблокированы: в документе есть утверждённые значения (§9).",
         "btn_hdr_save": "Сохранить шапку", "hdr_saved": "Шапка сохранена.",
-        "sec_prices": "Целевая цена по месяцам, €", "prices_help": "Цена не утверждается вместе с количеством и меняется в черновике без снятия утверждения (§9). Прогноз выручки = штуки × цена.",
+        "sec_prices": "Целевая цена по месяцам, €", "prices_help": "Цена не утверждается вместе с количеством и меняется в черновике без снятия утверждения. Прогноз выручки = штуки × цена.",
         "btn_prices_save": "Сохранить цены", "prices_saved": "Сохранено цен: {n}.",
         "sec_states": "Состояние по месяцам", "states_help": "○ не утверждено · ✓ утверждено · ⟲ заменено новой версией · пусто — значения нет",
         "sec_doclog": "Журнал документа",
@@ -92,7 +93,7 @@ TR = {
         "actor_unknown": "kabinet-app", "actor_loader": "загрузчик (принципал)",
     },
     "uk": {
-        "title": "Прогноз продажів", "caption": "Документи прогнозу за ТЗ 010: чернетка → затвердження значень → проведення. "
+        "title": "Прогноз продажів", "caption": "Документи прогнозу: чернетка → затвердження значень → проведення. "
                  "Чинний прогноз — лише з проведених документів; проведений документ не правиться, зміна — новим документом.",
         "tab_docs": "Документи", "tab_log": "Журнал змін", "tab_new": "Новий документ",
         "f_object": "Обʼєкт", "f_status": "Статус", "f_month": "Місяць у періоді", "all": "усі",
@@ -145,7 +146,7 @@ TR = {
         "post_missing": "повний прогноз: у матриці є продажні SKU, яких немає в документі ({n}): {skus} — додайте їх або перемкніть на «Частковий» (сценарій 17);",
         "hdr_edit": "Шапка", "hdr_locked": "Обʼєкт і період заблоковано: у документі є затверджені значення (§9).",
         "btn_hdr_save": "Зберегти шапку", "hdr_saved": "Шапку збережено.",
-        "sec_prices": "Цільова ціна за місяцями, €", "prices_help": "Ціна не затверджується разом із кількістю і змінюється в чернетці без зняття затвердження (§9). Прогноз виручки = штуки × ціна.",
+        "sec_prices": "Цільова ціна за місяцями, €", "prices_help": "Ціна не затверджується разом із кількістю і змінюється в чернетці без зняття затвердження. Прогноз виручки = штуки × ціна.",
         "btn_prices_save": "Зберегти ціни", "prices_saved": "Збережено цін: {n}.",
         "sec_states": "Стан за місяцями", "states_help": "○ не затверджено · ✓ затверджено · ⟲ замінено новою версією · порожньо — значення немає",
         "sec_doclog": "Журнал документа",
@@ -156,7 +157,7 @@ TR = {
         "actor_unknown": "kabinet-app", "actor_loader": "завантажувач (принципал)",
     },
     "en": {
-        "title": "Sales forecast", "caption": "Forecast documents per spec 010: draft → approve values → post. "
+        "title": "Sales forecast", "caption": "Forecast documents: draft → approve values → post. "
                  "The effective forecast comes only from posted documents; a posted document is immutable, changes go through a new one.",
         "tab_docs": "Documents", "tab_log": "Change log", "tab_new": "New document",
         "f_object": "Object", "f_status": "Status", "f_month": "Month within period", "all": "all",
@@ -209,7 +210,7 @@ TR = {
         "post_missing": "full forecast: the matrix has sellable SKUs missing from the document ({n}): {skus} — add them or switch to «Partial» (scenario 17);",
         "hdr_edit": "Header", "hdr_locked": "Object and period are locked: the document has approved values (§9).",
         "btn_hdr_save": "Save header", "hdr_saved": "Header saved.",
-        "sec_prices": "Target price by month, €", "prices_help": "Price is not approved together with quantity and can change in a draft without unapproval (§9). Revenue = units × price.",
+        "sec_prices": "Target price by month, €", "prices_help": "Price is not approved together with quantity and can change in a draft without unapproval. Revenue = units × price.",
         "btn_prices_save": "Save prices", "prices_saved": "Prices saved: {n}.",
         "sec_states": "State by month", "states_help": "○ not approved · ✓ approved · ⟲ superseded · blank — no value",
         "sec_doclog": "Document log",
@@ -322,6 +323,15 @@ def is_empty(v) -> bool:
         return False
 
 
+def blank_na(df: pd.DataFrame, cols: list, fmt="{:.0f}") -> pd.DataFrame:
+    """NumberColumn рисует пропуск словом «None» — и у float64, и у nullable Float64/Int64.
+    Для нередактируемых таблиц отдаём строки: пусто остаётся пустым, 0 остаётся нулём."""
+    out = df.copy()
+    for c in cols:
+        out[c] = out[c].map(lambda v: "" if pd.isna(v) else fmt.format(float(v)))
+    return out
+
+
 def month_label(m) -> str:
     m = pd.Timestamp(m)
     return f"{m.month:02d}.{m.year}"
@@ -340,7 +350,9 @@ def add_months(d: date, n: int) -> date:
     return date(y, m, 1)
 
 
-TODAY = date.today()
+# сервер живёт по UTC: с полуночи до 3 ночи по Киеву date.today() отдаёт вчерашнее число,
+# и «по» в журнале отсекает сегодняшние правки, а первого числа CUR_MONTH остаётся прошлым месяцем
+TODAY = datetime.now(ZoneInfo("Europe/Kyiv")).date()
 CUR_MONTH = date(TODAY.year, TODAY.month, 1)
 
 
@@ -701,9 +713,13 @@ def flash(kind: str, text: str) -> None:
     st.session_state.setdefault("fc_flash", []).append((kind, text))
 
 
-def show_flash() -> None:
-    for kind, text in st.session_state.pop("fc_flash", []):
+def show_flash(consume: bool = True) -> None:
+    """Кнопки действий внизу длинной карточки, баннер рисовался только над ней: Streamlit сохраняет
+    прокрутку, и после «Провести» подтверждение оставалось за экраном. Показываем в обоих местах."""
+    for kind, text in st.session_state.get("fc_flash", []):
         getattr(st, kind, st.info)(text)
+    if consume:
+        st.session_state.pop("fc_flash", None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -808,7 +824,7 @@ with tab_docs:
         # ── шапка ──
         st.divider()
         st.subheader(f"{doc['number']} · {doc['object_name']}" + (f" ({_tr('pool')})" if doc["object_type"] == "pool" else ""))
-        show_flash()
+        show_flash(consume=False)
         h1, h2, h3, h4 = st.columns(4)
         h1.markdown(f"**{_tr('hdr_period')}**: {month_label(doc['first_month'])} – {month_label(doc['last_month'])}")
         h2.markdown(f"**{_tr('col_status')}**: {_tr('st_' + doc['status'])} · {_tr(doc['completeness'])}")
@@ -825,12 +841,16 @@ with tab_docs:
             st.caption(f"{_tr('col_comment')}: {doc['comment']}")
 
         n_appr = int((rows["status"] == "approved").sum()) if is_draft else int((rows["status"] != "unapproved").sum())
-        k1, k2, k3, k4, k5 = st.columns(5)
+        # колонок ровно столько, сколько метрик: у «части ассортимента» четвёртая из пяти пустовала,
+        # и «3042 / 3042» не помещалось в свою пятую ширины — на 1100 px резалось до «3042 / 30…»
+        full = doc["completeness"] == "full"
+        ks = st.columns(5 if full else 4)
+        k1, k2, k3, k5 = ks[0], ks[1], ks[2], ks[-1]
         k1.metric(_tr("m_rows"), rows["sku"].nunique())
         k2.metric(_tr("m_cells"), f"{int(rows['quantity'].notna().sum())} / {len(rows)}")
         k3.metric(_tr("m_approved"), f"{n_appr} / {len(rows)}")
-        if doc["completeness"] == "full":
-            k4.metric(_tr("m_matrix"), f"{len(active_matrix & set(rows['sku']))} / {len(active_matrix)}", help=_tr("m_matrix_help"))
+        if full:
+            ks[3].metric(_tr("m_matrix"), f"{len(active_matrix & set(rows['sku']))} / {len(active_matrix)}", help=_tr("m_matrix_help"))
         k4_total = int(rows["quantity"].fillna(0).sum())
         k5.metric(_tr("m_sum"), f"{k4_total:,}")
         rev = (rows["quantity"].fillna(0) * rows["target_price"].fillna(0)).sum()
@@ -884,6 +904,7 @@ with tab_docs:
             return base + (" · " + _trf("state_empty", e=r.e) if r.e else "")
         stat["state"] = [_state(r) for r in stat.itertuples()]
         grid = grid.merge(stat[["sku", "state"]], on="sku", how="left")
+        grid["sku_name"] = grid["sku_name"].fillna("")   # без имени рисовалось «None»
         grid["type"] = grid["sku_type"].map({"base": _tr("type_base"), "composite": _tr("type_composite")}).fillna(_tr("type_unknown"))
         mcols = [month_label(m) for m in months]
         grid[_tr("col_total")] = grid[mcols].fillna(0).sum(axis=1).astype(int)
@@ -896,7 +917,12 @@ with tab_docs:
         for m in months:
             cfg[month_label(m)] = st.column_config.NumberColumn(month_label(m), min_value=0, step=1, format="%d",
                                                                 disabled=(not is_draft) or m < CUR_MONTH)
-        edited = st.data_editor(grid[show_cols], column_config=cfg, hide_index=True, use_container_width=True,
+        view_grid = grid[show_cols]
+        if not is_draft:   # читаем, а не правим: числа строками, чтобы пустая ячейка была пустой
+            view_grid = blank_na(view_grid, mcols + [_tr("col_total")])
+            for c in mcols + [_tr("col_total")]:
+                cfg[c] = st.column_config.TextColumn(c, disabled=True)
+        edited = st.data_editor(view_grid, column_config=cfg, hide_index=True, use_container_width=True,
                                 disabled=not is_draft, key=f"fc_grid_{doc['id']}_{len(rows)}",
                                 height=min(560, 38 + 35 * max(1, len(grid))))
         if is_draft and st.button(_tr("btn_save"), type="primary", key=f"fc_save_{doc['id']}"):
@@ -932,8 +958,13 @@ with tab_docs:
             pcfg = {"sku": st.column_config.TextColumn(_tr("col_sku"), disabled=True, pinned=True)}
             for m in months:
                 pcfg[month_label(m)] = st.column_config.NumberColumn(month_label(m), min_value=0.0, format="%.2f", disabled=(not is_draft) or m < CUR_MONTH)
-            pe = st.data_editor(pg_, column_config=pcfg, hide_index=True, use_container_width=True, disabled=not is_draft,
-                                key=f"fc_prices_{doc['id']}_{len(rows)}", height=min(400, 38 + 35 * max(1, len(pg_))))
+            view_pg = pg_
+            if not is_draft:   # то же, что и в сетке: у проведённого документа цены только читают
+                view_pg = blank_na(pg_, mcols, fmt="{:.2f}")
+                for c in mcols:
+                    pcfg[c] = st.column_config.TextColumn(c, disabled=True)
+            pe = st.data_editor(view_pg, column_config=pcfg, hide_index=True, use_container_width=True, disabled=not is_draft,
+                                key=f"fc_prices_{doc['id']}_{len(rows)}", height=min(560, 38 + 35 * max(1, len(pg_))))
             if is_draft and st.button(_tr("btn_prices_save"), key=f"fc_psave_{doc['id']}"):
                 try:
                     n = save_prices(doc, rows, pe, months)
@@ -1050,6 +1081,8 @@ with tab_docs:
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err_write", e=e))
+
+        show_flash()   # второй показ — рядом с кнопками действий; очередь очищается здесь
 
         # ── журнал документа ──
         with st.expander(_tr("sec_doclog")):

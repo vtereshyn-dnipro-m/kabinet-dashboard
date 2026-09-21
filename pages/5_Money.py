@@ -109,7 +109,8 @@ def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = "
     if d_from and d_to:
         where = f"e.sales_date BETWEEN '{d_from}' AND '{d_to}'"
     else:
-        where = f"""e.sales_date >= (SELECT MAX(sales_date) - INTERVAL '{days} days'
+        # строго больше: окно из {days} дней, как на Обзоре (>= давало на день больше — QA 21.09.2026)
+        where = f"""e.sales_date > (SELECT MAX(sales_date) - INTERVAL '{days} days'
                                FROM kabinet_data.economics_summary)"""
     mk_sql, mk_params = _mk_clause(markets, "e.marketplace")
     df = pd.read_sql(f"""
@@ -203,8 +204,9 @@ def load_ordered_sales(days: int, d_from=None, d_to=None, markets: tuple = (), _
     if d_from and d_to:
         where = f"snapshot_date BETWEEN '{d_from}' AND '{d_to}'"
     else:
-        where = (f"snapshot_date >= (SELECT MAX(snapshot_date) - INTERVAL '{days} days' "
-                 f"FROM kabinet_data.sales_traffic_daily)")
+        # якорь — экономика, не витрина: у витрины история с 01.2025 и свежее на день, окна должны совпадать
+        where = (f"snapshot_date > (SELECT MAX(sales_date) - INTERVAL '{days} days' FROM kabinet_data.economics_summary) "
+                 f"AND snapshot_date <= (SELECT MAX(sales_date) FROM kabinet_data.economics_summary)")
     mk_sql, mk_params = _mk_clause(markets)
     conn = get_connection()
     try:
@@ -260,8 +262,8 @@ def load_period_bounds(days: int, d_from=None, d_to=None) -> tuple:
     conn = get_connection()
     try:
         r = pd.read_sql(f"""
-            SELECT MAX(sales_date) - INTERVAL '{days} days' AS d0,
-                   MAX(sales_date)                          AS d1
+            SELECT MAX(sales_date) - INTERVAL '{days - 1} days' AS d0,   -- ровно {days} дней, как на Обзоре
+                   MAX(sales_date)                              AS d1
             FROM kabinet_data.economics_summary
         """, conn)
         d0, d1 = r["d0"].iloc[0], r["d1"].iloc[0]
@@ -296,7 +298,7 @@ def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = (), _
     if d_from and d_to:
         where = f"sales_date BETWEEN '{d_from}' AND '{d_to}'"
     else:
-        where = (f"sales_date >= (SELECT MAX(sales_date) - INTERVAL '{days} days' "
+        where = (f"sales_date > (SELECT MAX(sales_date) - INTERVAL '{days} days' "
                  f"FROM kabinet_data.economics_summary)")
     mk_sql, mk_params = _mk_clause(markets)
     conn = get_connection()
@@ -506,10 +508,20 @@ else:
     # объясняла НДС и возвратами, хотя часть её была просто разным периодом
     if _b1 and pd.notna(_last):
         _b1 = min(pd.Timestamp(_b1), _last).date()
-    _ordered = (load_ordered_sales(0, _b0, _b1, _amz, _ver_std) if (_b0 and _b1)
+    # витрину не считаем раньше первого дня экономики (15.05.2026): иначе на годовом периоде 549 тыс. против 256 тыс.
+    _econ_first = pd.Timestamp(df["sales_date"].min()).date() if len(df) else None
+    _b0c = max(_b0, _econ_first) if (_b0 and _econ_first) else _b0
+    _ordered = (load_ordered_sales(0, _b0c, _b1, _amz, _ver_std) if (_b0c and _b1)
                 else load_ordered_sales(WINDOW, markets=_amz, _v=_ver_std))
+    if _b0 and _econ_first and _b0 < _econ_first:
+        st.caption(t("home.sales.ordered_clipped", d=_econ_first.strftime("%d.%m.%Y")))
 
-k0, k1, k2, k3, k3b, k4, k5 = st.columns(7)
+# семь метрик в одном ряду: на ~1100 px с раскрытым меню на карточку остаётся 120 px,
+# заголовки складываются в столбик по букве, а суммы режутся до «7…». Два ряда: 4 + 3
+_r1 = st.columns(4)
+_r2 = st.columns(3)
+k0, k1, k2, k3 = _r1
+k3b, k4, k5 = _r2
 k0.metric(t("money.kpi.ordered"),
           "—" if pd.isna(_ordered) else f"{_ordered:,.0f} €",
           help=t("money.kpi.ordered_help"))
@@ -856,9 +868,9 @@ with tab_country:
                            else t("money.country_metric_help")))
 
     melt = by_c.melt(id_vars="marketplace",
-                     value_vars=["cm", "cogs", "ads"],
+                     value_vars=["cm", "cogs", "logistics", "ads"],
                      var_name="part", value_name="eur")
-    part_names = {"cm": t("money.col.cm"), "cogs": "COGS", "ads": t("money.col.ads")}
+    part_names = {"cm": t("money.col.cm"), "cogs": "COGS", "logistics": t("money.wf.logistics"), "ads": t("money.col.ads")}
     melt["part"] = melt["part"].map(part_names)
     fig = px.bar(melt, x="marketplace", y="eur", color="part",
                  title=t("money.marketplace_chart"),

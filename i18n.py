@@ -632,9 +632,9 @@ TRANSLATIONS = {
     # Подписи под графиком продаж. Отделены от home.sales.lag: та объясняет
     # задержку Amazon для всей страницы, эти — что именно видно на графике
     "home.chart.data_through": {
-        "ru": "Данные по {d} — за более поздние дни Amazon отчёт ещё не сформировал",
-        "uk": "Дані по {d} — за пізніші дні Amazon звіт ще не сформував",
-        "en": "Data through {d} — Amazon has not generated the report for later days yet",
+        "ru": "Данные по {d} включительно — за более поздние дни Amazon отчёт ещё не сформировал",
+        "uk": "Дані по {d} включно — за пізніші дні Amazon звіт ще не сформував",
+        "en": "Data through {d} inclusive — Amazon has not generated the report for later days yet",
     },
     # Граница данных. Одни и те же фразы на Обзоре и в Деньгах: правило
     # выравнивания общее, значит и объяснять его надо одинаково
@@ -660,9 +660,9 @@ TRANSLATIONS = {
         "en": "No data for the selected period yet",
     },
     "home.chart.holes": {
-        "ru": "Разрывы на графике — дни, за которые отчёт не пришёл: {d}",
-        "uk": "Розриви на графіку — дні, за які звіт не надійшов: {d}",
-        "en": "Gaps in the chart are days with no report delivered: {d}",
+        "ru": "Разрывы на графике — дни, за которые отчёт не пришёл ({n}): {d}",
+        "uk": "Розриви на графіку — дні, за які звіт не надійшов ({n}): {d}",
+        "en": "Gaps in the chart are days with no report delivered ({n}): {d}",
     },
     "cov.err.no_table": {
         "ru": "Таблицы расчёта покрытия нет в базе, к которой подключён дашборд. "
@@ -742,13 +742,13 @@ TRANSLATIONS = {
         "ru": "План месяца", "uk": "План місяця", "en": "Month plan"},
     "home.plan.note": {
         "ru": "Деньги с НДС, только Amazon: план — по листу, факт — продажи по заказам до {d} (как в кабинете Amazon и в карточке «Продажи по заказам» — при периоде «текущий месяц» суммы совпадают). Ожидание — "
-              "доля календарных дней месяца с данными ({k} из {n}). Темп по ТЗ 010 §13: "
+              "доля календарных дней месяца с данными ({k} из {n}). Темп: "
               "факт / ожидание − 1, порог {thr}%.",
         "uk": "Гроші з ПДВ, лише Amazon: план — за листом, факт — продажі за замовленнями до {d} (як у кабінеті Amazon і в картці «Продажі за замовленнями» — за періоду «поточний місяць» суми збігаються). Очікування — "
-              "частка календарних днів місяця з даними ({k} з {n}). Темп за ТЗ 010 §13: "
+              "частка календарних днів місяця з даними ({k} з {n}). Темп: "
               "факт / очікування − 1, поріг {thr}%.",
         "en": "Money incl. VAT, Amazon only: plan per the sheet, fact — ordered sales through {d} (as in Seller Central and the «Ordered sales» card — with the period set to the current month the sums match). Expectation is "
-              "the share of calendar days with data ({k} of {n}). Pace per spec 010 §13: "
+              "the share of calendar days with data ({k} of {n}). Pace: "
               "fact / expected − 1, threshold {thr}%.",
     },
     "home.plan.none": {
@@ -903,6 +903,14 @@ TRANSLATIONS = {
         "en": "Revenue minus channel fees, COGS, packing & shipping to the customer, and ads. Internal logistics is not "
               "included — see the Money page for the breakdown",
     },
+    "home.kpi.margin_partial": {
+        "ru": "Маржа — по SKU с загруженной себестоимостью ({known} % выручки); без себестоимости — {rev} € ({pct} %), они в маржу не входят",
+        "uk": "Маржа — за SKU із завантаженою собівартістю ({known} % виручки); без собівартості — {rev} € ({pct} %), вони в маржу не входять",
+        "en": "Margin covers SKUs with COGS loaded ({known} % of revenue); {rev} € ({pct} %) have no COGS and are excluded"},
+    "home.sales.ordered_clipped": {
+        "ru": "«Продажи по заказам» считаются с {d}: раньше экономики в Кабинете нет (витрина Amazon есть с 01.2025, Data Kiosk — с 15.05.2026), иначе две карточки сравнивали бы разные периоды",
+        "uk": "«Продажі за замовленнями» рахуються з {d}: раніше економіки в Кабінеті немає (вітрина Amazon є з 01.2025, Data Kiosk — з 15.05.2026), інакше дві картки порівнювали б різні періоди",
+        "en": "«Ordered sales» start from {d}: there is no economics before that (the Amazon storefront report goes back to 01.2025, Data Kiosk — to 15.05.2026), otherwise the two cards would compare different periods"},
     "home.kpi.units": {"ru": "Продано штук", "uk": "Продано штук", "en": "Units sold"},
     "home.kpi.markets": {"ru": "Площадок", "uk": "Майданчиків", "en": "Channels"},
     "home.cov.no_data": {
