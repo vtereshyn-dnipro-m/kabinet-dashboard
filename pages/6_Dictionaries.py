@@ -13,6 +13,7 @@
 """
 
 import json
+import re
 from datetime import date
 
 import pandas as pd
@@ -44,7 +45,7 @@ TR = {
         "am_level": "Уровень", "am_level_marketplace": "marketplace", "am_level_platform": "площадка",
         "am_platform": "Площадка", "am_mp": "Маркетплейс", "am_search": "SKU", "am_show_history": "Показать историю",
         "am_only_issues": "Только с проблемами",
-        "am_summary": "Действующих допусков: {n} · в листинге {listing} · комплиментарных {comp} · с ошибками контроля {err}",
+        "am_summary": "Действующих допусков: {n} · в листинге {listing} · комплиментарных {comp} · расчётно недоступных {blocked} · с ошибками контроля {err}",
         "am_col_level": "Уровень", "am_col_platform": "Площадка", "am_col_mp": "Маркетплейс", "am_col_sku": "SKU", "am_col_name": "Название",
         "am_col_type": "Тип", "am_col_added": "Добавлен", "am_col_removed": "Исключён", "am_col_listing": "В листинге",
         "am_col_comp": "Комплиментарный", "am_col_reason": "Причина", "am_col_source": "Источник", "am_col_issues": "Контроль",
@@ -58,6 +59,32 @@ TR = {
         "am_repr_col_peid": "PeID", "am_repr_col_group": "Группа вариаций", "am_repr_col_role": "Коммерческая роль",
         "am_repr_col_from": "С", "am_repr_col_to": "По", "am_repr_none": "Представлений нет",
         "am_role_help": "Hero / Traffic / Margin / Support — только для PeID в группе вариаций (ТЗ 009). Без группы поле пустое.",
+        "am_col_status": "Состояние", "am_view": "Срез", "am_view_current": "текущий срез", "am_view_blocked": "расчётно недоступные",
+        "am_view_history": "история", "am_view_all": "всё",
+        "am_st_active": "действует", "am_st_selloff": "распродажа", "am_st_blocked_platform": "нет рамочного допуска",
+        "am_st_blocked_restricted": "ограничение", "am_st_blocked_inactive": "SKU неактивен", "am_st_history": "история",
+        "am_rej_history": "{sku}: историческая запись не переоткрывается и не правится — при повторном запуске создайте новую (ТЗ 007 §7)",
+        "am_rej_removed_before_added": "{sku}: дата исключения раньше даты добавления",
+        "am_rej_comp_composite": "{sku}: составной SKU не может быть комплиментарным (ТЗ 007 §9)",
+        "am_rej_comp_platform": "{sku}: комплиментарный признак ставится только на уровне marketplace (ТЗ 007 §4)",
+        "am_rej_comp_platform_short": "Комплиментарный признак — только на уровне marketplace (ТЗ 007 §4)",
+        "am_add_hint": "Уровень «площадка» — рамочное разрешение, «marketplace» — операционный допуск; для marketplace нужен действующий рамочный допуск.",
+        "am_add_target": "Куда", "am_add_bad_target": "Уровень и цель не согласованы: для площадки выберите «площадка: …», для marketplace — код маркетплейса",
+        "am_add_sku_inactive": "SKU деактивирован в справочнике — новые операции запрещены (ТЗ 007 §12)",
+        "am_add_no_flags": "Отметьте хотя бы один признак: «в листинге» или «комплиментарный»",
+        "am_add_overlap": "Периоды не пересекаются: предыдущая запись закрыта {d}, дата добавления должна быть позже (ТЗ 007 §7)",
+        "am_bulk_title": "Массовые операции", "am_bulk_hint": "Список SKU — по одному в строке или через запятую. Сначала проверка по каждой строке, потом подтверждение; строки с ошибками пропускаются.",
+        "am_bulk_op": "Операция", "am_bulk_add": "добавить в матрицу", "am_bulk_remove": "исключить из матрицы", "am_bulk_date": "Дата",
+        "am_bulk_skus": "SKU", "am_bulk_check": "Проверить", "am_bulk_result": "Результат проверки", "am_bulk_ok": "ок",
+        "am_bulk_unknown_sku": "нет в справочнике SKU", "am_bulk_no_active": "действующей записи нет",
+        "am_bulk_summary": "Пройдут: {ok} · с ошибками: {bad}", "am_bulk_apply": "Подтвердить и выполнить ({n})", "am_bulk_done": "Выполнено: {n}",
+        "am_repr_add_title": "Добавить представление", "am_repr_add_hint": "PeID/ASIN под SKU с действующим допуском «в листинге» на этом маркетплейсе. Один PeID одновременно представляет один SKU.",
+        "am_repr_add_btn": "➕ Добавить представление", "am_repr_add_ok": "Представление создано",
+        "am_repr_no_admitted_sku": "На этом маркетплейсе нет SKU с действующим допуском «в листинге»", "am_repr_peid_required": "Укажите PeID/ASIN",
+        "am_repr_peid_not_on_mp": "PeID/ASIN {peid} не относится к {mp} — сначала заведите его в справочнике PeID",
+        "am_repr_peid_parent": "Это групповой PeID (Parent) — представлением SKU быть не может", "am_repr_peid_inactive": "PeID деактивирован в справочнике",
+        "am_repr_dup_same": "Такое представление уже действует", "am_repr_peid_busy": "PeID/ASIN уже связан с SKU {sku} в данном marketplace",
+        "am_repr_mp_no_variations": "Маркетплейс не поддерживает вариационные семьи — роль не назначается (ТЗ 007 §8)",
         "am_role_no_group": "Роль не сохранена для {peid}: у PeID нет группы вариаций",
         "vg_hint": "Группы вариаций по ТЗ 006: у Amazon — Parent ASIN и его дети. Группа живёт в одном marketplace, вариант входит в одну группу; "
                    "связь назначается на уровне PeID (вкладка PeID, при выбранном одном маркетплейсе). Имя — как на площадке; "
@@ -181,7 +208,7 @@ TR = {
         "wh_prio_none": "У склада продаж должен быть хотя бы один маркетплейс или пул.",
         "wh_sales_without_mp": "Склады продаж без маркетплейса ({n}): {names}",
         "col_shipments_help": "Сколько отгрузок прошло по маршруту за окно расчёта — из накладных ERP",
-        "col_sample_help": "По скольким накладным посчитана медиана срока; «оценка вручную» — накладных не prev_prio",
+        "col_sample_help": "По скольким накладным посчитана медиана срока; «оценка вручную» — накладных не было",
         "t_transit": "транзит", "t_manufacturer": "производитель",
         "ch_hint": "Кто кого пополняет и за сколько дней. Срок из накладных "
                    "(ttn_planned) надёжнее экспертного (expert).",
@@ -243,7 +270,7 @@ TR = {
         "am_level": "Рівень", "am_level_marketplace": "marketplace", "am_level_platform": "майданчик",
         "am_platform": "Майданчик", "am_mp": "Маркетплейс", "am_search": "SKU", "am_show_history": "Показати історію",
         "am_only_issues": "Лише з проблемами",
-        "am_summary": "Чинних допусків: {n} · в лістингу {listing} · компліментарних {comp} · з помилками контролю {err}",
+        "am_summary": "Чинних допусків: {n} · в лістингу {listing} · компліментарних {comp} · розрахунково недоступних {blocked} · з помилками контролю {err}",
         "am_col_level": "Рівень", "am_col_platform": "Майданчик", "am_col_mp": "Маркетплейс", "am_col_sku": "SKU", "am_col_name": "Назва",
         "am_col_type": "Тип", "am_col_added": "Додано", "am_col_removed": "Виключено", "am_col_listing": "В лістингу",
         "am_col_comp": "Компліментарний", "am_col_reason": "Причина", "am_col_source": "Джерело", "am_col_issues": "Контроль",
@@ -257,6 +284,32 @@ TR = {
         "am_repr_col_peid": "PeID", "am_repr_col_group": "Група варіацій", "am_repr_col_role": "Комерційна роль",
         "am_repr_col_from": "З", "am_repr_col_to": "По", "am_repr_none": "Представлень немає",
         "am_role_help": "Hero / Traffic / Margin / Support — лише для PeID у групі варіацій (ТЗ 009). Без групи поле порожнє.",
+        "am_col_status": "Стан", "am_view": "Зріз", "am_view_current": "поточний зріз", "am_view_blocked": "розрахунково недоступні",
+        "am_view_history": "історія", "am_view_all": "усе",
+        "am_st_active": "діє", "am_st_selloff": "розпродаж", "am_st_blocked_platform": "немає рамкового допуску",
+        "am_st_blocked_restricted": "обмеження", "am_st_blocked_inactive": "SKU неактивний", "am_st_history": "історія",
+        "am_rej_history": "{sku}: історичний запис не перевідкривається і не правиться — при повторному запуску створіть новий (ТЗ 007 §7)",
+        "am_rej_removed_before_added": "{sku}: дата виключення раніша за дату додавання",
+        "am_rej_comp_composite": "{sku}: складений SKU не може бути компліментарним (ТЗ 007 §9)",
+        "am_rej_comp_platform": "{sku}: компліментарна ознака ставиться лише на рівні marketplace (ТЗ 007 §4)",
+        "am_rej_comp_platform_short": "Компліментарна ознака — лише на рівні marketplace (ТЗ 007 §4)",
+        "am_add_hint": "Рівень «майданчик» — рамковий дозвіл, «marketplace» — операційний допуск; для marketplace потрібен чинний рамковий допуск.",
+        "am_add_target": "Куди", "am_add_bad_target": "Рівень і ціль не узгоджені: для майданчика оберіть «майданчик: …», для marketplace — код маркетплейсу",
+        "am_add_sku_inactive": "SKU деактивовано в довіднику — нові операції заборонені (ТЗ 007 §12)",
+        "am_add_no_flags": "Позначте хоча б одну ознаку: «в лістингу» або «компліментарний»",
+        "am_add_overlap": "Періоди не перетинаються: попередній запис закрито {d}, дата додавання має бути пізнішою (ТЗ 007 §7)",
+        "am_bulk_title": "Масові операції", "am_bulk_hint": "Список SKU — по одному в рядку або через кому. Спершу перевірка кожного рядка, потім підтвердження; рядки з помилками пропускаються.",
+        "am_bulk_op": "Операція", "am_bulk_add": "додати до матриці", "am_bulk_remove": "виключити з матриці", "am_bulk_date": "Дата",
+        "am_bulk_skus": "SKU", "am_bulk_check": "Перевірити", "am_bulk_result": "Результат перевірки", "am_bulk_ok": "ок",
+        "am_bulk_unknown_sku": "немає в довіднику SKU", "am_bulk_no_active": "чинного запису немає",
+        "am_bulk_summary": "Пройдуть: {ok} · з помилками: {bad}", "am_bulk_apply": "Підтвердити та виконати ({n})", "am_bulk_done": "Виконано: {n}",
+        "am_repr_add_title": "Додати представлення", "am_repr_add_hint": "PeID/ASIN під SKU з чинним допуском «в лістингу» на цьому маркетплейсі. Один PeID одночасно представляє один SKU.",
+        "am_repr_add_btn": "➕ Додати представлення", "am_repr_add_ok": "Представлення створено",
+        "am_repr_no_admitted_sku": "На цьому маркетплейсі немає SKU з чинним допуском «в лістингу»", "am_repr_peid_required": "Вкажіть PeID/ASIN",
+        "am_repr_peid_not_on_mp": "PeID/ASIN {peid} не належить до {mp} — спершу заведіть його в довіднику PeID",
+        "am_repr_peid_parent": "Це груповий PeID (Parent) — представленням SKU бути не може", "am_repr_peid_inactive": "PeID деактивовано в довіднику",
+        "am_repr_dup_same": "Таке представлення вже діє", "am_repr_peid_busy": "PeID/ASIN уже повʼязаний із SKU {sku} у цьому marketplace",
+        "am_repr_mp_no_variations": "Маркетплейс не підтримує варіаційні сімʼї — роль не призначається (ТЗ 007 §8)",
         "am_role_no_group": "Роль не збережено для {peid}: у PeID немає групи варіацій",
         "vg_hint": "Групи варіацій за ТЗ 006: в Amazon — Parent ASIN і його діти. Група живе в одному marketplace, варіант входить в одну групу; "
                    "звʼязок призначається на рівні PeID (вкладка PeID, при обраному одному маркетплейсі). Назва — як на майданчику; "
@@ -442,7 +495,7 @@ TR = {
         "am_level": "Level", "am_level_marketplace": "marketplace", "am_level_platform": "platform",
         "am_platform": "Platform", "am_mp": "Marketplace", "am_search": "SKU", "am_show_history": "Show history",
         "am_only_issues": "Only with issues",
-        "am_summary": "Active admissions: {n} · in listing {listing} · complementary {comp} · with control errors {err}",
+        "am_summary": "Active admissions: {n} · in listing {listing} · complementary {comp} · computed unavailable {blocked} · with control errors {err}",
         "am_col_level": "Level", "am_col_platform": "Platform", "am_col_mp": "Marketplace", "am_col_sku": "SKU", "am_col_name": "Name",
         "am_col_type": "Type", "am_col_added": "Added", "am_col_removed": "Removed", "am_col_listing": "In listing",
         "am_col_comp": "Complementary", "am_col_reason": "Reason", "am_col_source": "Source", "am_col_issues": "Control",
@@ -456,6 +509,32 @@ TR = {
         "am_repr_col_peid": "PeID", "am_repr_col_group": "Variation group", "am_repr_col_role": "Commercial role",
         "am_repr_col_from": "From", "am_repr_col_to": "To", "am_repr_none": "No representations",
         "am_role_help": "Hero / Traffic / Margin / Support — only for a PeID within a variation group (spec 009). Empty without a group.",
+        "am_col_status": "State", "am_view": "View", "am_view_current": "current", "am_view_blocked": "computed unavailable",
+        "am_view_history": "history", "am_view_all": "all",
+        "am_st_active": "active", "am_st_selloff": "sell-off", "am_st_blocked_platform": "no platform admission",
+        "am_st_blocked_restricted": "restricted", "am_st_blocked_inactive": "SKU inactive", "am_st_history": "history",
+        "am_rej_history": "{sku}: a historical record is neither reopened nor edited — create a new one to re-admit (ТЗ 007 §7)",
+        "am_rej_removed_before_added": "{sku}: removal date is before the admission date",
+        "am_rej_comp_composite": "{sku}: a composite SKU cannot be complementary (ТЗ 007 §9)",
+        "am_rej_comp_platform": "{sku}: the complementary flag is set at marketplace level only (ТЗ 007 §4)",
+        "am_rej_comp_platform_short": "Complementary flag — marketplace level only (ТЗ 007 §4)",
+        "am_add_hint": "Platform level is a frame permission, marketplace level is the operational admission; the latter needs an active frame admission.",
+        "am_add_target": "Target", "am_add_bad_target": "Level and target disagree: pick “platform: …” for platform level, a marketplace code otherwise",
+        "am_add_sku_inactive": "SKU is deactivated in the dictionary — new operations are blocked (ТЗ 007 §12)",
+        "am_add_no_flags": "Tick at least one flag: “in listing” or “complementary”",
+        "am_add_overlap": "Periods must not overlap: the previous record closed on {d}, the admission date must be later (ТЗ 007 §7)",
+        "am_bulk_title": "Bulk operations", "am_bulk_hint": "SKU list — one per line or comma-separated. Each row is checked first, then you confirm; rows with errors are skipped.",
+        "am_bulk_op": "Operation", "am_bulk_add": "add to matrix", "am_bulk_remove": "remove from matrix", "am_bulk_date": "Date",
+        "am_bulk_skus": "SKUs", "am_bulk_check": "Check", "am_bulk_result": "Check result", "am_bulk_ok": "ok",
+        "am_bulk_unknown_sku": "not in the SKU dictionary", "am_bulk_no_active": "no active record",
+        "am_bulk_summary": "Will pass: {ok} · with errors: {bad}", "am_bulk_apply": "Confirm and apply ({n})", "am_bulk_done": "Applied: {n}",
+        "am_repr_add_title": "Add representation", "am_repr_add_hint": "A PeID/ASIN under a SKU with an active “in listing” admission on this marketplace. One PeID represents one SKU at a time.",
+        "am_repr_add_btn": "➕ Add representation", "am_repr_add_ok": "Representation created",
+        "am_repr_no_admitted_sku": "No SKU with an active “in listing” admission on this marketplace", "am_repr_peid_required": "Enter a PeID/ASIN",
+        "am_repr_peid_not_on_mp": "PeID/ASIN {peid} does not belong to {mp} — register it in the PeID dictionary first",
+        "am_repr_peid_parent": "This is a group (Parent) PeID — it cannot represent a SKU", "am_repr_peid_inactive": "PeID is deactivated in the dictionary",
+        "am_repr_dup_same": "This representation is already active", "am_repr_peid_busy": "PeID/ASIN is already linked to SKU {sku} in this marketplace",
+        "am_repr_mp_no_variations": "This marketplace has no variation families — a role cannot be assigned (ТЗ 007 §8)",
         "am_role_no_group": "Role not saved for {peid}: the PeID has no variation group",
         "vg_hint": "Variation groups per spec 006: on Amazon — a Parent ASIN and its children. A group lives in one marketplace, a variant belongs to one group; "
                    "the link is assigned at PeID level (PeID tab, with a single marketplace selected). Name — as on the marketplace; "
@@ -740,7 +819,7 @@ def _same(a, b) -> bool:
 def confirm_delete(key: str, what: str) -> bool:
     """Удаление в два шага: кнопка ставит флаг, второе нажатие — «Да, удалить».
 
-    Одно нажатие, которое сносит справочник, у нас уже prev_prio (пулы, 18.09.2026).
+    Одно нажатие, которое сносит справочник, у нас уже было (пулы, 18.09.2026).
     Возвращает True ровно один раз — когда подтверждение получено; вызывающий
     код после этого сам делает запрос и сбрасывает состояние через rerun."""
     flag = f"confirm_{key}"
@@ -2076,34 +2155,67 @@ with tab_matrix:
                        FROM kabinet_data.assortment_checks WHERE register = 'admission' GROUP BY 1) c ON c.record_id = a.id
             ORDER BY a.platform, m.code NULLS FIRST, a.sku, a.added_on DESC
         """)
-        mps_all = q("SELECT id, code, platform_short FROM kabinet_data.marketplaces_new WHERE is_active IS NOT FALSE ORDER BY code")
-        skus_all = q("SELECT sku, sku_type, intro_date, exit_date, restrictions FROM kabinet_data.sku_master ORDER BY sku")
+        mps_all = q("SELECT id, code, platform_short, country_alpha2, variation_group_label FROM kabinet_data.marketplaces_new WHERE is_active IS NOT FALSE ORDER BY code")
+        skus_all = q("SELECT sku, sku_type, intro_date, exit_date, restrictions, is_active FROM kabinet_data.sku_master ORDER BY sku")
+        _sku_by = skus_all.set_index("sku")
+        _mp_by_id = mps_all.set_index("id")
+        _active_pl = set(zip(am.loc[(am["level"] == "platform") & am["removed_on"].isna(), "platform"],
+                             am.loc[(am["level"] == "platform") & am["removed_on"].isna(), "sku"]))
 
-        f1, f2, f3, f4, f5, f6 = st.columns([1, 1, 1.2, 1.4, 1, 1])
+        def _restricted(sku, platform, mid) -> bool:
+            # ограничение применения SKU (ТЗ 005 §6): код площадки, код marketplace или страна покрытия
+            if sku not in _sku_by.index: return False
+            codes = set(_sku_by.at[sku, "restrictions"] or [])
+            if platform in codes: return True
+            if mid is not None and mid in _mp_by_id.index:
+                return _mp_by_id.at[mid, "code"] in codes or _mp_by_id.at[mid, "country_alpha2"] in codes
+            return False
+
+        def _status(r) -> str:
+            """Состояние записи не хранится, а вычисляется (ТЗ 007 §7): исключённая — история; действующая без
+            рамочного допуска или под ограничением — расчётно недоступна; SKU выведен — только распродажа (ТЗ 010)."""
+            if pd.notna(r["removed_on"]): return "history"
+            mid = None if pd.isna(r["marketplace_id"]) else int(r["marketplace_id"])
+            if r["level"] == "marketplace" and (r["platform"], r["sku"]) not in _active_pl: return "blocked_platform"
+            if _restricted(r["sku"], r["platform"], mid): return "blocked_restricted"
+            if r["sku"] in _sku_by.index and _sku_by.at[r["sku"], "is_active"] is False: return "blocked_inactive"
+            if r["sku"] in _sku_by.index and pd.notna(_sku_by.at[r["sku"], "exit_date"]) and _sku_by.at[r["sku"], "exit_date"] <= date.today(): return "selloff"
+            return "active"
+        am["status"] = am.apply(_status, axis=1)
+        _st_lbl = {k: _tr(f"am_st_{k}") for k in ("active", "selloff", "blocked_platform", "blocked_restricted", "blocked_inactive", "history")}
+
+        f1, f2, f3, f4, f5, f6 = st.columns([1, 1, 1.2, 1.4, 1.3, 1])
         _lvl = {"marketplace": _tr("am_level_marketplace"), "platform": _tr("am_level_platform")}
         lvl_sel = f1.selectbox(_tr("am_level"), list(_lvl), format_func=_lvl.get, key="am_level")
         pl_sel = f2.multiselect(_tr("am_platform"), sorted(am["platform"].unique()), key="am_platform")
         mp_sel = f3.multiselect(_tr("am_mp"), sorted(am["mp"].dropna().unique()), key="am_mp")
         search = f4.text_input(_tr("am_search"), key="am_search").strip()
-        show_hist = f5.toggle(_tr("am_show_history"), value=False, key="am_hist")
+        # текущий срез и история — раздельно (ТЗ 007 §11); расчётно недоступные — отдельным видом (§6)
+        _views = {"current": _tr("am_view_current"), "blocked": _tr("am_view_blocked"), "history": _tr("am_view_history"), "all": _tr("am_view_all")}
+        view_sel = f5.selectbox(_tr("am_view"), list(_views), format_func=_views.get, key="am_view")
+        show_hist = view_sel in ("history", "all")
         only_issues = f6.toggle(_tr("am_only_issues"), value=False, key="am_issues")
 
         view = am[am["level"] == lvl_sel].copy()
         if pl_sel: view = view[view["platform"].isin(pl_sel)]
         if mp_sel: view = view[view["mp"].isin(mp_sel)]
         if search: view = view[view["sku"].str.contains(search, case=False, na=False) | view["name"].fillna("").str.contains(search, case=False, na=False)]
-        if not show_hist: view = view[view["removed_on"].isna()]
+        if view_sel == "current": view = view[view["removed_on"].isna()]
+        elif view_sel == "blocked": view = view[view["status"].str.startswith("blocked")]
+        elif view_sel == "history": view = view[view["removed_on"].notna()]
         if only_issues: view = view[view["issues"].notna()]
         act = am[am["removed_on"].isna() & (am["level"] == "marketplace")]
         st.caption(_trf("am_summary", n=len(act), listing=int(act["in_listing"].sum()), comp=int(act["complementary"].sum()),
-                        err=int((act["n_err"].fillna(0) > 0).sum())))
+                        blocked=int(act["status"].str.startswith("blocked").sum()), err=int((act["n_err"].fillna(0) > 0).sum())))
         for c in ("mp", "name", "reason", "issues", "sku_type"): view[c] = view[c].fillna("")
         view["added_on"] = pd.to_datetime(view["added_on"]); view["removed_on"] = pd.to_datetime(view["removed_on"])
-        cols = ["platform", "mp", "sku", "name", "sku_type", "added_on", "removed_on", "in_listing", "complementary", "reason", "source", "issues"]
+        view["status_lbl"] = view["status"].map(_st_lbl)
+        cols = ["platform", "mp", "sku", "name", "sku_type", "status_lbl", "added_on", "removed_on", "in_listing", "complementary", "reason", "source", "issues"]
         ed = st.data_editor(
-            view[cols], key=f"ed_am_{lvl_sel}", use_container_width=True, height=440, hide_index=True, num_rows="fixed",
-            disabled=["platform", "mp", "sku", "name", "sku_type", "added_on", "source", "issues"],
+            view[cols], key=f"ed_am_{lvl_sel}_{view_sel}", use_container_width=True, height=440, hide_index=True, num_rows="fixed",
+            disabled=["platform", "mp", "sku", "name", "sku_type", "status_lbl", "added_on", "source", "issues"],
             column_config={
+                "status_lbl": st.column_config.TextColumn(_tr("am_col_status"), width="small"),
                 "platform": st.column_config.TextColumn(_tr("am_col_platform"), width="small"),
                 "mp": st.column_config.TextColumn(_tr("am_col_mp"), width="small"),
                 "sku": st.column_config.TextColumn(_tr("am_col_sku"), width="small"),
@@ -2159,8 +2271,22 @@ with tab_matrix:
         if st.button(_tr("save"), key="save_am", type="primary"):
             stmts, n_a, n_r = [], 0, 0
             before = view.set_index("id"); ed_i = ed.copy(); ed_i.index = view.index
+            rejected = []
             for idx, r in ed_i.iterrows():
                 rid = int(view.at[idx, "id"]); sets, params = [], []
+                old_rm = _py(before.at[rid, "removed_on"]); new_rm = _py(r["removed_on"])
+                if old_rm is not None:
+                    # историческая запись не переоткрывается и не правится (ТЗ 007 §7) — только причина
+                    if new_rm is None or not _same(new_rm, old_rm) or bool(r["in_listing"]) != bool(before.at[rid, "in_listing"]) \
+                            or bool(r["complementary"]) != bool(before.at[rid, "complementary"]):
+                        rejected.append(_trf("am_rej_history", sku=r["sku"])); continue
+                if new_rm is not None and new_rm < _py(before.at[rid, "added_on"]):
+                    rejected.append(_trf("am_rej_removed_before_added", sku=r["sku"])); continue
+                if bool(r["complementary"]) and not bool(before.at[rid, "complementary"]):
+                    if (r["sku_type"] or "") == "composite":
+                        rejected.append(_trf("am_rej_comp_composite", sku=r["sku"])); continue
+                    if lvl_sel == "platform":
+                        rejected.append(_trf("am_rej_comp_platform", sku=r["sku"])); continue
                 for f in ("in_listing", "complementary"):
                     if bool(r[f]) != bool(before.at[rid, f]):
                         sets.append(f"{f} = %s"); params.append(bool(r[f]))
@@ -2168,7 +2294,6 @@ with tab_matrix:
                                       (rid, f, str(bool(before.at[rid, f])), str(bool(r[f])))))
                 if (r["reason"] or "") != (before.at[rid, "reason"] or ""):
                     sets.append("reason = %s"); params.append(r["reason"] or None)
-                new_rm, old_rm = _py(r["removed_on"]), _py(before.at[rid, "removed_on"])
                 if not _same(new_rm, old_rm):
                     sets.append("removed_on = %s"); params.append(new_rm)
                     stmts.append(("INSERT INTO kabinet_data.assortment_change_log (register, record_id, field, old_value, new_value, source, actor) VALUES ('admission', %s, 'removed_on', %s, %s, 'manual', 'kabinet')",
@@ -2196,20 +2321,75 @@ with tab_matrix:
                         sets.append("valid_to = %s"); params.append(new_to)
                     if sets:
                         stmts.append((f"UPDATE {AR} SET {', '.join(sets)}, source = CASE WHEN source LIKE 'seed%%' THEN 'manual' ELSE source END, updated_at = now() WHERE id = %s", params + [rid])); n_r += 1
+            for msg in rejected: st.error(msg)
             if not stmts:
-                st.info(_tr("nochange"))
+                if not rejected: st.info(_tr("nochange"))
             else:
                 try:
-                    exec_sql(stmts); st.cache_data.clear(); st.success(_trf("am_saved", a=n_a, r=n_r)); st.rerun()
+                    exec_sql(stmts); st.cache_data.clear(); st.success(_trf("am_saved", a=n_a, r=n_r))
+                    if not rejected: st.rerun()
                 except Exception as e:
                     st.error(_trf("err", e=e))
+
+        # ── проверки ТЗ 007 §7–§8 и план записи: одни и те же для одиночного и массового добавления ──
+        def _target_parts(level, target):
+            if level == "platform":
+                return target.split(":", 1)[1].strip() if ":" in target else target, None
+            mrow = mps_all[mps_all["code"] == target]
+            if mrow.empty: return None, None
+            return mrow["platform_short"].iloc[0], int(mrow["id"].iloc[0])
+
+        def admission_checks(level, target, sku, added_on, in_listing, comp):
+            errs, warns = [], []
+            platform, mid = _target_parts(level, target)
+            if platform is None: errs.append(_tr("am_add_bad_target")); return errs, warns
+            if level == "marketplace" and mid is None: errs.append(_tr("am_add_bad_target")); return errs, warns
+            if level == "platform" and mid is not None: errs.append(_tr("am_add_bad_target")); return errs, warns
+            srow = _sku_by.loc[sku]
+            if pd.isna(srow["intro_date"]): errs.append(_tr("am_add_no_intro"))
+            if pd.notna(srow["exit_date"]): errs.append(_tr("am_add_exited"))
+            if srow["is_active"] is False: errs.append(_tr("am_add_sku_inactive"))
+            if _restricted(sku, platform, mid): errs.append(_tr("am_add_restricted"))
+            if comp and srow["sku_type"] == "composite": errs.append(_tr("am_add_comp_composite"))
+            if comp and level == "platform": errs.append(_tr("am_rej_comp_platform_short"))
+            if not in_listing and not comp: errs.append(_tr("am_add_no_flags"))
+            if level == "marketplace" and (platform, sku) not in _active_pl: errs.append(_tr("am_add_no_platform"))
+            same = am[(am["level"] == level) & (am["platform"] == platform) & (am["sku"] == sku)
+                      & ((am["marketplace_id"] == mid) if mid is not None else am["marketplace_id"].isna())]
+            if not same[same["removed_on"].isna()].empty: errs.append(_tr("am_add_dup"))
+            last_closed = same["removed_on"].dropna().max() if not same.empty else pd.NaT
+            if pd.notna(last_closed) and pd.Timestamp(added_on) <= pd.Timestamp(last_closed):
+                errs.append(_trf("am_add_overlap", d=pd.Timestamp(last_closed).strftime("%d.%m.%Y")))   # периоды не пересекаются (§7)
+            return errs, warns
+
+        def admission_insert(level, target, sku, added_on, in_listing, comp, reason):
+            platform, mid = _target_parts(level, target)
+            return (f"""INSERT INTO {AA} (level, platform, marketplace_id, sku, added_on, in_listing, complementary, reason, source, created_by)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'manual', 'kabinet')""",
+                    (level, platform, mid, sku, added_on, bool(in_listing), bool(comp), reason or None))
+
+        def exclusion_plan(level, target, sku, removed_on, reason):
+            """Исключение: закрыть действующую запись датой и её представления той же датой (§5, §7). Историю не трогаем."""
+            platform, mid = _target_parts(level, target)
+            if platform is None: return [_tr("am_add_bad_target")], []
+            cur = am[(am["level"] == level) & (am["platform"] == platform) & (am["sku"] == sku) & am["removed_on"].isna()
+                     & ((am["marketplace_id"] == mid) if mid is not None else am["marketplace_id"].isna())]
+            if cur.empty: return [_tr("am_bulk_no_active")], []
+            rid = int(cur["id"].iloc[0])
+            if pd.Timestamp(removed_on) < pd.Timestamp(cur["added_on"].iloc[0]): return [_trf("am_rej_removed_before_added", sku=sku)], []
+            stmts = [(f"UPDATE {AA} SET removed_on = %s, reason = COALESCE(%s, reason), source = CASE WHEN source LIKE 'seed%%' THEN 'manual' ELSE source END, updated_at = now() WHERE id = %s", (removed_on, reason or None, rid)),
+                     ("INSERT INTO kabinet_data.assortment_change_log (register, record_id, field, old_value, new_value, source, actor) VALUES ('admission', %s, 'removed_on', NULL, %s, 'manual', 'kabinet')", (rid, str(removed_on))),
+                     (f"UPDATE {AR} SET valid_to = %s, updated_at = now() WHERE admission_id = %s AND valid_to IS NULL", (removed_on, rid))]
+            return [], stmts
 
         # ── добавить SKU в матрицу — с проверками ТЗ 007 §8 ──
         with st.form("am_add", clear_on_submit=True):
             st.markdown(f"**{_tr('am_add_title')}**")
+            st.caption(_tr("am_add_hint"))
             c1, c2, c3, c4 = st.columns([1, 1.2, 1.4, 1])
             a_level = c1.selectbox(_tr("am_level"), list(_lvl), format_func=_lvl.get)
-            a_mp = c2.selectbox(_tr("am_mp"), mps_all["code"].tolist())
+            _pl_opts = sorted(mps_all["platform_short"].dropna().unique())
+            a_target = c2.selectbox(_tr("am_add_target"), [f"{_tr('am_level_platform')}: {p_}" for p_ in _pl_opts] + mps_all["code"].tolist())
             a_sku = c3.selectbox(_tr("am_add_sku"), skus_all["sku"].tolist())
             a_date = c4.date_input(_tr("am_add_date"), value=date.today())
             c5, c6, c7 = st.columns([1, 1, 3])
@@ -2217,26 +2397,105 @@ with tab_matrix:
             a_comp = c6.checkbox(_tr("am_col_comp"), value=False)
             a_reason = c7.text_input(_tr("am_col_reason"))
             if st.form_submit_button(_tr("am_add_btn")):
-                mrow = mps_all[mps_all["code"] == a_mp].iloc[0]; srow = skus_all[skus_all["sku"] == a_sku].iloc[0]
-                a_platform = mrow["platform_short"]; a_mid = int(mrow["id"]) if a_level == "marketplace" else None
-                errs = []
-                if pd.isna(srow["intro_date"]): errs.append(_tr("am_add_no_intro"))
-                if pd.notna(srow["exit_date"]): errs.append(_tr("am_add_exited"))
-                restr = set(srow["restrictions"] or [])
-                if a_mp in restr or a_mp.split("-")[-1] in restr: errs.append(_tr("am_add_restricted"))
-                if a_comp and srow["sku_type"] == "composite": errs.append(_tr("am_add_comp_composite"))
-                if a_level == "marketplace" and am[(am["level"] == "platform") & (am["platform"] == a_platform) & (am["sku"] == a_sku) & am["removed_on"].isna()].empty:
-                    errs.append(_tr("am_add_no_platform"))
-                dup = am[(am["level"] == a_level) & (am["platform"] == a_platform) & (am["sku"] == a_sku) & am["removed_on"].isna()
-                         & ((am["marketplace_id"] == a_mid) if a_mid else am["marketplace_id"].isna())]
-                if not dup.empty: errs.append(_tr("am_add_dup"))
+                errs, warns = admission_checks(a_level, a_target, a_sku, a_date, bool(a_listing), bool(a_comp))
+                for w_ in warns: st.warning(w_)
                 if errs:
                     for e in errs: st.error(e)
                 else:
                     try:
-                        exec_sql([(f"""INSERT INTO {AA} (level, platform, marketplace_id, sku, added_on, in_listing, complementary, reason, source, created_by)
-                                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'manual', 'kabinet')""",
-                                   (a_level, a_platform, a_mid, a_sku, a_date, bool(a_listing), bool(a_comp), a_reason or None))])
+                        exec_sql([admission_insert(a_level, a_target, a_sku, a_date, bool(a_listing), bool(a_comp), a_reason)])
                         st.cache_data.clear(); st.success(_tr("am_add_ok")); st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
+
+        # ── массовые операции: список SKU → проверка каждой строки → подтверждение (ТЗ 007 §6) ──
+        with st.expander(_tr("am_bulk_title")):
+            st.caption(_tr("am_bulk_hint"))
+            b1, b2, b3 = st.columns([1, 1.4, 1])
+            _ops = {"add": _tr("am_bulk_add"), "remove": _tr("am_bulk_remove")}
+            b_op = b1.selectbox(_tr("am_bulk_op"), list(_ops), format_func=_ops.get, key="am_bulk_op")
+            b_target = b2.selectbox(_tr("am_add_target"), [f"{_tr('am_level_platform')}: {p_}" for p_ in _pl_opts] + mps_all["code"].tolist(), key="am_bulk_target")
+            b_date = b3.date_input(_tr("am_bulk_date"), value=date.today(), key="am_bulk_date")
+            b_level = "platform" if b_target.startswith(_tr("am_level_platform") + ":") else "marketplace"
+            b4, b5, b6 = st.columns([1, 1, 3])
+            b_listing = b4.checkbox(_tr("am_col_listing"), value=True, key="am_bulk_listing", disabled=(b_op == "remove"))
+            b_comp = b5.checkbox(_tr("am_col_comp"), value=False, key="am_bulk_comp", disabled=(b_op == "remove"))
+            b_reason = b6.text_input(_tr("am_col_reason"), key="am_bulk_reason")
+            b_text = st.text_area(_tr("am_bulk_skus"), key="am_bulk_skus", height=120, placeholder="41324000\n58616000\n…")
+            b_skus = []
+            for tok in re.split(r"[\s,;]+", b_text or ""):
+                tok = tok.strip()
+                if tok and tok not in b_skus: b_skus.append(tok)
+            if st.button(_tr("am_bulk_check"), key="am_bulk_check_btn", disabled=not b_skus):
+                rows, plan = [], []
+                for sku_ in b_skus:
+                    if sku_ not in _sku_by.index:
+                        rows.append({"sku": sku_, "ok": False, "result": _tr("am_bulk_unknown_sku")}); continue
+                    if b_op == "add":
+                        errs, warns = admission_checks(b_level, b_target, sku_, b_date, bool(b_listing), bool(b_comp))
+                        rows.append({"sku": sku_, "ok": not errs, "result": "; ".join(errs + warns) or _tr("am_bulk_ok")})
+                        if not errs: plan.append(admission_insert(b_level, b_target, sku_, b_date, bool(b_listing), bool(b_comp), b_reason))
+                    else:
+                        errs, stmts_ = exclusion_plan(b_level, b_target, sku_, b_date, b_reason)
+                        rows.append({"sku": sku_, "ok": not errs, "result": "; ".join(errs) or _tr("am_bulk_ok")})
+                        if not errs: plan += stmts_
+                st.session_state["am_bulk_preview"] = {"rows": rows, "plan": plan, "sig": (b_op, b_target, str(b_date), bool(b_listing), bool(b_comp), b_reason, tuple(b_skus))}
+            prev = st.session_state.get("am_bulk_preview")
+            if prev and prev["sig"] == (b_op, b_target, str(b_date), bool(b_listing), bool(b_comp), b_reason, tuple(b_skus)):
+                pv = pd.DataFrame(prev["rows"])
+                st.dataframe(pv, use_container_width=True, hide_index=True,
+                             column_config={"sku": st.column_config.TextColumn(_tr("am_col_sku"), width="small"),
+                                            "ok": st.column_config.CheckboxColumn("OK", width="small"),
+                                            "result": st.column_config.TextColumn(_tr("am_bulk_result"), width="large")})
+                n_ok = int(pv["ok"].sum()); n_bad = len(pv) - n_ok
+                st.caption(_trf("am_bulk_summary", ok=n_ok, bad=n_bad))
+                if n_ok and st.button(_trf("am_bulk_apply", n=n_ok), key="am_bulk_apply_btn", type="primary"):
+                    try:
+                        exec_sql(prev["plan"]); st.session_state.pop("am_bulk_preview", None); st.cache_data.clear()
+                        st.success(_trf("am_bulk_done", n=n_ok)); st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
+            elif prev:
+                st.session_state.pop("am_bulk_preview", None)
+
+        # ── новое представление: PeID под допущенным SKU (ТЗ 007 §5) ──
+        with st.form("am_repr_add", clear_on_submit=True):
+            st.markdown(f"**{_tr('am_repr_add_title')}**")
+            st.caption(_tr("am_repr_add_hint"))
+            r1, r2, r3, r4, r5 = st.columns([1, 1.3, 1.5, 1, 1])
+            ra_mp = r1.selectbox(_tr("am_mp"), mps_all["code"].tolist(), index=(mps_all["code"].tolist().index(rp_mp) if rp_mp in mps_all["code"].tolist() else 0))
+            _adm_sku = sorted(am.loc[(am["level"] == "marketplace") & (am["mp"] == ra_mp) & am["removed_on"].isna() & am["in_listing"], "sku"].unique())
+            ra_sku = r2.selectbox(_tr("am_add_sku"), _adm_sku) if _adm_sku else r2.selectbox(_tr("am_add_sku"), [], disabled=True)
+            ra_peid = r3.text_input(_tr("am_repr_col_peid")).strip()
+            ra_from = r4.date_input(_tr("am_repr_col_from"), value=date.today())
+            ra_role = r5.selectbox(_tr("am_repr_col_role"), _role_opts)
+            if st.form_submit_button(_tr("am_repr_add_btn")):
+                errs = []
+                mid_ = int(mps_all.loc[mps_all["code"] == ra_mp, "id"].iloc[0])
+                if not ra_sku: errs.append(_tr("am_repr_no_admitted_sku"))
+                if not ra_peid: errs.append(_tr("am_repr_peid_required"))
+                ent = q1("SELECT peid, is_parent, is_active, variation_group_id FROM kabinet_data.product_entities WHERE marketplace_id = %s AND peid = %s", (mid_, ra_peid)) if ra_peid else pd.DataFrame()
+                if ra_peid and ent.empty: errs.append(_trf("am_repr_peid_not_on_mp", peid=ra_peid, mp=ra_mp))     # PeID должен относиться к этому marketplace (§8)
+                elif not ent.empty and bool(ent.at[0, "is_parent"]): errs.append(_tr("am_repr_peid_parent"))
+                elif not ent.empty and ent.at[0, "is_active"] is False: errs.append(_tr("am_repr_peid_inactive"))
+                if ra_peid:
+                    # один PeID одновременно представляет один SKU в marketplace (§5) — блокируем с указанием SKU A
+                    busy = q1(f"SELECT a.sku FROM {AR} r JOIN {AA} a ON a.id = r.admission_id WHERE r.marketplace_id = %s AND r.peid = %s AND r.valid_to IS NULL", (mid_, ra_peid))
+                    if not busy.empty:
+                        if busy.at[0, "sku"] == ra_sku: errs.append(_tr("am_repr_dup_same"))
+                        else: errs.append(_trf("am_repr_peid_busy", sku=busy.at[0, "sku"]))
+                if ra_role and (ent.empty or pd.isna(ent.at[0, "variation_group_id"])): errs.append(_trf("am_role_no_group", peid=ra_peid))
+                if ra_role and pd.isna(mps_all.loc[mps_all["code"] == ra_mp, "variation_group_label"].iloc[0]): errs.append(_tr("am_repr_mp_no_variations"))
+                if errs:
+                    for e in errs: st.error(e)
+                else:
+                    adm_id = int(am.loc[(am["level"] == "marketplace") & (am["mp"] == ra_mp) & am["removed_on"].isna() & (am["sku"] == ra_sku), "id"].iloc[0])
+                    try:
+                        exec_sql([(f"""INSERT INTO {AR} (admission_id, marketplace_id, peid, commercial_role, role_since, valid_from, source, created_by)
+                                       VALUES (%s, %s, %s, %s, %s, %s, 'manual', 'kabinet')""",
+                                   (adm_id, mid_, ra_peid, ra_role or None, date.today() if ra_role else None, ra_from)),
+                                  ("INSERT INTO kabinet_data.assortment_change_log (register, record_id, field, old_value, new_value, source, actor) VALUES ('representation', currval('kabinet_data.assortment_representations_id_seq'), 'created', NULL, %s, 'manual', 'kabinet')",
+                                   (f"{ra_mp} {ra_sku} → {ra_peid}",))])
+                        st.cache_data.clear(); st.success(_tr("am_repr_add_ok")); st.rerun()
                     except Exception as e:
                         st.error(_trf("err", e=e))
