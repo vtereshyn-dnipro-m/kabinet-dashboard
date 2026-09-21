@@ -45,7 +45,7 @@ TR = {
         "am_level": "Уровень", "am_level_marketplace": "marketplace", "am_level_platform": "площадка",
         "am_platform": "Площадка", "am_mp": "Маркетплейс", "am_search": "SKU", "am_show_history": "Показать историю",
         "am_only_issues": "Только с проблемами",
-        "am_summary": "Действующих допусков: {n} · в листинге {listing} · комплиментарных {comp} · расчётно недоступных {blocked} · с ошибками контроля {err}",
+        "am_summary": "Действующих допусков: {n} · в листинге {listing} · комплиментарных {comp} · распродажа {selloff} · расчётно недоступных {blocked} · с ошибками контроля {err}",
         "am_col_level": "Уровень", "am_col_platform": "Площадка", "am_col_mp": "Маркетплейс", "am_col_sku": "SKU", "am_col_name": "Название",
         "am_col_type": "Тип", "am_col_added": "Добавлен", "am_col_removed": "Исключён", "am_col_listing": "В листинге",
         "am_col_comp": "Комплиментарный", "am_col_reason": "Причина", "am_col_source": "Источник", "am_col_issues": "Контроль",
@@ -247,7 +247,11 @@ TR = {
         "col_id": "ID", "col_name": "Название", "col_code": "Код", "col_type": "Тип",
         "col_mp": "Маркетплейс", "col_country": "Страна", "col_currency": "Валюта",
         "col_amazon_id": "Amazon ID", "col_active": "Активен", "col_canon": "Дубль от",
-        "col_note": "Примечание", "col_ship_prio": "Приоритет отгрузки",
+        "col_note": "Примечание", "col_ship_prio": "Приоритет отгрузки (старый)",
+        "col_ship_prio_help": "Поле прежней модели: один номер на склад. Приоритеты теперь задаются в карточке склада, по строке на маркетплейс. Здесь только для чтения.",
+        "col_type_help": "sales — точка продаж, storage — хранение, transit_domestic / transit_inter — транзит, manufacturer — производитель, fba — FBA, view — обзор. «view» сохранится только после того, как владелец базы выполнит sql/warehouse_type_view_OWNER_2026-09-21.sql.",
+        "wh_prio_dup_block": "Сохранение отменено: сначала уберите повтор.",
+        "am_view_selloff": "распродажа",
         "col_route": "Тип маршрута", "col_median": "Срок, дн",
         "col_shipments": "Отгрузок", "col_lead_src": "Источник срока",
         "col_sample": "Накладных", "col_min": "Мин, дн", "col_target": "Цель, дн",
@@ -270,7 +274,7 @@ TR = {
         "am_level": "Рівень", "am_level_marketplace": "marketplace", "am_level_platform": "майданчик",
         "am_platform": "Майданчик", "am_mp": "Маркетплейс", "am_search": "SKU", "am_show_history": "Показати історію",
         "am_only_issues": "Лише з проблемами",
-        "am_summary": "Чинних допусків: {n} · в лістингу {listing} · компліментарних {comp} · розрахунково недоступних {blocked} · з помилками контролю {err}",
+        "am_summary": "Чинних допусків: {n} · в лістингу {listing} · компліментарних {comp} · розпродаж {selloff} · розрахунково недоступних {blocked} · з помилками контролю {err}",
         "am_col_level": "Рівень", "am_col_platform": "Майданчик", "am_col_mp": "Маркетплейс", "am_col_sku": "SKU", "am_col_name": "Назва",
         "am_col_type": "Тип", "am_col_added": "Додано", "am_col_removed": "Виключено", "am_col_listing": "В лістингу",
         "am_col_comp": "Компліментарний", "am_col_reason": "Причина", "am_col_source": "Джерело", "am_col_issues": "Контроль",
@@ -472,7 +476,11 @@ TR = {
         "col_id": "ID", "col_name": "Назва", "col_code": "Код", "col_type": "Тип",
         "col_mp": "Маркетплейс", "col_country": "Країна", "col_currency": "Валюта",
         "col_amazon_id": "Amazon ID", "col_active": "Активний", "col_canon": "Дубль від",
-        "col_note": "Примітка", "col_ship_prio": "Пріоритет відвантаження",
+        "col_note": "Примітка", "col_ship_prio": "Пріоритет відвантаження (старий)",
+        "col_ship_prio_help": "Поле попередньої моделі: один номер на склад. Пріоритети тепер задаються в картці складу, по рядку на маркетплейс. Тут лише для читання.",
+        "col_type_help": "sales — точка продажу, storage — зберігання, transit_domestic / transit_inter — транзит, manufacturer — виробник, fba — FBA, view — огляд. «view» збережеться лише після того, як власник бази виконає sql/warehouse_type_view_OWNER_2026-09-21.sql.",
+        "wh_prio_dup_block": "Збереження скасовано: спершу приберіть повтор.",
+        "am_view_selloff": "розпродаж",
         "col_route": "Тип маршруту", "col_median": "Термін, дн",
         "col_shipments": "Відвантажень", "col_lead_src": "Джерело терміну",
         "col_sample": "Накладних", "col_min": "Мін, дн", "col_target": "Ціль, дн",
@@ -495,7 +503,7 @@ TR = {
         "am_level": "Level", "am_level_marketplace": "marketplace", "am_level_platform": "platform",
         "am_platform": "Platform", "am_mp": "Marketplace", "am_search": "SKU", "am_show_history": "Show history",
         "am_only_issues": "Only with issues",
-        "am_summary": "Active admissions: {n} · in listing {listing} · complementary {comp} · computed unavailable {blocked} · with control errors {err}",
+        "am_summary": "Active admissions: {n} · in listing {listing} · complementary {comp} · sell-off {selloff} · computed unavailable {blocked} · with control errors {err}",
         "am_col_level": "Level", "am_col_platform": "Platform", "am_col_mp": "Marketplace", "am_col_sku": "SKU", "am_col_name": "Name",
         "am_col_type": "Type", "am_col_added": "Added", "am_col_removed": "Removed", "am_col_listing": "In listing",
         "am_col_comp": "Complementary", "am_col_reason": "Reason", "am_col_source": "Source", "am_col_issues": "Control",
@@ -698,7 +706,11 @@ TR = {
         "col_id": "ID", "col_name": "Name", "col_code": "Code", "col_type": "Type",
         "col_mp": "Marketplace", "col_country": "Country", "col_currency": "Currency",
         "col_amazon_id": "Amazon ID", "col_active": "Active", "col_canon": "Alias of",
-        "col_note": "Note", "col_ship_prio": "Shipping priority",
+        "col_note": "Note", "col_ship_prio": "Shipping priority (legacy)",
+        "col_ship_prio_help": "Field of the previous model: one number per warehouse. Priorities are now set in the warehouse card, one row per marketplace. Read-only here.",
+        "col_type_help": "sales, storage, transit_domestic / transit_inter, manufacturer, fba, view (overview). «view» saves only after the database owner runs sql/warehouse_type_view_OWNER_2026-09-21.sql.",
+        "wh_prio_dup_block": "Save cancelled: remove the duplicate first.",
+        "am_view_selloff": "sell-off",
         "col_route": "Route type", "col_median": "Lead, days",
         "col_shipments": "Shipments", "col_lead_src": "Lead source",
         "col_sample": "Invoices", "col_min": "Min, days", "col_target": "Target, days",
@@ -936,6 +948,16 @@ with tab_wh:
         def _tlabel(key):
             return targets.get(key, (f"{key[0]} #{key[1]}", None))[0]
 
+        _dup_state = {"dup": []}
+
+        def dup_stop() -> bool:
+            """Повтор маркетплейса раньше только подсвечивался: приоритеты не писались,
+            а маршруты подпитки сохранялись, и человек видел «Сохранено»."""
+            if _dup_state["dup"]:
+                st.error(_tr("wh_prio_dup_block"))
+                return True
+            return False
+
         # ── склад: по алфавиту, рядом тип (доработка 17.09) ──
         show_all = st.toggle(_tr("wh_show_sales"), value=True, key="wh_show_all")
         st.caption(_tr("wh_show_sales_hint"))
@@ -990,6 +1012,7 @@ with tab_wh:
                         if k in new_prio.values():
                             dup.append(r.target); continue
                         new_prio[int(r.priority)] = k
+                _dup_state["dup"] = dup
                 if dup:
                     st.error(_trf("wh_prio_dup", t=", ".join(dup)))
                 if not new_prio:
@@ -1020,7 +1043,7 @@ with tab_wh:
                                    "is_active": st.column_config.CheckboxColumn(_tr("col_active"))})
 
             # ── сохранение ────────────────────────────────────────────────
-            if st.button(_tr("save"), key="save_wh_card", type="primary"):
+            if st.button(_tr("save"), key="save_wh_card", type="primary") and not dup_stop():
                 stmts = []
                 if new_prio is not None and new_prio != prev_prio and not dup:
                     stmts.append((f"DELETE FROM {WP} WHERE warehouse_id = %s", (int(sel),)))
@@ -1079,12 +1102,14 @@ with tab_wh:
                     "code": st.column_config.TextColumn(_tr("col_code"), width="small"),
                     # варианты — ровно те, что пропускает CHECK на warehouses.type; «view» появится после ALTER у владельца
                     "type": st.column_config.SelectboxColumn(
-                        _tr("col_type"),
+                        _tr("col_type"), help=_tr("col_type_help"),
                         options=["sales", "storage", "transit_domestic", "transit_inter", "manufacturer", "fba", "view"]),
                     "marketplace": st.column_config.TextColumn(_tr("col_mp"), width="small"),
                     "country": st.column_config.TextColumn(_tr("col_country"), width="small"),
+                    # приоритет переехал в warehouse_priorities: правка этого числа больше ни на что
+                    # не влияет, а max_value=99 принимал 11 и «сохранял» его молча
                     "shipping_priority": st.column_config.NumberColumn(
-                        _tr("col_ship_prio"), min_value=0, max_value=99, step=1),
+                        _tr("col_ship_prio"), help=_tr("col_ship_prio_help"), disabled=True),
                     "is_active": st.column_config.CheckboxColumn(_tr("col_active")),
                     "canonical_id": st.column_config.NumberColumn(_tr("col_canon"), width="small"),
                     "note": st.column_config.TextColumn(_tr("col_note"), width="large"),
@@ -1092,8 +1117,7 @@ with tab_wh:
             )
             if st.button(_tr("save"), key="save_wh", type="primary"):
                 save_block(wh, ed, "kabinet_data.warehouses", "id",
-                           ["type", "marketplace", "country", "shipping_priority",
-                            "is_active", "note"])
+                           ["type", "marketplace", "country", "is_active", "note"])
 
 # ------------------------------------------------------------- подпитка ---
 with tab_ch:
@@ -2184,6 +2208,9 @@ with tab_matrix:
         am["status"] = am.apply(_status, axis=1)
         _st_lbl = {k: _tr(f"am_st_{k}") for k in ("active", "selloff", "blocked_platform", "blocked_restricted", "blocked_inactive", "history")}
 
+        _saved_msg = st.session_state.pop("am_saved_msg", None)
+        if _saved_msg:
+            st.success(_saved_msg)
         f1, f2, f3, f4, f5, f6 = st.columns([1, 1, 1.2, 1.4, 1.3, 1])
         _lvl = {"marketplace": _tr("am_level_marketplace"), "platform": _tr("am_level_platform")}
         lvl_sel = f1.selectbox(_tr("am_level"), list(_lvl), format_func=_lvl.get, key="am_level")
@@ -2191,7 +2218,8 @@ with tab_matrix:
         mp_sel = f3.multiselect(_tr("am_mp"), sorted(am["mp"].dropna().unique()), key="am_mp")
         search = f4.text_input(_tr("am_search"), key="am_search").strip()
         # текущий срез и история — раздельно (ТЗ 007 §11); расчётно недоступные — отдельным видом (§6)
-        _views = {"current": _tr("am_view_current"), "blocked": _tr("am_view_blocked"), "history": _tr("am_view_history"), "all": _tr("am_view_all")}
+        _views = {"current": _tr("am_view_current"), "selloff": _tr("am_view_selloff"), "blocked": _tr("am_view_blocked"),
+                  "history": _tr("am_view_history"), "all": _tr("am_view_all")}
         view_sel = f5.selectbox(_tr("am_view"), list(_views), format_func=_views.get, key="am_view")
         show_hist = view_sel in ("history", "all")
         only_issues = f6.toggle(_tr("am_only_issues"), value=False, key="am_issues")
@@ -2201,11 +2229,13 @@ with tab_matrix:
         if mp_sel: view = view[view["mp"].isin(mp_sel)]
         if search: view = view[view["sku"].str.contains(search, case=False, na=False) | view["name"].fillna("").str.contains(search, case=False, na=False)]
         if view_sel == "current": view = view[view["removed_on"].isna()]
+        elif view_sel == "selloff": view = view[view["status"] == "selloff"]
         elif view_sel == "blocked": view = view[view["status"].str.startswith("blocked")]
         elif view_sel == "history": view = view[view["removed_on"].notna()]
         if only_issues: view = view[view["issues"].notna()]
         act = am[am["removed_on"].isna() & (am["level"] == "marketplace")]
         st.caption(_trf("am_summary", n=len(act), listing=int(act["in_listing"].sum()), comp=int(act["complementary"].sum()),
+                        selloff=int((act["status"] == "selloff").sum()),
                         blocked=int(act["status"].str.startswith("blocked").sum()), err=int((act["n_err"].fillna(0) > 0).sum())))
         for c in ("mp", "name", "reason", "issues", "sku_type"): view[c] = view[c].fillna("")
         view["added_on"] = pd.to_datetime(view["added_on"]); view["removed_on"] = pd.to_datetime(view["removed_on"])
@@ -2326,8 +2356,10 @@ with tab_matrix:
                 if not rejected: st.info(_tr("nochange"))
             else:
                 try:
-                    exec_sql(stmts); st.cache_data.clear(); st.success(_trf("am_saved", a=n_a, r=n_r))
-                    if not rejected: st.rerun()
+                    exec_sql(stmts); st.cache_data.clear()
+                    # отказы уже показаны выше; без rerun таблица осталась бы с несохранёнными значениями
+                    st.session_state["am_saved_msg"] = _trf("am_saved", a=n_a, r=n_r)
+                    st.rerun()
                 except Exception as e:
                     st.error(_trf("err", e=e))
 
