@@ -131,6 +131,12 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
                 WHERE sales_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
                 GROUP BY 1, 2
             ),
+            logi AS (   -- упаковка и доставка по правилам витрины Дарины (21.09.2026) — входят в маржу
+                SELECT sales_date, marketplace, SUM(packing_cost + shipping_cost) AS logistics
+                FROM kabinet_data.economics_logistics
+                WHERE sales_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
+                GROUP BY 1, 2
+            ),
             ads AS (
                 SELECT date AS sales_date, marketplace,
                        SUM(total_spend) AS ads
@@ -138,9 +144,10 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
                 WHERE date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
                 GROUP BY 1, 2
             )
-            SELECT e.*, COALESCE(a.ads, 0) AS ads
+            SELECT e.*, COALESCE(a.ads, 0) AS ads, COALESCE(l.logistics, 0) AS logistics
             FROM econ e
             LEFT JOIN ads a USING (sales_date, marketplace)
+            LEFT JOIN logi l ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace
         """, conn)
     except Exception:
         return pd.DataFrame()
@@ -514,7 +521,7 @@ else:
     rev_cur = float(cur["revenue"].sum())
     rev_prev = float(prev["revenue"].sum())
     _ads = float(cur.get("ads", pd.Series(dtype=float)).sum() or 0)
-    cm_cur = float(cur["net"].sum() - cur["cogs"].sum() - _ads)
+    cm_cur = float(cur["net"].sum() - cur["cogs"].sum() - _ads - float(cur.get("logistics", pd.Series(dtype=float)).sum()))
     cm_pct = round(cm_cur / rev_cur * 100, 1) if rev_cur else 0.0
     units_cur = int(cur["units"].sum())
     delta_pct = (round((rev_cur - rev_prev) / rev_prev * 100, 1)
