@@ -16,4 +16,8 @@ __pycache__/
 .mcp.json
 
 # Локальные настройки Claude Code
-.claude/
+# .claude: локальные настройки не коммитим, а общие хуки и settings.json — да
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/launch.json
