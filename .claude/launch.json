@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "metric-check",
+      "runtimeExecutable": "/private/tmp/claude-501/-Users-vitter-Documents-Code-kabinet-dashboard/52423b06-4ec2-4164-88ac-dc51f7710cff/scratchpad/st_env/bin/streamlit",
+      "runtimeArgs": ["run", "/private/tmp/claude-501/-Users-vitter-Documents-Code-kabinet-dashboard/52423b06-4ec2-4164-88ac-dc51f7710cff/scratchpad/metric_check/check.py", "--server.port", "8765", "--server.headless", "true"],
+      "port": 8765
+    }
+  ]
+}
