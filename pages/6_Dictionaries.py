@@ -58,6 +58,10 @@ TR = {
         "am_repr_title": "Представления SKU на маркетплейсе", "am_repr_pick_mp": "Маркетплейс для представлений",
         "am_repr_col_peid": "PeID", "am_repr_col_group": "Группа вариаций", "am_repr_col_role": "Коммерческая роль",
         "am_repr_col_from": "С", "am_repr_col_to": "По", "am_repr_none": "Представлений нет",
+                "am_col_removed_help": "Исключение — операцией ниже («Массовые операции → исключить», можно один SKU): с датой и причиной, представления закрываются той же датой.",
+        "am_repr_close_title": "Закрыть представление", "am_repr_close_pick": "Представление", "am_repr_close_btn": "Закрыть",
+        "am_repr_close_ok": "Представление закрыто", "am_repr_close_before_from": "Дата окончания раньше даты начала связи",
+        "am_role_none": "— без роли —",
         "am_role_help": "Hero / Traffic / Margin / Support — только для PeID в группе вариаций (ТЗ 009). Без группы поле пустое.",
         "am_col_status": "Состояние", "am_view": "Срез", "am_view_current": "текущий срез", "am_view_blocked": "расчётно недоступные",
         "am_view_history": "история", "am_view_all": "всё",
@@ -73,7 +77,7 @@ TR = {
         "am_add_sku_inactive": "SKU деактивирован в справочнике — новые операции запрещены (ТЗ 007 §12)",
         "am_add_no_flags": "Отметьте хотя бы один признак: «в листинге» или «комплиментарный»",
         "am_add_overlap": "Периоды не пересекаются: предыдущая запись закрыта {d}, дата добавления должна быть позже (ТЗ 007 §7)",
-        "am_bulk_title": "Массовые операции", "am_bulk_hint": "Список SKU — по одному в строке или через запятую. Сначала проверка по каждой строке, потом подтверждение; строки с ошибками пропускаются.",
+        "am_bulk_title": "Добавить или исключить списком", "am_bulk_hint": "Один SKU или список — по одному в строке или через запятую. Сначала проверка по каждой строке, потом подтверждение; строки с ошибками пропускаются.",
         "am_bulk_op": "Операция", "am_bulk_add": "добавить в матрицу", "am_bulk_remove": "исключить из матрицы", "am_bulk_date": "Дата",
         "am_bulk_skus": "SKU", "am_bulk_check": "Проверить", "am_bulk_result": "Результат проверки", "am_bulk_ok": "ок",
         "am_bulk_unknown_sku": "нет в справочнике SKU", "am_bulk_no_active": "действующей записи нет",
@@ -189,7 +193,7 @@ TR = {
                          "сохраняется, площадки — нет.",
         "wh_mp_count": "Отмечено: {n} из {total}",
         "wh_prio_h": "Приоритет обеспечения",
-        "wh_prio_hint": "Приоритет 1 — куда товар с этого склада уходит в первую очередь. Один маркетплейс или пул на строку; фильтр по стране сужает список. Пустая строка — приоритет не занят.",
+        "wh_prio_hint": "Приоритет 1 — куда товар с этого склада уходит в первую очередь. Один маркетплейс или пул на строку; фильтр по стране сужает список. Пустая строка — приоритет не занят. Склад без привязок сохранить можно; убрать у склада продаж последнюю привязку — нельзя.",
         "wh_src_h": "Откуда пополняется",
         "wh_src_none": "Маршрутов подпитки на этот склад пока нет.",
         "wh_src_hint": "Все маршруты на этот склад, включая выключенные. Срок и активность правятся здесь; остальное — на вкладке «Подпитка».",
@@ -288,6 +292,10 @@ TR = {
         "am_repr_title": "Представлення SKU на маркетплейсі", "am_repr_pick_mp": "Маркетплейс для представлень",
         "am_repr_col_peid": "PeID", "am_repr_col_group": "Група варіацій", "am_repr_col_role": "Комерційна роль",
         "am_repr_col_from": "З", "am_repr_col_to": "По", "am_repr_none": "Представлень немає",
+                "am_col_removed_help": "Виключення — операцією нижче («Масові операції → виключити», можна один SKU): з датою і причиною, представлення закриваються тією ж датою.",
+        "am_repr_close_title": "Закрити представлення", "am_repr_close_pick": "Представлення", "am_repr_close_btn": "Закрити",
+        "am_repr_close_ok": "Представлення закрито", "am_repr_close_before_from": "Дата закінчення раніша за дату початку звʼязку",
+        "am_role_none": "— без ролі —",
         "am_role_help": "Hero / Traffic / Margin / Support — лише для PeID у групі варіацій (ТЗ 009). Без групи поле порожнє.",
         "am_col_status": "Стан", "am_view": "Зріз", "am_view_current": "поточний зріз", "am_view_blocked": "розрахунково недоступні",
         "am_view_history": "історія", "am_view_all": "усе",
@@ -303,7 +311,7 @@ TR = {
         "am_add_sku_inactive": "SKU деактивовано в довіднику — нові операції заборонені (ТЗ 007 §12)",
         "am_add_no_flags": "Позначте хоча б одну ознаку: «в лістингу» або «компліментарний»",
         "am_add_overlap": "Періоди не перетинаються: попередній запис закрито {d}, дата додавання має бути пізнішою (ТЗ 007 §7)",
-        "am_bulk_title": "Масові операції", "am_bulk_hint": "Список SKU — по одному в рядку або через кому. Спершу перевірка кожного рядка, потім підтвердження; рядки з помилками пропускаються.",
+        "am_bulk_title": "Додати або виключити списком", "am_bulk_hint": "Один SKU або список — по одному в рядку або через кому. Спершу перевірка кожного рядка, потім підтвердження; рядки з помилками пропускаються.",
         "am_bulk_op": "Операція", "am_bulk_add": "додати до матриці", "am_bulk_remove": "виключити з матриці", "am_bulk_date": "Дата",
         "am_bulk_skus": "SKU", "am_bulk_check": "Перевірити", "am_bulk_result": "Результат перевірки", "am_bulk_ok": "ок",
         "am_bulk_unknown_sku": "немає в довіднику SKU", "am_bulk_no_active": "чинного запису немає",
@@ -419,7 +427,7 @@ TR = {
                          "зберігається, майданчики — ні.",
         "wh_mp_count": "Відмічено: {n} з {total}",
         "wh_prio_h": "Пріоритет забезпечення",
-        "wh_prio_hint": "Пріоритет 1 — куди товар із цього складу йде насамперед. Один маркетплейс або пул на рядок; фільтр за країною звужує список. Порожній рядок — пріоритет не зайнятий.",
+        "wh_prio_hint": "Пріоритет 1 — куди товар із цього складу йде насамперед. Один маркетплейс або пул на рядок; фільтр за країною звужує список. Порожній рядок — пріоритет не зайнятий. Склад без привʼязок зберегти можна; прибрати у складу продажу останню привʼязку — ні.",
         "wh_src_h": "Звідки поповнюється",
         "wh_src_none": "Маршрутів підживлення на цей склад поки немає.",
         "wh_src_hint": "Усі маршрути на цей склад, включно з вимкненими. Термін і активність правляться тут; решта — на вкладці «Підживлення».",
@@ -518,6 +526,10 @@ TR = {
         "am_repr_title": "SKU representations on the marketplace", "am_repr_pick_mp": "Marketplace for representations",
         "am_repr_col_peid": "PeID", "am_repr_col_group": "Variation group", "am_repr_col_role": "Commercial role",
         "am_repr_col_from": "From", "am_repr_col_to": "To", "am_repr_none": "No representations",
+                "am_col_removed_help": "Removal is an operation below (“Bulk operations → remove”, a single SKU is fine): with date and reason; representations close on the same date.",
+        "am_repr_close_title": "Close representation", "am_repr_close_pick": "Representation", "am_repr_close_btn": "Close",
+        "am_repr_close_ok": "Representation closed", "am_repr_close_before_from": "End date is before the link start date",
+        "am_role_none": "— no role —",
         "am_role_help": "Hero / Traffic / Margin / Support — only for a PeID within a variation group (spec 009). Empty without a group.",
         "am_col_status": "State", "am_view": "View", "am_view_current": "current", "am_view_blocked": "computed unavailable",
         "am_view_history": "history", "am_view_all": "all",
@@ -533,7 +545,7 @@ TR = {
         "am_add_sku_inactive": "SKU is deactivated in the dictionary — new operations are blocked (ТЗ 007 §12)",
         "am_add_no_flags": "Tick at least one flag: “in listing” or “complementary”",
         "am_add_overlap": "Periods must not overlap: the previous record closed on {d}, the admission date must be later (ТЗ 007 §7)",
-        "am_bulk_title": "Bulk operations", "am_bulk_hint": "SKU list — one per line or comma-separated. Each row is checked first, then you confirm; rows with errors are skipped.",
+        "am_bulk_title": "Add or remove by list", "am_bulk_hint": "One SKU or a list — one per line or comma-separated. Each row is checked first, then you confirm; rows with errors are skipped.",
         "am_bulk_op": "Operation", "am_bulk_add": "add to matrix", "am_bulk_remove": "remove from matrix", "am_bulk_date": "Date",
         "am_bulk_skus": "SKUs", "am_bulk_check": "Check", "am_bulk_result": "Check result", "am_bulk_ok": "ok",
         "am_bulk_unknown_sku": "not in the SKU dictionary", "am_bulk_no_active": "no active record",
@@ -649,7 +661,7 @@ TR = {
                          "marketplaces do not.",
         "wh_mp_count": "Ticked: {n} of {total}",
         "wh_prio_h": "Supply priority",
-        "wh_prio_hint": "Priority 1 — where goods from this warehouse go first. One marketplace or pool per row; the country filter narrows the list. An empty row means the priority is free.",
+        "wh_prio_hint": "Priority 1 — where goods from this warehouse go first. One marketplace or pool per row; the country filter narrows the list. An empty row means the priority is free. A warehouse with no bindings can be saved; removing the last binding from a sales warehouse cannot.",
         "wh_src_h": "Replenished from",
         "wh_src_none": "No supply routes into this warehouse yet.",
         "wh_src_hint": "All routes into this warehouse, inactive included. Lead time and activity are edited here; the rest — on the “Replenishment” tab.",
@@ -751,7 +763,9 @@ def _trf(key: str, **kw) -> str:
 # БАЗА
 # ═══════════════════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=120)
+# TTL длинный намеренно: справочники правят руками, и после каждого сохранения кеш сбрасывается явно
+# (`st.cache_data.clear()`); загрузчики пишут утром. При 120 с каждая третья минута начиналась с 44 запросов.
+@st.cache_data(ttl=600, show_spinner=False)
 def q(sql: str) -> pd.DataFrame:
     conn = get_connection()
     try:
@@ -777,12 +791,15 @@ def _int0(v) -> int:
     return 0 if pd.isna(v) else int(v)
 
 
+@st.cache_data(ttl=600, show_spinner=False)
 def q1(sql: str, params: tuple) -> pd.DataFrame:
-    """Разовый запрос с параметрами.
+    """Запрос с параметрами.
 
     Не через q(): та кэшируется по тексту запроса, а параметры в текст не
     попадают — на второй SKU кэш вернул бы ответ по первому. И не через
-    склейку строки: апостроф в артикуле роняет запрос.
+    склейку строки: апостроф в артикуле роняет запрос. Здесь параметры —
+    часть ключа кеша, поэтому кешировать можно: без этого каждая перерисовка
+    страницы открывала 12 соединений ради карточек других вкладок (21.09.2026).
     """
     conn = get_connection()
     try:
@@ -913,13 +930,17 @@ st.caption(_tr("sub"))
 
 # «Ассортимент» (факт + намерение по SKU × рынок) снят 18.09.2026: это не матрица по ТЗ 007,
 # sku_target_status никто не заполнял. Его место — «Матрица»; таблицы остались.
-tab_wh, tab_ch, tab_mp, tab_pool, tab_norm, tab_alerts, tab_sku, tab_peid, tab_vg, tab_matrix = st.tabs(
-    [_tr("tab_wh"), _tr("tab_ch"), _tr("tab_mp"), _tr("tab_pool"), _tr("tab_norm"),
-     _tr("tab_alerts"), _tr("tab_sku"), _tr("tab_peid"), _tr("tab_vg"), _tr("tab_matrix")]
-)
+# Разделы — не st.tabs. Вкладки Streamlit исполняются все разом при каждом прогоне: на любое действие
+# страница делала 44 запроса и отправляла в браузер десять таблиц (PeID — 4 076 строк, матрица — 2 204),
+# после каждого сохранения — заново. Здесь исполняется только выбранный раздел (замер 21.09.2026).
+_SECTIONS = ["wh", "ch", "mp", "pool", "norm", "alerts", "sku", "peid", "vg", "matrix"]
+_sec = st.segmented_control(_tr("title"), _SECTIONS, format_func=lambda k: _tr(f"tab_{k}"), default="wh",
+                            key="dict_section", label_visibility="collapsed")
+if _sec is None:            # сегмент можно снять повторным кликом — остаёмся на первом разделе
+    _sec = "wh"
 
 # ---------------------------------------------------------------- склады ---
-with tab_wh:
+def _section_wh():
     st.caption(_tr("wh_hint"))
     wh = q("""
         SELECT id, name, code, type, marketplace, country,
@@ -1141,7 +1162,7 @@ with tab_wh:
                            ["type", "marketplace", "country", "is_active", "note"])
 
 # ------------------------------------------------------------- подпитка ---
-with tab_ch:
+def _section_ch():
     st.caption(_tr("ch_hint"))
     ch = q("""
         SELECT c.id,
@@ -1227,7 +1248,7 @@ with tab_ch:
                     st.error(_tr("err").format(e=e))
 
 # -------------------------------------------------------- маркетплейсы ---
-with tab_mp:
+def _section_mp():
     st.caption(_tr("mp_hint"))
     mp = q("""
         SELECT id, code, name, country, currency, amazon_id, is_active
@@ -1256,7 +1277,7 @@ with tab_mp:
                        ["name", "country", "currency", "is_active"])
 
 # ------------------------------------------------------------------ пулы ---
-with tab_pool:
+def _section_pool():
     st.caption(_tr("pool_hint"))
     pools = q("SELECT id, name, comment FROM kabinet_data.pools ORDER BY name")
     mps = q("""
@@ -1383,7 +1404,7 @@ with tab_pool:
                     st.error(_tr("err").format(e=e))
 
 # ------------------------------------------------------------- нормативы ---
-with tab_norm:
+def _section_norm():
     st.caption(_tr("norm_hint"))
     st.info(_tr("norm_unused"))
 
@@ -1547,7 +1568,7 @@ with tab_norm:
 
 # ---------------------------------------------------------- ассортимент ---
 # ------------------------------------------------------------------ алерты ---
-with tab_alerts:
+def _section_alerts():
     st.caption(_tr("al_hint"))
     st.caption(_tr("al_hint2"))
 
@@ -1676,7 +1697,7 @@ with tab_alerts:
 
 
 # --------------------------------------------------------------------- SKU ---
-with tab_sku:
+def _section_sku():
     st.caption(_tr("sku_hint"))
     SM = "kabinet_data.sku_master"
     if not has_table(SM):
@@ -1821,7 +1842,7 @@ with tab_sku:
 
 
 # -------------------------------------------------------------------- PeID ---
-with tab_peid:
+def _section_peid():
     st.caption(_tr("pe_hint"))
     PE = "kabinet_data.product_entities"
     if not has_table(PE):
@@ -2011,7 +2032,7 @@ with tab_peid:
 
 
 # ---------------------------------------------------------------- вариации ---
-with tab_vg:
+def _section_vg():
     st.caption(_tr("vg_hint"))
     VG = "kabinet_data.variation_groups"
     if not has_table(VG):
@@ -2182,7 +2203,7 @@ with tab_vg:
 
 
 # ----------------------------------------------------------------- матрица ---
-with tab_matrix:
+def _section_matrix():
     st.caption(_tr("am_hint"))
     AA, AR = "kabinet_data.assortment_admissions", "kabinet_data.assortment_representations"
     if not has_table(AA):
@@ -2261,12 +2282,16 @@ with tab_matrix:
                         selloff=int((act["status"] == "selloff").sum()),
                         blocked=int(act["status"].str.startswith("blocked").sum()), err=int((act["n_err"].fillna(0) > 0).sum())))
         for c in ("mp", "name", "reason", "issues", "sku_type"): view[c] = view[c].fillna("")
-        view["added_on"] = pd.to_datetime(view["added_on"]); view["removed_on"] = pd.to_datetime(view["removed_on"])
+        view["added_on"] = pd.to_datetime(view["added_on"])
+        # Пустую ячейку любого типа st.data_editor рисует словом «None» (проверено на 1.64: NaT, date/None,
+        # arrow date, "" в selectbox). Поэтому дата исключения в сетке — текст только для чтения, а исключение
+        # делается операцией ниже с датой и причиной, как в ТЗ 007 §6.
+        view["removed_lbl"] = ["" if pd.isna(d) else pd.Timestamp(d).strftime("%d.%m.%Y") for d in view["removed_on"]]
         view["status_lbl"] = view["status"].map(_st_lbl)
-        cols = ["platform", "mp", "sku", "name", "sku_type", "status_lbl", "added_on", "removed_on", "in_listing", "complementary", "reason", "source", "issues"]
+        cols = ["platform", "mp", "sku", "name", "sku_type", "status_lbl", "added_on", "removed_lbl", "in_listing", "complementary", "reason", "source", "issues"]
         ed = st.data_editor(
             view[cols], key=f"ed_am_{lvl_sel}_{view_sel}", use_container_width=True, height=440, hide_index=True, num_rows="fixed",
-            disabled=["platform", "mp", "sku", "name", "sku_type", "status_lbl", "added_on", "source", "issues"],
+            disabled=["platform", "mp", "sku", "name", "sku_type", "status_lbl", "added_on", "removed_lbl", "source", "issues"],
             column_config={
                 "status_lbl": st.column_config.TextColumn(_tr("am_col_status"), width="small"),
                 "platform": st.column_config.TextColumn(_tr("am_col_platform"), width="small"),
@@ -2275,7 +2300,7 @@ with tab_matrix:
                 "name": st.column_config.TextColumn(_tr("am_col_name"), width="large"),
                 "sku_type": st.column_config.TextColumn(_tr("am_col_type"), width="small"),
                 "added_on": st.column_config.DateColumn(_tr("am_col_added"), format="DD.MM.YYYY", width="small"),
-                "removed_on": st.column_config.DateColumn(_tr("am_col_removed"), format="DD.MM.YYYY", width="small"),
+                "removed_lbl": st.column_config.TextColumn(_tr("am_col_removed"), width="small", help=_tr("am_col_removed_help")),
                 "in_listing": st.column_config.CheckboxColumn(_tr("am_col_listing"), width="small"),
                 "complementary": st.column_config.CheckboxColumn(_tr("am_col_comp"), width="small"),
                 "reason": st.column_config.TextColumn(_tr("am_col_reason"), width="medium"),
@@ -2289,7 +2314,6 @@ with tab_matrix:
         _mp_codes = sorted(am.loc[am["level"] == "marketplace", "mp"].dropna().unique())
         rp_mp = st.selectbox(_tr("am_repr_pick_mp"), _mp_codes, index=(_mp_codes.index("AMZ-ES") if "AMZ-ES" in _mp_codes else 0) if _mp_codes else None, key="am_repr_mp")
         roles = q("SELECT code, name FROM kabinet_data.commercial_roles WHERE is_active ORDER BY sort_order")
-        _role_opts = [""] + roles["code"].tolist()
         rp = q1(f"""
             SELECT r.id, r.peid, a.sku, g.name AS group_name, e.variation_group_id, r.commercial_role, r.valid_from, r.valid_to, r.source, c.issues
             FROM {AR} r
@@ -2303,20 +2327,23 @@ with tab_matrix:
         if rp.empty:
             st.caption(_tr("am_repr_none")); ed_r = rp
         else:
-            for c in ("group_name", "commercial_role", "issues"): rp[c] = rp[c].fillna("")
-            rp["valid_from"] = pd.to_datetime(rp["valid_from"]); rp["valid_to"] = pd.to_datetime(rp["valid_to"])
+            _role_none = _tr("am_role_none")
+            for c in ("group_name", "issues"): rp[c] = rp[c].fillna("")
+            rp["commercial_role"] = rp["commercial_role"].fillna("").replace("", _role_none)   # "" в selectbox рисуется как None
+            rp["valid_from"] = pd.to_datetime(rp["valid_from"])
+            rp["valid_to_lbl"] = ["" if pd.isna(d) else pd.Timestamp(d).strftime("%d.%m.%Y") for d in rp["valid_to"]]
             st.caption(_tr("am_role_help"))
             ed_r = st.data_editor(
-                rp[["sku", "peid", "group_name", "commercial_role", "valid_from", "valid_to", "source", "issues"]],
+                rp[["sku", "peid", "group_name", "commercial_role", "valid_from", "valid_to_lbl", "source", "issues"]],
                 key=f"ed_am_repr_{rp_mp}", use_container_width=True, height=360, hide_index=True, num_rows="fixed",
-                disabled=["sku", "peid", "group_name", "valid_from", "source", "issues"],
+                disabled=["sku", "peid", "group_name", "valid_from", "valid_to_lbl", "source", "issues"],
                 column_config={
                     "sku": st.column_config.TextColumn(_tr("am_col_sku"), width="small"),
                     "peid": st.column_config.TextColumn(_tr("am_repr_col_peid"), width="small"),
                     "group_name": st.column_config.TextColumn(_tr("am_repr_col_group"), width="medium"),
-                    "commercial_role": st.column_config.SelectboxColumn(_tr("am_repr_col_role"), options=_role_opts, width="small"),
+                    "commercial_role": st.column_config.SelectboxColumn(_tr("am_repr_col_role"), options=[_role_none] + roles["code"].tolist(), width="small"),
                     "valid_from": st.column_config.DateColumn(_tr("am_repr_col_from"), format="DD.MM.YYYY", width="small"),
-                    "valid_to": st.column_config.DateColumn(_tr("am_repr_col_to"), format="DD.MM.YYYY", width="small"),
+                    "valid_to_lbl": st.column_config.TextColumn(_tr("am_repr_col_to"), width="small"),
                     "source": st.column_config.TextColumn(_tr("am_col_source"), width="small"),
                     "issues": st.column_config.TextColumn(_tr("am_col_issues"), width="medium"),
                 })
@@ -2327,14 +2354,10 @@ with tab_matrix:
             rejected = []
             for idx, r in ed_i.iterrows():
                 rid = int(view.at[idx, "id"]); sets, params = [], []
-                old_rm = _py(before.at[rid, "removed_on"]); new_rm = _py(r["removed_on"])
-                if old_rm is not None:
+                if _py(before.at[rid, "removed_on"]) is not None:
                     # историческая запись не переоткрывается и не правится (ТЗ 007 §7) — только причина
-                    if new_rm is None or not _same(new_rm, old_rm) or bool(r["in_listing"]) != bool(before.at[rid, "in_listing"]) \
-                            or bool(r["complementary"]) != bool(before.at[rid, "complementary"]):
+                    if bool(r["in_listing"]) != bool(before.at[rid, "in_listing"]) or bool(r["complementary"]) != bool(before.at[rid, "complementary"]):
                         rejected.append(_trf("am_rej_history", sku=r["sku"])); continue
-                if new_rm is not None and new_rm < _py(before.at[rid, "added_on"]):
-                    rejected.append(_trf("am_rej_removed_before_added", sku=r["sku"])); continue
                 if bool(r["complementary"]) and not bool(before.at[rid, "complementary"]):
                     if (r["sku_type"] or "") == "composite":
                         rejected.append(_trf("am_rej_comp_composite", sku=r["sku"])); continue
@@ -2347,13 +2370,6 @@ with tab_matrix:
                                       (rid, f, str(bool(before.at[rid, f])), str(bool(r[f])))))
                 if (r["reason"] or "") != (before.at[rid, "reason"] or ""):
                     sets.append("reason = %s"); params.append(r["reason"] or None)
-                if not _same(new_rm, old_rm):
-                    sets.append("removed_on = %s"); params.append(new_rm)
-                    stmts.append(("INSERT INTO kabinet_data.assortment_change_log (register, record_id, field, old_value, new_value, source, actor) VALUES ('admission', %s, 'removed_on', %s, %s, 'manual', 'kabinet')",
-                                  (rid, str(old_rm), str(new_rm))))
-                    if new_rm is not None:
-                        # исключение SKU закрывает его действующие представления той же датой (ТЗ 007 §5)
-                        stmts.append((f"UPDATE {AR} SET valid_to = %s, updated_at = now() WHERE admission_id = %s AND valid_to IS NULL", (new_rm, rid)))
                 if sets:
                     sets.append("source = CASE WHEN source LIKE 'seed%%' THEN 'manual' ELSE source END")
                     stmts.append((f"UPDATE {AA} SET {', '.join(sets)}, updated_at = now() WHERE id = %s", params + [rid])); n_a += 1
@@ -2361,7 +2377,8 @@ with tab_matrix:
                 rb = rp.set_index("id"); ed_ri = ed_r.copy(); ed_ri.index = rp.index
                 for idx, r in ed_ri.iterrows():
                     rid = int(rp.at[idx, "id"]); sets, params = [], []
-                    new_role, old_role = (r["commercial_role"] or None), (rb.at[rid, "commercial_role"] or None)
+                    new_role = None if r["commercial_role"] in ("", _role_none) else r["commercial_role"]
+                    old_role = None if rb.at[rid, "commercial_role"] in ("", _role_none) else rb.at[rid, "commercial_role"]
                     if new_role != old_role:
                         if new_role and pd.isna(rb.at[rid, "variation_group_id"]):
                             st.warning(_trf("am_role_no_group", peid=r["peid"]))
@@ -2369,9 +2386,6 @@ with tab_matrix:
                             sets += ["commercial_role = %s", "role_since = %s"]; params += [new_role, date.today()]
                             stmts.append(("INSERT INTO kabinet_data.assortment_change_log (register, record_id, field, old_value, new_value, source, actor) VALUES ('representation', %s, 'commercial_role', %s, %s, 'manual', 'kabinet')",
                                           (rid, old_role, new_role)))
-                    new_to, old_to = _py(r["valid_to"]), _py(rb.at[rid, "valid_to"])
-                    if not _same(new_to, old_to):
-                        sets.append("valid_to = %s"); params.append(new_to)
                     if sets:
                         stmts.append((f"UPDATE {AR} SET {', '.join(sets)}, source = CASE WHEN source LIKE 'seed%%' THEN 'manual' ELSE source END, updated_at = now() WHERE id = %s", params + [rid])); n_r += 1
             for msg in rejected: st.error(msg)
@@ -2518,13 +2532,15 @@ with tab_matrix:
         with st.form("am_repr_add", clear_on_submit=True):
             st.markdown(f"**{_tr('am_repr_add_title')}**")
             st.caption(_tr("am_repr_add_hint"))
-            r1, r2, r3, r4, r5 = st.columns([1, 1.3, 1.5, 1, 1])
+            r1, r2, r3, r4, r5 = st.columns([1, 1.2, 1.4, 1.1, 1.4])
             ra_mp = r1.selectbox(_tr("am_mp"), mps_all["code"].tolist(), index=(mps_all["code"].tolist().index(rp_mp) if rp_mp in mps_all["code"].tolist() else 0))
             _adm_sku = sorted(am.loc[(am["level"] == "marketplace") & (am["mp"] == ra_mp) & am["removed_on"].isna() & am["in_listing"], "sku"].unique())
             ra_sku = r2.selectbox(_tr("am_add_sku"), _adm_sku) if _adm_sku else r2.selectbox(_tr("am_add_sku"), [], disabled=True)
             ra_peid = r3.text_input(_tr("am_repr_col_peid")).strip()
             ra_from = r4.date_input(_tr("am_repr_col_from"), value=date.today())
-            ra_role = r5.selectbox(_tr("am_repr_col_role"), _role_opts)
+            _role_none = _tr("am_role_none")
+            ra_role = r5.selectbox(_tr("am_repr_col_role"), [_role_none] + roles["code"].tolist())
+            ra_role = "" if ra_role == _role_none else ra_role
             if st.form_submit_button(_tr("am_repr_add_btn")):
                 errs = []
                 mid_ = int(mps_all.loc[mps_all["code"] == ra_mp, "id"].iloc[0])
@@ -2555,3 +2571,27 @@ with tab_matrix:
                         st.cache_data.clear(); st.success(_tr("am_repr_add_ok")); st.rerun()
                     except Exception as e:
                         st.error(_trf("err", e=e))
+
+        # ── закрыть представление датой (§5): в сетке дата только для чтения ──
+        if not rp.empty and (rp["valid_to"].isna()).any():
+            with st.form("am_repr_close", clear_on_submit=True):
+                st.markdown(f"**{_tr('am_repr_close_title')}**")
+                c1, c2, c3 = st.columns([2, 1, 1])
+                _open = rp[rp["valid_to"].isna()]
+                _lbl = {int(r.id): f"{r.sku} → {r.peid}" for r in _open.itertuples()}
+                rc_id = c1.selectbox(_tr("am_repr_close_pick"), list(_lbl), format_func=_lbl.get)
+                rc_date = c2.date_input(_tr("am_repr_col_to"), value=date.today())
+                if c3.form_submit_button(_tr("am_repr_close_btn")):
+                    vf = _py(rp.set_index("id").at[rc_id, "valid_from"])
+                    if vf is not None and rc_date < vf:
+                        st.error(_tr("am_repr_close_before_from"))
+                    else:
+                        try:
+                            exec_sql([(f"UPDATE {AR} SET valid_to = %s, source = CASE WHEN source LIKE 'seed%%' THEN 'manual' ELSE source END, updated_at = now() WHERE id = %s AND valid_to IS NULL", (rc_date, rc_id)),
+                                      ("INSERT INTO kabinet_data.assortment_change_log (register, record_id, field, old_value, new_value, source, actor) VALUES ('representation', %s, 'valid_to', NULL, %s, 'manual', 'kabinet')", (rc_id, str(rc_date)))])
+                            st.cache_data.clear(); st.success(_tr("am_repr_close_ok")); st.rerun()
+                        except Exception as e:
+                            st.error(_trf("err", e=e))
+
+
+{"wh": _section_wh, "ch": _section_ch, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sku": _section_sku, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
