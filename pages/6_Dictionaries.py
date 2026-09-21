@@ -205,6 +205,7 @@ TR = {
         "wh_country_filter": "Страна", "all_countries": "все страны",
         "col_priority": "Приоритет", "col_priority_short": "П", "col_target_mp": "Маркетплейс / пул",
         "wh_prio_dup": "Один маркетплейс не может стоять в двух приоритетах: {t}",
+        "wh_prio_none_block": "Сохранение отменено: у склада продаж должен остаться хотя бы один маркетплейс или пул.",
         "wh_prio_none": "У склада продаж должен быть хотя бы один маркетплейс или пул.",
         "wh_sales_without_mp": "Склады продаж без маркетплейса ({n}): {names}",
         "col_shipments_help": "Сколько отгрузок прошло по маршруту за окно расчёта — из накладных ERP",
@@ -249,7 +250,7 @@ TR = {
         "col_amazon_id": "Amazon ID", "col_active": "Активен", "col_canon": "Дубль от",
         "col_note": "Примечание", "col_ship_prio": "Приоритет отгрузки (старый)",
         "col_ship_prio_help": "Поле прежней модели: один номер на склад. Приоритеты теперь задаются в карточке склада, по строке на маркетплейс. Здесь только для чтения.",
-        "col_type_help": "sales — точка продаж, storage — хранение, transit_domestic / transit_inter — транзит, manufacturer — производитель, fba — FBA, view — обзор. «view» сохранится только после того, как владелец базы выполнит sql/warehouse_type_view_OWNER_2026-09-21.sql.",
+        "col_type_help": "sales — точка продаж, storage — хранение, transit_domestic / transit_inter — транзит, manufacturer — производитель, fba — FBA, view — обзор. Обзор — склад, который показываем, но по которому решений не принимаем.",
         "wh_prio_dup_block": "Сохранение отменено: сначала уберите повтор.",
         "am_view_selloff": "распродажа",
         "col_route": "Тип маршрута", "col_median": "Срок, дн",
@@ -434,6 +435,7 @@ TR = {
         "wh_country_filter": "Країна", "all_countries": "усі країни",
         "col_priority": "Пріоритет", "col_priority_short": "П", "col_target_mp": "Маркетплейс / пул",
         "wh_prio_dup": "Один маркетплейс не може стояти у двох пріоритетах: {t}",
+        "wh_prio_none_block": "Збереження скасовано: у складу продажу має залишитися хоча б один маркетплейс або пул.",
         "wh_prio_none": "У складу продажу має бути хоча б один маркетплейс або пул.",
         "wh_sales_without_mp": "Склади продажу без маркетплейсу ({n}): {names}",
         "col_shipments_help": "Скільки відвантажень пройшло маршрутом за вікно розрахунку — з накладних ERP",
@@ -478,7 +480,7 @@ TR = {
         "col_amazon_id": "Amazon ID", "col_active": "Активний", "col_canon": "Дубль від",
         "col_note": "Примітка", "col_ship_prio": "Пріоритет відвантаження (старий)",
         "col_ship_prio_help": "Поле попередньої моделі: один номер на склад. Пріоритети тепер задаються в картці складу, по рядку на маркетплейс. Тут лише для читання.",
-        "col_type_help": "sales — точка продажу, storage — зберігання, transit_domestic / transit_inter — транзит, manufacturer — виробник, fba — FBA, view — огляд. «view» збережеться лише після того, як власник бази виконає sql/warehouse_type_view_OWNER_2026-09-21.sql.",
+        "col_type_help": "sales — точка продажу, storage — зберігання, transit_domestic / transit_inter — транзит, manufacturer — виробник, fba — FBA, view — огляд. Огляд — склад, який показуємо, але рішень за яким не приймаємо.",
         "wh_prio_dup_block": "Збереження скасовано: спершу приберіть повтор.",
         "am_view_selloff": "розпродаж",
         "col_route": "Тип маршруту", "col_median": "Термін, дн",
@@ -663,6 +665,7 @@ TR = {
         "wh_country_filter": "Country", "all_countries": "all countries",
         "col_priority": "Priority", "col_priority_short": "P", "col_target_mp": "Marketplace / pool",
         "wh_prio_dup": "A marketplace cannot hold two priorities: {t}",
+        "wh_prio_none_block": "Save cancelled: a sales warehouse must keep at least one marketplace or pool.",
         "wh_prio_none": "A sales warehouse needs at least one marketplace or pool.",
         "wh_sales_without_mp": "Sales warehouses without a marketplace ({n}): {names}",
         "col_shipments_help": "Shipments on this route within the calculation window — from ERP invoices",
@@ -708,7 +711,7 @@ TR = {
         "col_amazon_id": "Amazon ID", "col_active": "Active", "col_canon": "Alias of",
         "col_note": "Note", "col_ship_prio": "Shipping priority (legacy)",
         "col_ship_prio_help": "Field of the previous model: one number per warehouse. Priorities are now set in the warehouse card, one row per marketplace. Read-only here.",
-        "col_type_help": "sales, storage, transit_domestic / transit_inter, manufacturer, fba, view (overview). «view» saves only after the database owner runs sql/warehouse_type_view_OWNER_2026-09-21.sql.",
+        "col_type_help": "sales, storage, transit_domestic / transit_inter, manufacturer, fba, view (overview). View — a warehouse shown for reference, no decisions are made on it.",
         "wh_prio_dup_block": "Save cancelled: remove the duplicate first.",
         "am_view_selloff": "sell-off",
         "col_route": "Route type", "col_median": "Lead, days",
@@ -933,20 +936,22 @@ with tab_wh:
             FROM kabinet_data.marketplaces_new WHERE is_active ORDER BY code
         """)
         pools_df = q("""
-            SELECT p.id, p.name, MIN(m.country_alpha2) AS country, string_agg(m.code, ', ' ORDER BY m.code) AS members
+            SELECT p.id, p.name, string_agg(DISTINCT m.country_alpha2, ',') AS country, string_agg(m.code, ', ' ORDER BY m.code) AS members
             FROM kabinet_data.pools p
             LEFT JOIN kabinet_data.pool_members pm ON pm.pool_id = p.id AND pm.valid_from <= current_date AND (pm.valid_to IS NULL OR pm.valid_to >= current_date)
             LEFT JOIN kabinet_data.marketplaces_new m ON m.id = pm.marketplace_id
             GROUP BY p.id, p.name ORDER BY p.name
         """) if has_table("kabinet_data.pools") else pd.DataFrame(columns=["id", "name", "country", "members"])
-        # варианты привязки: ('marketplace', id) → подпись; ('pool', id) → подпись
-        targets = {("marketplace", int(r["id"])): (f'{r["code"]} · {r["name"]}', r["country"]) for _, r in mp.iterrows()}
-        targets.update({("pool", int(r["id"])): (f'{_tr("t_pool")} {r["name"]} ({r["members"] or "—"})', r["country"]) for _, r in pools_df.iterrows()})
+        # варианты привязки: ('marketplace', id) → (подпись, короткая подпись, страны); у пула страны — всех участников
+        # (по ТЗ 004 пул одностранный, но фильтр по стране не должен терять пул, если это когда-нибудь изменится)
+        targets = {("marketplace", int(r["id"])): (f'{r["code"]} · {r["name"]}', r["code"], {r["country"]} if r["country"] else set()) for _, r in mp.iterrows()}
+        targets.update({("pool", int(r["id"])): (f'{_tr("t_pool")} {r["name"]} ({r["members"] or "—"})', f'{_tr("t_pool")} {r["name"]}',
+                                                 set((r["country"] or "").split(",")) - {""}) for _, r in pools_df.iterrows()})
         WP = "kabinet_data.warehouse_priorities"
         prios = q(f"SELECT warehouse_id, priority, target_type, target_id FROM {WP}") if has_table(WP) else pd.DataFrame(columns=["warehouse_id", "priority", "target_type", "target_id"])
         prio_by_wh = {int(k): {int(r.priority): (r.target_type, int(r.target_id)) for r in g.itertuples()} for k, g in prios.groupby("warehouse_id")}
         def _tlabel(key):
-            return targets.get(key, (f"{key[0]} #{key[1]}", None))[0]
+            return targets.get(key, (f"{key[0]} #{key[1]}", f"{key[0]} #{key[1]}", set()))[0]
 
         _dup_state = {"dup": []}
 
@@ -989,11 +994,11 @@ with tab_wh:
                 if row["type"] != "sales":
                     st.info(_tr("wh_prio_legacy"))   # привязка есть у склада не-продаж (Мадрид → MM-ES): показываем, чтобы человек решил
                 # фильтр по стране сужает список маркетплейсов (доработка 17.09, п.2)
-                countries = sorted({c for (_, c) in targets.values() if c})
+                countries = sorted({c for (_, _, cs) in targets.values() for c in cs})
                 _c_all = _tr("all_countries")
                 c_sel = st.selectbox(_tr("wh_country_filter"), [_c_all] + countries,
                                      index=([_c_all] + countries).index(row["country"]) if row["country"] in countries else 0, key=f"wh_cf_{sel}")
-                opts = [k for k, (_, c) in targets.items() if c_sel == _c_all or c == c_sel or k in prev_prio.values()]
+                opts = [k for k, (_, _, cs) in targets.items() if c_sel == _c_all or c_sel in cs or k in prev_prio.values()]
                 opt_labels = [""] + [_tlabel(k) for k in opts]
                 label_to_key = {_tlabel(k): k for k in opts}
                 grid = pd.DataFrame({"priority": list(range(1, 11)),
@@ -1015,8 +1020,8 @@ with tab_wh:
                 _dup_state["dup"] = dup
                 if dup:
                     st.error(_trf("wh_prio_dup", t=", ".join(dup)))
-                if not new_prio:
-                    st.warning(_tr("wh_prio_none"))   # контроль п.3: у склада продаж должен быть хотя бы один маркетплейс/пул
+                if not new_prio and row["type"] == "sales":
+                    st.error(_tr("wh_prio_none"))     # контроль п.3: у склада продаж должен быть хотя бы один маркетплейс/пул — сохранение отменяется
 
             # ── откуда пополняется: все маршруты, включая выключенные; срок и активность правятся здесь (доработка, п.6) ──
             st.markdown("##### " + _tr("wh_src_h"))
@@ -1043,7 +1048,15 @@ with tab_wh:
                                    "is_active": st.column_config.CheckboxColumn(_tr("col_active"))})
 
             # ── сохранение ────────────────────────────────────────────────
-            if st.button(_tr("save"), key="save_wh_card", type="primary") and not dup_stop():
+            def prio_empty_stop() -> bool:
+                """У склада продаж должен остаться хотя бы один маркетплейс или пул: очистку всех строк не сохраняем.
+                Склад без привязок вовсе (Tienda, FBA CZ) править маршруты может — красный контроль выше остаётся."""
+                if new_prio is not None and not new_prio and prev_prio and row["type"] == "sales":
+                    st.error(_tr("wh_prio_none_block"))
+                    return True
+                return False
+
+            if st.button(_tr("save"), key="save_wh_card", type="primary") and not dup_stop() and not prio_empty_stop():
                 stmts = []
                 if new_prio is not None and new_prio != prev_prio and not dup:
                     stmts.append((f"DELETE FROM {WP} WHERE warehouse_id = %s", (int(sel),)))
@@ -1074,7 +1087,8 @@ with tab_wh:
 
             # ── сводка: название, тип, активен, приоритет 1..10 (доработка 17.09, «Отображение в таблице») ──
             st.markdown("##### " + _tr("wh_sum_h"))
-            sales_rows = pool[(pool["type"] == "sales") | pool["id"].astype(int).isin(prio_by_wh.keys())]
+            # сводка не зависит от тумблера «показывать все типы»: склады продаж и всё, у чего есть привязки
+            sales_rows = wh[(wh["type"] == "sales") | wh["id"].astype(int).isin(prio_by_wh.keys())]
             summary = pd.DataFrame({
                 _tr("col_name"): list(sales_rows["name"]),
                 _tr("col_type"): [_type_lbl(tp) for tp in sales_rows["type"]],
@@ -1082,7 +1096,7 @@ with tab_wh:
             })
             for i in range(1, 11):
                 summary[f"{_tr('col_priority_short')} {i}"] = [
-                    (targets.get(prio_by_wh.get(int(w), {}).get(i), ("", None))[0].split(" · ")[0] if prio_by_wh.get(int(w), {}).get(i) else "")
+                    (targets.get(prio_by_wh.get(int(w), {}).get(i), ("", "", set()))[1] if prio_by_wh.get(int(w), {}).get(i) else "")
                     for w in sales_rows["id"]]
             missing = [n for n, tp, w in zip(sales_rows["name"], sales_rows["type"], sales_rows["id"]) if tp == "sales" and not prio_by_wh.get(int(w))]
             if missing:
@@ -1100,7 +1114,7 @@ with tab_wh:
                     "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
                     "name": st.column_config.TextColumn(_tr("col_name"), width="large"),
                     "code": st.column_config.TextColumn(_tr("col_code"), width="small"),
-                    # варианты — ровно те, что пропускает CHECK на warehouses.type; «view» появится после ALTER у владельца
+                    # варианты — ровно те, что пропускает CHECK на warehouses.type (view добавлен владельцем 21.09.2026)
                     "type": st.column_config.SelectboxColumn(
                         _tr("col_type"), help=_tr("col_type_help"),
                         options=["sales", "storage", "transit_domestic", "transit_inter", "manufacturer", "fba", "view"]),
@@ -2211,6 +2225,8 @@ with tab_matrix:
         _saved_msg = st.session_state.pop("am_saved_msg", None)
         if _saved_msg:
             st.success(_saved_msg)
+        for _m in st.session_state.pop("am_rejected_msgs", []):
+            st.error(_m)
         f1, f2, f3, f4, f5, f6 = st.columns([1, 1, 1.2, 1.4, 1.3, 1])
         _lvl = {"marketplace": _tr("am_level_marketplace"), "platform": _tr("am_level_platform")}
         lvl_sel = f1.selectbox(_tr("am_level"), list(_lvl), format_func=_lvl.get, key="am_level")
@@ -2359,6 +2375,7 @@ with tab_matrix:
                     exec_sql(stmts); st.cache_data.clear()
                     # отказы уже показаны выше; без rerun таблица осталась бы с несохранёнными значениями
                     st.session_state["am_saved_msg"] = _trf("am_saved", a=n_a, r=n_r)
+                    st.session_state["am_rejected_msgs"] = rejected   # иначе rerun сотрёт отказы, показанные выше
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err", e=e))
