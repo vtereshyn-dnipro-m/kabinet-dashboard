@@ -3083,6 +3083,10 @@ TRANSLATIONS = {
     "ads.card.acos_no_threshold": {"ru": "порога нет: у товаров не загружена себестоимость", "uk": "порога немає: у товарів не завантажено собівартість", "en": "no target: product costs are not loaded"},
     "ads.camp.col_threshold": {"ru": "Порог", "uk": "Поріг", "en": "Target"},
     "ads.act.no_margin": {"ru": "маржа неизвестна", "uk": "маржа невідома", "en": "margin unknown"},
+    "ads.no_threshold_column": {
+        "ru": "Во вью v_amc_attribution нет колонки acos_threshold — порог ACOS от маржи товаров ещё не считается, у всех кампаний будет «маржа неизвестна». Владельцу базы: выполнить sql/amc_acos_threshold_view_OWNER_2026-09-21.sql.",
+        "uk": "У вʼю v_amc_attribution немає колонки acos_threshold — поріг ACOS від маржі товарів ще не рахується, у всіх кампаній буде «маржа невідома». Власнику бази: виконати sql/amc_acos_threshold_view_OWNER_2026-09-21.sql.",
+        "en": "View v_amc_attribution has no acos_threshold column — the margin-based ACOS threshold is not computed yet, every campaign shows “margin unknown”. Database owner: run sql/amc_acos_threshold_view_OWNER_2026-09-21.sql."},
     "cm.col.product": {"ru": "Товар", "uk": "Товар", "en": "Product"},
     "cm.col.price_gap": {
         "ru": "Разброс цен",
