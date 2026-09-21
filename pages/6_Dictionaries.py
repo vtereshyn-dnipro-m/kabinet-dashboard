@@ -202,7 +202,7 @@ TR = {
         "wh_prio_not_sales": "Маркетплейсы и пулы привязываются только к складу продаж — у складов хранения, транзита и обзора этого поля нет.",
         "wh_prio_legacy": "Склад не является точкой продаж, но привязки у него есть — оставлены с прежней версии справочника. Решите: сменить тип склада или очистить строки.",
         "wh_prio_missing": "Таблицы приоритетов нет в базе: выполните sql/warehouse_priorities_2026-09-21.sql.",
-        "wh_country_filter": "Страна", "all_countries": "все страны",
+        "wh_country_filter": "Страна", "all_countries": "все страны", "prio_empty": "—", "ph_any": "любой",
         "col_priority": "Приоритет", "col_priority_short": "П", "col_target_mp": "Маркетплейс / пул",
         "wh_prio_dup": "Один маркетплейс не может стоять в двух приоритетах: {t}",
         "wh_prio_none_block": "Сохранение отменено: у склада продаж должен остаться хотя бы один маркетплейс или пул.",
@@ -432,7 +432,7 @@ TR = {
         "wh_prio_not_sales": "Маркетплейси та пули привʼязуються лише до складу продажу — у складів зберігання, транзиту й огляду цього поля немає.",
         "wh_prio_legacy": "Склад не є точкою продажу, але привʼязки в нього є — залишені з попередньої версії довідника. Вирішіть: змінити тип складу чи очистити рядки.",
         "wh_prio_missing": "Таблиці пріоритетів немає в базі: виконайте sql/warehouse_priorities_2026-09-21.sql.",
-        "wh_country_filter": "Країна", "all_countries": "усі країни",
+        "wh_country_filter": "Країна", "all_countries": "усі країни", "prio_empty": "—", "ph_any": "будь-який",
         "col_priority": "Пріоритет", "col_priority_short": "П", "col_target_mp": "Маркетплейс / пул",
         "wh_prio_dup": "Один маркетплейс не може стояти у двох пріоритетах: {t}",
         "wh_prio_none_block": "Збереження скасовано: у складу продажу має залишитися хоча б один маркетплейс або пул.",
@@ -662,7 +662,7 @@ TR = {
         "wh_prio_not_sales": "Marketplaces and pools are linked to sales warehouses only — storage, transit and view warehouses have no such field.",
         "wh_prio_legacy": "This warehouse is not a sales point, yet it has bindings left from the previous dictionary version. Decide: change the warehouse type or clear the rows.",
         "wh_prio_missing": "Priority table is missing: run sql/warehouse_priorities_2026-09-21.sql.",
-        "wh_country_filter": "Country", "all_countries": "all countries",
+        "wh_country_filter": "Country", "all_countries": "all countries", "prio_empty": "—", "ph_any": "any",
         "col_priority": "Priority", "col_priority_short": "P", "col_target_mp": "Marketplace / pool",
         "wh_prio_dup": "A marketplace cannot hold two priorities: {t}",
         "wh_prio_none_block": "Save cancelled: a sales warehouse must keep at least one marketplace or pool.",
@@ -999,10 +999,12 @@ with tab_wh:
                 c_sel = st.selectbox(_tr("wh_country_filter"), [_c_all] + countries,
                                      index=([_c_all] + countries).index(row["country"]) if row["country"] in countries else 0, key=f"wh_cf_{sel}")
                 opts = [k for k, (_, _, cs) in targets.items() if c_sel == _c_all or c_sel in cs or k in prev_prio.values()]
-                opt_labels = [""] + [_tlabel(k) for k in opts]
+                # пустой вариант как "" Streamlit рисует словом «None» — берём прочерк
+                _empty = _tr("prio_empty")
+                opt_labels = [_empty] + [_tlabel(k) for k in opts]
                 label_to_key = {_tlabel(k): k for k in opts}
                 grid = pd.DataFrame({"priority": list(range(1, 11)),
-                                     "target": [_tlabel(prev_prio[i]) if i in prev_prio else "" for i in range(1, 11)]})
+                                     "target": [_tlabel(prev_prio[i]) if i in prev_prio else _empty for i in range(1, 11)]})
                 ed_p = st.data_editor(grid, key=f"wh_prio_{sel}", hide_index=True, use_container_width=True, num_rows="fixed",
                                       column_config={"priority": st.column_config.NumberColumn(_tr("col_priority"), disabled=True, width="small"),
                                                      "target": st.column_config.SelectboxColumn(_tr("col_target_mp"), options=opt_labels, width="large")},
@@ -1010,7 +1012,7 @@ with tab_wh:
                 new_prio = {}
                 dup = []
                 for r in ed_p.itertuples():
-                    if r.target:
+                    if r.target and r.target != _empty:
                         k = label_to_key.get(r.target)
                         if k is None:
                             continue
@@ -1106,10 +1108,15 @@ with tab_wh:
                          height=min(600, 38 + 35 * len(summary)))
         # ── таблица целиком, для тех, кто правит пачкой ───────────────────
         with st.expander(_tr("wh_all")):
+            wh_tbl = wh.copy()
+            for _c in ("marketplace", "country", "code", "note"):   # пустое поле рисовалось словом «None»
+                wh_tbl[_c] = wh_tbl[_c].fillna("")
             ed = st.data_editor(
-                wh, key="ed_wh", use_container_width=True, height=520,
+                wh_tbl, key="ed_wh", use_container_width=True, height=520,
                 hide_index=True, num_rows="fixed",
-                disabled=["id", "name", "code", "canonical_id"],
+                # список disabled перекрывает column_config[...].disabled: колонка, которой нет
+                # в списке, остаётся редактируемой, даже если в конфиге стоит disabled=True
+                disabled=["id", "name", "code", "canonical_id", "shipping_priority"],
                 column_config={
                     "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
                     "name": st.column_config.TextColumn(_tr("col_name"), width="large"),
@@ -1130,7 +1137,7 @@ with tab_wh:
                 },
             )
             if st.button(_tr("save"), key="save_wh", type="primary"):
-                save_block(wh, ed, "kabinet_data.warehouses", "id",
+                save_block(wh_tbl, ed, "kabinet_data.warehouses", "id",
                            ["type", "marketplace", "country", "is_active", "note"])
 
 # ------------------------------------------------------------- подпитка ---
@@ -2230,8 +2237,8 @@ with tab_matrix:
         f1, f2, f3, f4, f5, f6 = st.columns([1, 1, 1.2, 1.4, 1.3, 1])
         _lvl = {"marketplace": _tr("am_level_marketplace"), "platform": _tr("am_level_platform")}
         lvl_sel = f1.selectbox(_tr("am_level"), list(_lvl), format_func=_lvl.get, key="am_level")
-        pl_sel = f2.multiselect(_tr("am_platform"), sorted(am["platform"].unique()), key="am_platform")
-        mp_sel = f3.multiselect(_tr("am_mp"), sorted(am["mp"].dropna().unique()), key="am_mp")
+        pl_sel = f2.multiselect(_tr("am_platform"), sorted(am["platform"].unique()), key="am_platform", placeholder=_tr("ph_any"))
+        mp_sel = f3.multiselect(_tr("am_mp"), sorted(am["mp"].dropna().unique()), key="am_mp", placeholder=_tr("ph_any"))
         search = f4.text_input(_tr("am_search"), key="am_search").strip()
         # текущий срез и история — раздельно (ТЗ 007 §11); расчётно недоступные — отдельным видом (§6)
         _views = {"current": _tr("am_view_current"), "selloff": _tr("am_view_selloff"), "blocked": _tr("am_view_blocked"),
