@@ -118,36 +118,39 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
     try:
         # экономику и рекламу агрегируем по отдельности и соединяем уже
         # свёрнутыми — так строки не размножатся, что бы ни лежало в источниках
+        # Маржа — только по SKU с загруженной себестоимостью, как в «Деньгах»: COALESCE(cogs, 0)
+        # засчитывал выручку 28 SKU без COGS (~7 900 € за 30 дней) в прибыль почти целиком, и Обзор
+        # показывал −59 € там, где «Деньги» честно давали −5 697 € (QA 21.09.2026). Поэтому реклама и
+        # логистика присоединяются на уровне SKU, а суммы «по известным» считаются рядом с полными
         return pd.read_sql(f"""
-            WITH econ AS (
-                SELECT sales_date, marketplace,
-                       SUM(units_ordered)                     AS units,
-                       SUM(units_refunded)                    AS units_refunded,
-                       SUM(net_product_sales)                 AS revenue,
-                       SUM(ordered_product_sales)             AS gross_revenue,
-                       SUM(net_proceeds_total)                AS net,
-                       SUM(COALESCE(cogs, 0) * units_ordered) AS cogs
-                FROM kabinet_data.economics_summary
-                WHERE sales_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
-                GROUP BY 1, 2
-            ),
-            logi AS (   -- упаковка и доставка по правилам витрины Дарины (21.09.2026) — входят в маржу
-                SELECT sales_date, marketplace, SUM(packing_cost + shipping_cost) AS logistics
-                FROM kabinet_data.economics_logistics
-                WHERE sales_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
-                GROUP BY 1, 2
-            ),
-            ads AS (
-                SELECT date AS sales_date, marketplace,
-                       SUM(total_spend) AS ads
-                FROM kabinet_data.ads_spend
-                WHERE date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
-                GROUP BY 1, 2
+            WITH sku AS (
+                SELECT e.sales_date, e.marketplace, e.norm_sku, e.units_ordered, e.units_refunded,
+                       e.net_product_sales, e.ordered_product_sales, e.net_proceeds_total, e.cogs,
+                       COALESCE(a.ads, 0) AS ads, COALESCE(l.packing_cost + l.shipping_cost, 0) AS logistics
+                FROM kabinet_data.economics_summary e
+                LEFT JOIN (SELECT date, marketplace, norm_sku, SUM(total_spend) AS ads FROM kabinet_data.ads_spend
+                           WHERE date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days' GROUP BY 1, 2, 3) a
+                       ON a.date = e.sales_date AND a.marketplace = e.marketplace AND a.norm_sku = e.norm_sku
+                LEFT JOIN kabinet_data.economics_logistics l
+                       ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace AND l.norm_sku = e.norm_sku
+                WHERE e.sales_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
             )
-            SELECT e.*, COALESCE(a.ads, 0) AS ads, COALESCE(l.logistics, 0) AS logistics
-            FROM econ e
-            LEFT JOIN ads a USING (sales_date, marketplace)
-            LEFT JOIN logi l ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace
+            SELECT sales_date, marketplace,
+                   SUM(units_ordered)                                        AS units,
+                   SUM(units_refunded)                                       AS units_refunded,
+                   SUM(net_product_sales)                                    AS revenue,
+                   SUM(ordered_product_sales)                                AS gross_revenue,
+                   SUM(net_proceeds_total)                                   AS net,
+                   SUM(ads)                                                  AS ads,
+                   SUM(logistics)                                            AS logistics,
+                   SUM(cogs * units_ordered)                                 AS cogs,          -- NULL-строки выпадают сами
+                   SUM(CASE WHEN cogs IS NOT NULL THEN net_product_sales END)  AS revenue_known,
+                   SUM(CASE WHEN cogs IS NOT NULL THEN net_proceeds_total END) AS net_known,
+                   SUM(CASE WHEN cogs IS NOT NULL THEN ads END)               AS ads_known,
+                   SUM(CASE WHEN cogs IS NOT NULL THEN logistics END)         AS logistics_known,
+                   COUNT(DISTINCT norm_sku) FILTER (WHERE cogs IS NULL AND units_ordered > 0) AS skus_no_cogs
+            FROM sku
+            GROUP BY 1, 2
         """, conn)
     except Exception:
         return pd.DataFrame()
@@ -521,8 +524,13 @@ else:
     rev_cur = float(cur["revenue"].sum())
     rev_prev = float(prev["revenue"].sum())
     _ads = float(cur.get("ads", pd.Series(dtype=float)).sum() or 0)
-    cm_cur = float(cur["net"].sum() - cur["cogs"].sum() - _ads - float(cur.get("logistics", pd.Series(dtype=float)).sum()))
+    # тот же периметр, что в «Деньгах»: только строки с себестоимостью; доля выручки без COGS — в подписи
+    def _s(col):
+        return float(pd.to_numeric(cur.get(col, pd.Series(dtype=float)), errors="coerce").fillna(0).sum())
+    cm_cur = _s("net_known") - _s("cogs") - _s("ads_known") - _s("logistics_known")
     cm_pct = round(cm_cur / rev_cur * 100, 1) if rev_cur else 0.0
+    _rev_known = _s("revenue_known")
+    _no_cogs_rev = rev_cur - _rev_known
     units_cur = int(cur["units"].sum())
     delta_pct = (round((rev_cur - rev_prev) / rev_prev * 100, 1)
                  if rev_prev > 0 else None)
@@ -535,12 +543,17 @@ else:
     _o_to = _o_from = pd.NaT
     if not ordered.empty:
         ordered["sales_date"] = pd.to_datetime(ordered["sales_date"])
+        # окно — то же, что у экономики: витрина Amazon есть с 01.2025 (сырьё Дарины), экономика Data Kiosk —
+        # с 15.05.2026; на годовом периоде карточка без отсечки показывала 549 тыс. против 256 тыс. «Выручки»
+        # и читалась как разрыв в 53 % (QA 21.09.2026). Раньше первого дня экономики витрину не суммируем
+        _econ_first = pd.Timestamp(money["sales_date"].min()) if len(money) else pd.NaT
+        _econ_anchor = pd.Timestamp(money["sales_date"].max()) if len(money) else ordered["sales_date"].max()
         if date_from is not None:
-            _o = ordered[(ordered["sales_date"] >= date_from)
-                         & (ordered["sales_date"] <= date_to)]
+            _lo = max(pd.Timestamp(date_from), _econ_first) if pd.notna(_econ_first) else pd.Timestamp(date_from)
+            _o = ordered[(ordered["sales_date"] >= _lo) & (ordered["sales_date"] <= date_to)]
         else:
-            _oa = ordered["sales_date"].max()
-            _o = ordered[ordered["sales_date"] > _oa - pd.Timedelta(days=DAYS)]
+            _o = ordered[(ordered["sales_date"] > _econ_anchor - pd.Timedelta(days=DAYS)) & (ordered["sales_date"] <= _econ_anchor)]
+        _o_clipped = date_from is not None and pd.notna(_econ_first) and pd.Timestamp(date_from) < _econ_first
         ord_cur = float(_o["ordered_sales"].sum())
         # у отчёта заказов лаг меньше, чем у финансовых отчётов, поэтому
         # его окно может заканчиваться позже. Числа рядом за разные дни —
@@ -573,6 +586,9 @@ else:
               delta_color="inverse" if _ref else "off",
               help=t("home.kpi.units_help"))
     s4.metric(t("home.kpi.markets"), f"{cur['marketplace'].nunique()}")
+    if rev_cur and _no_cogs_rev > 0.5:
+        st.caption(t("home.kpi.margin_partial", rev=f"{_no_cogs_rev:,.0f}", pct=f"{_no_cogs_rev / rev_cur * 100:.0f}",
+                     known=f"{_rev_known / rev_cur * 100:.0f}"))
 
     gl, gr = st.columns([1.6, 1])
 
@@ -624,8 +640,12 @@ else:
                 st.caption(t("home.chart.data_through",
                              d=_full_last.strftime("%d.%m")))
             if len(_holes):
-                st.caption(t("home.chart.holes",
-                             d=", ".join(_holes.dt.strftime("%d.%m"))))
+                # на длинном периоде «21.09» без года читается как будущий день текущего
+                # месяца; и полсотни дат подряд — простыня, показываем первые пятнадцать
+                _hf = "%d.%m.%Y" if _ax_from.year != _ax_to.year else "%d.%m"
+                _hd = list(_holes.dt.strftime(_hf))
+                st.caption(t("home.chart.holes", n=len(_hd),
+                             d=", ".join(_hd[:15]) + ("…" if len(_hd) > 15 else "")))
 
     with gr:
         # Канал — это площадка (Amazon, Leroy Merlin, ManoMano, Carrefour),
@@ -738,6 +758,8 @@ else:
             f'<div style="margin-top:6px;line-height:2">{chips}</div>',
             unsafe_allow_html=True)
 
+    if ord_cur and rev_cur and _o_clipped:
+        st.caption(t("home.sales.ordered_clipped", d=_econ_first.strftime("%d.%m.%Y")))
     if ord_cur and rev_cur:
         # Разница карточки и выручки каналов — НДС, отмены, возвраты И лаг: за последний день
         # экономика обычно неполная (18.09.2026: 116 € против 1 753 € в витрине), а даты
@@ -802,11 +824,12 @@ else:
                              fact=r["fact_rev"], done=r["done_rev"], pace=_pace_txt(r["pace_rev"]), skus=r["plan_skus"]))
             if _units:
                 _out.append(dict(group=grp, name=nm, sub=r["sub"], unit="шт", plan=r["plan_units"], expected=r["expected_units"],
-                                 fact=r["fact_units"], done=r["done_units"], pace=_pace_txt(r["pace_units"]), skus=pd.NA))
+                                 fact=r["fact_units"], done=r["done_units"], pace=_pace_txt(r["pace_units"]),
+                                 skus=r["plan_skus"]))   # то же число: счётчик SKU не зависит от единицы, а пропуск NumberColumn рисует словом «None»
         _pt = pd.DataFrame(_out)
         for c in ("plan", "expected", "fact"):
             _pt[c] = _pt[c].round(0)
-        _pt["skus"] = pd.to_numeric(_pt["skus"], errors="coerce").astype("Int64")   # у строки «шт» счётчика нет — пусто, не None
+        _pt["skus"] = pd.to_numeric(_pt["skus"], errors="coerce").astype("Int64")
         # в разрезе «По стране» строка узла — единственная, колонка «Маркетплейс» сплошь «итого» — не показываем
         _has_mp = _mode != "country"
         _cols = [c for c in (["group", "name", "unit", "plan", "expected", "fact", "done", "pace", "skus", "sub"] if _units
