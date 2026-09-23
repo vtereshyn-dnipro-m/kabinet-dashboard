@@ -15,11 +15,13 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+import json
 from db.connection import get_connection
 from i18n import init_lang, t
 from util import as_text
 import period as period_mod
 import catalog
+import ads_api
 from links import MARKETPLACE_ID, amazon_url, market_name
 
 init_lang()
@@ -403,6 +405,7 @@ V = A[_st_raw != "masked"].copy()
 V = V.sort_values("report_date")
 C = (V.groupby("campaign_id", as_index=False, dropna=False)
       .agg(campaign_name=("campaign_name", "first"),
+           ad_product=("ad_product_name", "first"),
            threshold=("acos_threshold", "last"),
            spend=("spend", "sum"), sales=("sales_14d", "sum"),
            clicks=("clicks", "sum"), orders=("purchases_14d", "sum"),
@@ -582,6 +585,266 @@ else:
     if not _masked.empty:
         st.caption(t("ads.camp.masked_note"))
     st.caption(t("ads.camp.thresholds", c=f"{CTR_MIN:.1f}"))
+
+# ═══════════════════════════════════════════════════════════════════
+# ДЕЙСТВИЕ ПО КАМПАНИИ
+# ═══════════════════════════════════════════════════════════════════
+# Правка уходит в рекламный кабинет Amazon и тратит деньги, поэтому:
+# два шага (подготовить → подтвердить), перед вторым видно каждую ставку
+# до и после, и всё сделанное ложится в журнал вместе с прежним
+# состоянием — без него откат возможен только по памяти человека
+
+
+@st.cache_data(ttl=300)
+def ads_param(key: str, default: float) -> float:
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = %s", (key,))
+        row = cur.fetchone()
+        cur.close()
+        return float(row[0]) if row and row[0] is not None else default
+    except Exception:
+        return default
+    finally:
+        conn.close()
+
+
+def ads_actor() -> str:
+    # Входа по пользователям у приложения нет: если Streamlit Cloud отдаёт почту, пишем её,
+    # иначе честно пишем, что это Кабинет, а не конкретный человек
+    try:
+        return st.user.email or t("ads.act.actor_unknown")
+    except Exception:
+        return t("ads.act.actor_unknown")
+
+
+def ads_log_write(row: dict) -> int:
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""INSERT INTO kabinet_data.ads_actions
+                       (actor, profile_id, ad_product, campaign_id, campaign_name, action, params,
+                        before_state, after_state, api_status, api_response, rollback_of, note)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s::jsonb, %s, %s)
+                       RETURNING id""",
+                    (row["actor"], row["profile_id"], row["ad_product"], row["campaign_id"], row["campaign_name"],
+                     row["action"], json.dumps(row.get("params")), json.dumps(row["before_state"]),
+                     json.dumps(row.get("after_state")), row["api_status"], json.dumps(row.get("api_response")),
+                     row.get("rollback_of"), row.get("note")))
+        new_id = cur.fetchone()[0]
+        if row.get("rollback_of"):
+            cur.execute("UPDATE kabinet_data.ads_actions SET rolled_back_at = now() WHERE id = %s",
+                        (row["rollback_of"],))
+        conn.commit()
+        cur.close()
+        return int(new_id)
+    finally:
+        conn.close()
+
+
+def ads_state_text(state) -> str:
+    """«Было»/«Стало» одной строкой: состояние кампании и ставки групп, которые правились."""
+    if state is None or (isinstance(state, float) and pd.isna(state)):
+        return ""
+    if isinstance(state, str):
+        try:
+            state = json.loads(state)
+        except Exception:
+            return state[:60]
+    parts = []
+    if state.get("campaign_state"):
+        parts.append(str(state["campaign_state"]).lower())
+    bids = [g.get("defaultBid") for g in state.get("ad_groups", [])
+            if g.get("defaultBid") is not None and str(g.get("state", "")).upper() == "ENABLED"]
+    if bids:
+        parts.append(", ".join(f"{b:.2f} €" for b in bids[:4]) + ("…" if len(bids) > 4 else ""))
+    return " · ".join(parts)
+
+
+@st.cache_data(ttl=30)
+def ads_log_read(limit: int = 20) -> pd.DataFrame:
+    conn = get_connection()
+    try:
+        return pd.read_sql("""SELECT id, created_at, actor, campaign_id, campaign_name, action, params,
+                                     before_state, after_state, api_status, rollback_of, rolled_back_at, ad_product
+                              FROM kabinet_data.ads_actions ORDER BY id DESC LIMIT %(n)s""",
+                           conn, params={"n": limit})
+    finally:
+        conn.close()
+
+
+st.markdown(f"### {t('ads.act.title')}")
+_undo_msg = st.session_state.pop("ads_undo_msg", None)
+if _undo_msg:
+    (st.success if _undo_msg[0] == "ok" else st.error)(_undo_msg[1])
+if not ads_api.configured():
+    # Ключи живут в скоупе Databricks и читаются принципалом приложения. Нет гранта —
+    # страница работает, но кнопок не показываем: кнопка, которая падает при нажатии,
+    # хуже отсутствующей. Причину отказа показываем рядом, иначе искать её негде
+    st.info(t("ads.act.no_keys"))
+    if ads_api.config_error():
+        st.caption(ads_api.config_error())
+else:
+    _pool = pd.concat([_live, _quiet], ignore_index=True) if not _quiet.empty else _live
+    _pool = _pool[_pool["campaign_id"].notna()].copy()
+    if _pool.empty:
+        st.info(t("ads.act.no_campaigns"))
+    else:
+        def _camp_label(r) -> str:
+            acos = "∞" if np.isinf(r["acos"]) else f'{r["acos"]:.0f} %'
+            return f'{r["campaign_name"]} · {money(r["spend"])} · ACOS {acos}'
+
+        _pool["label"] = [_camp_label(r) for _, r in _pool.iterrows()]
+        _ids = _pool["campaign_id"].astype(str).tolist()
+        _lbl = dict(zip(_ids, _pool["label"]))
+        a1, a2, a3 = st.columns([2.4, 1.2, 1])
+        _cid = a1.selectbox(t("ads.act.pick"), _ids, format_func=lambda i: _lbl.get(i, i), key="ads_pick")
+        _row = _pool[_pool["campaign_id"].astype(str) == _cid].iloc[0]
+        _prod = str(_row["ad_product"])
+        _acts = {"pause": t("ads.act.pause"), "bid_down": t("ads.act.bid_down")}
+        if not ads_api.bid_supported(_prod):
+            # В Sponsored Brands ставка живёт у ключевых слов, а не у группы: честнее
+            # не показывать кнопку, чем показать и объяснять отказ после нажатия
+            _acts.pop("bid_down")
+        _act = a2.selectbox(t("ads.act.what"), list(_acts), format_func=_acts.get, key="ads_what")
+        _pct = a3.number_input(t("ads.act.pct"), min_value=1, max_value=90,
+                               value=int(ads_param("ads_bid_down_pct", 20)), step=5,
+                               key="ads_pct", disabled=(_act != "bid_down"))
+        if not ads_api.bid_supported(_prod):
+            st.caption(t("ads.act.sb_no_bid"))
+
+        _prep_key = (_cid, _act, int(_pct))
+        if st.button(t("ads.act.prepare"), key="ads_prepare"):
+            try:
+                with st.spinner(t("ads.act.reading")):
+                    st.session_state["ads_prep"] = {"key": _prep_key, "snapshot": ads_api.snapshot(_cid, _prod)}
+            except ads_api.AdsError as e:
+                st.session_state.pop("ads_prep", None)
+                st.error(t("ads.act.api_error", e=str(e)))
+
+        _prep = st.session_state.get("ads_prep")
+        if _prep and _prep["key"] == _prep_key:
+            _snap = _prep["snapshot"]
+            _floor = ads_param("ads_bid_min", 0.02)
+            if _act == "pause":
+                st.markdown(t("ads.act.confirm_pause", n=_lbl[_cid],
+                              s=_snap["campaign_state"] or "—"))
+                _plan = []
+            else:
+                # Ставку снижаем только у работающих групп: выключенная денег не тратит,
+                # а её ставка пригодится прежней, если группу включат обратно
+                _plan = [(g, ads_api.lowered(g["defaultBid"], _pct, _floor))
+                         for g in _snap["ad_groups"]
+                         if g["defaultBid"] is not None and g["state"].upper() == "ENABLED"]
+                _skipped = len(_snap["ad_groups"]) - len(_plan)
+                if not _plan:
+                    st.warning(t("ads.act.no_groups"))
+                else:
+                    st.markdown(t("ads.act.confirm_bid", n=_lbl[_cid], p=int(_pct), g=len(_plan)))
+                    st.dataframe(
+                        pd.DataFrame([{"group": g["name"], "before": g["defaultBid"], "after": b}
+                                      for g, b in _plan]),
+                        hide_index=True, use_container_width=True,
+                        column_config={"group": st.column_config.TextColumn(t("ads.act.col_group"), width="large"),
+                                       "before": st.column_config.NumberColumn(t("ads.act.col_before"), format="%.2f €"),
+                                       "after": st.column_config.NumberColumn(t("ads.act.col_after"), format="%.2f €")})
+                    if _skipped:
+                        st.caption(t("ads.act.skipped", n=_skipped))
+            _can = (_act == "pause") or bool(_plan)
+            b1, b2 = st.columns([1, 4])
+            if _can and b1.button(t("ads.act.confirm"), key="ads_confirm", type="primary"):
+                try:
+                    if _act == "pause":
+                        status, txt, body = ads_api.set_campaign_state(_cid, _prod, "paused")
+                        after = {"campaign_state": ads_api.PRODUCTS[_prod]["states"]["paused"],
+                                 "ad_groups": _snap["ad_groups"]}
+                        params = None
+                    else:
+                        status, txt, body = ads_api.set_ad_group_bids(
+                            _prod, [(g["adGroupId"], b) for g, b in _plan])
+                        after = {"campaign_state": _snap["campaign_state"],
+                                 "ad_groups": [dict(g, defaultBid=b) for g, b in _plan]}
+                        params = {"pct": int(_pct)}
+                    new_id = ads_log_write({
+                        "actor": ads_actor(), "profile_id": ads_api.profile_id(), "ad_product": _prod,
+                        "campaign_id": _cid, "campaign_name": str(_row["campaign_name"]), "action": _act,
+                        "params": params, "before_state": _snap, "after_state": after,
+                        "api_status": status, "api_response": body})
+                    st.session_state.pop("ads_prep", None)
+                    st.cache_data.clear()
+                    if status == "ok":
+                        st.success(t("ads.act.done", id=new_id))
+                    else:
+                        # Частичный успех и отказ Amazon показываем текстом ответа: «что-то
+                        # пошло не так» здесь бесполезно — по ответу видно, какая группа не легла
+                        st.error(t("ads.act.api_partial", s=status, e=txt[:400]))
+                except ads_api.AdsError as e:
+                    st.error(t("ads.act.api_error", e=str(e)))
+            if b2.button(t("ads.act.cancel"), key="ads_cancel"):
+                st.session_state.pop("ads_prep", None)
+                st.rerun()
+
+    # ── журнал и откат ────────────────────────────────────────────
+    _log = ads_log_read()
+    with st.expander(t("ads.act.log_title", n=len(_log))):
+        if _log.empty:
+            st.caption(t("ads.act.log_empty"))
+        else:
+            _view = pd.DataFrame({
+                t("ads.act.log_when"): [pd.Timestamp(x).strftime("%d.%m.%Y %H:%M") for x in _log["created_at"]],
+                t("ads.act.log_who"): _log["actor"],
+                t("ads.act.log_camp"): _log["campaign_name"],
+                t("ads.act.log_what"): [t(f"ads.act.log_{a}") for a in _log["action"]],
+                t("ads.act.log_was"): [ads_state_text(b) for b in _log["before_state"]],
+                t("ads.act.log_now"): [ads_state_text(a) for a in _log["after_state"]],
+                t("ads.act.log_status"): _log["api_status"],
+            })
+            st.dataframe(_view, hide_index=True, use_container_width=True)
+            _undoable = _log[(_log["action"] != "rollback") & _log["rolled_back_at"].isna()
+                             & (_log["api_status"] != "error")]
+            if _undoable.empty:
+                st.caption(t("ads.act.undo_none"))
+            else:
+                u1, u2 = st.columns([2.4, 1])
+                _uid = u1.selectbox(t("ads.act.undo_pick"), _undoable["id"].tolist(),
+                                    format_func=lambda i: t("ads.act.undo_label",
+                                        id=i, c=_undoable.set_index("id").at[i, "campaign_name"],
+                                        a=t(f"ads.act.log_{_undoable.set_index('id').at[i, 'action']}")),
+                                    key="ads_undo_pick")
+                if u2.button(t("ads.act.undo"), key="ads_undo"):
+                    _u = _undoable.set_index("id").loc[_uid]
+                    _before = _u["before_state"] if isinstance(_u["before_state"], dict) else json.loads(_u["before_state"])
+                    _uprod = str(_u["ad_product"])
+                    try:
+                        if _u["action"] == "pause":
+                            # Возвращаем ровно то состояние, что было записано: если кампания
+                            # была выключена и до нажатия, откат её не включит
+                            _key = "enabled" if str(_before.get("campaign_state", "")).upper() == "ENABLED" else "paused"
+                            status, txt, body = ads_api.set_campaign_state(str(_u["campaign_id"]), _uprod, _key)
+                            after = {"campaign_state": _before.get("campaign_state"),
+                                     "ad_groups": _before.get("ad_groups", [])}
+                        else:
+                            _bids = [(g["adGroupId"], g["defaultBid"]) for g in _before.get("ad_groups", [])
+                                     if g.get("defaultBid") is not None and str(g.get("state", "")).upper() == "ENABLED"]
+                            status, txt, body = ads_api.set_ad_group_bids(_uprod, _bids)
+                            after = _before
+                        new_id = ads_log_write({
+                            "actor": ads_actor(), "profile_id": ads_api.profile_id(), "ad_product": _uprod,
+                            "campaign_id": str(_u["campaign_id"]), "campaign_name": _u["campaign_name"],
+                            "action": "rollback", "params": {"of": int(_uid)},
+                            "before_state": _u["after_state"] if isinstance(_u["after_state"], dict) else json.loads(_u["after_state"] or "{}"),
+                            "after_state": after, "api_status": status, "api_response": body,
+                            "rollback_of": int(_uid), "note": t("ads.act.undo_note", id=int(_uid))})
+                        st.cache_data.clear()
+                        # сообщение переживает rerun: без него таблица журнала перечитывается,
+                        # а человек не видит, чем кончилось нажатие
+                        st.session_state["ads_undo_msg"] = (
+                            ("ok", t("ads.act.undo_done", id=new_id)) if status == "ok"
+                            else ("err", t("ads.act.api_partial", s=status, e=txt[:400])))
+                        st.rerun()
+                    except ads_api.AdsError as e:
+                        st.error(t("ads.act.api_error", e=str(e)))
 
 # Кампании без кликов — по строке на каждую пустоту. Одиннадцать пустых
 # строк вытесняют вниз то, ради чего таблицу открывают
