@@ -72,8 +72,7 @@ BLUE = "#1f77b4"
 NEED = {
     "v_amc_attribution": ["report_date", "campaign_id", "campaign_name",
                           "campaign_status", "spend", "sales_14d", "clicks",
-                          "purchases_14d", "acos_pct", "reach", "impressions",
-                          "acos_threshold"],
+                          "purchases_14d", "acos_pct", "reach", "impressions"],
     "amc_ntb_by_asin": ["report_date", "asin", "total_purchases",
                         "ntb_purchases", "total_sales", "ntb_rate_pct"],
     "amc_search_terms": ["report_date", "customer_search_term",
@@ -309,6 +308,13 @@ def scope(df: pd.DataFrame) -> pd.DataFrame:
 
 
 A = scope(attr)
+# Порог ACOS считает вью от маржи товаров кампании (sql/amc_acos_threshold_view_OWNER_2026-09-21.sql).
+# С 03.09 по 21.09.2026 страница требовала колонку, которой во вью не было, и не открывалась вовсе.
+# Без колонки страница работает, но сравнивать ACOS не с чем: у всех кампаний «маржа неизвестна»,
+# и об этом сказано словами, а не молчанием
+if "acos_threshold" not in A.columns:
+    A["acos_threshold"] = np.nan
+    st.warning(t("ads.no_threshold_column"))
 for c in ("spend", "sales_14d", "clicks", "purchases_14d",
           "acos_pct", "reach", "impressions", "acos_threshold"):
     if c in A.columns:
