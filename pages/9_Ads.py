@@ -679,9 +679,12 @@ _undo_msg = st.session_state.pop("ads_undo_msg", None)
 if _undo_msg:
     (st.success if _undo_msg[0] == "ok" else st.error)(_undo_msg[1])
 if not ads_api.configured():
-    # Ключи живут в st.secrets. Пока их нет — страница работает, но кнопок не показываем:
-    # кнопка, которая падает при нажатии, хуже отсутствующей
+    # Ключи живут в скоупе Databricks и читаются принципалом приложения. Нет гранта —
+    # страница работает, но кнопок не показываем: кнопка, которая падает при нажатии,
+    # хуже отсутствующей. Причину отказа показываем рядом, иначе искать её негде
     st.info(t("ads.act.no_keys"))
+    if ads_api.config_error():
+        st.caption(ads_api.config_error())
 else:
     _pool = pd.concat([_live, _quiet], ignore_index=True) if not _quiet.empty else _live
     _pool = _pool[_pool["campaign_id"].notna()].copy()

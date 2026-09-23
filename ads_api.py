@@ -1,13 +1,19 @@
 """Amazon Ads API: чтение состояния кампании и две правки — пауза и ставка группы.
 
-Ключи — только из `st.secrets["amazon_ads"]` (client_id, client_secret, refresh_token,
-profile_id), в коде их нет. Вызовы делаются из обработчика кнопки и больше ниоткуда:
-ни расписаний, ни фоновых задач у этого модуля нет.
+Ключи лежат в одном месте — скоупе Databricks `amazon-sp-api`, и Кабинет читает их оттуда
+своим принципалом, тем же подключением, что и к базе (`get_workspace_client`). Копии в
+`st.secrets` нет намеренно: иначе ротация ключа требует правки ещё и в Streamlit, а
+расхождение двух копий обнаруживается уже отказом Amazon. Принципалу приложения нужен
+READ на скоуп; без него страница работает, но кнопок не показывает.
+
+Вызовы делаются из обработчика кнопки и больше ниоткуда: ни расписаний, ни фоновых задач
+у этого модуля нет.
 
 Ставки в SP и SD живут у группы объявлений (`defaultBid`), у кампании ставки нет вовсе;
 в SB группы своей ставки не имеют (там ставки у ключевых слов), поэтому для SB доступна
 только пауза — `bid_supported()` про это и отвечает.
 """
+import base64
 import json
 import time
 import urllib.error
@@ -16,6 +22,12 @@ import urllib.request
 
 import streamlit as st
 
+from db.connection import get_workspace_client
+
+SCOPE = "amazon-sp-api"                        # скоуп Databricks, где живут ключи
+KEYS = {"client_id": "ads_lwa_client_id", "client_secret": "ads_lwa_client_secret",
+        "refresh_token": "ads_lwa_refresh_token", "profile_id": "ads_profile_id"}
+_KEYS_TTL_S = 15 * 60                          # ротация подхватывается сама, без передеплоя
 HOST = "advertising-api-eu.amazon.com"          # рынки Европы; AMC у нас только ES
 TOKEN_URL = "https://api.amazon.com/auth/o2/token"
 _TOKEN_TTL_S = 50 * 60                          # access token живёт час
@@ -52,16 +64,38 @@ class AdsError(RuntimeError):
     """Ошибка вызова: текст уходит человеку на экран и в журнал, а не в лог."""
 
 
-def configured() -> bool:
+@st.cache_resource(show_spinner=False)
+def _keys_box() -> dict:
+    return {"keys": None, "at": 0.0, "error": ""}
+
+
+def keys(force: bool = False) -> dict:
+    """Четыре ключа из скоупа. Неудачу тоже кэшируем на минуту: без этого страница
+    ходила бы в Databricks на каждый прогон, чтобы снова получить тот же отказ."""
+    box = _keys_box()
+    fresh = time.time() - box["at"] < (_KEYS_TTL_S if box["keys"] else 60)
+    if not force and fresh:
+        return box["keys"] or {}
     try:
-        s = st.secrets["amazon_ads"]
-        return all(s.get(k) for k in ("client_id", "client_secret", "refresh_token", "profile_id"))
-    except Exception:
-        return False
+        w = get_workspace_client()
+        vals = {k: base64.b64decode(w.secrets.get_secret(scope=SCOPE, key=name).value).decode()
+                for k, name in KEYS.items()}
+        box.update(keys=vals, at=time.time(), error="")
+    except Exception as e:                      # нет гранта READ, нет скоупа, нет сети
+        box.update(keys=None, at=time.time(), error=str(e)[:300])
+    return box["keys"] or {}
+
+
+def configured() -> bool:
+    return bool(keys())
+
+
+def config_error() -> str:
+    return _keys_box().get("error", "")
 
 
 def profile_id() -> str:
-    return str(st.secrets["amazon_ads"]["profile_id"])
+    return str(keys()["profile_id"])
 
 
 def bid_supported(ad_product: str) -> bool:
@@ -78,7 +112,9 @@ def _token_box() -> dict:
 def _access_token(force: bool = False) -> str:
     box = _token_box()
     if force or not box["token"] or time.time() - box["at"] > _TOKEN_TTL_S:
-        s = st.secrets["amazon_ads"]
+        s = keys(force=force)                   # при повторе перечитываем скоуп: ключ могли сменить
+        if not s:
+            raise AdsError(config_error() or "ключи Amazon Ads недоступны")
         body = urllib.parse.urlencode({
             "grant_type": "refresh_token", "refresh_token": s["refresh_token"],
             "client_id": s["client_id"], "client_secret": s["client_secret"]}).encode()
@@ -97,7 +133,7 @@ def _call(path: str, method: str = "GET", payload=None, ctype=None, params=None,
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Authorization", "Bearer " + _access_token())
-    req.add_header("Amazon-Advertising-API-ClientId", st.secrets["amazon_ads"]["client_id"])
+    req.add_header("Amazon-Advertising-API-ClientId", keys()["client_id"])
     req.add_header("Amazon-Advertising-API-Scope", profile_id())
     req.add_header("Accept", ctype or "application/json")
     if data is not None:
