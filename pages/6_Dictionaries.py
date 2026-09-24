@@ -61,6 +61,14 @@ TR = {
                 "am_col_removed_help": "Исключение — операцией ниже («Массовые операции → исключить», можно один SKU): с датой и причиной, представления закрываются той же датой.",
         "am_repr_close_title": "Закрыть представление", "am_repr_close_pick": "Представление", "am_repr_close_btn": "Закрыть",
         "am_repr_close_ok": "Представление закрыто", "am_repr_close_before_from": "Дата окончания раньше даты начала связи",
+                "am_hint_col": "Подсказка",
+        "am_hint_why_col": "Из чего подсказка",
+        "am_hint_help": "Подсказка считается по данным за {n} дней и ничего не назначает: роль ставит человек. Hero — лидер продаж группы; Traffic — сессий не меньше медианы группы при марже ниже медианы; Margin — маржа выше медианы; Support — остальные.",
+        "am_hint_hero": "лидер продаж группы: {s} € за окно",
+        "am_hint_traffic": "сессий {v} при марже {m} % (медиана группы {g} %)",
+        "am_hint_margin": "маржа {m} % против медианы группы {g} %",
+        "am_hint_support": "ни по продажам, ни по трафику, ни по марже группу не ведёт",
+        "am_hint_nodata": "нет данных за окно",
         "am_role_none": "— без роли —",
         "am_role_help": "Hero / Traffic / Margin / Support — только для PeID в группе вариаций (ТЗ 009). Без группы поле пустое.",
         "am_col_status": "Состояние", "am_view": "Срез", "am_view_current": "текущий срез", "am_view_blocked": "расчётно недоступные",
@@ -295,6 +303,14 @@ TR = {
                 "am_col_removed_help": "Виключення — операцією нижче («Масові операції → виключити», можна один SKU): з датою і причиною, представлення закриваються тією ж датою.",
         "am_repr_close_title": "Закрити представлення", "am_repr_close_pick": "Представлення", "am_repr_close_btn": "Закрити",
         "am_repr_close_ok": "Представлення закрито", "am_repr_close_before_from": "Дата закінчення раніша за дату початку звʼязку",
+                "am_hint_col": "Підказка",
+        "am_hint_why_col": "З чого підказка",
+        "am_hint_help": "Підказка рахується за даними за {n} днів і нічого не призначає: роль ставить людина. Hero — лідер продажів групи; Traffic — сесій не менше медіани групи за маржі нижче медіани; Margin — маржа вище медіани; Support — решта.",
+        "am_hint_hero": "лідер продажів групи: {s} € за вікно",
+        "am_hint_traffic": "сесій {v} за маржі {m} % (медіана групи {g} %)",
+        "am_hint_margin": "маржа {m} % проти медіани групи {g} %",
+        "am_hint_support": "ні за продажами, ні за трафіком, ні за маржею групу не веде",
+        "am_hint_nodata": "немає даних за вікно",
         "am_role_none": "— без ролі —",
         "am_role_help": "Hero / Traffic / Margin / Support — лише для PeID у групі варіацій (ТЗ 009). Без групи поле порожнє.",
         "am_col_status": "Стан", "am_view": "Зріз", "am_view_current": "поточний зріз", "am_view_blocked": "розрахунково недоступні",
@@ -529,6 +545,14 @@ TR = {
                 "am_col_removed_help": "Removal is an operation below (“Bulk operations → remove”, a single SKU is fine): with date and reason; representations close on the same date.",
         "am_repr_close_title": "Close representation", "am_repr_close_pick": "Representation", "am_repr_close_btn": "Close",
         "am_repr_close_ok": "Representation closed", "am_repr_close_before_from": "End date is before the link start date",
+                "am_hint_col": "Suggestion",
+        "am_hint_why_col": "Why",
+        "am_hint_help": "The suggestion is computed over {n} days and assigns nothing: a human sets the role. Hero — the group's sales leader; Traffic — sessions at or above the group median with margin below it; Margin — margin above the median; Support — the rest.",
+        "am_hint_hero": "group sales leader: {s} € in the window",
+        "am_hint_traffic": "{v} sessions at {m} % margin (group median {g} %)",
+        "am_hint_margin": "margin {m} % against the group median {g} %",
+        "am_hint_support": "leads the group neither in sales, nor traffic, nor margin",
+        "am_hint_nodata": "no data in the window",
         "am_role_none": "— no role —",
         "am_role_help": "Hero / Traffic / Margin / Support — only for a PeID within a variation group (spec 009). Empty without a group.",
         "am_col_status": "State", "am_view": "View", "am_view_current": "current", "am_view_blocked": "computed unavailable",
@@ -2206,6 +2230,7 @@ def _section_vg():
 def _section_matrix():
     st.caption(_tr("am_hint"))
     AA, AR = "kabinet_data.assortment_admissions", "kabinet_data.assortment_representations"
+    HINT_WINDOW_DAYS = 90            # окно для подсказки роли: сессии и маржа за квартал
     if not has_table(AA):
         st.info(_tr("no_data"))
     else:
@@ -2324,6 +2349,67 @@ def _section_matrix():
             LEFT JOIN (SELECT record_id, string_agg(check_code || CASE severity WHEN 'error' THEN ' ⛔' ELSE ' ⚠' END, ', ') AS issues
                        FROM kabinet_data.assortment_checks WHERE register = 'representation' GROUP BY 1) c ON c.record_id = r.id
             WHERE m.code = %s AND (r.valid_to IS NULL OR %s) ORDER BY a.sku, r.peid""", (rp_mp, bool(show_hist))) if rp_mp else pd.DataFrame()
+        # ── подсказка роли по данным (ТЗ 009): считаем, показываем, но не проставляем ──
+        # Роль — управленческое решение, поэтому колонка «Подсказка» только для чтения, рядом
+        # написано, из чего она вышла. Автоматически роль не назначается нигде.
+        def role_hints(mp_code: str, reps: pd.DataFrame) -> dict:
+            if reps.empty:
+                return {}
+            row_mp = mps_all[mps_all["code"] == mp_code]
+            if row_mp.empty or row_mp["platform_short"].iloc[0] != "AMZ":
+                return {}                     # сессии по ASIN есть только у Amazon
+            country = row_mp["country_alpha2"].iloc[0]
+            tr = q1("""SELECT asin, sum(sessions)::int AS sessions, sum(ordered_sales)::numeric AS sales
+                       FROM kabinet_data.sales_traffic_asin
+                       WHERE marketplace = %s AND snapshot_date > current_date - %s GROUP BY 1""",
+                    (country, HINT_WINDOW_DAYS))
+            mg = q1("""SELECT e.norm_sku,
+                              sum(e.net_proceeds_total - e.cogs * e.net_units_sold
+                                  - coalesce(l.packing_cost, 0) - coalesce(l.shipping_cost, 0))
+                                / nullif(sum(e.net_product_sales), 0) * 100 AS margin_pct
+                       FROM kabinet_data.economics_summary e
+                       LEFT JOIN kabinet_data.economics_logistics l
+                              ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace
+                             AND l.norm_sku = e.norm_sku
+                       WHERE e.marketplace = %s AND e.sales_date > current_date - %s AND e.cogs IS NOT NULL
+                       GROUP BY 1""", (country, HINT_WINDOW_DAYS))
+            t = dict(zip(tr["asin"], zip(tr["sessions"], tr["sales"]))) if not tr.empty else {}
+            m = dict(zip(mg["norm_sku"], mg["margin_pct"])) if not mg.empty else {}
+            out = {}
+            for gid, grp in reps[reps["variation_group_id"].notna()].groupby("variation_group_id"):
+                rows_g = []
+                for r in grp.itertuples():
+                    sess, sales = t.get(r.peid, (None, None))
+                    rows_g.append({"id": r.id, "peid": r.peid,
+                                   "sessions": float(sess) if sess is not None else None,
+                                   "sales": float(sales) if sales is not None else None,
+                                   "margin": float(m[r.sku]) if r.sku in m and pd.notna(m.get(r.sku)) else None})
+                known = [x for x in rows_g if x["sales"] is not None or x["margin"] is not None]
+                if not known:
+                    for x in rows_g:
+                        out[x["id"]] = ("", _tr("am_hint_nodata"))
+                    continue
+                sales_vals = [x["sales"] for x in rows_g if x["sales"]]
+                sess_vals = [x["sessions"] for x in rows_g if x["sessions"]]
+                marg_vals = [x["margin"] for x in rows_g if x["margin"] is not None]
+                leader = max(sales_vals) if sales_vals else None
+                med_sess = float(pd.Series(sess_vals).median()) if sess_vals else None
+                med_marg = float(pd.Series(marg_vals).median()) if marg_vals else None
+                for x in rows_g:
+                    if x["sales"] is None and x["margin"] is None:
+                        out[x["id"]] = ("", _tr("am_hint_nodata")); continue
+                    if leader and x["sales"] == leader and len(rows_g) > 1:
+                        out[x["id"]] = ("HERO", _trf("am_hint_hero", s=f"{x['sales']:,.0f}".replace(",", " ")))
+                    elif (x["sessions"] is not None and med_sess is not None and x["sessions"] >= med_sess
+                          and x["margin"] is not None and med_marg is not None and x["margin"] < med_marg):
+                        out[x["id"]] = ("TRAFFIC", _trf("am_hint_traffic", v=f"{x['sessions']:,.0f}".replace(",", " "),
+                                                        m=f"{x['margin']:.0f}", g=f"{med_marg:.0f}"))
+                    elif x["margin"] is not None and med_marg is not None and x["margin"] >= med_marg:
+                        out[x["id"]] = ("MARGIN", _trf("am_hint_margin", m=f"{x['margin']:.0f}", g=f"{med_marg:.0f}"))
+                    else:
+                        out[x["id"]] = ("SUPPORT", _tr("am_hint_support"))
+            return out
+
         if rp.empty:
             st.caption(_tr("am_repr_none")); ed_r = rp
         else:
@@ -2332,16 +2418,23 @@ def _section_matrix():
             rp["commercial_role"] = rp["commercial_role"].fillna("").replace("", _role_none)   # "" в selectbox рисуется как None
             rp["valid_from"] = pd.to_datetime(rp["valid_from"])
             rp["valid_to_lbl"] = ["" if pd.isna(d) else pd.Timestamp(d).strftime("%d.%m.%Y") for d in rp["valid_to"]]
+            _hints = role_hints(rp_mp, rp)
+            rp["hint"] = [(_hints.get(i, ("", ""))[0] or "") for i in rp["id"]]
+            rp["hint_why"] = [(_hints.get(i, ("", ""))[1] or "") for i in rp["id"]]
             st.caption(_tr("am_role_help"))
+            st.caption(_trf("am_hint_help", n=HINT_WINDOW_DAYS))
             ed_r = st.data_editor(
-                rp[["sku", "peid", "group_name", "commercial_role", "valid_from", "valid_to_lbl", "source", "issues"]],
+                rp[["sku", "peid", "group_name", "commercial_role", "hint", "hint_why",
+                    "valid_from", "valid_to_lbl", "source", "issues"]],
                 key=f"ed_am_repr_{rp_mp}", use_container_width=True, height=360, hide_index=True, num_rows="fixed",
-                disabled=["sku", "peid", "group_name", "valid_from", "valid_to_lbl", "source", "issues"],
+                disabled=["sku", "peid", "group_name", "hint", "hint_why", "valid_from", "valid_to_lbl", "source", "issues"],
                 column_config={
                     "sku": st.column_config.TextColumn(_tr("am_col_sku"), width="small"),
                     "peid": st.column_config.TextColumn(_tr("am_repr_col_peid"), width="small"),
                     "group_name": st.column_config.TextColumn(_tr("am_repr_col_group"), width="medium"),
                     "commercial_role": st.column_config.SelectboxColumn(_tr("am_repr_col_role"), options=[_role_none] + roles["code"].tolist(), width="small"),
+                    "hint": st.column_config.TextColumn(_tr("am_hint_col"), width="small"),
+                    "hint_why": st.column_config.TextColumn(_tr("am_hint_why_col"), width="large"),
                     "valid_from": st.column_config.DateColumn(_tr("am_repr_col_from"), format="DD.MM.YYYY", width="small"),
                     "valid_to_lbl": st.column_config.TextColumn(_tr("am_repr_col_to"), width="small"),
                     "source": st.column_config.TextColumn(_tr("am_col_source"), width="small"),
