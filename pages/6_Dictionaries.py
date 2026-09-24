@@ -71,6 +71,7 @@ TR = {
         "am_hint_nodata": "нет данных за окно",
         "am_role_none": "— без роли —",
         "am_role_help": "Hero / Traffic / Margin / Support — только для PeID в группе вариаций (ТЗ 009). Без группы поле пустое.",
+        "am_view_empty": "В этом срезе записей нет — снимите фильтры или выберите другой срез.", "ph_pick_mp": "выберите маркетплейсы",
         "am_col_status": "Состояние", "am_view": "Срез", "am_view_current": "текущий срез", "am_view_blocked": "расчётно недоступные",
         "am_view_history": "история", "am_view_all": "всё",
         "am_st_active": "действует", "am_st_selloff": "распродажа", "am_st_blocked_platform": "нет рамочного допуска",
@@ -146,7 +147,7 @@ TR = {
         "sku_col_weight": "Брутто, кг", "sku_col_restr": "Ограничения", "sku_col_passport": "Паспорт",
         "sku_col_issues": "Контроль", "sku_col_scope": "Где", "sku_col_src": "Источники",
         "sku_restr_help": "Коды marketplace или стран через запятую, где применение запрещено (ТЗ 005 §6)",
-        "sku_comp_pick": "Состав набора", "sku_comp_none": "Состав не найден",
+        "sku_comp_h": "Состав набора", "sku_comp_pick": "Набор", "sku_comp_none": "Состав не найден",
         "sku_comp_col_base": "Базовый SKU", "sku_comp_col_qty": "Кол-во", "sku_comp_col_name": "Название",
         "sku_comp_note": "Состав неизменяем (ТЗ 005 §7): другой набор — это новый SKU. Источник — Odoo.",
         "sku_intro_estimate": "оценка",
@@ -313,6 +314,7 @@ TR = {
         "am_hint_nodata": "немає даних за вікно",
         "am_role_none": "— без ролі —",
         "am_role_help": "Hero / Traffic / Margin / Support — лише для PeID у групі варіацій (ТЗ 009). Без групи поле порожнє.",
+        "am_view_empty": "У цьому зрізі записів немає — зніміть фільтри або оберіть інший зріз.", "ph_pick_mp": "оберіть маркетплейси",
         "am_col_status": "Стан", "am_view": "Зріз", "am_view_current": "поточний зріз", "am_view_blocked": "розрахунково недоступні",
         "am_view_history": "історія", "am_view_all": "усе",
         "am_st_active": "діє", "am_st_selloff": "розпродаж", "am_st_blocked_platform": "немає рамкового допуску",
@@ -388,7 +390,7 @@ TR = {
         "sku_col_weight": "Брутто, кг", "sku_col_restr": "Обмеження", "sku_col_passport": "Паспорт",
         "sku_col_issues": "Контроль", "sku_col_scope": "Де", "sku_col_src": "Джерела",
         "sku_restr_help": "Коди marketplace або країн через кому, де застосування заборонене (ТЗ 005 §6)",
-        "sku_comp_pick": "Склад набору", "sku_comp_none": "Склад не знайдено",
+        "sku_comp_h": "Склад набору", "sku_comp_pick": "Набір", "sku_comp_none": "Склад не знайдено",
         "sku_comp_col_base": "Базовий SKU", "sku_comp_col_qty": "К-сть", "sku_comp_col_name": "Назва",
         "sku_comp_note": "Склад незмінний (ТЗ 005 §7): інший набір — це новий SKU. Джерело — Odoo.",
         "sku_intro_estimate": "оцінка",
@@ -555,6 +557,7 @@ TR = {
         "am_hint_nodata": "no data in the window",
         "am_role_none": "— no role —",
         "am_role_help": "Hero / Traffic / Margin / Support — only for a PeID within a variation group (spec 009). Empty without a group.",
+        "am_view_empty": "No records in this view — clear the filters or pick another view.", "ph_pick_mp": "pick marketplaces",
         "am_col_status": "State", "am_view": "View", "am_view_current": "current", "am_view_blocked": "computed unavailable",
         "am_view_history": "history", "am_view_all": "all",
         "am_st_active": "active", "am_st_selloff": "sell-off", "am_st_blocked_platform": "no platform admission",
@@ -630,7 +633,7 @@ TR = {
         "sku_col_weight": "Gross, kg", "sku_col_restr": "Restrictions", "sku_col_passport": "Passport",
         "sku_col_issues": "Control", "sku_col_scope": "Where", "sku_col_src": "Sources",
         "sku_restr_help": "Comma-separated marketplace or country codes where use is prohibited (spec 005 §6)",
-        "sku_comp_pick": "Kit composition", "sku_comp_none": "No composition found",
+        "sku_comp_h": "Kit composition", "sku_comp_pick": "Kit", "sku_comp_none": "No composition found",
         "sku_comp_col_base": "Base SKU", "sku_comp_col_qty": "Qty", "sku_comp_col_name": "Name",
         "sku_comp_note": "Composition is immutable (spec 005 §7): a different kit is a new SKU. Source — Odoo.",
         "sku_intro_estimate": "estimate",
@@ -960,8 +963,14 @@ st.caption(_tr("sub"))
 _SECTIONS = ["wh", "ch", "mp", "pool", "norm", "alerts", "sku", "peid", "vg", "matrix"]
 _sec = st.segmented_control(_tr("title"), _SECTIONS, format_func=lambda k: _tr(f"tab_{k}"), default="wh",
                             key="dict_section", label_visibility="collapsed")
-if _sec is None:            # сегмент можно снять повторным кликом — остаёмся на первом разделе
-    _sec = "wh"
+if _sec is None:
+    # Повторный клик по выбранному разделу снимает выбор: виджет отдаёт None, и страница показывала
+    # содержимое одного раздела, а подсвечен был никакой. Возвращаем последний выбранный и
+    # перерисовываем — снять выбор у «вкладок» нельзя по смыслу
+    _sec = st.session_state.get("dict_section_last", "wh")
+    st.session_state["dict_section"] = _sec
+    st.rerun()
+st.session_state["dict_section_last"] = _sec
 
 # ---------------------------------------------------------------- склады ---
 def _section_wh():
@@ -1367,7 +1376,7 @@ def _section_pool():
             picked = st.multiselect(
                 _tr("pool_select"), list(label_mp.keys()),
                 default=[mp_label[i] for i in cur_ids if i in mp_label],
-                key=f"pm_{sel_pool}")
+                key=f"pm_{sel_pool}", placeholder=_tr("ph_pick_mp"))
             d1, d2 = st.columns(2)
             v_from = d1.date_input(_tr("pool_from"), value=date.today(), key=f"pf_{sel_pool}")
             v_to = d2.date_input(_tr("pool_to"), value=None, key=f"pt_{sel_pool}")
@@ -1744,10 +1753,10 @@ def _section_sku():
         _types = {"base": _tr("sku_t_base"), "composite": _tr("sku_t_composite")}
         f1, f2, f3, f4 = st.columns([1.6, 1, 1.4, 1])
         search = f1.text_input(_tr("sku_search"), key="sku_search").strip()
-        type_sel = f2.multiselect(_tr("sku_type_f"), ["base", "composite", "none"],
+        type_sel = f2.multiselect(_tr("sku_type_f"), ["base", "composite", "none"], placeholder=_tr("ph_any"),
                                   format_func=lambda x: _types.get(x, _tr("sku_t_none")), key="sku_type_f")
         _codes = sorted({c.split(" ")[0] for v in sm["issues"].dropna() for c in v.split(", ")})
-        check_sel = f3.multiselect(_tr("sku_check_f"), _codes, key="sku_check_f")
+        check_sel = f3.multiselect(_tr("sku_check_f"), _codes, key="sku_check_f", placeholder=_tr("ph_any"))
         only_issues = f4.toggle(_tr("sku_only_issues"), value=False, key="sku_only_issues")
 
         view = sm.copy()
@@ -1774,6 +1783,10 @@ def _section_sku():
         for c in ("ean", "supplier_code", "restrictions", "passport_ref", "issues", "in_scope", "name"):
             view[c] = view[c].fillna("")
         view["intro_date"] = pd.to_datetime(view["intro_date"]); view["exit_date"] = pd.to_datetime(view["exit_date"])
+        # пустая числовая ячейка в редакторе: обычный float64 рисуется словом «None», nullable с pd.NA — пусто
+        for _c, _t in (("height_mm", "Int64"), ("width_mm", "Int64"), ("length_mm", "Int64"),
+                       ("volume_m3", "Float64"), ("gross_weight_kg", "Float64")):
+            view[_c] = pd.to_numeric(view[_c], errors="coerce").astype(_t)
         cols = ["sku", "sku_type", "name", "issues", "ean", "intro_date", "exit_date", "height_mm", "width_mm", "length_mm",
                 "volume_m3", "gross_weight_kg", "supplier_code", "restrictions", "passport_ref", "in_scope", "sources"]
         ed = st.data_editor(
@@ -1845,24 +1858,32 @@ def _section_sku():
                 except Exception as e:
                     st.error(_trf("err", e=e))
 
-        # состав выбранного набора
+        # состав выбранного набора. Блок стоит под таблицей SKU и терялся на длинной странице —
+        # даём заголовок и рамку, чтобы его было видно, не пролистывая (замечание 24.09.2026)
         _kits = sm.loc[sm["sku_type"] == "composite", "sku"].tolist()
         if _kits:
-            kit = st.selectbox(_tr("sku_comp_pick"), _kits, key="sku_kit")
+            st.markdown("#### " + _tr("sku_comp_h"))
+            _comp_box = st.container(border=True)
+        if _kits:
+            kit = _comp_box.selectbox(_tr("sku_comp_pick"), _kits, key="sku_kit")
             comp = q1("""SELECT c.base_sku, c.quantity, m.name, m.gross_weight_kg, m.volume_m3
                          FROM kabinet_data.sku_composition c LEFT JOIN kabinet_data.sku_master m ON m.sku = c.base_sku
                          WHERE c.composite_sku = %s ORDER BY c.base_sku""", (kit,))
             if comp.empty:
-                st.caption(_tr("sku_comp_none"))
+                _comp_box.caption(_tr("sku_comp_none"))
             else:
-                st.dataframe(comp, hide_index=True, use_container_width=True, column_config={
+                comp = comp.copy()
+                for _c, _t in (("quantity", "Int64"), ("gross_weight_kg", "Float64"), ("volume_m3", "Float64")):
+                    comp[_c] = pd.to_numeric(comp[_c], errors="coerce").astype(_t)
+                comp["name"] = comp["name"].fillna("")
+                _comp_box.dataframe(comp, hide_index=True, use_container_width=True, column_config={
                     "base_sku": st.column_config.TextColumn(_tr("sku_comp_col_base")),
                     "quantity": st.column_config.NumberColumn(_tr("sku_comp_col_qty"), format="%d"),
                     "name": st.column_config.TextColumn(_tr("sku_comp_col_name"), width="large"),
                     "gross_weight_kg": st.column_config.NumberColumn(_tr("sku_col_weight"), format="%.3f"),
                     "volume_m3": st.column_config.NumberColumn(_tr("sku_col_vol"), format="%.4f"),
                 })
-                st.caption(_tr("sku_comp_note"))
+                _comp_box.caption(_tr("sku_comp_note"))
 
 
 # -------------------------------------------------------------------- PeID ---
@@ -1911,7 +1932,7 @@ def _section_peid():
         """)
         f1, f2, f3, f4, f5 = st.columns([1.2, 1.8, 1, 1, 1])
         _mps = sorted(pe["mp"].unique())
-        mp_sel = f1.multiselect(_tr("pe_mp"), _mps, default=[m for m in ("AMZ-ES",) if m in _mps], key="pe_mp")
+        mp_sel = f1.multiselect(_tr("pe_mp"), _mps, default=[m for m in ("AMZ-ES",) if m in _mps], placeholder=_tr("ph_any"), key="pe_mp")
         search = f2.text_input(_tr("pe_search"), key="pe_search").strip()
         only_issues = f3.toggle(_tr("pe_only_issues"), value=False, key="pe_issues")
         hide_parents = f4.toggle(_tr("pe_hide_parents"), value=False, key="pe_parents")
@@ -1934,7 +1955,9 @@ def _section_peid():
                         err=int((pe["n_err"].fillna(0) > 0).sum())))
         for c in ("title", "skus", "statuses", "group_name", "issues", "comment", "seen"):
             view[c] = view[c].fillna("")
-        view["last_seen"] = pd.to_datetime(view["last_seen"])
+        # дата только для чтения: NaT редактор пишет словом «None», текстовая метка — пусто
+        view["last_seen"] = ["" if pd.isna(d) else pd.Timestamp(d).strftime("%d.%m.%Y") for d in view["last_seen"]]
+        view["url"] = view["url"].fillna("")
         cols = ["mp", "peid", "title", "skus", "statuses", "is_parent", "group_name", "is_active", "issues", "last_seen", "seen", "comment", "url"]
         # группа правится только при одном выбранном маркетплейсе: варианты списка — группы этого рынка (ТЗ 006 §8)
         _one_mp = mp_sel[0] if len(mp_sel) == 1 else None
@@ -1959,7 +1982,7 @@ def _section_peid():
                 "group_name": _group_col,
                 "is_active": st.column_config.CheckboxColumn(_tr("pe_col_active"), width="small"),
                 "issues": st.column_config.TextColumn(_tr("pe_col_issues"), width="medium"),
-                "last_seen": st.column_config.DateColumn(_tr("pe_col_last"), format="DD.MM.YYYY", width="small"),
+                "last_seen": st.column_config.TextColumn(_tr("pe_col_last"), width="small"),
                 "seen": st.column_config.TextColumn(_tr("pe_col_seen"), width="small"),
                 "comment": st.column_config.TextColumn(_tr("pe_col_comment"), width="medium"),
                 "url": st.column_config.LinkColumn("URL", width="small", display_text="↗"),
@@ -2092,7 +2115,7 @@ def _section_vg():
         """)
         g1, g2, g3 = st.columns([1.2, 2, 1])
         _mps = sorted(vg["mp"].unique())
-        mp_sel = g1.multiselect(_tr("vg_col_mp"), _mps, default=[m for m in ("AMZ-ES",) if m in _mps], key="vg_mp")
+        mp_sel = g1.multiselect(_tr("vg_col_mp"), _mps, default=[m for m in ("AMZ-ES",) if m in _mps], placeholder=_tr("ph_any"), key="vg_mp")
         search = g2.text_input(_tr("pe_search"), key="vg_search").strip()
         only_issues = g3.toggle(_tr("pe_only_issues"), value=False, key="vg_issues")
         view = vg.copy()
@@ -2330,8 +2353,12 @@ def _section_matrix():
         view["removed_lbl"] = ["" if pd.isna(d) else pd.Timestamp(d).strftime("%d.%m.%Y") for d in view["removed_on"]]
         view["status_lbl"] = view["status"].map(_st_lbl)
         cols = ["platform", "mp", "sku", "name", "sku_type", "status_lbl", "added_on", "removed_lbl", "in_listing", "complementary", "reason", "source", "issues"]
+        if view.empty:
+            # пустая таблица рисуется словом «empty»; человеку нужно знать, что это фильтры, а не поломка
+            st.info(_tr("am_view_empty"))
         ed = st.data_editor(
-            view[cols], key=f"ed_am_{lvl_sel}_{view_sel}", use_container_width=True, height=440, hide_index=True, num_rows="fixed",
+            view[cols], key=f"ed_am_{lvl_sel}_{view_sel}", use_container_width=True,
+            height=440 if not view.empty else 80, hide_index=True, num_rows="fixed",
             disabled=["platform", "mp", "sku", "name", "sku_type", "status_lbl", "added_on", "removed_lbl", "source", "issues"],
             column_config={
                 "status_lbl": st.column_config.TextColumn(_tr("am_col_status"), width="small"),
