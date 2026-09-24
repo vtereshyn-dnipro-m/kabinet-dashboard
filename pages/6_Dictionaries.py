@@ -1869,6 +1869,7 @@ def _section_sku():
 def _section_peid():
     st.caption(_tr("pe_hint"))
     PE = "kabinet_data.product_entities"
+    AR_PE = "kabinet_data.assortment_representations"   # роль живёт здесь, а не в справочнике PeID
     if not has_table(PE):
         st.info(_tr("no_data"))
     else:
@@ -1980,6 +1981,21 @@ def _section_peid():
                     stmts.append(("INSERT INTO kabinet_data.product_entity_change_log (marketplace_id, peid, field, old_value, new_value, source, actor) "
                                   "SELECT marketplace_id, peid, 'variation_group_id', %s, %s, 'manual', 'kabinet' FROM kabinet_data.product_entities WHERE id = %s",
                                   (before.at[key, "group_name"] or None, r["group_name"] or None, int(ids.at[key]))))
+                    # ТЗ 008 §11 и 009 §9: роль принадлежит паре «PeID + группа». Сменили группу —
+                    # прежняя роль закрывается и НЕ переносится; для новой группы её назначают заново.
+                    # Раньше это делалось только при деактивации группы, а при обычной смене роль
+                    # молча оставалась от прежней группы.
+                    stmts.append(("INSERT INTO kabinet_data.assortment_change_log (register, record_id, field, old_value, new_value, source, actor) "
+                                  "SELECT 'representation', r.id, 'commercial_role', r.commercial_role, NULL, 'group_changed', 'kabinet' "
+                                  f"FROM {AR_PE} r JOIN kabinet_data.product_entities e "
+                                  "  ON e.marketplace_id = r.marketplace_id AND e.peid = r.peid "
+                                  "WHERE e.id = %s AND r.commercial_role IS NOT NULL AND r.valid_to IS NULL",
+                                  (int(ids.at[key]),)))
+                    stmts.append((f"UPDATE {AR_PE} r SET commercial_role = NULL, role_since = NULL, updated_at = now() "
+                                  "FROM kabinet_data.product_entities e "
+                                  "WHERE e.marketplace_id = r.marketplace_id AND e.peid = r.peid "
+                                  "  AND e.id = %s AND r.commercial_role IS NOT NULL AND r.valid_to IS NULL",
+                                  (int(ids.at[key]),)))
                 if sets:
                     stmts.append((f"UPDATE {PE} SET {', '.join(sets)}, updated_at = now(), updated_by = 'kabinet' WHERE id = %s",
                                   params + [int(ids.at[key])]))
