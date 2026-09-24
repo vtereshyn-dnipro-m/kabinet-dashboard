@@ -1,4 +1,6 @@
-streamlit
+# Версия закреплена намеренно: поведение st.data_editor с пустыми ячейками (pd.NA)
+# и st.segmented_control различается между версиями, а проверяем мы на этой (24.09.2026).
+streamlit==1.64.0
 psycopg2-binary
 pandas
 numpy

@@ -147,7 +147,7 @@ TR = {
         "sku_col_weight": "Брутто, кг", "sku_col_restr": "Ограничения", "sku_col_passport": "Паспорт",
         "sku_col_issues": "Контроль", "sku_col_scope": "Где", "sku_col_src": "Источники",
         "sku_restr_help": "Коды marketplace или стран через запятую, где применение запрещено (ТЗ 005 §6)",
-        "sku_comp_h": "Состав набора", "sku_comp_pick": "Набор", "sku_comp_none": "Состав не найден",
+        "sku_num_help": "Число; пусто — значение не задано. Дробная часть через точку или запятую.", "sku_num_bad": "SKU {sku}, поле {f}: «{v}» — это не число, ничего не сохранено", "sku_comp_h": "Состав набора", "sku_comp_pick": "Набор", "sku_comp_none": "Состав не найден",
         "sku_comp_col_base": "Базовый SKU", "sku_comp_col_qty": "Кол-во", "sku_comp_col_name": "Название",
         "sku_comp_note": "Состав неизменяем (ТЗ 005 §7): другой набор — это новый SKU. Источник — Odoo.",
         "sku_intro_estimate": "оценка",
@@ -411,7 +411,7 @@ TR = {
         "sku_col_weight": "Брутто, кг", "sku_col_restr": "Обмеження", "sku_col_passport": "Паспорт",
         "sku_col_issues": "Контроль", "sku_col_scope": "Де", "sku_col_src": "Джерела",
         "sku_restr_help": "Коди marketplace або країн через кому, де застосування заборонене (ТЗ 005 §6)",
-        "sku_comp_h": "Склад набору", "sku_comp_pick": "Набір", "sku_comp_none": "Склад не знайдено",
+        "sku_num_help": "Число; порожньо — значення не задано. Дробова частина через крапку або кому.", "sku_num_bad": "SKU {sku}, поле {f}: «{v}» — це не число, нічого не збережено", "sku_comp_h": "Склад набору", "sku_comp_pick": "Набір", "sku_comp_none": "Склад не знайдено",
         "sku_comp_col_base": "Базовий SKU", "sku_comp_col_qty": "К-сть", "sku_comp_col_name": "Назва",
         "sku_comp_note": "Склад незмінний (ТЗ 005 §7): інший набір — це новий SKU. Джерело — Odoo.",
         "sku_intro_estimate": "оцінка",
@@ -675,7 +675,7 @@ TR = {
         "sku_col_weight": "Gross, kg", "sku_col_restr": "Restrictions", "sku_col_passport": "Passport",
         "sku_col_issues": "Control", "sku_col_scope": "Where", "sku_col_src": "Sources",
         "sku_restr_help": "Comma-separated marketplace or country codes where use is prohibited (spec 005 §6)",
-        "sku_comp_h": "Kit composition", "sku_comp_pick": "Kit", "sku_comp_none": "No composition found",
+        "sku_num_help": "A number; empty means not set. Decimal separator: dot or comma.", "sku_num_bad": "SKU {sku}, field {f}: «{v}» is not a number, nothing was saved", "sku_comp_h": "Kit composition", "sku_comp_pick": "Kit", "sku_comp_none": "No composition found",
         "sku_comp_col_base": "Base SKU", "sku_comp_col_qty": "Qty", "sku_comp_col_name": "Name",
         "sku_comp_note": "Composition is immutable (spec 005 §7): a different kit is a new SKU. Source — Odoo.",
         "sku_intro_estimate": "estimate",
@@ -873,6 +873,34 @@ WH_MP = "kabinet_data.warehouse_marketplaces"
 @st.cache_data(ttl=300)
 def has_table(qualified: str) -> bool:
     return bool(pd.notna(q(f"SELECT to_regclass('{qualified}') AS t").iloc[0]["t"]))
+
+
+def num_text(v, nd: int = 0) -> str:
+    """Число для показа в таблице. Пусто — пустая строка, а не «None».
+
+    Проверено на Streamlit 1.64.0 (24.09.2026): в `st.data_editor` и `st.dataframe` пустое ЧИСЛО
+    рисуется словом «None» при любом типе — Int64 и Float64 с pd.NA, float64 с NaN, object с None.
+    Приём «nullable-тип с pd.NA» здесь не работает, поэтому числовые колонки, где бывает пусто,
+    показываем текстом, а при сохранении разбираем обратно."""
+    if v is None or (isinstance(v, float) and pd.isna(v)) or (hasattr(v, "__class__") and pd.isna(v) is True):
+        return ""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    return str(int(round(f))) if nd == 0 else f"{f:.{nd}f}".rstrip("0").rstrip(".")
+
+
+def text_num(v, as_int: bool = False):
+    """Обратное преобразование. Пусто — None; мусор — тоже None, о нём скажет вызывающий код."""
+    s_ = str(v or "").strip().replace(",", ".").replace(" ", "")
+    if not s_:
+        return None
+    try:
+        f = float(s_)
+    except ValueError:
+        return None
+    return int(round(f)) if as_int else f
 
 
 def _int0(v) -> int:
@@ -1175,7 +1203,12 @@ def _section_wh():
             # ── страны обслуживания, Long Term, график отгрузки, внешние коды (ТЗ 001) ──
             st.markdown("##### " + _tr("wh_serve_h"))
             _is_transit = str(row["type"] or "").startswith("transit")
-            _countries = q("SELECT alpha2, name FROM kabinet_data.countries WHERE is_active ORDER BY name")
+            # названия на языке интерфейса: в самом справочнике стран их нет, они лежат рядом (country_names)
+            _lang_col = {"ru": "name_ru", "uk": "name_uk"}.get(get_lang(), "name_en")
+            _countries = q(f"""SELECT c.alpha2, COALESCE(n.{_lang_col}, n.name_en, c.name) AS name
+                               FROM kabinet_data.countries c
+                               LEFT JOIN kabinet_data.country_names n ON n.alpha2 = c.alpha2
+                               WHERE c.is_active ORDER BY 2""")
             _c_lbl = {r["alpha2"]: f'{r["name"]} ({r["alpha2"]})' for _, r in _countries.iterrows()}
             _served_now = q1("SELECT country_alpha2 FROM kabinet_data.warehouse_countries WHERE warehouse_id = %s ORDER BY 1",
                              (int(sel),))["country_alpha2"].tolist()
@@ -1956,10 +1989,10 @@ def _section_sku():
         for c in ("ean", "supplier_code", "restrictions", "passport_ref", "issues", "in_scope", "name"):
             view[c] = view[c].fillna("")
         view["intro_date"] = pd.to_datetime(view["intro_date"]); view["exit_date"] = pd.to_datetime(view["exit_date"])
-        # пустая числовая ячейка в редакторе: обычный float64 рисуется словом «None», nullable с pd.NA — пусто
-        for _c, _t in (("height_mm", "Int64"), ("width_mm", "Int64"), ("length_mm", "Int64"),
-                       ("volume_m3", "Float64"), ("gross_weight_kg", "Float64")):
-            view[_c] = pd.to_numeric(view[_c], errors="coerce").astype(_t)
+        # числа показываем текстом: пустую числовую ячейку редактор пишет словом «None» при любом типе
+        _NUM_SKU = {"height_mm": 0, "width_mm": 0, "length_mm": 0, "volume_m3": 6, "gross_weight_kg": 3}
+        for _c, _nd in _NUM_SKU.items():
+            view[_c] = [num_text(v, _nd) for v in view[_c]]
         cols = ["sku", "sku_type", "name", "issues", "ean", "intro_date", "exit_date", "height_mm", "width_mm", "length_mm",
                 "volume_m3", "gross_weight_kg", "supplier_code", "restrictions", "passport_ref", "in_scope", "sources"]
         ed = st.data_editor(
@@ -1973,11 +2006,11 @@ def _section_sku():
                 "ean": st.column_config.TextColumn(_tr("sku_col_ean"), width="small"),
                 "intro_date": st.column_config.DateColumn(_tr("sku_col_intro"), format="DD.MM.YYYY", width="small"),
                 "exit_date": st.column_config.DateColumn(_tr("sku_col_exit"), format="DD.MM.YYYY", width="small"),
-                "height_mm": st.column_config.NumberColumn(_tr("sku_col_h"), format="%d", step=1, width="small"),
-                "width_mm": st.column_config.NumberColumn(_tr("sku_col_w"), format="%d", step=1, width="small"),
-                "length_mm": st.column_config.NumberColumn(_tr("sku_col_l"), format="%d", step=1, width="small"),
-                "volume_m3": st.column_config.NumberColumn(_tr("sku_col_vol"), format="%.4f", width="small"),
-                "gross_weight_kg": st.column_config.NumberColumn(_tr("sku_col_weight"), format="%.3f", step=0.001, width="small"),
+                "height_mm": st.column_config.TextColumn(_tr("sku_col_h"), width="small", help=_tr("sku_num_help")),
+                "width_mm": st.column_config.TextColumn(_tr("sku_col_w"), width="small", help=_tr("sku_num_help")),
+                "length_mm": st.column_config.TextColumn(_tr("sku_col_l"), width="small", help=_tr("sku_num_help")),
+                "volume_m3": st.column_config.TextColumn(_tr("sku_col_vol"), width="small"),
+                "gross_weight_kg": st.column_config.TextColumn(_tr("sku_col_weight"), help=_tr("sku_num_help"), width="small"),  # step=0.001, width="small"),
                 "supplier_code": st.column_config.TextColumn(_tr("sku_col_supplier"), width="small"),
                 "restrictions": st.column_config.TextColumn(_tr("sku_col_restr"), width="small", help=_tr("sku_restr_help")),
                 "passport_ref": st.column_config.TextColumn(_tr("sku_col_passport"), width="small"),
@@ -1988,7 +2021,7 @@ def _section_sku():
         if st.button(_tr("save"), key="save_sku", type="primary"):
             _code_of = {v: k for k, v in _types.items()}
             before = view.set_index("sku")
-            stmts, n_fields = [], 0
+            stmts, n_fields, bad_num = [], 0, []
             MANUAL = {"sku_type": "type_source", "ean": "ean_source", "intro_date": "intro_source",
                       "exit_date": "exit_source", "gross_weight_kg": "weight_source"}
             for _, r in ed.iterrows():
@@ -1997,6 +2030,10 @@ def _section_sku():
                     new_v, old_v = _py(r[f]), _py(before.at[sku, f])
                     if f == "sku_type":
                         new_v, old_v = _code_of.get(new_v), _code_of.get(old_v)
+                    if f == "gross_weight_kg":            # колонка текстовая — разбираем обратно в число
+                        new_v, old_v = text_num(new_v), text_num(old_v)
+                        if str(r[f] or "").strip() and new_v is None:
+                            bad_num.append((sku, _tr("sku_col_weight"), r[f])); continue
                     if _same(new_v, old_v):
                         continue
                     sets.append(f"{f} = %s"); params.append(new_v)
@@ -2005,8 +2042,11 @@ def _section_sku():
                     stmts.append(("INSERT INTO kabinet_data.sku_change_log (sku, field, old_value, new_value, source, actor) "
                                   "VALUES (%s, %s, %s, %s, 'manual', 'kabinet')", (sku, f, str(old_v), str(new_v))))
                     n_fields += 1
-                dims_new = tuple(_py(r[c]) for c in ("height_mm", "width_mm", "length_mm"))
-                dims_old = tuple(_py(before.at[sku, c]) for c in ("height_mm", "width_mm", "length_mm"))
+                dims_new = tuple(text_num(r[c], as_int=True) for c in ("height_mm", "width_mm", "length_mm"))
+                dims_old = tuple(text_num(before.at[sku, c], as_int=True) for c in ("height_mm", "width_mm", "length_mm"))
+                for _c in ("height_mm", "width_mm", "length_mm"):
+                    if str(r[_c] or "").strip() and text_num(r[_c], as_int=True) is None:
+                        bad_num.append((sku, _c, r[_c]))
                 if dims_new != dims_old:
                     sets += ["height_mm = %s", "width_mm = %s", "length_mm = %s", "dims_source = 'manual'"]
                     params += [None if v is None else int(v) for v in dims_new]
@@ -2020,8 +2060,13 @@ def _section_sku():
                 if sets:
                     stmts.append((f"UPDATE {SM} SET {', '.join(sets)}, updated_at = now(), updated_by = 'kabinet' WHERE sku = %s",
                                   params + [sku]))
+            for _sku, _fld, _val in bad_num[:5]:
+                st.error(_trf("sku_num_bad", sku=_sku, f=_fld, v=_val))
+            if bad_num:
+                stmts = []                 # не сохраняем ничего: половина правок хуже отказа
             if not stmts:
-                st.info(_tr("nochange"))
+                if not bad_num:
+                    st.info(_tr("nochange"))
             else:
                 try:
                     exec_sql(stmts)
@@ -2046,15 +2091,15 @@ def _section_sku():
                 _comp_box.caption(_tr("sku_comp_none"))
             else:
                 comp = comp.copy()
-                for _c, _t in (("quantity", "Int64"), ("gross_weight_kg", "Float64"), ("volume_m3", "Float64")):
-                    comp[_c] = pd.to_numeric(comp[_c], errors="coerce").astype(_t)
+                for _c, _nd in (("quantity", 0), ("gross_weight_kg", 3), ("volume_m3", 6)):
+                    comp[_c] = [num_text(v, _nd) for v in comp[_c]]
                 comp["name"] = comp["name"].fillna("")
                 _comp_box.dataframe(comp, hide_index=True, use_container_width=True, column_config={
                     "base_sku": st.column_config.TextColumn(_tr("sku_comp_col_base")),
-                    "quantity": st.column_config.NumberColumn(_tr("sku_comp_col_qty"), format="%d"),
+                    "quantity": st.column_config.TextColumn(_tr("sku_comp_col_qty")),
                     "name": st.column_config.TextColumn(_tr("sku_comp_col_name"), width="large"),
-                    "gross_weight_kg": st.column_config.NumberColumn(_tr("sku_col_weight"), format="%.3f"),
-                    "volume_m3": st.column_config.NumberColumn(_tr("sku_col_vol"), format="%.4f"),
+                    "gross_weight_kg": st.column_config.TextColumn(_tr("sku_col_weight")),
+                    "volume_m3": st.column_config.TextColumn(_tr("sku_col_vol")),
                 })
                 _comp_box.caption(_tr("sku_comp_note"))
 
@@ -2140,7 +2185,11 @@ def _section_peid():
                        WHERE m.code = %s AND g.is_active ORDER BY g.name""", (_one_mp,))
             _grp_opts = _g["name"].tolist(); _grp_id = dict(zip(_g["name"], _g["id"]))
             st.caption(_tr("pe_group_edit_hint"))
-        _group_col = (st.column_config.SelectboxColumn(_tr("pe_col_group"), options=[""] + _grp_opts, width="medium") if _one_mp
+        # пустой вариант в SelectboxColumn Streamlit рисует словом «None» — берём прочерк, как в приоритетах склада
+        _no_group = _tr("prio_empty")
+        if _one_mp:
+            view["group_name"] = view["group_name"].replace("", _no_group)
+        _group_col = (st.column_config.SelectboxColumn(_tr("pe_col_group"), options=[_no_group] + _grp_opts, width="medium") if _one_mp
                       else st.column_config.TextColumn(_tr("pe_col_group"), width="medium"))
         ed = st.data_editor(
             view[cols], key="ed_peid", use_container_width=True, height=560, hide_index=True, num_rows="fixed",
@@ -2171,12 +2220,14 @@ def _section_peid():
                     sets += ["is_active = %s", "active_source = 'manual'"]; params.append(bool(r["is_active"]))
                 if (r["comment"] or "") != (before.at[key, "comment"] or ""):
                     sets.append("comment = %s"); params.append(r["comment"] or None)
-                if _one_mp and (r["group_name"] or "") != (before.at[key, "group_name"] or ""):
-                    new_gid = _grp_id.get(r["group_name"]) if r["group_name"] else None
+                _grp_new = "" if r["group_name"] in ("", _no_group) else r["group_name"]
+                _grp_old = "" if before.at[key, "group_name"] in ("", _no_group) else before.at[key, "group_name"]
+                if _one_mp and _grp_new != _grp_old:
+                    new_gid = _grp_id.get(_grp_new) if _grp_new else None
                     sets += ["variation_group_id = %s", "group_source = 'manual'"]; params.append(new_gid)
                     stmts.append(("INSERT INTO kabinet_data.product_entity_change_log (marketplace_id, peid, field, old_value, new_value, source, actor) "
                                   "SELECT marketplace_id, peid, 'variation_group_id', %s, %s, 'manual', 'kabinet' FROM kabinet_data.product_entities WHERE id = %s",
-                                  (before.at[key, "group_name"] or None, r["group_name"] or None, int(ids.at[key]))))
+                                  (_grp_old or None, _grp_new or None, int(ids.at[key]))))
                     # ТЗ 008 §11 и 009 §9: роль принадлежит паре «PeID + группа». Сменили группу —
                     # прежняя роль закрывается и НЕ переносится; для новой группы её назначают заново.
                     # Раньше это делалось только при деактивации группы, а при обычной смене роль
