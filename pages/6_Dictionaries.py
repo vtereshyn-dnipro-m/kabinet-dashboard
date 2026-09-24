@@ -215,6 +215,27 @@ TR = {
         "wh_prio_not_sales": "Маркетплейсы и пулы привязываются только к складу продаж — у складов хранения, транзита и обзора этого поля нет.",
         "wh_prio_legacy": "Склад не является точкой продаж, но привязки у него есть — оставлены с прежней версии справочника. Решите: сменить тип склада или очистить строки.",
         "wh_prio_missing": "Таблицы приоритетов нет в базе: выполните sql/warehouse_priorities_2026-09-21.sql.",
+                "wh_owner_line": "Владелец: {o} — из ERP, в Кабинете не правится",
+        "wh_owner_none": "Владелец не заполнен: этого склада нет в Odoo",
+        "wh_serve_h": "Обслуживание",
+        "wh_serve_hint": "Страны обслуживания — куда склад отгружает или для кого держит товар; это не то же, что страна нахождения.",
+        "wh_serve_transit": "Склад в пути: страны обслуживания и контроль Long Term по ТЗ не заполняются.",
+        "wh_serve_pick": "Страны обслуживания",
+        "wh_long_term": "Контроль Long Term",
+        "wh_long_term_help": "Следим за долголежащим запасом на этом складе. Для складов в пути не применяется.",
+        "wh_sched_h": "График отгрузки",
+        "wh_sched_hint": "День приёма заказа → день отгрузки. Пустая строка означает, что ограничения нет.",
+        "wh_sched_order": "Заказ принят",
+        "wh_sched_ship": "Отгрузка",
+        "wh_sched_none_day": "— без ограничения —",
+        "wh_dow": "Понедельник,Вторник,Среда,Четверг,Пятница,Суббота,Воскресенье",
+        "wh_ext_h": "Коды во внешних системах",
+        "wh_ext_hint": "Сопоставления склада с внешними системами: строка на каждую. Строки без системы или кода не сохраняются.",
+        "wh_ext_system": "Система",
+        "wh_ext_code": "Код там",
+        "wh_ext_name": "Название там",
+        "wh_code_len": "Код склада «{c}»: длина {n}, допустимо от 3 до 30 символов",
+        "wh_code_dup": "Код «{c}» уже занят складом «{w}» — коды уникальны",
         "wh_country_filter": "Страна", "all_countries": "все страны", "prio_empty": "—", "ph_any": "любой",
         "col_priority": "Приоритет", "col_priority_short": "П", "col_target_mp": "Маркетплейс / пул",
         "wh_prio_dup": "Один маркетплейс не может стоять в двух приоритетах: {t}",
@@ -458,6 +479,27 @@ TR = {
         "wh_prio_not_sales": "Маркетплейси та пули привʼязуються лише до складу продажу — у складів зберігання, транзиту й огляду цього поля немає.",
         "wh_prio_legacy": "Склад не є точкою продажу, але привʼязки в нього є — залишені з попередньої версії довідника. Вирішіть: змінити тип складу чи очистити рядки.",
         "wh_prio_missing": "Таблиці пріоритетів немає в базі: виконайте sql/warehouse_priorities_2026-09-21.sql.",
+                "wh_owner_line": "Власник: {o} — з ERP, у Кабінеті не редагується",
+        "wh_owner_none": "Власника не заповнено: цього складу немає в Odoo",
+        "wh_serve_h": "Обслуговування",
+        "wh_serve_hint": "Країни обслуговування — куди склад відвантажує або для кого тримає товар; це не те саме, що країна розташування.",
+        "wh_serve_transit": "Склад у дорозі: країни обслуговування та контроль Long Term за ТЗ не заповнюються.",
+        "wh_serve_pick": "Країни обслуговування",
+        "wh_long_term": "Контроль Long Term",
+        "wh_long_term_help": "Стежимо за довготривалим запасом на цьому складі. Для складів у дорозі не застосовується.",
+        "wh_sched_h": "Графік відвантаження",
+        "wh_sched_hint": "День прийому замовлення → день відвантаження. Порожній рядок означає, що обмеження немає.",
+        "wh_sched_order": "Замовлення прийнято",
+        "wh_sched_ship": "Відвантаження",
+        "wh_sched_none_day": "— без обмеження —",
+        "wh_dow": "Понеділок,Вівторок,Середа,Четвер,Пʼятниця,Субота,Неділя",
+        "wh_ext_h": "Коди в зовнішніх системах",
+        "wh_ext_hint": "Зіставлення складу із зовнішніми системами: рядок на кожну. Рядки без системи або коду не зберігаються.",
+        "wh_ext_system": "Система",
+        "wh_ext_code": "Код там",
+        "wh_ext_name": "Назва там",
+        "wh_code_len": "Код складу «{c}»: довжина {n}, припустимо від 3 до 30 символів",
+        "wh_code_dup": "Код «{c}» вже зайнятий складом «{w}» — коди унікальні",
         "wh_country_filter": "Країна", "all_countries": "усі країни", "prio_empty": "—", "ph_any": "будь-який",
         "col_priority": "Пріоритет", "col_priority_short": "П", "col_target_mp": "Маркетплейс / пул",
         "wh_prio_dup": "Один маркетплейс не може стояти у двох пріоритетах: {t}",
@@ -701,6 +743,27 @@ TR = {
         "wh_prio_not_sales": "Marketplaces and pools are linked to sales warehouses only — storage, transit and view warehouses have no such field.",
         "wh_prio_legacy": "This warehouse is not a sales point, yet it has bindings left from the previous dictionary version. Decide: change the warehouse type or clear the rows.",
         "wh_prio_missing": "Priority table is missing: run sql/warehouse_priorities_2026-09-21.sql.",
+                "wh_owner_line": "Owner: {o} — from ERP, not editable here",
+        "wh_owner_none": "Owner is empty: this warehouse is not in Odoo",
+        "wh_serve_h": "Service",
+        "wh_serve_hint": "Countries served — where the warehouse ships or holds goods for; not the same as its own country.",
+        "wh_serve_transit": "Transit warehouse: countries served and Long Term control are not applicable.",
+        "wh_serve_pick": "Countries served",
+        "wh_long_term": "Long Term control",
+        "wh_long_term_help": "Track long-standing stock at this warehouse. Not applicable to transit warehouses.",
+        "wh_sched_h": "Shipping schedule",
+        "wh_sched_hint": "Order day → shipping day. An empty row means no restriction.",
+        "wh_sched_order": "Order received",
+        "wh_sched_ship": "Ships",
+        "wh_sched_none_day": "— no restriction —",
+        "wh_dow": "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday",
+        "wh_ext_h": "External system codes",
+        "wh_ext_hint": "How this warehouse is identified in external systems: one row each. Rows without a system or code are not saved.",
+        "wh_ext_system": "System",
+        "wh_ext_code": "External code",
+        "wh_ext_name": "External name",
+        "wh_code_len": "Warehouse code «{c}»: length {n}, allowed 3 to 30 characters",
+        "wh_code_dup": "Code «{c}» already belongs to «{w}» — codes are unique",
         "wh_country_filter": "Country", "all_countries": "all countries", "prio_empty": "—", "ph_any": "any",
         "col_priority": "Priority", "col_priority_short": "P", "col_target_mp": "Marketplace / pool",
         "wh_prio_dup": "A marketplace cannot hold two priorities: {t}",
@@ -1030,10 +1093,16 @@ def _section_wh():
             sel = st.selectbox(_tr("wh_pick"), sorted(titles, key=lambda i: str(pool.set_index("id").loc[i, "name"]).lower()),
                                format_func=lambda i: titles[i], key="wh_pick")
             row = wh.set_index("id").loc[sel]
+            attrs = q1("""SELECT owner_company, owner_source, owner_synced_at, long_term_control
+                          FROM kabinet_data.warehouse_attributes WHERE warehouse_id = %s""", (int(sel),))
+            _owner = attrs["owner_company"].iloc[0] if not attrs.empty else None
+            _long_term = bool(attrs["long_term_control"].iloc[0]) if not attrs.empty else False
             facts = [_type_lbl(row["type"]), str(row["country"] or "—"),
                      _tr("wh_inactive") if row["is_active"] is False else _tr("wh_active")]
             st.markdown(f'#### {row["name"]}')
             st.caption(" · ".join(facts))
+            # владелец — реквизит ERP (Odoo, stock.warehouse.company_id): в Кабинете только показываем
+            st.caption(_trf("wh_owner_line", o=_owner) if _owner else _tr("wh_owner_none"))
 
             # ── приоритеты маркетплейсов/пулов: только у склада продаж (доработка 17.09, п.1) ──
             st.markdown("##### " + _tr("wh_mp_h"))
@@ -1103,6 +1172,52 @@ def _section_wh():
                                    "basis": st.column_config.TextColumn(_tr("col_basis")),
                                    "is_active": st.column_config.CheckboxColumn(_tr("col_active"))})
 
+            # ── страны обслуживания, Long Term, график отгрузки, внешние коды (ТЗ 001) ──
+            st.markdown("##### " + _tr("wh_serve_h"))
+            _is_transit = str(row["type"] or "").startswith("transit")
+            _countries = q("SELECT alpha2, name FROM kabinet_data.countries WHERE is_active ORDER BY name")
+            _c_lbl = {r["alpha2"]: f'{r["name"]} ({r["alpha2"]})' for _, r in _countries.iterrows()}
+            _served_now = q1("SELECT country_alpha2 FROM kabinet_data.warehouse_countries WHERE warehouse_id = %s ORDER BY 1",
+                             (int(sel),))["country_alpha2"].tolist()
+            if _is_transit:
+                # у склада в пути страны обслуживания и Long Term по ТЗ недоступны
+                st.caption(_tr("wh_serve_transit")); served_new, long_term_new = _served_now, _long_term
+            else:
+                st.caption(_tr("wh_serve_hint"))
+                served_new = st.multiselect(_tr("wh_serve_pick"), list(_c_lbl), default=[c for c in _served_now if c in _c_lbl],
+                                            format_func=lambda c: _c_lbl.get(c, c), key=f"wh_serve_{sel}",
+                                            placeholder=_tr("ph_any"))
+                long_term_new = st.checkbox(_tr("wh_long_term"), value=_long_term, key=f"wh_lt_{sel}",
+                                            help=_tr("wh_long_term_help"))
+
+            _DOW = _tr("wh_dow").split(",")
+            sched_now = q1("""SELECT order_dow, ship_dow FROM kabinet_data.warehouse_shipping_schedule
+                              WHERE warehouse_id = %s ORDER BY order_dow""", (int(sel),))
+            _none_lbl = _tr("wh_sched_none_day")
+            sched_map = dict(zip(sched_now["order_dow"], sched_now["ship_dow"])) if not sched_now.empty else {}
+            st.markdown("##### " + _tr("wh_sched_h"))
+            st.caption(_tr("wh_sched_hint"))
+            ed_sched = st.data_editor(
+                pd.DataFrame({"order": _DOW,
+                              "ship": [_DOW[sched_map[i + 1] - 1] if (i + 1) in sched_map else _none_lbl for i in range(7)]}),
+                key=f"wh_sched_{sel}", hide_index=True, use_container_width=True, num_rows="fixed",
+                column_config={"order": st.column_config.TextColumn(_tr("wh_sched_order"), disabled=True, width="medium"),
+                               "ship": st.column_config.SelectboxColumn(_tr("wh_sched_ship"), options=[_none_lbl] + _DOW, width="medium")},
+                height=38 + 35 * 7)
+
+            st.markdown("##### " + _tr("wh_ext_h"))
+            st.caption(_tr("wh_ext_hint"))
+            ext_now = q1("""SELECT id, system_name, external_code, external_name
+                            FROM kabinet_data.warehouse_external_ids WHERE warehouse_id = %s ORDER BY system_name, external_code""",
+                         (int(sel),))
+            ed_ext = st.data_editor(
+                ext_now if not ext_now.empty else pd.DataFrame(columns=["id", "system_name", "external_code", "external_name"]),
+                key=f"wh_ext_{sel}", hide_index=True, use_container_width=True, num_rows="dynamic",
+                column_config={"id": None,
+                               "system_name": st.column_config.TextColumn(_tr("wh_ext_system"), width="medium"),
+                               "external_code": st.column_config.TextColumn(_tr("wh_ext_code"), width="medium"),
+                               "external_name": st.column_config.TextColumn(_tr("wh_ext_name"), width="large")})
+
             # ── сохранение ────────────────────────────────────────────────
             def prio_empty_stop() -> bool:
                 """У склада продаж должен остаться хотя бы один маркетплейс или пул: очистку всех строк не сохраняем.
@@ -1130,6 +1245,50 @@ def _section_wh():
                             sets.append("is_active = %s"); params.append(bool(r.is_active))
                         if sets:
                             stmts.append((f"UPDATE kabinet_data.supply_chains SET {', '.join(sets)}, updated_at = now() WHERE id = %s", params + [int(r.id)]))
+                # страны обслуживания: сравниваем множества, пишем разницу
+                if set(served_new) != set(_served_now):
+                    gone = set(_served_now) - set(served_new)
+                    if gone:
+                        stmts.append(("DELETE FROM kabinet_data.warehouse_countries WHERE warehouse_id = %s AND country_alpha2 = ANY(%s)",
+                                      (int(sel), list(gone))))
+                    for c in set(served_new) - set(_served_now):
+                        stmts.append(("INSERT INTO kabinet_data.warehouse_countries (warehouse_id, country_alpha2) VALUES (%s, %s) "
+                                      "ON CONFLICT DO NOTHING", (int(sel), c)))
+                if bool(long_term_new) != bool(_long_term):
+                    stmts.append(("""INSERT INTO kabinet_data.warehouse_attributes (warehouse_id, long_term_control)
+                                     VALUES (%s, %s)
+                                     ON CONFLICT (warehouse_id) DO UPDATE SET long_term_control = EXCLUDED.long_term_control,
+                                       updated_at = now(), updated_by = 'kabinet'""", (int(sel), bool(long_term_new))))
+                # график отгрузки: строка без дня отгрузки означает «ограничения нет»
+                new_sched = {}
+                for i, r_ in enumerate(ed_sched.itertuples(), start=1):
+                    if r_.ship and r_.ship != _none_lbl and r_.ship in _DOW:
+                        new_sched[i] = _DOW.index(r_.ship) + 1
+                if new_sched != sched_map:
+                    stmts.append(("DELETE FROM kabinet_data.warehouse_shipping_schedule WHERE warehouse_id = %s", (int(sel),)))
+                    for od, sd in sorted(new_sched.items()):
+                        stmts.append(("INSERT INTO kabinet_data.warehouse_shipping_schedule (warehouse_id, order_dow, ship_dow) "
+                                      "VALUES (%s, %s, %s)", (int(sel), od, sd)))
+                # внешние сопоставления: строки без системы или кода не сохраняем
+                _ext_before = {int(r.id): (r.system_name, r.external_code, r.external_name) for r in ext_now.itertuples()} if not ext_now.empty else {}
+                _seen = set()
+                for r_ in ed_ext.itertuples():
+                    sys_, code_ = (str(getattr(r_, "system_name", "") or "").strip(), str(getattr(r_, "external_code", "") or "").strip())
+                    name_ = str(getattr(r_, "external_name", "") or "").strip() or None
+                    rid_ = getattr(r_, "id", None)
+                    if not sys_ or not code_:
+                        continue
+                    if pd.notna(rid_) and int(rid_) in _ext_before:
+                        _seen.add(int(rid_))
+                        if _ext_before[int(rid_)] != (sys_, code_, name_):
+                            stmts.append(("UPDATE kabinet_data.warehouse_external_ids SET system_name = %s, external_code = %s, "
+                                          "external_name = %s, updated_at = now() WHERE id = %s", (sys_, code_, name_, int(rid_))))
+                    else:
+                        stmts.append(("INSERT INTO kabinet_data.warehouse_external_ids (warehouse_id, system_name, external_code, external_name) "
+                                      "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING", (int(sel), sys_, code_, name_)))
+                for rid_ in set(_ext_before) - _seen:
+                    stmts.append(("DELETE FROM kabinet_data.warehouse_external_ids WHERE id = %s", (rid_,)))
+
                 if not stmts:
                     st.info(_tr("nochange"))
                 else:
@@ -1154,6 +1313,20 @@ def _section_wh():
                 summary[f"{_tr('col_priority_short')} {i}"] = [
                     (targets.get(prio_by_wh.get(int(w), {}).get(i), ("", "", set()))[1] if prio_by_wh.get(int(w), {}).get(i) else "")
                     for w in sales_rows["id"]]
+            # ТЗ 001: код уникален и длиной 3–30. В Кабинете он не правится (приезжает из ERP),
+            # поэтому проверяем загруженное и показываем нарушения — иначе правило существует только на бумаге
+            _codes = wh[wh["code"].notna() & (wh["code"].astype(str).str.strip() != "")]
+            _bad_len = [(r["name"], str(r["code"]).strip()) for _, r in _codes.iterrows()
+                        if not 3 <= len(str(r["code"]).strip()) <= 30]
+            _dups = {}
+            for _, r in _codes.iterrows():
+                _dups.setdefault(str(r["code"]).strip().lower(), []).append(r["name"])
+            _dup_list = [(c, names) for c, names in _dups.items() if len(names) > 1]
+            for _name, _code in _bad_len[:5]:
+                st.warning(_trf("wh_code_len", c=_code, n=len(_code)))
+            for _code, _names in _dup_list[:5]:
+                st.warning(_trf("wh_code_dup", c=_code, w=", ".join(_names)))
+
             missing = [n for n, tp, w in zip(sales_rows["name"], sales_rows["type"], sales_rows["id"]) if tp == "sales" and not prio_by_wh.get(int(w))]
             if missing:
                 st.warning(_trf("wh_sales_without_mp", n=len(missing), names=", ".join(missing[:8]) + ("…" if len(missing) > 8 else "")))
