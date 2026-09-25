@@ -216,6 +216,8 @@ TR = {
         "wh_prio_legacy": "Склад не является точкой продаж, но привязки у него есть — оставлены с прежней версии справочника. Решите: сменить тип склада или очистить строки.",
         "wh_prio_missing": "Таблицы приоритетов нет в базе: выполните sql/warehouse_priorities_2026-09-21.sql.",
                 "wh_owner_line": "Владелец: {o} — из ERP, в Кабинете не правится",
+        "wh_owner_manual": "Владелец: {o} — уточнение от снабжения, этого склада в Odoo нет",
+        "wh_partner": "Склад партнёра: остатки и продажи в расчёты Кабинета не берём — ни в остатки, ни в покрытие, ни в автозаказ, ни в переброски.",
         "wh_owner_none": "Владелец не заполнен: этого склада нет в Odoo",
         "wh_serve_h": "Обслуживание",
         "wh_serve_hint": "Страны обслуживания — куда склад отгружает или для кого держит товар; это не то же, что страна нахождения.",
@@ -480,6 +482,8 @@ TR = {
         "wh_prio_legacy": "Склад не є точкою продажу, але привʼязки в нього є — залишені з попередньої версії довідника. Вирішіть: змінити тип складу чи очистити рядки.",
         "wh_prio_missing": "Таблиці пріоритетів немає в базі: виконайте sql/warehouse_priorities_2026-09-21.sql.",
                 "wh_owner_line": "Власник: {o} — з ERP, у Кабінеті не редагується",
+        "wh_owner_manual": "Власник: {o} — уточнення від постачання, цього складу в Odoo немає",
+        "wh_partner": "Склад партнера: залишки та продажі в розрахунки Кабінету не беремо — ні в залишки, ні в покриття, ні в автозамовлення, ні в перекидання.",
         "wh_owner_none": "Власника не заповнено: цього складу немає в Odoo",
         "wh_serve_h": "Обслуговування",
         "wh_serve_hint": "Країни обслуговування — куди склад відвантажує або для кого тримає товар; це не те саме, що країна розташування.",
@@ -744,6 +748,8 @@ TR = {
         "wh_prio_legacy": "This warehouse is not a sales point, yet it has bindings left from the previous dictionary version. Decide: change the warehouse type or clear the rows.",
         "wh_prio_missing": "Priority table is missing: run sql/warehouse_priorities_2026-09-21.sql.",
                 "wh_owner_line": "Owner: {o} — from ERP, not editable here",
+        "wh_owner_manual": "Owner: {o} — confirmed by supply, this warehouse is not in Odoo",
+        "wh_partner": "Partner warehouse: its stock and sales are excluded from Kabinet — from stock, coverage, reordering and transfers.",
         "wh_owner_none": "Owner is empty: this warehouse is not in Odoo",
         "wh_serve_h": "Service",
         "wh_serve_hint": "Countries served — where the warehouse ships or holds goods for; not the same as its own country.",
@@ -1121,16 +1127,25 @@ def _section_wh():
             sel = st.selectbox(_tr("wh_pick"), sorted(titles, key=lambda i: str(pool.set_index("id").loc[i, "name"]).lower()),
                                format_func=lambda i: titles[i], key="wh_pick")
             row = wh.set_index("id").loc[sel]
-            attrs = q1("""SELECT owner_company, owner_source, owner_synced_at, long_term_control
+            attrs = q1("""SELECT owner_company, owner_source, owner_synced_at, long_term_control, is_partner
                           FROM kabinet_data.warehouse_attributes WHERE warehouse_id = %s""", (int(sel),))
             _owner = attrs["owner_company"].iloc[0] if not attrs.empty else None
+            _own_src = attrs["owner_source"].iloc[0] if not attrs.empty else None
+            _partner = bool(attrs["is_partner"].iloc[0]) if not attrs.empty and "is_partner" in attrs.columns else False
             _long_term = bool(attrs["long_term_control"].iloc[0]) if not attrs.empty else False
             facts = [_type_lbl(row["type"]), str(row["country"] or "—"),
                      _tr("wh_inactive") if row["is_active"] is False else _tr("wh_active")]
             st.markdown(f'#### {row["name"]}')
             st.caption(" · ".join(facts))
-            # владелец — реквизит ERP (Odoo, stock.warehouse.company_id): в Кабинете только показываем
-            st.caption(_trf("wh_owner_line", o=_owner) if _owner else _tr("wh_owner_none"))
+            # владелец — реквизит ERP (Odoo, stock.warehouse.company_id): в Кабинете только показываем.
+            # У складов, которых в Odoo нет (FBA, Piasecznie, Тернополь), значение дало снабжение —
+            # подписываем источник, иначе строка обещает ERP там, где её нет.
+            if _owner:
+                st.caption(_trf("wh_owner_manual" if str(_own_src or "").startswith("manual") else "wh_owner_line", o=_owner))
+            else:
+                st.caption(_tr("wh_owner_none"))
+            if _partner:
+                st.warning(_tr("wh_partner"))
 
             # ── приоритеты маркетплейсов/пулов: только у склада продаж (доработка 17.09, п.1) ──
             st.markdown("##### " + _tr("wh_mp_h"))
