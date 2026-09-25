@@ -27,6 +27,14 @@ st.markdown(
     '[data-testid="stMainMenu"]{display:none !important;}'
     '[data-testid="manage-app-button"]{display:none !important;}'
     '[data-testid="stStatusWidget"]{visibility:hidden;}'
+    # Плашка хостинга в правом нижнем углу: знак Streamlit Cloud и кружок с аватаркой
+    # владельца приложения. Её рисует не наш код, а сам Community Cloud поверх страницы.
+    # Классы там с хешами (_viewerBadge_1j65n_23, _profileContainer_gzau3_53), и хеш
+    # меняется от версии к версии — поэтому цепляемся за устойчивую часть имени и за
+    # ссылку. Селекторы проверены 25.09.2026 на живом приложении Community Cloud.
+    '[class*="_viewerBadge_"]{display:none !important;}'
+    '[class*="_profileContainer_"]{display:none !important;}'
+    'a[href^="https://streamlit.io/cloud"]{display:none !important;}'
     "header{background:transparent !important;}"
     "footer{visibility:hidden !important;}"
     # Streamlit оставляет сверху пустую полосу — заголовок проваливается
