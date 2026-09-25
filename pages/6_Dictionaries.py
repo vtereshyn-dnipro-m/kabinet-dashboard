@@ -205,6 +205,9 @@ TR = {
         "wh_prio_hint": "Приоритет 1 — куда товар с этого склада уходит в первую очередь. Один маркетплейс или пул на строку; фильтр по стране сужает список. Пустая строка — приоритет не занят. Склад без привязок сохранить можно; убрать у склада продаж последнюю привязку — нельзя.",
         "wh_src_h": "Откуда пополняется",
         "wh_src_none": "Маршрутов подпитки на этот склад пока нет.",
+        "col_lt_plan": "План LT, дн", "col_lt_fact": "Факт, дн", "col_lt_dev": "Отклонение",
+        "wh_lt_hint": "План LT — прогнозный гарантированный срок, он идёт в расчёты обеспечения и правится здесь. Факт — медиана «отгрузка → приёмка» по закрытым накладным ERP за {w} дн, только для сравнения: Кабинет LT не меняет сам (ТЗ 001 §5). При отклонении больше {t} % на закрытых поставках (минимум {m}) приходит информационный алерт.",
+        "wh_lt_nofact": "Фактического срока нет ни по одному маршруту: ERP почти не закрывает накладные — из {n} строк дату приёмки имеют {k}. Пока так, сравнивать не с чем, и алерт молчит.",
         "wh_src_hint": "Все маршруты на этот склад, включая выключенные. Срок и активность правятся здесь; остальное — на вкладке «Подпитка».",
         "wh_sum_h": "Что уже заполнено",
         "wh_all": "Все склады одной таблицей",
@@ -471,6 +474,9 @@ TR = {
         "wh_prio_hint": "Пріоритет 1 — куди товар із цього складу йде насамперед. Один маркетплейс або пул на рядок; фільтр за країною звужує список. Порожній рядок — пріоритет не зайнятий. Склад без привʼязок зберегти можна; прибрати у складу продажу останню привʼязку — ні.",
         "wh_src_h": "Звідки поповнюється",
         "wh_src_none": "Маршрутів підживлення на цей склад поки немає.",
+        "col_lt_plan": "План LT, дн", "col_lt_fact": "Факт, дн", "col_lt_dev": "Відхилення",
+        "wh_lt_hint": "План LT — прогнозний гарантований термін, він іде в розрахунки забезпечення і правиться тут. Факт — медіана «відправлення → приймання» за закритими накладними ERP за {w} дн, лише для порівняння: Кабінет LT сам не змінює (ТЗ 001 §5). За відхилення більше {t} % на закритих поставках (мінімум {m}) надходить інформаційний алерт.",
+        "wh_lt_nofact": "Фактичного терміну немає ні по одному маршруту: ERP майже не закриває накладні — з {n} рядків дату приймання мають {k}. Поки так, порівнювати ні з чим, і алерт мовчить.",
         "wh_src_hint": "Усі маршрути на цей склад, включно з вимкненими. Термін і активність правляться тут; решта — на вкладці «Підживлення».",
         "wh_sum_h": "Що вже заповнено",
         "wh_all": "Усі склади однією таблицею",
@@ -737,6 +743,9 @@ TR = {
         "wh_prio_hint": "Priority 1 — where goods from this warehouse go first. One marketplace or pool per row; the country filter narrows the list. An empty row means the priority is free. A warehouse with no bindings can be saved; removing the last binding from a sales warehouse cannot.",
         "wh_src_h": "Replenished from",
         "wh_src_none": "No supply routes into this warehouse yet.",
+        "col_lt_plan": "Planned LT, days", "col_lt_fact": "Actual, days", "col_lt_dev": "Deviation",
+        "wh_lt_hint": "Planned LT is the guaranteed lead time used in supply calculations and edited here. Actual is the median dispatch-to-receipt over closed ERP invoices for the last {w} days, for comparison only: Kabinet never changes LT by itself (spec 001 §5). A deviation above {t} % on closed deliveries (at least {m}) raises an informational alert.",
+        "wh_lt_nofact": "No actual lead time for any route: ERP almost never closes invoices — {k} of {n} rows carry a receipt date. Until that changes there is nothing to compare, and the alert stays silent.",
         "wh_src_hint": "All routes into this warehouse, inactive included. Lead time and activity are edited here; the rest — on the “Replenishment” tab.",
         "wh_sum_h": "Filled in so far",
         "wh_all": "All warehouses in one table",
@@ -1193,10 +1202,19 @@ def _section_wh():
 
             # ── откуда пополняется: все маршруты, включая выключенные; срок и активность правятся здесь (доработка, п.6) ──
             st.markdown("##### " + _tr("wh_src_h"))
+            # пороги сравнения факта с планом — из reorder_params, не константами (ТЗ 001 §5)
+            _lt_par = {r["key"]: float(r["value"]) for _, r in
+                       q("SELECT key, value FROM kabinet_data.reorder_params WHERE key LIKE 'lead_time%'").iterrows()}
+            # закрытых накладных в ERP единицы, и подпись должна это говорить, а не оставлять пустую колонку
+            _ttn = q1("SELECT count(*) AS n, count(actual_delivery_date) AS closed FROM kabinet_data.shipments_history", ())
+            _ttn_all = int(_ttn["n"].iloc[0]) if not _ttn.empty else 0
+            _ttn_closed = int(_ttn["closed"].iloc[0]) if not _ttn.empty else 0
             src = q(f"""
-                SELECT c.id, f.name AS src_name, c.median_days, c.lead_source, c.sample_size, c.is_active
+                SELECT c.id, f.name AS src_name, c.median_days, c.lead_source, c.sample_size, c.is_active,
+                       lt.actual_days, lt.shipments, lt.window_days, lt.last_delivery
                 FROM kabinet_data.supply_chains c
                 JOIN kabinet_data.warehouses f ON f.id = c.from_warehouse_id
+                LEFT JOIN kabinet_data.supply_lead_time_facts lt ON lt.route_id = c.id
                 WHERE c.to_warehouse_id = {int(sel)}
                 ORDER BY c.is_active DESC, c.median_days, f.name
             """)
@@ -1205,15 +1223,30 @@ def _section_wh():
                 st.caption(_tr("wh_src_none"))
             else:
                 st.caption(_tr("wh_src_hint"))
+                st.caption(_trf("wh_lt_hint", w=int(_lt_par.get("lead_time_window_days", 180)),
+                                t=int(_lt_par.get("lead_time_deviation_pct", 15)),
+                                m=int(_lt_par.get("lead_time_min_shipments", 5))))
                 src["basis"] = [_trf("basis_ttn", n=int(n)) if s_ == "ttn_planned" and pd.notna(n) else _tr("basis_expert")
                                 for s_, n in zip(src["lead_source"], src["sample_size"])]
+                # факт и отклонение — текстом: пустую числовую ячейку Streamlit рисует словом «None»,
+                # а пусто здесь значит «поставок в окне не было», и это не ноль дней (см. AGENTS.md)
+                src["fact"] = [f"{float(d):.0f} ({int(n)})" if pd.notna(d) and pd.notna(n) and int(n) > 0 else ""
+                               for d, n in zip(src["actual_days"], src["shipments"])]
+                src["dev"] = ["" if not (pd.notna(d) and pd.notna(pl) and float(pl) > 0)
+                              else f"{(float(d) - float(pl)) / float(pl) * 100:+.0f} %"
+                              for d, pl in zip(src["actual_days"], src["median_days"])]
                 ed_src = st.data_editor(
-                    src[["id", "src_name", "median_days", "basis", "is_active"]], key=f"wh_src_{sel}", hide_index=True,
-                    use_container_width=True, num_rows="fixed", disabled=["id", "src_name", "basis"],
+                    src[["id", "src_name", "median_days", "fact", "dev", "basis", "is_active"]], key=f"wh_src_{sel}",
+                    hide_index=True, use_container_width=True, num_rows="fixed",
+                    disabled=["id", "src_name", "fact", "dev", "basis"],
                     column_config={"id": None, "src_name": st.column_config.TextColumn(_tr("col_src"), width="large"),
-                                   "median_days": st.column_config.NumberColumn(_tr("col_median"), min_value=0, max_value=365, step=1),
+                                   "median_days": st.column_config.NumberColumn(_tr("col_lt_plan"), min_value=0, max_value=365, step=1),
+                                   "fact": st.column_config.TextColumn(_tr("col_lt_fact")),
+                                   "dev": st.column_config.TextColumn(_tr("col_lt_dev")),
                                    "basis": st.column_config.TextColumn(_tr("col_basis")),
                                    "is_active": st.column_config.CheckboxColumn(_tr("col_active"))})
+                if not src["actual_days"].notna().any():
+                    st.caption(_trf("wh_lt_nofact", n=_ttn_all, k=_ttn_closed))
 
             # ── страны обслуживания, Long Term, график отгрузки, внешние коды (ТЗ 001) ──
             st.markdown("##### " + _tr("wh_serve_h"))
