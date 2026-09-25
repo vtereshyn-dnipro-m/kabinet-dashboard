@@ -345,14 +345,32 @@ TRANSLATIONS = {
               "production plans are not in the system yet, so a shortage beyond the first week "
               "means “no shipments planned in the data we have”, not “there will be no stock”.",
     },
-    "stock.cov.col_odoo": {"ru": "Ожидается, шт", "uk": "Очікується, шт", "en": "Expected, units"},
+    "stock.cov.col_odoo": {"ru": "Ожидается к нам, шт", "uk": "Очікується до нас, шт", "en": "Expected to us, units"},
     "stock.cov.col_odoo_help": {
-        "ru": "Товар, который числится в системе как заказанный или в производстве. "
-              "Дата прибытия неизвестна, поэтому в расчёт покрытия он не входит",
-        "uk": "Товар, що числиться в системі як замовлений або у виробництві. "
-              "Дата прибуття невідома, тому в розрахунок покриття він не входить",
-        "en": "Stock recorded as ordered or in production. The arrival date is unknown, "
-              "so it is not included in the coverage calculation",
+        "ru": "Товар, который числится в системе как заказанный или в производстве и придёт "
+              "на наш склад. Дата прибытия неизвестна, поэтому в расчёт покрытия он не входит",
+        "uk": "Товар, що числиться в системі як замовлений або у виробництві і прийде на наш "
+              "склад. Дата прибуття невідома, тому в розрахунок покриття він не входить",
+        "en": "Stock recorded as ordered or in production and heading to our warehouse. "
+              "The arrival date is unknown, so it is not included in the coverage calculation",
+    },
+    "stock.cov.col_odoo_stores": {"ru": "Ожидается в магазины, шт", "uk": "Очікується в магазини, шт",
+                                  "en": "Expected to stores, units"},
+    "stock.cov.col_odoo_stores_help": {
+        "ru": "Поставки в наши фирменные магазины. На склад этот товар не приедет и в обеспечение "
+              "каналов не идёт — показан отдельно, чтобы не читался как приход к нам",
+        "uk": "Постачання в наші фірмові магазини. На склад цей товар не приїде і в забезпечення "
+              "каналів не йде — показаний окремо, щоб не читався як прихід до нас",
+        "en": "Deliveries to our own branded stores. This stock never reaches the warehouse and is "
+              "not part of channel supply — shown separately so it does not read as incoming to us",
+    },
+    "stock.cov.odoo_stores_note": {
+        "ru": "Ещё {qty} шт ожидается в наших фирменных магазинах — это их витрина, "
+              "на склад товар не приедет и в расчёт выше не входит.",
+        "uk": "Ще {qty} шт очікується в наших фірмових магазинах — це їхня вітрина, "
+              "на склад товар не приїде і в розрахунок вище не входить.",
+        "en": "Another {qty} units are expected at our own stores — that is their shop floor; "
+              "the stock never reaches the warehouse and is not in the calculation above.",
     },
     "stock.cov.odoo_note": {
         "ru": "По этому товару ожидается ещё {qty} шт — заказано или в производстве. "
