@@ -85,6 +85,15 @@ TR = {
         "sec_prices": "Целевая цена по месяцам, €", "prices_help": "Цена не утверждается вместе с количеством и меняется в черновике без снятия утверждения. Прогноз выручки = штуки × цена.",
         "btn_prices_save": "Сохранить цены", "prices_saved": "Сохранено цен: {n}.",
         "sec_states": "Состояние по месяцам", "states_help": "○ не утверждено · ✓ утверждено · ⟲ заменено новой версией · пусто — значения нет",
+        "post_dd": "Зависимая потребность: рассчитано {c}, снято {s}, освежено {t}.",
+        "post_dd_err": "Ошибок расчёта зависимой потребности: {e} — раздел «Зависимая потребность» в карточке.",
+        "post_dd_fail": "Зависимая потребность не рассчитана: {e}. Прогноз проведён; расчёт повторит ночная джоба.",
+        "sec_dd": "Зависимая потребность",
+        "dd_help": "Потребность в базовых SKU из действующих прогнозов наборов: прогноз набора × количество в составе (ТЗ 011). "
+                   "Считается при проведении и ночью. Поверх прогноза наборов не суммируется — это отдельные строки реестра.",
+        "dd_empty": "Наборов в действующем прогнозе этого объекта нет — считать нечего.",
+        "dd_col_sku": "Базовый SKU", "dd_col_qty": "Потребность", "dd_col_details": "Строк расчёта", "dd_col_errors": "Ошибок", "dd_col_at": "Рассчитано",
+        "dd_errors_hdr": "Ошибки расчёта ({n}):", "dd_col_kit": "Набор", "dd_col_err": "Что не так",
         "sec_doclog": "Журнал документа",
         "log_from": "Проведено / изменено с", "log_to": "по", "log_sku": "SKU", "log_month": "Месяц прогноза",
         "log_col_at": "Когда", "log_col_actor": "Кто", "log_col_doc": "Документ", "log_col_field": "Поле", "log_col_old": "Было", "log_col_new": "Стало", "log_col_src": "Источник",
@@ -149,6 +158,15 @@ TR = {
         "sec_prices": "Цільова ціна за місяцями, €", "prices_help": "Ціна не затверджується разом із кількістю і змінюється в чернетці без зняття затвердження. Прогноз виручки = штуки × ціна.",
         "btn_prices_save": "Зберегти ціни", "prices_saved": "Збережено цін: {n}.",
         "sec_states": "Стан за місяцями", "states_help": "○ не затверджено · ✓ затверджено · ⟲ замінено новою версією · порожньо — значення немає",
+        "post_dd": "Залежна потреба: розраховано {c}, знято {s}, освіжено {t}.",
+        "post_dd_err": "Помилок розрахунку залежної потреби: {e} — розділ «Залежна потреба» у картці.",
+        "post_dd_fail": "Залежну потребу не розраховано: {e}. Прогноз проведено; розрахунок повторить нічна джоба.",
+        "sec_dd": "Залежна потреба",
+        "dd_help": "Потреба в базових SKU з чинних прогнозів наборів: прогноз набору × кількість у складі (ТЗ 011). "
+                   "Рахується під час проведення і вночі. Поверх прогнозу наборів не додається — це окремі рядки реєстру.",
+        "dd_empty": "Наборів у чинному прогнозі цього об’єкта немає — рахувати нічого.",
+        "dd_col_sku": "Базовий SKU", "dd_col_qty": "Потреба", "dd_col_details": "Рядків розрахунку", "dd_col_errors": "Помилок", "dd_col_at": "Розраховано",
+        "dd_errors_hdr": "Помилки розрахунку ({n}):", "dd_col_kit": "Набір", "dd_col_err": "Що не так",
         "sec_doclog": "Журнал документа",
         "log_from": "Проведено / змінено з", "log_to": "по", "log_sku": "SKU", "log_month": "Місяць прогнозу",
         "log_col_at": "Коли", "log_col_actor": "Хто", "log_col_doc": "Документ", "log_col_field": "Поле", "log_col_old": "Було", "log_col_new": "Стало", "log_col_src": "Джерело",
@@ -213,6 +231,15 @@ TR = {
         "sec_prices": "Target price by month, €", "prices_help": "Price is not approved together with quantity and can change in a draft without unapproval. Revenue = units × price.",
         "btn_prices_save": "Save prices", "prices_saved": "Prices saved: {n}.",
         "sec_states": "State by month", "states_help": "○ not approved · ✓ approved · ⟲ superseded · blank — no value",
+        "post_dd": "Dependent demand: {c} calculated, {s} superseded, {t} refreshed.",
+        "post_dd_err": "Dependent demand errors: {e} — see the «Dependent demand» section in the card.",
+        "post_dd_fail": "Dependent demand not calculated: {e}. The forecast is posted; the nightly job will retry.",
+        "sec_dd": "Dependent demand",
+        "dd_help": "Demand for base SKUs derived from effective kit forecasts: kit forecast x component quantity (spec 011). "
+                   "Calculated on posting and nightly. It is not added on top of kit forecasts — these are separate register rows.",
+        "dd_empty": "No kits in this object's effective forecast — nothing to calculate.",
+        "dd_col_sku": "Base SKU", "dd_col_qty": "Demand", "dd_col_details": "Calc rows", "dd_col_errors": "Errors", "dd_col_at": "Calculated",
+        "dd_errors_hdr": "Calculation errors ({n}):", "dd_col_kit": "Kit", "dd_col_err": "What is wrong",
         "sec_doclog": "Document log",
         "log_from": "Posted / changed from", "log_to": "to", "log_sku": "SKU", "log_month": "Forecast month",
         "log_col_at": "When", "log_col_actor": "Who", "log_col_doc": "Document", "log_col_field": "Field", "log_col_old": "Old", "log_col_new": "New", "log_col_src": "Source",
@@ -696,6 +723,11 @@ def post_document(doc, rows: pd.DataFrame) -> tuple:
                 cur.execute("""UPDATE kabinet_data.forecast_register SET is_current = FALSE, status = 'superseded', superseded_at = now(),
                                replaced_by = array_append(replaced_by, %s) WHERE id = %s""", (int(r.id), int(old[0])))
                 n_rep += 1
+                # ТЗ 011 §7: замена прогноза немедленно выключает его зависимые результаты — независимо от того,
+                # получится ли новый расчёт. Пока нового нет, потребность неизвестна, и это честнее старого числа.
+                cur.execute("""UPDATE kabinet_data.forecast_register
+                                  SET is_current = FALSE, calculation_status = 'SUPERSEDED', superseded_at = now(), changed_at = now()
+                                WHERE record_type = 'dependent' AND is_current AND source_forecast_id = %s""", (int(old[0]),))
             cur.execute("""UPDATE kabinet_data.forecast_register SET is_current = TRUE, version = %s, replaces = %s, changed_at = now()
                            WHERE id = %s AND status = 'approved' AND quantity IS NOT NULL""",
                         ((old[1] + 1) if old else 1, [int(old[0])] if old else [], int(r.id)))
@@ -703,7 +735,29 @@ def post_document(doc, rows: pd.DataFrame) -> tuple:
         cur.execute("""UPDATE kabinet_data.forecast_documents SET status = 'posted', posted_by = %s, posted_at = now() WHERE id = %s""",
                     (actor, int(doc["id"])))
         log(cur, doc["id"], None, None, "document", "draft", "posted", "post", actor)
-        return n_cur, n_rep
+        # ТЗ 011 §11: состав наборов фиксируется на момент проведения. Справочник собирает загрузчик из Odoo,
+        # и его правка не должна менять числа уже проведённого прогноза при следующем пересчёте.
+        cur.execute("""INSERT INTO kabinet_data.forecast_composition_snapshot (document_id, composite_sku, base_sku, quantity)
+                       SELECT %s, c.composite_sku, c.base_sku, c.quantity
+                       FROM kabinet_data.sku_composition c
+                       JOIN kabinet_data.sku_master m ON m.sku = c.composite_sku AND m.sku_type = 'composite'
+                       WHERE c.composite_sku = ANY(%s)
+                       ON CONFLICT DO NOTHING""", (int(doc["id"]), list(rows["sku"].astype(str))))
+        # ТЗ 011 §7: зависимая потребность пересчитывается сразу после проведения и в той же транзакции —
+        # иначе между двумя коммитами читатель видит новый прогноз набора и зависимые строки от старого.
+        # Точка сохранения: сбой расчёта не должен отменять проведение (бизнес-действие сделано и проверено),
+        # но и молчать о нём нельзя — текст ошибки возвращается на экран, а ночная джоба повторит расчёт.
+        dd, dd_err = (0, 0, 0, 0), None
+        cur.execute("SAVEPOINT dd")
+        try:
+            cur.execute("SELECT calculated, errors, superseded, touched FROM kabinet_data.dependent_demand_rebuild(%s, %s)",
+                        (doc["object_type"], int(doc["object_id"])))
+            dd = cur.fetchone() or (0, 0, 0, 0)
+            cur.execute("RELEASE SAVEPOINT dd")
+        except Exception as e:
+            cur.execute("ROLLBACK TO SAVEPOINT dd")
+            dd_err = str(e).strip().splitlines()[0]
+        return n_cur, n_rep, dd, dd_err
     return tx(_do)
 
 
@@ -1075,14 +1129,54 @@ with tab_docs:
                     st.session_state[pk] = len(rows)
                     st.rerun()
                 try:
-                    k, r = post_document(doc, rows)
+                    k, r, dd, dd_err = post_document(doc, rows)
                     st.session_state.pop(pk, None)
                     flash("success", _trf("post_ok", n=doc["number"], k=k, r=r))
+                    if dd_err:
+                        flash("error", _trf("post_dd_fail", e=dd_err))
+                    else:
+                        flash("info", _trf("post_dd", c=dd[0], s=dd[2], t=dd[3]))
+                        if dd[1]:
+                            flash("warning", _trf("post_dd_err", e=dd[1]))
                     st.rerun()
                 except Exception as e:
                     st.error(_trf("err_write", e=e))
 
         show_flash()   # второй показ — рядом с кнопками действий; очередь очищается здесь
+
+        # ── зависимая потребность (ТЗ 011) ──
+        with st.expander(_tr("sec_dd")):
+            st.caption(_tr("dd_help"))
+            try:
+                dd_rows = q("""SELECT base_sku, month, dependent_quantity, details, errors, calculated_at
+                               FROM kabinet_data.v_dependent_demand_current
+                               WHERE object_type = %s AND object_id = %s ORDER BY base_sku, month""",
+                            (doc["object_type"], int(doc["object_id"])))
+                dd_bad = q("""SELECT composite_sku, sku, month, error_text
+                              FROM kabinet_data.forecast_register
+                              WHERE is_current AND record_type = 'dependent' AND calculation_status = 'ERROR'
+                                AND object_type = %s AND object_id = %s ORDER BY composite_sku, month""",
+                           (doc["object_type"], int(doc["object_id"])))
+            except Exception as e:
+                dd_rows = dd_bad = pd.DataFrame()
+                st.error(_trf("err_read", e=e))
+            if dd_rows.empty:
+                st.caption(_tr("dd_empty"))
+            else:
+                v = dd_rows.copy()
+                v["month"] = v["month"].map(month_label)
+                # количество — текстом: пустая числовая ячейка Streamlit рисуется словом «None», а пусто у
+                # строки с ошибкой значит «не рассчитано», и ноль тут был бы неправдой (см. AGENTS.md)
+                v["dependent_quantity"] = v["dependent_quantity"].map(lambda x: "" if pd.isna(x) else f"{int(x)}")
+                v["calculated_at"] = pd.to_datetime(v["calculated_at"]).dt.strftime("%d.%m %H:%M")
+                v.columns = [_tr("dd_col_sku"), _tr("log_month"), _tr("dd_col_qty"), _tr("dd_col_details"), _tr("dd_col_errors"), _tr("dd_col_at")]
+                st.dataframe(v, hide_index=True, use_container_width=True, height=min(400, 38 + 35 * len(v)))
+            if not dd_bad.empty:
+                st.warning(_trf("dd_errors_hdr", n=len(dd_bad)))
+                b = dd_bad.copy()
+                b["month"] = b["month"].map(month_label)
+                b.columns = [_tr("dd_col_kit"), _tr("col_sku"), _tr("log_month"), _tr("dd_col_err")]
+                st.dataframe(b, hide_index=True, use_container_width=True, height=min(300, 38 + 35 * len(b)))
 
         # ── журнал документа ──
         with st.expander(_tr("sec_doclog")):
