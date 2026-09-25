@@ -266,6 +266,8 @@ TR = {
         "pool_from": "Действует с", "pool_to": "Действует по (пусто — бессрочно)",
         "pool_save": "💾 Сохранить состав", "pool_none": "Пулов пока нет — создай первый",
         "pool_conflict": "Уже в другом пуле: {mp}", "pool_created": "Пул создан",
+        "pool_min_two": "В пуле должно быть не меньше двух маркетплейсов — пул из одного не допускается (ТЗ 004 §2). Сейчас выбран {n}: добавьте ещё маркетплейс. Если пул больше не нужен, закройте участие всем и удалите сам пул.",
+        "pool_min_two_zero": "В пуле должно быть не меньше двух маркетплейсов — пул из одного не допускается (ТЗ 004 §2). Не выбрано ни одного: выберите минимум два. Чтобы распустить пул, удалите его целиком.",
         "pool_deleted": "Пул удалён", "pool_empty_name": "Укажи название пула",
         "norm_hint": "Норматив покрытия в днях по SKU для маркетплейса или пула. "
                      "Минимум ≤ цель ≤ максимум.",
@@ -535,6 +537,8 @@ TR = {
         "pool_from": "Діє з", "pool_to": "Діє по (порожньо — безстроково)",
         "pool_save": "💾 Зберегти склад", "pool_none": "Пулів поки немає — створи перший",
         "pool_conflict": "Уже в іншому пулі: {mp}", "pool_created": "Пул створено",
+        "pool_min_two": "У пулі має бути не менше двох маркетплейсів — пул з одного не допускається (ТЗ 004 §2). Зараз обрано {n}: додайте ще маркетплейс. Якщо пул більше не потрібен, закрийте участь усім і видаліть сам пул.",
+        "pool_min_two_zero": "У пулі має бути не менше двох маркетплейсів — пул з одного не допускається (ТЗ 004 §2). Не обрано жодного: виберіть щонайменше два. Щоб розпустити пул, видаліть його повністю.",
         "pool_deleted": "Пул видалено", "pool_empty_name": "Вкажи назву пулу",
         "norm_hint": "Норматив покриття в днях по SKU для маркетплейсу або пулу. "
                      "Мінімум ≤ ціль ≤ максимум.",
@@ -804,6 +808,8 @@ TR = {
         "pool_from": "Valid from", "pool_to": "Valid to (empty — open-ended)",
         "pool_save": "💾 Save members", "pool_none": "No pools yet — create the first one",
         "pool_conflict": "Already in another pool: {mp}", "pool_created": "Pool created",
+        "pool_min_two": "A pool needs at least two marketplaces — a pool of one is not allowed (spec 004 §2). Only {n} selected: add another marketplace. If the pool is no longer needed, close every membership and delete the pool itself.",
+        "pool_min_two_zero": "A pool needs at least two marketplaces — a pool of one is not allowed (spec 004 §2). None selected: pick at least two. To dissolve the pool, delete it entirely.",
         "pool_deleted": "Pool deleted", "pool_empty_name": "Enter a pool name",
         "norm_hint": "Coverage norm in days per SKU for a marketplace or pool. "
                      "Min ≤ target ≤ max.",
@@ -1637,6 +1643,13 @@ def _section_pool():
 
             if st.button(_tr("pool_save"), key=f"ps_{sel_pool}", type="primary"):
                 picked_ids = [label_mp[p] for p in picked]
+                # ТЗ 004 §2: пул из одного маркетплейса не допускается, и §6: действующим пул считается,
+                # пока у него не меньше двух действующих связей. Проверяем ДО записи: иначе сохранение
+                # оставило бы пул с одним участником, и он тихо перестал бы быть пулом — прогноз пула
+                # это сумма участников, то есть превратился бы в прогноз одного маркетплейса.
+                if len(picked_ids) < 2:
+                    st.error(_tr("pool_min_two_zero") if not picked_ids else _trf("pool_min_two", n=len(picked_ids)))
+                    st.stop()
                 busy = q(f"""
                     SELECT pm.marketplace_id
                     FROM kabinet_data.pool_members pm
