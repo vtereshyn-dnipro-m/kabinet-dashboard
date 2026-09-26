@@ -22,8 +22,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+import data_passport as passport
+
 st.title(t("ro.title"))
 st.caption(t("ro.caption"))
+passport.banner("reorder")
 
 
 def clean_sku(sku: str) -> str:
@@ -174,11 +177,13 @@ ordered = df[df["order_status"] == "ordered"]
 c1, c2, c3, c4 = st.columns(4)
 crit = active[active["urgency"] == "critical"]
 warn = active[active["urgency"] == "warning"]
-c1.metric(t("ro.kpi.critical"), len(crit), help=t("ro.kpi.critical_help"))
-c2.metric(t("ro.kpi.warning"), len(warn))
+c1.metric(t("ro.kpi.critical"), len(crit),
+          help=passport.tip("reorder", "critical", t("ro.kpi.critical_help")))
+c2.metric(t("ro.kpi.warning"), len(warn), help=passport.tip("reorder", "warning"))
 c3.metric(t("ro.kpi.total_qty"),
-          int(active.loc[active["urgency"] != "ok", "suggested_qty"].sum()))
-c4.metric(t("ro.kpi.sku_controlled"), len(df))
+          int(active.loc[active["urgency"] != "ok", "suggested_qty"].sum()),
+          help=passport.tip("reorder", "qty"))
+c4.metric(t("ro.kpi.sku_controlled"), len(df), help=passport.tip("reorder", "controlled"))
 
 st.divider()
 
@@ -268,9 +273,11 @@ if not active_tr.empty:
 
     # мини-сводка по типу источника
     s1, s2, s3 = st.columns(3)
-    s1.metric(t("ro.tr.from_own"), n_erp, help=t("ro.tr.from_own_help"))
-    s2.metric(t("ro.tr.from_fba"), n_fba)
-    s3.metric(t("ro.tr.total_qty"), int(active_tr["transfer_qty"].sum()))
+    s1.metric(t("ro.tr.from_own"), n_erp,
+              help=passport.tip("reorder", "tr_own", t("ro.tr.from_own_help")))
+    s2.metric(t("ro.tr.from_fba"), n_fba, help=passport.tip("reorder", "tr_fba"))
+    s3.metric(t("ro.tr.total_qty"), int(active_tr["transfer_qty"].sum()),
+              help=passport.tip("reorder", "tr_qty"))
 
     tr = active_tr.copy()
     tr["sku_display"] = tr["sku"].apply(clean_sku)
@@ -510,3 +517,5 @@ if not ordered.empty:
 
 with st.expander(t("ro.how.title")):
     st.markdown(t("ro.how.body"))
+
+passport.footer("reorder")
