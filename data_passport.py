@@ -97,18 +97,32 @@ def _state(page: str) -> pd.DataFrame:
             """SELECT replace(table_name, 'kabinet_data.', '') AS tbl,
                       COALESCE(max_content_age_hours, max_age_hours) AS max_age_h
                FROM kabinet_data.data_freshness_rules WHERE is_active""", conn)
+        # последнее звено: откуда загрузчик берёт данные у площадки и как часто она их обновляет.
+        # Живёт в своей таблице, потому что data_freshness_rules принадлежит владельцу базы —
+        # колонок туда роль Кабинета не добавит
+        origins = pd.read_sql(
+            """SELECT replace(table_name, 'kabinet_data.', '') AS tbl,
+                      platform_source, platform_refresh, our_refresh, verdict, note
+               FROM kabinet_data.data_source_origins""", conn)
     except Exception as e:                      # паспорт не имеет права ронять страницу
         return pd.DataFrame({"key": [s.key for s in srcs], "error": str(e)[:200]})
     finally:
         conn.close()
 
     thr = {r.tbl: r.max_age_h for r in rules.itertuples() if r.max_age_h}
+    org = {r.tbl: r for r in origins.itertuples()}
     rows = []
     for s in srcs:
         r = df[df["key"] == s.key]
         limit = thr.get(s.table)
+        o = org.get(s.table)
         rows.append({
             "key": s.key, "table": s.table, "anchor": s.anchor, "loader": s.loader,
+            "platform_source": (o.platform_source if o else None),
+            "platform_refresh": (o.platform_refresh if o else None),
+            "our_refresh": (o.our_refresh if o else None),
+            "verdict": (o.verdict if o else None),
+            "origin_note": (o.note if o else None),
             "as_of": (r["as_of"].iloc[0] if len(r) and r["as_of"].iloc[0] else None),
             "age_h": (float(r["age_h"].iloc[0]) if len(r) and pd.notna(r["age_h"].iloc[0]) else None),
             "limit_h": limit or s.default_max_age_h,
@@ -149,8 +163,16 @@ def tip(page: str, metric_key: str, base: str = "") -> str:
         (s.key, s.feeds) for s in PAGES[page]).get(r.key, ())]
     if not used:
         return base
-    lines = [t("passport.tip_line", src=t(f"passport.src.{r.key}"), date=_fmt_date(r.as_of),
-               loader=r.loader) for r in used]
+    lines = []
+    for r in used:
+        line = t("passport.tip_line", src=t(f"passport.src.{r.key}"), date=_fmt_date(r.as_of),
+                 loader=r.loader)
+        # у площадки данные обновляются со своей частотой, и подпись должна называть её:
+        # «данные по 25.09» без этого читается как «в источнике больше ничего нет»
+        if r.platform_source:
+            line += " " + t("passport.tip_origin", origin=r.platform_source,
+                            refresh=r.platform_refresh)
+        lines.append(line)
     tail = t("passport.tip_head") + "\n" + "\n".join(f"- {x}" for x in lines)
     return (base + "\n\n" + tail) if base else tail
 
@@ -199,6 +221,16 @@ def footer(page: str) -> None:
                 (f"{int(r.limit_h)} " + (t("passport.limit_db") if r.limit_from_db else t("passport.limit_code")))
                 if r.watch else t("passport.limit_none")
                 for r in st_.itertuples()],
+            t("passport.col_origin"): [r.platform_source or "—" for r in st_.itertuples()],
+            t("passport.col_platform_refresh"): [r.platform_refresh or "—" for r in st_.itertuples()],
+            t("passport.col_our_refresh"): [r.our_refresh or r.loader for r in st_.itertuples()],
+            # расхождение частот — то, что иначе не видно ниоткуда: тянем чаще площадки — лишние
+            # запросы к общей квоте, реже — цифры могут отставать, и человек должен знать насколько
+            t("passport.col_verdict"): [
+                {"we_pull_more": "⚠️ " + t("passport.v_more"),
+                 "we_pull_less": "⏳ " + t("passport.v_less"),
+                 "ok": t("passport.v_ok")}.get(r.verdict, "—")
+                for r in st_.itertuples()],
             t("passport.col_loader"): [r.loader for r in st_.itertuples()],
             t("passport.col_state"): [
                 ("🔴 " + t("passport.state_absent")) if r.absent
@@ -208,3 +240,7 @@ def footer(page: str) -> None:
         })
         st.dataframe(view, hide_index=True, use_container_width=True,
                      height=min(420, 38 + 35 * len(view)))
+        st.caption(t("passport.verdict_hint"))
+        notes = [(t(f"passport.src.{r.key}"), r.origin_note) for r in st_.itertuples() if r.origin_note]
+        if notes:
+            st.markdown("\n".join(f"- **{n}** — {x}" for n, x in notes))
