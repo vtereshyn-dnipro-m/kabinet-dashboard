@@ -101,6 +101,49 @@ TR = {
         "up_nothing": "Загружать нечего: значения источника совпадают с документом.",
         "up_read_fail": "Источник не прочитан: {e}", "up_gs_fail": "Google Таблица недоступна: {e}",
         "liq_note": "распродажа по прежнему допуску", "src_file": "загрузка из файла", "src_gsheet": "загрузка из Google Таблицы",
+        # ── изменение состава пула: пересоздание и общая замена ──
+        "tab_repl": "Замена после изменения пула",
+        "col_recreate": "Пересоздание", "recreate_needed": "требуется",
+        "recreate_banner": "Состав пула изменился: {what}. Прежний прогноз продолжает действовать, "
+                 "но поодиночке этот документ больше не проводится — замена выполняется целиком на вкладке «{tab}».",
+        "repl_help": "Изменение состава пула само по себе прогнозы не переключает: до общей замены отчёты и обеспечение "
+                 "живут на прежних прогнозах и сохранённом в них составе. Вышедший маркетплейс продолжает считаться в прогнозе пула, "
+                 "добавленный прежним прогнозом пула не покрывается. Переключение происходит одним действием: либо все новые документы "
+                 "проводятся сразу, либо не проводится ни один.",
+        "repl_none": "Составы пулов совпадают с действующими прогнозами — пересоздавать нечего.",
+        "repl_hdr": "Пул «{pool}»", "repl_what": "{what}. Документ {n}: состав в прогнозе — {was}; состав пула сейчас — {now}.",
+        "repl_scope": "Заменяются {rows} действующих записей с {m}; прошедшие месяцы не меняются.",
+        "repl_pick_pool": "Новый прогноз пула «{pool}»", "repl_pick_mp": "Новый прогноз {mp}",
+        "repl_none_pick": "— не выбран —",
+        "repl_role_removed": "вышел из пула", "repl_role_added": "добавлен в пул",
+        "repl_mp_active": "работает", "repl_mp_inactive": "деактивирован",
+        "repl_reason_mp": "Причина прекращения прогноза {mp}", "repl_reason_ph": "почему прогноз прекращает действие",
+        "repl_added_hint": "покрывается новым прогнозом пула; его собственный прогноз этой же операцией перестанет действовать",
+        "repl_disbanded_hint": "В пуле не осталось участников: новый прогноз пула не нужен — нужны прогнозы продолжающих работу маркетплейсов или причины прекращения.",
+        "repl_reason": "Причина изменения состава (попадёт в историю)",
+        "repl_m_docs": "Документов", "repl_m_sup": "Записей к замене", "repl_m_term": "Записей к прекращению",
+        "repl_blocked": "Замена не выполняется, причин {n}:",
+        "repl_ready": "Проверки пройдены: можно выполнять замену.",
+        "repl_need_op_reason": "Укажите причину изменения состава.",
+        "repl_confirm": "Замена необратима: документов {d}, записей к замене {s}, к прекращению {t}. Нажмите «Да, заменить».",
+        "repl_btn": "Заменить прогнозы после изменения пула", "repl_btn_confirm": "Да, заменить",
+        "repl_done": "Замена {op} выполнена: проведено документов {d}, заменено записей {s}, прекращено {t}.",
+        "repl_dd_err": "Зависимая потребность пересчитана не полностью: {e}",
+        "repl_hist": "Выполненные замены", "repl_hist_empty": "Замен пока не было.",
+        "repl_c_at": "Когда", "repl_c_what": "Что изменилось", "repl_c_reason": "Причина",
+        "repl_no_doc": "Документ {d} не найден.", "repl_not_draft": "{n}: документ уже не черновик.",
+        "repl_no_comment": "{n}: в комментарии документа нужна причина пересоздания.",
+        "repl_stale_snapshot": "{n}: документ создан с прежним составом ({was}), а в пуле сейчас {now} — создайте новый документ.",
+        "repl_doc_empty": "{n}: в документе нет строк.",
+        "repl_need_doc": "{mp} продолжает работу — нужен новый прогноз: свой или в составе актуального пула.",
+        "repl_need_reason": "{mp} деактивирован — вместо нового прогноза укажите причину прекращения.",
+        "repl_double": "{mp} попадёт разом в свой прогноз и в прогноз пула {n} — оставьте один источник.",
+        "repl_uncovered": "Не покрыто новыми прогнозами записей: {n} ({cells}). Либо добавьте их в новые документы, либо укажите причину прекращения.",
+        "repl_race": "Состав пула изменился, пока готовилась замена — проверьте заново.",
+        "drift_disbanded": "пул расформирован", "drift_removed": "из пула вышли: {mps}", "drift_added": "в пул добавлены: {mps}",
+        "drift_block_pool": "Состав пула «{pool}» изменился: документ проводится только общей заменой на вкладке «Замена после изменения пула».",
+        "drift_block_mp": "Маркетплейс затронут изменением состава пула ({pools}): документ проводится только общей заменой.",
+        "drift_block_member": "Маркетплейс входит в пул ({pools}), состав которого изменился: документ проводится только общей заменой.",
         "sec_actions": "Действия", "pick_skus": "SKU", "pick_months": "Месяцы", "all_skus": "все SKU", "all_months": "все месяцы",
         "btn_approve": "Утвердить", "btn_unapprove": "Снять утверждение", "btn_zeros": "Пустоты → 0", "btn_delete": "Удалить строки",
         "approved_n": "Утверждено ячеек: {n}.", "approve_empty": "Не утверждено — пустые ячейки: {cells}",
@@ -203,6 +246,49 @@ TR = {
         "up_nothing": "Завантажувати нічого: значення джерела збігаються з документом.",
         "up_read_fail": "Джерело не прочитано: {e}", "up_gs_fail": "Google Таблиця недоступна: {e}",
         "liq_note": "розпродаж за колишнім допуском", "src_file": "завантаження з файлу", "src_gsheet": "завантаження з Google Таблиці",
+        # ── зміна складу пулу: перестворення і спільна заміна ──
+        "tab_repl": "Заміна після зміни пулу",
+        "col_recreate": "Перестворення", "recreate_needed": "потрібне",
+        "recreate_banner": "Склад пулу змінився: {what}. Попередній прогноз далі чинний, "
+                 "але окремо цей документ більше не проводиться — заміна виконується цілком на вкладці «{tab}».",
+        "repl_help": "Зміна складу пулу сама собою прогнози не переключає: до спільної заміни звіти й забезпечення "
+                 "живуть на попередніх прогнозах і збереженому в них складі. Маркетплейс, що вийшов, далі рахується у прогнозі пулу, "
+                 "доданий попереднім прогнозом пулу не покривається. Переключення відбувається однією дією: або всі нові документи "
+                 "проводяться разом, або не проводиться жоден.",
+        "repl_none": "Склади пулів збігаються з чинними прогнозами — перестворювати нічого.",
+        "repl_hdr": "Пул «{pool}»", "repl_what": "{what}. Документ {n}: склад у прогнозі — {was}; склад пулу зараз — {now}.",
+        "repl_scope": "Замінюються {rows} чинних записів з {m}; минулі місяці не змінюються.",
+        "repl_pick_pool": "Новий прогноз пулу «{pool}»", "repl_pick_mp": "Новий прогноз {mp}",
+        "repl_none_pick": "— не вибрано —",
+        "repl_role_removed": "вийшов з пулу", "repl_role_added": "доданий до пулу",
+        "repl_mp_active": "працює", "repl_mp_inactive": "деактивований",
+        "repl_reason_mp": "Причина припинення прогнозу {mp}", "repl_reason_ph": "чому прогноз припиняє дію",
+        "repl_added_hint": "покривається новим прогнозом пулу; його власний прогноз цією ж операцією перестане діяти",
+        "repl_disbanded_hint": "У пулі не залишилося учасників: новий прогноз пулу не потрібен — потрібні прогнози маркетплейсів, що продовжують роботу, або причини припинення.",
+        "repl_reason": "Причина зміни складу (потрапить в історію)",
+        "repl_m_docs": "Документів", "repl_m_sup": "Записів до заміни", "repl_m_term": "Записів до припинення",
+        "repl_blocked": "Заміна не виконується, причин {n}:",
+        "repl_ready": "Перевірки пройдено: можна виконувати заміну.",
+        "repl_need_op_reason": "Вкажіть причину зміни складу.",
+        "repl_confirm": "Заміна незворотна: документів {d}, записів до заміни {s}, до припинення {t}. Натисніть «Так, замінити».",
+        "repl_btn": "Замінити прогнози після зміни пулу", "repl_btn_confirm": "Так, замінити",
+        "repl_done": "Заміну {op} виконано: проведено документів {d}, замінено записів {s}, припинено {t}.",
+        "repl_dd_err": "Залежну потребу перераховано не повністю: {e}",
+        "repl_hist": "Виконані заміни", "repl_hist_empty": "Замін ще не було.",
+        "repl_c_at": "Коли", "repl_c_what": "Що змінилося", "repl_c_reason": "Причина",
+        "repl_no_doc": "Документ {d} не знайдено.", "repl_not_draft": "{n}: документ уже не чернетка.",
+        "repl_no_comment": "{n}: у комментарі документа потрібна причина перестворення.",
+        "repl_stale_snapshot": "{n}: документ створено з попереднім складом ({was}), а в пулі зараз {now} — створіть новий документ.",
+        "repl_doc_empty": "{n}: у документі немає рядків.",
+        "repl_need_doc": "{mp} продовжує роботу — потрібен новий прогноз: власний або у складі актуального пулу.",
+        "repl_need_reason": "{mp} деактивований — замість нового прогнозу вкажіть причину припинення.",
+        "repl_double": "{mp} потрапить разом у власний прогноз і в прогноз пулу {n} — залиште одне джерело.",
+        "repl_uncovered": "Не покрито новими прогнозами записів: {n} ({cells}). Або додайте їх у нові документи, або вкажіть причину припинення.",
+        "repl_race": "Склад пулу змінився, поки готувалася заміна — перевірте знову.",
+        "drift_disbanded": "пул розформовано", "drift_removed": "з пулу вийшли: {mps}", "drift_added": "до пулу додані: {mps}",
+        "drift_block_pool": "Склад пулу «{pool}» змінився: документ проводиться лише спільною заміною на вкладці «Заміна після зміни пулу».",
+        "drift_block_mp": "Маркетплейс зачеплений зміною складу пулу ({pools}): документ проводиться лише спільною заміною.",
+        "drift_block_member": "Маркетплейс входить у пул ({pools}), склад якого змінився: документ проводиться лише спільною заміною.",
         "sec_actions": "Дії", "pick_skus": "SKU", "pick_months": "Місяці", "all_skus": "усі SKU", "all_months": "усі місяці",
         "btn_approve": "Затвердити", "btn_unapprove": "Зняти затвердження", "btn_zeros": "Порожні → 0", "btn_delete": "Видалити рядки",
         "approved_n": "Затверджено клітинок: {n}.", "approve_empty": "Не затверджено — порожні клітинки: {cells}",
@@ -305,6 +391,49 @@ TR = {
         "up_nothing": "Nothing to upload: the source matches the document.",
         "up_read_fail": "Source not read: {e}", "up_gs_fail": "Google Sheet unavailable: {e}",
         "liq_note": "liquidation under the former admission", "src_file": "file upload", "src_gsheet": "Google Sheet upload",
+        # ── pool composition change: re-creation and joint replacement ──
+        "tab_repl": "Replacement after a pool change",
+        "col_recreate": "Re-creation", "recreate_needed": "required",
+        "recreate_banner": "The pool composition changed: {what}. The previous forecast stays effective, "
+                 "but this document can no longer be posted on its own — the replacement happens as a whole on the \u00ab{tab}\u00bb tab.",
+        "repl_help": "A pool composition change does not switch forecasts by itself: until the joint replacement, reports and coverage "
+                 "use the previously effective forecasts and the composition stored in them. A marketplace that left still counts in the pool forecast, "
+                 "and a newly added one is not covered by the pool's old forecast. The switch happens in one action: either every new document "
+                 "is posted at once, or none is.",
+        "repl_none": "Pool compositions match the effective forecasts — nothing to re-create.",
+        "repl_hdr": "Pool \u00ab{pool}\u00bb", "repl_what": "{what}. Document {n}: composition in the forecast — {was}; pool composition now — {now}.",
+        "repl_scope": "{rows} effective records from {m} will be replaced; past months stay unchanged.",
+        "repl_pick_pool": "New forecast for pool \u00ab{pool}\u00bb", "repl_pick_mp": "New forecast for {mp}",
+        "repl_none_pick": "— not picked —",
+        "repl_role_removed": "left the pool", "repl_role_added": "added to the pool",
+        "repl_mp_active": "operating", "repl_mp_inactive": "deactivated",
+        "repl_reason_mp": "Reason the {mp} forecast ends", "repl_reason_ph": "why the forecast stops being effective",
+        "repl_added_hint": "covered by the new pool forecast; its own forecast stops being effective in this same operation",
+        "repl_disbanded_hint": "No members left in the pool: a new pool forecast is not needed — forecasts for the marketplaces that keep operating are, or reasons for ending them.",
+        "repl_reason": "Reason for the composition change (kept in history)",
+        "repl_m_docs": "Documents", "repl_m_sup": "Records to replace", "repl_m_term": "Records to end",
+        "repl_blocked": "The replacement is blocked, {n} reasons:",
+        "repl_ready": "Checks passed: the replacement can run.",
+        "repl_need_op_reason": "State the reason for the composition change.",
+        "repl_confirm": "The replacement cannot be undone: {d} documents, {s} records replaced, {t} ended. Press Yes, replace.",
+        "repl_btn": "Replace forecasts after the pool change", "repl_btn_confirm": "Yes, replace",
+        "repl_done": "Replacement {op} done: {d} documents posted, {s} records replaced, {t} ended.",
+        "repl_dd_err": "Dependent demand was not fully recalculated: {e}",
+        "repl_hist": "Replacements done", "repl_hist_empty": "No replacements yet.",
+        "repl_c_at": "When", "repl_c_what": "What changed", "repl_c_reason": "Reason",
+        "repl_no_doc": "Document {d} not found.", "repl_not_draft": "{n}: the document is no longer a draft.",
+        "repl_no_comment": "{n}: the document comment must state the reason for re-creation.",
+        "repl_stale_snapshot": "{n}: the document was created with the former composition ({was}) while the pool now holds {now} — create a new document.",
+        "repl_doc_empty": "{n}: the document has no rows.",
+        "repl_need_doc": "{mp} keeps operating — it needs a new forecast: its own or within a current pool.",
+        "repl_need_reason": "{mp} is deactivated — instead of a new forecast, state why its forecast ends.",
+        "repl_double": "{mp} would count both in its own forecast and in pool forecast {n} — leave one source.",
+        "repl_uncovered": "{n} records are not covered by new forecasts ({cells}). Either add them to the new documents or state why they end.",
+        "repl_race": "The pool composition changed while the replacement was being prepared — check again.",
+        "drift_disbanded": "the pool was disbanded", "drift_removed": "left the pool: {mps}", "drift_added": "added to the pool: {mps}",
+        "drift_block_pool": "The composition of pool \u00ab{pool}\u00bb changed: the document is posted only through the joint replacement on the Replacement after a pool change tab.",
+        "drift_block_mp": "This marketplace is affected by a pool composition change ({pools}): the document is posted only through the joint replacement.",
+        "drift_block_member": "This marketplace belongs to a pool whose composition changed ({pools}): the document is posted only through the joint replacement.",
         "sec_actions": "Actions", "pick_skus": "SKUs", "pick_months": "Months", "all_skus": "all SKUs", "all_months": "all months",
         "btn_approve": "Approve", "btn_unapprove": "Unapprove", "btn_zeros": "Empty → 0", "btn_delete": "Delete rows",
         "approved_n": "Approved cells: {n}.", "approve_empty": "Not approved — empty cells: {cells}",
@@ -1098,6 +1227,303 @@ def post_document(doc, rows: pd.DataFrame) -> tuple:
     return tx(_do)
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# ИЗМЕНЕНИЕ СОСТАВА ПУЛА: ПЕРЕСОЗДАНИЕ И ОБЩАЯ ЗАМЕНА (§12, §21)
+# ═══════════════════════════════════════════════════════════════════════════
+# Само изменение состава пула ничего не переключает: до общей замены отчёты и обеспечение живут на
+# прежних прогнозах и сохранённом в них составе. Вышедший маркетплейс продолжает считаться в
+# прогнозе пула, а добавленный прежним прогнозом пула не покрывается — у него свой, если он есть.
+#
+# Индикатор «Требуется пересоздание» не хранится, а считается вью `v_forecast_pool_drift`
+# (сравнение сохранённого в документе состава с действующим) — почему именно так, написано в
+# `sql/forecast_pool_replacement_2026-09-26.sql`.
+
+
+def pool_drift() -> pd.DataFrame:
+    """Документы пулов, чей сохранённый состав разошёлся с действующим. Не кешируем: вью читает
+    десяток строк, а устаревший на минуту индикатор после замены смущал бы сильнее."""
+    return q("""SELECT document_id, number, pool_id, pool_name, snapshot_ids, current_ids,
+                       added_ids, removed_ids, disbanded, rows_ahead, first_month_ahead
+                FROM kabinet_data.v_forecast_pool_drift ORDER BY pool_id, document_id""")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def mp_meta() -> pd.DataFrame:
+    return q("SELECT id, code, is_active FROM kabinet_data.marketplaces_new")
+
+
+def mp_name(mp) -> str:
+    d = mp_meta()
+    hit = d[d["id"] == int(mp)]
+    return str(hit.iloc[0]["code"]) if len(hit) else str(mp)
+
+
+def mp_is_active(mp) -> bool:
+    d = mp_meta()
+    hit = d[d["id"] == int(mp)]
+    return bool(hit.iloc[0]["is_active"]) if len(hit) else True
+
+
+def _ids(v) -> set:
+    return {int(x) for x in (v if v is not None else [])}
+
+
+def drift_marketplaces(drift: pd.DataFrame) -> set:
+    """Маркетплейсы, затронутые изменением состава: и вышедшие, и добавленные."""
+    out = set()
+    for r in drift.itertuples():
+        out |= _ids(r.added_ids) | _ids(r.removed_ids)
+    return out
+
+
+def drift_text(r) -> str:
+    """Что изменилось — словами: и для индикатора, и как заготовка причины операции."""
+    parts = []
+    if r.disbanded:
+        parts.append(_tr("drift_disbanded"))
+    if len(r.removed_ids or []):
+        parts.append(_trf("drift_removed", mps=", ".join(mp_name(x) for x in r.removed_ids)))
+    if len(r.added_ids or []):
+        parts.append(_trf("drift_added", mps=", ".join(mp_name(x) for x in r.added_ids)))
+    return "; ".join(parts)
+
+
+def blocked_by_drift(doc, drift: pd.DataFrame) -> str:
+    """§21: обычное проведение документа, который переключил бы источник покрытия затронутых
+    маркетплейсов, запрещено — такой документ вводится в действие только общей заменой.
+
+    Проверка одна и та же для сценария 8 (обычное проведение) и 20 (последовательная замена):
+    отдельное проведение не должно обходить общую замену, иначе один и тот же маркетплейс за те же
+    SKU и месяцы окажется разом и в прежнем прогнозе пула, и в новом."""
+    if drift.empty:
+        return ""
+    if doc["object_type"] == "pool":
+        hit = drift[drift["pool_id"] == int(doc["object_id"])]
+        if len(hit):
+            return _trf("drift_block_pool", pool=hit.iloc[0]["pool_name"])
+        return ""
+    mp = int(doc["object_id"])
+    pools = sorted({r.pool_name for r in drift.itertuples() if mp in _ids(r.added_ids) | _ids(r.removed_ids)})
+    if pools:
+        return _trf("drift_block_mp", pools=", ".join(pools))
+    # участник пула, состав которого поменялся: его покрытие переключается той же общей заменой
+    still = q("""SELECT DISTINCT p.name FROM kabinet_data.pool_members m
+                 JOIN kabinet_data.pools p ON p.id = m.pool_id
+                 WHERE m.marketplace_id = %s AND m.valid_from <= current_date
+                   AND (m.valid_to IS NULL OR m.valid_to > current_date) AND m.pool_id = ANY(%s)""",
+              (mp, [int(x) for x in drift["pool_id"]]))
+    return _trf("drift_block_member", pools=", ".join(still["name"])) if len(still) else ""
+
+
+def object_drafts(object_type: str, object_id: int) -> pd.DataFrame:
+    return q("""SELECT id, number, comment FROM kabinet_data.forecast_documents
+                WHERE status = 'draft' AND object_type = %s AND object_id = %s ORDER BY id DESC""",
+             (object_type, int(object_id)))
+
+
+def old_records(object_type: str, object_id: int) -> pd.DataFrame:
+    """Действующие записи объекта за текущий и будущие месяцы — заменяются только они.
+    Прошедшие месяцы и сохранённый для них состав пула этой операцией не меняются (§21)."""
+    d = q("""SELECT id, sku, month, document_id, version FROM kabinet_data.forecast_register
+             WHERE record_type = 'sales' AND is_current AND object_type = %s AND object_id = %s
+               AND month >= date_trunc('month', current_date)""", (object_type, int(object_id)))
+    if not d.empty:
+        d["month"] = pd.to_datetime(d["month"]).dt.date
+    return d
+
+
+def replacement_plan(drift_row, picks: dict, terminations: dict) -> dict:
+    """Собрать и проверить общую замену до записи (§21). `picks` — объект → id подготовленного
+    черновика, `terminations` — маркетплейс → причина прекращения."""
+    pool_id = int(drift_row.pool_id)
+    snapshot, current = _ids(drift_row.snapshot_ids), _ids(drift_row.current_ids)
+    removed, added = sorted(snapshot - current), sorted(current - snapshot)
+    problems, docs = [], {}
+
+    # 1. Выбранные документы: черновик, с причиной в комментарии (§12), прошедший проверки проведения
+    for (otype, oid), did in picks.items():
+        if not did:
+            continue
+        d = q("""SELECT id, number, object_type, object_id, status, comment, completeness,
+                        first_month, last_month, pool_snapshot
+                 FROM kabinet_data.forecast_documents WHERE id = %s""", (int(did),))
+        if d.empty:
+            problems.append(_trf("repl_no_doc", d=did)); continue
+        d = d.iloc[0]
+        if d["status"] != "draft":
+            problems.append(_trf("repl_not_draft", n=d["number"])); continue
+        if not str(d["comment"] or "").strip():
+            problems.append(_trf("repl_no_comment", n=d["number"]))
+        if d["object_type"] == "pool":
+            snap = _ids(json.loads(d["pool_snapshot"]) if isinstance(d["pool_snapshot"], str) else d["pool_snapshot"])
+            if snap != current:
+                # документ, созданный до изменения состава, замену не закрывает: в нём прежний состав
+                problems.append(_trf("repl_stale_snapshot", n=d["number"],
+                                     was=", ".join(mp_name(x) for x in sorted(snap)) or "—",
+                                     now=", ".join(mp_name(x) for x in sorted(current)) or "—"))
+        rows = load_rows(int(did))
+        if rows.empty:
+            problems.append(_trf("repl_doc_empty", n=d["number"])); continue
+        rows["month"] = pd.to_datetime(rows["month"]).dt.date
+        act, former = admitted_skus(d["object_type"], int(d["object_id"]), d["pool_snapshot"])
+        problems += [f"{d['number']}: {p}" for p in post_checks(d.to_dict(), rows, act, former)]
+        docs[(d["object_type"], int(d["object_id"]))] = (d, rows)
+
+    # 2. Все продолжающие работу затронутые маркетплейсы обеспечены новым прогнозом (§21);
+    #    деактивированному новый прогноз не нужен, нужна причина прекращения
+    member_of = {}
+    if removed:
+        mem = q("""SELECT marketplace_id, pool_id FROM kabinet_data.pool_members
+                   WHERE marketplace_id = ANY(%s) AND valid_from <= current_date
+                     AND (valid_to IS NULL OR valid_to > current_date)""", (removed,))
+        member_of = {int(r.marketplace_id): int(r.pool_id) for r in mem.itertuples()}
+    for mp in removed:
+        if not mp_is_active(mp):
+            if not str(terminations.get(mp, "")).strip():
+                problems.append(_trf("repl_need_reason", mp=mp_name(mp)))
+        elif ("marketplace", mp) not in docs and ("pool", member_of.get(mp, -1)) not in docs:
+            problems.append(_trf("repl_need_doc", mp=mp_name(mp)))
+
+    # 3. Один и тот же маркетплейс не считается дважды — и в новом прогнозе пула, и в своём (§21)
+    if ("pool", pool_id) in docs:
+        for otype, oid in docs:
+            if otype == "marketplace" and oid in current:
+                problems.append(_trf("repl_double", mp=mp_name(oid), n=docs[("pool", pool_id)][0]["number"]))
+
+    # 4. Что заменяется: прогноз пула, прогнозы добавленных маркетплейсов (иначе двойной учёт рядом
+    #    с новым прогнозом пула) и прогнозы объектов, для которых заведён новый документ
+    new_cells, new_ids = {}, {}
+    for (otype, oid), (d, rows) in docs.items():
+        for r in rows.itertuples():
+            new_cells.setdefault((r.sku, r.month), []).append(int(r.id))
+    replace_objs = {("pool", pool_id)} | {("marketplace", mp) for mp in added} | set(docs)
+    supersede, terminate = [], []
+    for otype, oid in sorted(replace_objs):
+        for r in old_records(otype, oid).itertuples():
+            item = (otype, oid, int(r.id), r.sku, r.month, int(r.version or 1), int(r.document_id or 0))
+            (supersede if (r.sku, r.month) in new_cells else terminate).append(item)
+    if terminate and not any(str(v).strip() for v in terminations.values()):
+        cells = ", ".join(f"{s} · {month_label(m)}" for _, _, _, s, m, _, _ in terminate[:8])
+        problems.append(_trf("repl_uncovered", n=len(terminate), cells=cells + ("…" if len(terminate) > 8 else "")))
+    return {"problems": problems, "docs": docs, "supersede": supersede, "terminate": terminate,
+            "new_cells": new_cells, "removed": removed, "added": added, "current": sorted(current),
+            "summary": drift_text(drift_row)}
+
+
+def execute_replacement(drift_row, plan: dict, reason: str, terminations: dict) -> dict:
+    """§21: одна транзакция на всё. Либо все новые документы проведены и прежние записи стали
+    историческими, либо не введён в действие ни один — с отметкой «Требуется пересоздание» на
+    прежнем прогнозе. Промежуточного состояния быть не должно: в нём один и тот же маркетплейс
+    считался бы и в старом прогнозе, и в новом."""
+    actor, pool_id = _actor(), int(drift_row.pool_id)
+
+    def _do(cur):
+        # состав мог измениться, пока человек заполнял форму — перечитываем перед записью
+        cur.execute("""SELECT ARRAY(SELECT DISTINCT marketplace_id FROM kabinet_data.pool_members
+                         WHERE pool_id = %s AND valid_from <= current_date
+                           AND (valid_to IS NULL OR valid_to > current_date) ORDER BY 1)""", (pool_id,))
+        if set(cur.fetchone()[0] or []) != set(plan["current"]):
+            raise RuntimeError(_tr("repl_race"))
+        cur.execute("""INSERT INTO kabinet_data.forecast_replacements (pool_id, reason, change_summary, actor)
+                       VALUES (%s, %s, %s, %s) RETURNING id""",
+                    (pool_id, reason.strip(), plan["summary"], actor))
+        op_id = int(cur.fetchone()[0])
+        n_docs = n_sup = n_term = 0
+
+        # 1. Прежние записи снимаем ПЕРВЫМИ. Порядок здесь не вкусовой: частичный уникальный индекс
+        #    держит одну действующую запись на объект × SKU × месяц, и если сначала сделать
+        #    действующими новые, замена прогноза пула новым прогнозом того же пула упадёт на
+        #    нарушении уникальности. Ссылки в обе стороны: старая знает, чем заменена, новая — что
+        #    заменила (§21, история).
+        for otype, oid, rid, sku, m, ver, doc_id in plan["supersede"]:
+            new_ids = plan["new_cells"].get((sku, m), [])
+            cur.execute("""UPDATE kabinet_data.forecast_register
+                              SET is_current = FALSE, status = 'superseded', superseded_at = now(),
+                                  replaced_by = coalesce(replaced_by, '{}') || %s::bigint[]
+                            WHERE id = %s AND is_current""", (new_ids, int(rid)))
+            n_sup += cur.rowcount
+            for nid in new_ids:
+                cur.execute("""UPDATE kabinet_data.forecast_register
+                                  SET replaces = coalesce(replaces, '{}') || %s::bigint[], version = %s
+                                WHERE id = %s""", ([int(rid)], ver + 1, int(nid)))
+            # ТЗ 011: зависимые результаты заменённого прогноза выключаются сразу
+            cur.execute("""UPDATE kabinet_data.forecast_register
+                              SET is_current = FALSE, calculation_status = 'SUPERSEDED',
+                                  superseded_at = now(), changed_at = now()
+                            WHERE record_type = 'dependent' AND is_current AND source_forecast_id = %s""", (int(rid),))
+
+        # 2. Прекращение без нового прогноза — для деактивированного маркетплейса (§21): ссылки на
+        #    несуществующий документ не требуется, требуются причина и связь с операцией
+        why = "; ".join(f"{mp_name(mp)}: {str(txt).strip()}" for mp, txt in terminations.items() if str(txt).strip())
+        touched_docs = set()
+        for otype, oid, rid, sku, m, ver, doc_id in plan["terminate"]:
+            cur.execute("""UPDATE kabinet_data.forecast_register
+                              SET is_current = FALSE, status = 'superseded', superseded_at = now()
+                            WHERE id = %s AND is_current""", (int(rid),))
+            n_term += cur.rowcount
+            cur.execute("""UPDATE kabinet_data.forecast_register
+                              SET is_current = FALSE, calculation_status = 'SUPERSEDED',
+                                  superseded_at = now(), changed_at = now()
+                            WHERE record_type = 'dependent' AND is_current AND source_forecast_id = %s""", (int(rid),))
+            touched_docs.add(doc_id)
+        for doc_id in sorted(x for x in touched_docs if x):
+            log(cur, doc_id, None, None, "termination", "current", why or reason.strip(), f"replace:{op_id}", actor)
+        # причину пишем только если прекращать действительно было что: иначе в составе операции
+        # осталась бы строка «прекращено» на ноль записей — читалось бы как потеря прогноза
+        for mp, txt in (terminations.items() if plan["terminate"] else ()):
+            if str(txt).strip():
+                cur.execute("""INSERT INTO kabinet_data.forecast_replacement_items
+                                 (replacement_id, kind, object_type, object_id, marketplace_id,
+                                  termination_reason, rows_affected)
+                               VALUES (%s, 'termination', 'marketplace', %s, %s, %s, %s)""",
+                            (op_id, int(mp), int(mp), str(txt).strip(), n_term))
+
+        # 3. И только теперь вводим в действие новые документы — все сразу, как требует §21
+        for (otype, oid), (d, rows) in plan["docs"].items():
+            cur.execute("SELECT status FROM kabinet_data.forecast_documents WHERE id = %s FOR UPDATE", (int(d["id"]),))
+            if cur.fetchone()[0] != "draft":
+                raise RuntimeError(_trf("repl_not_draft", n=d["number"]))
+            for r in rows.itertuples():
+                cur.execute("""UPDATE kabinet_data.forecast_register SET is_current = TRUE, changed_at = now()
+                               WHERE id = %s AND status = 'approved' AND quantity IS NOT NULL""", (int(r.id),))
+            cur.execute("""UPDATE kabinet_data.forecast_documents
+                              SET status = 'posted', posted_by = %s, posted_at = now(), replacement_op_id = %s
+                            WHERE id = %s""", (actor, str(op_id), int(d["id"])))
+            log(cur, int(d["id"]), None, None, "document", "draft", "posted", f"replace:{op_id}", actor)
+            # ТЗ 011 §11: состав наборов фиксируется на момент проведения
+            cur.execute("""INSERT INTO kabinet_data.forecast_composition_snapshot (document_id, composite_sku, base_sku, quantity)
+                           SELECT %s, c.composite_sku, c.base_sku, c.quantity
+                           FROM kabinet_data.sku_composition c
+                           JOIN kabinet_data.sku_master m ON m.sku = c.composite_sku AND m.sku_type = 'composite'
+                           WHERE c.composite_sku = ANY(%s) ON CONFLICT DO NOTHING""",
+                        (int(d["id"]), list(rows["sku"].astype(str))))
+            cur.execute("""INSERT INTO kabinet_data.forecast_replacement_items
+                             (replacement_id, kind, object_type, object_id, new_document_id, rows_affected)
+                           VALUES (%s, 'document', %s, %s, %s, %s)""",
+                        (op_id, otype, int(oid), int(d["id"]), len(rows)))
+            n_docs += 1
+
+        cur.execute("""UPDATE kabinet_data.forecast_replacements
+                          SET documents = %s, superseded_rows = %s, terminated_rows = %s WHERE id = %s""",
+                    (n_docs, n_sup, n_term, op_id))
+
+        # 4. Зависимая потребность — по каждому объекту операции, на точке сохранения: сбой расчёта
+        #    не отменяет замену (бизнес-действие сделано и проверено), но и молчать о нём нельзя
+        dd_err = []
+        for otype, oid in sorted(set(plan["docs"]) | {("pool", pool_id)}):
+            cur.execute("SAVEPOINT dd")
+            try:
+                cur.execute("SELECT calculated, errors FROM kabinet_data.dependent_demand_rebuild(%s, %s)",
+                            (otype, int(oid)))
+                cur.fetchone()
+                cur.execute("RELEASE SAVEPOINT dd")
+            except Exception as e:
+                cur.execute("ROLLBACK TO SAVEPOINT dd")
+                dd_err.append(str(e).strip().splitlines()[0])
+        return {"op_id": op_id, "docs": n_docs, "superseded": n_sup, "terminated": n_term, "dd_err": dd_err}
+    return tx(_do)
+
+
 def flash(kind: str, text: str) -> None:
     """Сообщение после действия: st.rerun() стирает всё, что нарисовано до него, поэтому кладём в session_state
     и показываем при следующем прогоне над карточкой."""
@@ -1128,7 +1554,8 @@ except Exception as e:
     st.stop()
 
 obj_labels = {f"{r['object_type']}:{r['object_id']}": object_label(r) for _, r in objects.iterrows()}
-tab_docs, tab_new, tab_log = st.tabs([_tr("tab_docs"), _tr("tab_new"), _tr("tab_log")])
+tab_docs, tab_new, tab_repl, tab_log = st.tabs(
+    [_tr("tab_docs"), _tr("tab_new"), _tr("tab_repl"), _tr("tab_log")])
 
 # ───────────────────────────── новый документ ─────────────────────────────
 with tab_new:
@@ -1187,6 +1614,13 @@ with tab_docs:
             _tr("col_approved"): view["n_approved"], _tr("col_source"): view["source"], _tr("col_created_by"): view["created_by"],
             _tr("col_posted_at"): pd.to_datetime(view["posted_at"]).dt.strftime("%d.%m.%Y %H:%M").fillna("—"), _tr("col_comment"): view["comment"].fillna(""),
         })
+        # §12: индикатор «Требуется пересоздание» — у документов пула, чей сохранённый состав
+        # разошёлся с действующим. Он считается, а не хранится: гаснет сам после общей замены.
+        _drift = pool_drift()
+        if not _drift.empty:
+            _need = set(int(x) for x in _drift["document_id"])
+            show.insert(5, _tr("col_recreate"),
+                        [_tr("recreate_needed") if int(i) in _need else "" for i in view["id"]])
         st.dataframe(show, hide_index=True, use_container_width=True, height=min(420, 38 + 35 * len(show)))
 
     numbers = list(view["number"])
@@ -1228,6 +1662,12 @@ with tab_docs:
         h3.markdown(_trf("hdr_created", by=doc["created_by"], at=pd.Timestamp(doc["created_at"]).strftime("%d.%m.%Y %H:%M")))
         if doc["posted_at"] is not None and not pd.isna(doc["posted_at"]):
             h4.markdown(_trf("hdr_posted", by=doc["posted_by"], at=pd.Timestamp(doc["posted_at"]).strftime("%d.%m.%Y %H:%M")))
+        # §12: прежний документ, значения и исторический состав пула сохраняются — меняется только
+        # то, что по нему больше нельзя проводить поодиночке; заменяется он общей операцией
+        _dr = pool_drift()
+        _dr = _dr[_dr["document_id"] == int(doc["id"])] if not _dr.empty else _dr
+        if len(_dr):
+            st.warning(_trf("recreate_banner", what=drift_text(_dr.iloc[0]), tab=_tr("tab_repl")))
         else:
             h4.markdown(f"**{_tr('hdr_source')}**: {doc['source']}")
         if snap:
@@ -1562,6 +2002,11 @@ with tab_docs:
 
             st.markdown(f"##### {_tr('sec_post')}")
             problems = post_checks(doc, rows, active_matrix, former_matrix)
+            # §21: документ, переключающий покрытие затронутых изменением пула маркетплейсов,
+            # поодиночке не проводится — ни обычным проведением, ни последовательной заменой
+            _stop = blocked_by_drift(doc, pool_drift())
+            if _stop:
+                problems = [_stop] + problems
             if problems:
                 st.warning(_tr("post_block") + "\n\n" + "\n".join(f"- {p}" for p in problems))
             # проведение необратимо (проведённый документ не правится, §9) — два нажатия, как удаление в справочниках
@@ -1639,6 +2084,111 @@ with tab_docs:
                 st.dataframe(lg, hide_index=True, use_container_width=True, height=min(400, 38 + 35 * len(lg)))
 
 # ───────────────────────────── журнал ─────────────────────────────
+with tab_repl:
+    st.caption(_tr("repl_help"))
+    drift = pool_drift()
+    if drift.empty:
+        st.success(_tr("repl_none"))
+    for r in drift.itertuples():
+        st.divider()
+        st.subheader(_trf("repl_hdr", pool=r.pool_name))
+        st.warning(_trf("repl_what", what=drift_text(r), n=r.number,
+                        was=", ".join(mp_name(x) for x in r.snapshot_ids) or "—",
+                        now=", ".join(mp_name(x) for x in r.current_ids) or "—"))
+        st.caption(_trf("repl_scope", rows=int(r.rows_ahead),
+                        m=month_label(r.first_month_ahead) if r.first_month_ahead is not None else "—"))
+        removed = sorted(_ids(r.snapshot_ids) - _ids(r.current_ids))
+        added = sorted(_ids(r.current_ids) - _ids(r.snapshot_ids))
+        picks, terms = {}, {}
+
+        # Новый прогноз самого пула — когда в нём остались участники
+        if len(r.current_ids or []):
+            d_pool = object_drafts("pool", int(r.pool_id))
+            opts = [0] + [int(x) for x in d_pool["id"]]
+            picks[("pool", int(r.pool_id))] = st.selectbox(
+                _trf("repl_pick_pool", pool=r.pool_name), opts,
+                format_func=lambda i: _tr("repl_none_pick") if i == 0
+                else str(d_pool[d_pool["id"] == i].iloc[0]["number"]),
+                key=f"fc_rp_pool_{r.document_id}")
+        else:
+            st.info(_tr("repl_disbanded_hint"))
+
+        # Затронутые маркетплейсы: продолжающим — новый прогноз, деактивированным — причина
+        for mp in removed + added:
+            act = mp_is_active(mp)
+            role = _tr("repl_role_removed") if mp in removed else _tr("repl_role_added")
+            c1, c2 = st.columns([1, 2])
+            c1.markdown(f"**{mp_name(mp)}** · {role} · "
+                        + (_tr("repl_mp_active") if act else _tr("repl_mp_inactive")))
+            if mp in removed and act:
+                d_mp = object_drafts("marketplace", mp)
+                opts = [0] + [int(x) for x in d_mp["id"]]
+                picks[("marketplace", mp)] = c2.selectbox(
+                    _trf("repl_pick_mp", mp=mp_name(mp)), opts,
+                    format_func=lambda i: _tr("repl_none_pick") if i == 0
+                    else str(d_mp[d_mp["id"] == i].iloc[0]["number"]),
+                    key=f"fc_rp_mp_{r.document_id}_{mp}", label_visibility="collapsed")
+            elif mp in removed:
+                terms[mp] = c2.text_input(_trf("repl_reason_mp", mp=mp_name(mp)), key=f"fc_rt_{r.document_id}_{mp}",
+                                          placeholder=_tr("repl_reason_ph"), label_visibility="collapsed")
+            else:
+                c2.caption(_tr("repl_added_hint"))
+
+        reason = st.text_input(_tr("repl_reason"), value=drift_text(r), key=f"fc_rr_{r.document_id}")
+        try:
+            plan = replacement_plan(r, picks, terms)
+        except Exception as e:
+            st.error(_trf("err_read", e=e))
+            continue
+        m1, m2, m3 = st.columns(3)
+        m1.metric(_tr("repl_m_docs"), len(plan["docs"]))
+        m2.metric(_tr("repl_m_sup"), len(plan["supersede"]))
+        m3.metric(_tr("repl_m_term"), len(plan["terminate"]))
+        if not str(reason).strip():
+            plan["problems"] = [_tr("repl_need_op_reason")] + plan["problems"]
+        if plan["problems"]:
+            st.error(_trf("repl_blocked", n=len(plan["problems"])) + "\n\n"
+                     + "\n".join(f"- {p}" for p in plan["problems"][:20]))
+        elif plan["supersede"] or plan["terminate"] or plan["docs"]:
+            st.success(_tr("repl_ready"))
+        rk = f"fc_rp_confirm_{r.document_id}"
+        armed = st.session_state.get(rk) == (len(plan["supersede"]), len(plan["terminate"]), len(plan["docs"]))
+        if armed and not plan["problems"]:
+            st.warning(_trf("repl_confirm", d=len(plan["docs"]), s=len(plan["supersede"]), t=len(plan["terminate"])))
+        if st.button(_tr("repl_btn_confirm") if armed else _tr("repl_btn"), type="primary",
+                    disabled=bool(plan["problems"]) or not plan["docs"] and not plan["terminate"],
+                    key=f"fc_rp_go_{r.document_id}"):
+            if not armed:
+                st.session_state[rk] = (len(plan["supersede"]), len(plan["terminate"]), len(plan["docs"]))
+                st.rerun()
+            try:
+                res = execute_replacement(r, plan, reason, terms)
+                st.session_state.pop(rk, None)
+                flash("success", _trf("repl_done", op=res["op_id"], d=res["docs"],
+                                      s=res["superseded"], t=res["terminated"]))
+                if res["dd_err"]:
+                    flash("warning", _trf("repl_dd_err", e="; ".join(res["dd_err"][:3])))
+                st.rerun()
+            except Exception as e:
+                st.error(_trf("err_write", e=e))
+
+    ops = q("""SELECT r.id, r.executed_at, p.name AS pool, r.reason, r.change_summary,
+                      r.documents, r.superseded_rows, r.terminated_rows, r.actor
+               FROM kabinet_data.forecast_replacements r JOIN kabinet_data.pools p ON p.id = r.pool_id
+               ORDER BY r.id DESC LIMIT 50""")
+    st.divider()
+    st.markdown(f"##### {_tr('repl_hist')}")
+    if ops.empty:
+        st.caption(_tr("repl_hist_empty"))
+    else:
+        st.dataframe(pd.DataFrame({
+            _tr("repl_c_at"): pd.to_datetime(ops["executed_at"]).dt.strftime("%d.%m.%Y %H:%M"),
+            _tr("col_object"): ops["pool"], _tr("repl_c_what"): ops["change_summary"].fillna(""),
+            _tr("repl_c_reason"): ops["reason"], _tr("repl_m_docs"): ops["documents"],
+            _tr("repl_m_sup"): ops["superseded_rows"], _tr("repl_m_term"): ops["terminated_rows"],
+            _tr("log_col_actor"): ops["actor"],
+        }), hide_index=True, use_container_width=True, height=min(300, 38 + 35 * len(ops)))
+
 with tab_log:
     l1, l2, l3, l4, l5 = st.columns(5)
     d_from = l1.date_input(_tr("log_from"), value=TODAY.replace(day=1), key="fc_log_from")
