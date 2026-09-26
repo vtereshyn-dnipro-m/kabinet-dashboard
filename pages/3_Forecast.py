@@ -68,6 +68,11 @@ TR = {
         "add_done": "Добавлено: {n}. Отклонено: {r}.", "add_no_admission": "{sku}: нет допуска к самостоятельной продаже на объекте (§3).",
         "add_liquidation": "{sku}: допуск закрыт — добавлен как распродажа по прежнему допуску (§7).", "add_dup": "{sku}: уже в документе.",
         "add_unknown": "{sku}: нет в справочнике SKU.",
+        "ro_all_past": "Документ только для просмотра: все его месяцы уже прошли. Непроведённый черновик не удаляется и в расчётах не участвует, но изменить, утвердить или провести его нельзя — прошедшие месяцы прогнозом не переписываются.",
+        "rej_restricted": "{sku} · {m}: продажа SKU сейчас запрещена ({why}) — значение сохранено в черновике, утверждение не выполнено.",
+        "why_inactive": "SKU деактивирован в справочнике", "why_restricted": "ограничение применения для этой площадки или страны",
+        "why_unknown": "нет в справочнике SKU",
+        "post_restricted": "продажа запрещена у SKU: {skus} — снимите их из документа или устраните запрет;",
         "sec_actions": "Действия", "pick_skus": "SKU", "pick_months": "Месяцы", "all_skus": "все SKU", "all_months": "все месяцы",
         "btn_approve": "Утвердить", "btn_unapprove": "Снять утверждение", "btn_zeros": "Пустоты → 0", "btn_delete": "Удалить строки",
         "approved_n": "Утверждено ячеек: {n}.", "approve_empty": "Не утверждено — пустые ячейки: {cells}",
@@ -141,6 +146,11 @@ TR = {
         "add_done": "Додано: {n}. Відхилено: {r}.", "add_no_admission": "{sku}: немає допуску до самостійного продажу на обʼєкті (§3).",
         "add_liquidation": "{sku}: допуск закрито — додано як розпродаж за попереднім допуском (§7).", "add_dup": "{sku}: вже в документі.",
         "add_unknown": "{sku}: немає в довіднику SKU.",
+        "ro_all_past": "Документ лише для перегляду: усі його місяці вже минули. Непроведена чернетка не видаляється і в розрахунках не бере участі, але змінити, затвердити чи провести її не можна — минулі місяці прогнозом не перезаписуються.",
+        "rej_restricted": "{sku} · {m}: продаж SKU зараз заборонено ({why}) — значення збережено в чернетці, затвердження не виконано.",
+        "why_inactive": "SKU деактивовано в довіднику", "why_restricted": "обмеження застосування для цього майданчика або країни",
+        "why_unknown": "немає в довіднику SKU",
+        "post_restricted": "продаж заборонено в SKU: {skus} — приберіть їх з документа або усуньте заборону;",
         "sec_actions": "Дії", "pick_skus": "SKU", "pick_months": "Місяці", "all_skus": "усі SKU", "all_months": "усі місяці",
         "btn_approve": "Затвердити", "btn_unapprove": "Зняти затвердження", "btn_zeros": "Порожні → 0", "btn_delete": "Видалити рядки",
         "approved_n": "Затверджено клітинок: {n}.", "approve_empty": "Не затверджено — порожні клітинки: {cells}",
@@ -214,6 +224,11 @@ TR = {
         "add_done": "Added: {n}. Rejected: {r}.", "add_no_admission": "{sku}: no admission for standalone sale on this object (§3).",
         "add_liquidation": "{sku}: admission closed — added as sell-off under the former admission (§7).", "add_dup": "{sku}: already in the document.",
         "add_unknown": "{sku}: not in the SKU directory.",
+        "ro_all_past": "This document is read-only: all of its months are already in the past. An unposted draft is never deleted and takes no part in calculations, but it cannot be edited, approved or posted — past months are not rewritten by a forecast.",
+        "rej_restricted": "{sku} · {m}: selling this SKU is currently prohibited ({why}) — the value stays in the draft, approval did not happen.",
+        "why_inactive": "the SKU is deactivated in the directory", "why_restricted": "a usage restriction for this platform or country",
+        "why_unknown": "not in the SKU directory",
+        "post_restricted": "selling is prohibited for SKUs: {skus} — remove them from the document or lift the restriction;",
         "sec_actions": "Actions", "pick_skus": "SKUs", "pick_months": "Months", "all_skus": "all SKUs", "all_months": "all months",
         "btn_approve": "Approve", "btn_unapprove": "Unapprove", "btn_zeros": "Empty → 0", "btn_delete": "Delete rows",
         "approved_n": "Approved cells: {n}.", "approve_empty": "Not approved — empty cells: {cells}",
@@ -447,6 +462,48 @@ def admitted_skus(object_type: str, object_id: int, snapshot) -> tuple:
     return active, former
 
 
+def sale_blocks(doc, skus, active: set, former: set) -> dict:
+    """Актуальные ограничения продажи SKU по ТЗ 005 и 007 (ТЗ 010 §9): проверяются ПЕРЕД каждым
+    утверждением и проведением, а не один раз при добавлении строки.
+
+    Причина такая: допуск и ограничения живут своей жизнью — SKU могли деактивировать, а площадке
+    выставить ограничение уже после того, как строка попала в черновик. Введённые значения при этом
+    остаются: блокируется операция, а не работа человека (§9).
+
+    Дата вывода SKU запретом НЕ считается: по §7 это распродажа по прежнему допуску, она разрешена.
+    Отсутствие допуска в матрице — тоже не запрет: это §3 и §7, они проверяются при добавлении строки
+    и полнотой «Полного» документа. Если считать его запретом, ломается живой процесс: загрузка листа
+    планов приносит SKU, которых в матрице нет (в документе ITALY на 26.09 таких три), и проведение
+    прогноза остановилось бы на данных, которые заводит не человек."""
+    if not skus:
+        return {}
+    meta = q("""SELECT sku, is_active, COALESCE(ARRAY(SELECT jsonb_array_elements_text(restrictions)), '{}') AS restr
+                FROM kabinet_data.sku_master WHERE sku = ANY(%s)""", (list(skus),))
+    known = {r.sku: r for r in meta.itertuples()}
+    # коды ограничений — площадка, код marketplace или страна покрытия (ТЗ 005 §6)
+    if doc["object_type"] == "marketplace":
+        ids = [int(doc["object_id"])]
+    else:
+        snap = doc.get("pool_snapshot")
+        if isinstance(snap, str):
+            snap = json.loads(snap)
+        ids = [int(x) for x in (snap or [])] or pool_snapshot(int(doc["object_id"]))
+    codes = set()
+    if ids:
+        mp = q("""SELECT platform_short, code, country_alpha2 FROM kabinet_data.marketplaces_new WHERE id = ANY(%s)""", (ids,))
+        codes = set(mp["platform_short"]) | set(mp["code"]) | set(mp["country_alpha2"])
+    out = {}
+    for sku in skus:
+        r = known.get(sku)
+        if r is None:
+            out[sku] = _tr("why_unknown")
+        elif r.is_active is False:
+            out[sku] = _tr("why_inactive")
+        elif codes & set(r.restr or []):
+            out[sku] = _tr("why_restricted")
+    return out
+
+
 def log(cur, doc_id, sku, month, field, old, new, source, actor):
     cur.execute("""INSERT INTO kabinet_data.forecast_change_log (document_id, sku, month, field, old_value, new_value, source, actor)
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
@@ -590,16 +647,23 @@ def _cells(rows: pd.DataFrame, skus, months) -> pd.DataFrame:
     return sel
 
 
-def approve(doc, rows, skus, months) -> tuple:
-    """Сценарий 6: утверждаем только заполненные ячейки выбранных SKU × месяцев; пустые показываем и не утверждаем."""
+def approve(doc, rows, skus, months, active: set = None, former: set = None) -> tuple:
+    """Сценарий 6: утверждаем только заполненные ячейки выбранных SKU × месяцев; пустые показываем и не утверждаем.
+    Плюс §9: перед утверждением перепроверяем актуальные ограничения продажи SKU."""
     actor = _actor()
     sel = _cells(rows, skus, [m for m in months if m >= CUR_MONTH])
     sel = sel[sel["status"] == "unapproved"]
+    blocked = sale_blocks(doc, sorted(set(sel["sku"])), active or set(), former or set()) if len(sel) else {}
+    stopped = [_trf("rej_restricted", sku=r.sku, m=month_label(r.month), why=blocked[r.sku])
+               for r in sel.itertuples() if r.sku in blocked]
+    if blocked:
+        sel = sel[~sel["sku"].isin(blocked)]
     empty = sel[sel["quantity"].isna()]
     empties = [f"{r.sku} · {month_label(r.month)}" for r in empty.itertuples()]
     # пустые не утверждаются и перечисляются (сценарий 6), но заполненные из того же выбора — утверждаются:
     # до 20.09 при первой же пустой ячейке функция выходила с нулём, а сообщение читалось как «остальные прошли»
     sel = sel[sel["quantity"].notna()]
+    empties += stopped
     if sel.empty:
         return 0, empties
     def _do(cur):
@@ -681,7 +745,7 @@ def save_header(doc, first, last, completeness, comment, locked: bool) -> None:
     tx(_do)
 
 
-def post_checks(doc, rows: pd.DataFrame, active_matrix: set) -> list:
+def post_checks(doc, rows: pd.DataFrame, active_matrix: set, former_matrix: set = None) -> list:
     """Сценарий 8 + 17: всё заполнено и утверждено, прошедших месяцев нет, для полного — состав матрицы."""
     problems = []
     if rows.empty:
@@ -702,6 +766,12 @@ def post_checks(doc, rows: pd.DataFrame, active_matrix: set) -> list:
         missing = sorted(active_matrix - set(rows["sku"]))
         if missing:
             problems.append(_trf("post_missing", n=len(missing), skus=", ".join(missing[:12]) + ("…" if len(missing) > 12 else "")))
+    # §9: ограничения продажи перепроверяются и перед проведением, а не только при добавлении строки
+    blocked = sale_blocks(doc, sorted(set(rows["sku"])), active_matrix, former_matrix or set())
+    if blocked:
+        problems.append(_trf("post_restricted",
+                             skus=", ".join(f"{k} ({v})" for k, v in sorted(blocked.items())[:8])
+                                  + ("…" if len(blocked) > 8 else "")))
     return problems
 
 
@@ -863,6 +933,12 @@ with tab_docs:
         doc["last_month"] = pd.Timestamp(doc["last_month"]).date()
         is_draft = doc["status"] == "draft"
         months = months_between(doc["first_month"], doc["last_month"])
+        # ТЗ 010 §16: непроведённый черновик не удаляется, но когда ВСЕ его месяцы стали прошлыми,
+        # он доступен только для просмотра. Правки отдельных прошедших месяцев отклонялись и раньше,
+        # но экран всё равно показывал кнопки — человек нажимал и получал отказ по каждой ячейке.
+        all_past = bool(months) and all(m < CUR_MONTH for m in months)
+        if is_draft and all_past:
+            is_draft = False          # дальше карточка ведёт себя как у проведённого: только чтение
         try:
             rows = load_rows(doc["id"])
             snap = doc.get("pool_snapshot")
@@ -938,7 +1014,8 @@ with tab_docs:
                             st.error(_trf("err_write", e=e))
 
         # ── таблица SKU × месяц ──
-        st.caption(_tr("grid_help") if is_draft else _tr("grid_posted"))
+        st.caption(_tr("grid_help") if is_draft else
+                   (_tr("ro_all_past") if doc["status"] == "draft" else _tr("grid_posted")))
         sku_meta = rows.groupby("sku").agg(sku_type=("sku_type", "first"), sku_name=("sku_name", "first")).reset_index()
         grid = rows.pivot_table(index="sku", columns="month", values="quantity", aggfunc="first", dropna=False)
         grid = grid.reindex(columns=months)
@@ -1072,7 +1149,7 @@ with tab_docs:
             c1, c2, c3, c4 = st.columns(4)
             if c1.button(_tr("btn_approve"), type="primary", key=f"fc_appr_{doc['id']}"):
                 try:
-                    n, empty = approve(doc, rows, sel_skus, eff_months)
+                    n, empty = approve(doc, rows, sel_skus, eff_months, active_matrix, former_matrix)
                     say = flash if n else (lambda kind, text: getattr(st, kind)(text))
                     if n:
                         say("success", _trf("approved_n", n=n))
@@ -1116,7 +1193,7 @@ with tab_docs:
                             st.error(_trf("err_write", e=e))
 
             st.markdown(f"##### {_tr('sec_post')}")
-            problems = post_checks(doc, rows, active_matrix)
+            problems = post_checks(doc, rows, active_matrix, former_matrix)
             if problems:
                 st.warning(_tr("post_block") + "\n\n" + "\n".join(f"- {p}" for p in problems))
             # проведение необратимо (проведённый документ не правится, §9) — два нажатия, как удаление в справочниках
