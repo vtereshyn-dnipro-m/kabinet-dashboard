@@ -33,8 +33,12 @@ hr { margin: 0.6rem 0 !important; }
 """, unsafe_allow_html=True)
 
 # логотип выводится в сайдбаре через st.logo — второй раз не нужен
+import data_passport as passport
+
 st.title(t("home.title"))
 st.caption(t("home.subtitle"))
+# предупреждение наверху: цифры ниже могут опираться на устаревшие данные (26.09.2026)
+passport.banner("home")
 
 # Как часто Обзор обновляет себя сам и как часто перепроверяется свежесть.
 # Плашка устаревания живёт отдельно от остальной страницы: её запрос дешёвый
@@ -571,21 +575,23 @@ else:
     s0, s1, s2, s3, s4 = st.columns(5)
     s0.metric(t("home.kpi.ordered"),
               fmt_money(ord_cur) if ord_cur else "—",
-              help=(t("home.kpi.ordered_help_span", 
-                        of=_o_from.strftime("%d.%m"), ot=_o_to.strftime("%d.%m"),
-                        mf=_m_from.strftime("%d.%m"), mt=_m_to.strftime("%d.%m"))
-                    if _spans_differ else t("home.kpi.ordered_help")))
+              help=passport.tip("home", "ordered",
+                  (t("home.kpi.ordered_help_span",
+                     of=_o_from.strftime("%d.%m"), ot=_o_to.strftime("%d.%m"),
+                     mf=_m_from.strftime("%d.%m"), mt=_m_to.strftime("%d.%m"))
+                   if _spans_differ else t("home.kpi.ordered_help"))))
     s1.metric(t("home.kpi.revenue"), fmt_money(rev_cur),
               delta=(f"{delta_pct:+.1f}%" if delta_pct is not None else None),
-              help=t("home.kpi.revenue_help", d=DAYS))
+              help=passport.tip("home", "revenue", t("home.kpi.revenue_help", d=DAYS)))
     s2.metric(t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
-              help=t("home.kpi.margin_help"))
+              help=passport.tip("home", "margin", t("home.kpi.margin_help")))
     _ref = int(cur.get("units_refunded", pd.Series(dtype=float)).sum() or 0)
     s3.metric(t("home.kpi.units"), f"{units_cur:,}",
               delta=(f"−{_ref} {t('home.kpi.refunded')}" if _ref else None),
               delta_color="inverse" if _ref else "off",
-              help=t("home.kpi.units_help"))
-    s4.metric(t("home.kpi.markets"), f"{cur['marketplace'].nunique()}")
+              help=passport.tip("home", "units", t("home.kpi.units_help")))
+    s4.metric(t("home.kpi.markets"), f"{cur['marketplace'].nunique()}",
+          help=passport.tip("home", "channels"))
     if rev_cur and _no_cogs_rev > 0.5:
         st.caption(t("home.kpi.margin_partial", rev=f"{_no_cogs_rev:,.0f}", pct=f"{_no_cogs_rev / rev_cur * 100:.0f}",
                      known=f"{_rev_known / rev_cur * 100:.0f}"))
@@ -899,11 +905,11 @@ with cl:
 
         v1, v2, v3 = st.columns(3)
         v1.metric(t("home.kpi.secured"), f"{secured}%",
-                  help=t("home.kpi.secured_help"))
+                  help=passport.tip("home", "coverage", t("home.kpi.secured_help")))
         v2.metric(t("home.kpi.deficit_soon"), f"{n_crit:,}",
-                  help=t("home.kpi.deficit_soon_help"))
+                  help=passport.tip("home", "coverage", t("home.kpi.deficit_soon_help")))
         v3.metric(t("home.kpi.deficit_later"), f"{n_warn:,}",
-                  help=t("home.kpi.deficit_later_help"))
+                  help=passport.tip("home", "coverage", t("home.kpi.deficit_later_help")))
 
         bars = pd.DataFrame({
             "bucket": [t("home.cov.b_crit"), t("home.cov.b_warn"),
@@ -932,9 +938,10 @@ with cr:
             if "status" in transfers.columns else transfers
         r1, r2 = st.columns(2)
         r1.metric(t("home.kpi.transfers"), f"{len(pending):,}",
-                  help=t("home.kpi.transfers_help"))
+                  help=passport.tip("home", "transfers", t("home.kpi.transfers_help")))
         r2.metric(t("home.kpi.transfer_qty"),
-                  f"{int(pending['transfer_qty'].sum()):,}")
+                  f"{int(pending['transfer_qty'].sum()):,}",
+                  help=passport.tip("home", "transfers"))
         st.page_link("pages/4_Reorder.py", label=t("home.link.reorder"),
                      icon=":material/shopping_cart:")
 
@@ -964,9 +971,9 @@ with il:
 
         n1, n2, n3 = st.columns(3)
         n1.metric(t("home.kpi.inc_supply"), f"{n_supply:,}",
-                  help=t("home.kpi.inc_supply_help"))
+                  help=passport.tip("home", "incidents", t("home.kpi.inc_supply_help")))
         n2.metric(t("home.kpi.inc_sales"), f"{n_sales:,}",
-                  help=t("home.kpi.inc_sales_help"))
+                  help=passport.tip("home", "incidents", t("home.kpi.inc_sales_help")))
         n3.metric(t("home.kpi.inc_oldest"), f"{oldest}",
                   help=t("home.kpi.inc_oldest_help"))
 
@@ -998,12 +1005,12 @@ with ir:
         q1, q2 = st.columns(2)
         q1.metric(t("home.kpi.requests", d=DAYS),
                   f"{reviews.get('sent7', 0):,}",
-                  help=t("home.kpi.requests_help", d=DAYS))
+                  help=passport.tip("home", "reviews", t("home.kpi.requests_help", d=DAYS)))
         growth = reviews.get("reviews_growth")
         q2.metric(t("home.kpi.new_reviews"),
                   f"+{growth:,}" if growth is not None else "—",
-                  help=t("home.kpi.new_reviews_help", 
-                      d=DAYS, n=reviews.get("reviews_pairs", 0)))
+                  help=passport.tip("home", "reviews", t("home.kpi.new_reviews_help",
+                      d=DAYS, n=reviews.get("reviews_pairs", 0))))
         if reviews.get("last_sent") is not None:
             ls = pd.to_datetime(reviews["last_sent"])
             hours = (datetime.now(ls.tzinfo) - ls).total_seconds() / 3600
@@ -1047,3 +1054,6 @@ elif st_autorefresh is not None:
     # запасной путь для старых версий Streamlit: перезапускает страницу
     # целиком, фильтров на Обзоре нет, терять нечего
     st_autorefresh(interval=AUTO_REFRESH_SEC * 1000, key="overview_autorefresh")
+
+# блок «Откуда данные» — последним на странице
+passport.footer("home")

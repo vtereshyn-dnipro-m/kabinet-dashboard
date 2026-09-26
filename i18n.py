@@ -3588,6 +3588,77 @@ TRANSLATIONS = {
         "uk": "Довідники складів, ланцюгів підживлення, маркетплейсів, пулів і нормативів",
         "en": "Warehouses, supply chains, marketplaces, pools and coverage norms",
     },
+
+    # --- паспорт данных (data_passport.py) ---
+    "passport.title": {"ru": "Откуда данные", "uk": "Звідки дані", "en": "Where the data comes from"},
+    "passport.hint": {
+        "ru": "Каждая цифра на странице собрана из этих источников. «Данные по» — последняя дата, "
+              "за которую в источнике есть содержимое, а не время работы загрузчика: важно, по какое "
+              "число цифры, а не когда крутилась джоба.",
+        "uk": "Кожна цифра на сторінці зібрана з цих джерел. «Дані по» — остання дата, за яку в джерелі "
+              "є вміст, а не час роботи завантажувача: важливо, по яке число цифри, а не коли працювала джоба.",
+        "en": "Every number on this page comes from these sources. “Data through” is the last date the source "
+              "actually has content for — not when the loader ran: what matters is how current the numbers are.",
+    },
+    "passport.col_src": {"ru": "Что даёт", "uk": "Що дає", "en": "What it feeds"},
+    "passport.col_table": {"ru": "Таблица", "uk": "Таблиця", "en": "Table"},
+    "passport.col_as_of": {"ru": "Данные по", "uk": "Дані по", "en": "Data through"},
+    "passport.col_age": {"ru": "Возраст", "uk": "Вік", "en": "Age"},
+    "passport.col_limit": {"ru": "Порог, ч", "uk": "Поріг, год", "en": "Limit, h"},
+    "passport.col_loader": {"ru": "Обновляет", "uk": "Оновлює", "en": "Updated by"},
+    "passport.col_state": {"ru": "Состояние", "uk": "Стан", "en": "State"},
+    "passport.state_fresh": {"ru": "свежо", "uk": "свіжо", "en": "fresh"},
+    "passport.state_stale": {"ru": "устарело", "uk": "застаріло", "en": "stale"},
+    "passport.state_absent": {"ru": "нет данных", "uk": "немає даних", "en": "no data"},
+    "passport.limit_db": {"ru": "из справочника", "uk": "з довідника", "en": "from rules"},
+    "passport.limit_code": {"ru": "по умолчанию", "uk": "за замовчуванням", "en": "default"},
+    "passport.limit_none": {"ru": "не проверяем", "uk": "не перевіряємо", "en": "not checked"},
+    "passport.age_hours": {"ru": "{n} ч", "uk": "{n} год", "en": "{n} h"},
+    "passport.age_days": {"ru": "{n} дн", "uk": "{n} дн", "en": "{n} d"},
+    "passport.absent_short": {"ru": "нет таблицы", "uk": "немає таблиці", "en": "no table"},
+    "passport.unavailable": {
+        "ru": "Паспорт данных не прочитался — сами цифры это не затрагивает.",
+        "uk": "Паспорт даних не прочитався — самі цифри це не зачіпає.",
+        "en": "The data passport could not be read — the numbers themselves are unaffected.",
+    },
+    "passport.tip_head": {"ru": "Откуда цифра:", "uk": "Звідки цифра:", "en": "Where this number comes from:"},
+    "passport.tip_line": {
+        "ru": "{src}: данные по {date}, обновляет «{loader}»",
+        "uk": "{src}: дані по {date}, оновлює «{loader}»",
+        "en": "{src}: data through {date}, updated by “{loader}”",
+    },
+    "passport.stale_head": {
+        "ru": "Часть цифр на странице опирается на устаревшие данные — читайте их с поправкой на дату:",
+        "uk": "Частина цифр на сторінці спирається на застарілі дані — читайте їх з поправкою на дату:",
+        "en": "Some numbers on this page rest on stale data — read them with the date in mind:",
+    },
+    "passport.stale_item": {
+        "ru": "{src}: данные по {date}, это {age} назад при пороге {limit} ч",
+        "uk": "{src}: дані по {date}, це {age} тому за порогу {limit} год",
+        "en": "{src}: data through {date}, that is {age} ago against a {limit} h limit",
+    },
+    "passport.absent_item": {
+        "ru": "{src}: таблицы нет в базе — цифры по этому блоку не показываются",
+        "uk": "{src}: таблиці немає в базі — цифри цього блоку не показуються",
+        "en": "{src}: the table is missing — numbers for that block are not shown",
+    },
+    # что даёт каждый источник — словами пользователя, не именами таблиц
+    "passport.src.economics": {
+        "ru": "Выручка, маржа, штуки, каналы", "uk": "Виторг, маржа, штуки, канали",
+        "en": "Revenue, margin, units, channels"},
+    "passport.src.logistics": {
+        "ru": "Упаковка и доставка в марже", "uk": "Пакування і доставка в маржі",
+        "en": "Packing and shipping inside margin"},
+    "passport.src.ads": {"ru": "Реклама в марже", "uk": "Реклама в маржі", "en": "Advertising inside margin"},
+    "passport.src.traffic": {
+        "ru": "Продажи по заказам и факт плана", "uk": "Продажі за замовленнями і факт плану",
+        "en": "Ordered sales and plan actuals"},
+    "passport.src.forecast": {"ru": "План месяца", "uk": "План місяця", "en": "Monthly plan"},
+    "passport.src.coverage": {"ru": "Покрытие и дефициты", "uk": "Покриття і дефіцити", "en": "Coverage and gaps"},
+    "passport.src.transfers": {"ru": "Переброски", "uk": "Перекидання", "en": "Transfers"},
+    "passport.src.incidents": {"ru": "Инциденты", "uk": "Інциденти", "en": "Incidents"},
+    "passport.src.reviews": {"ru": "Отзывы", "uk": "Відгуки", "en": "Reviews"},
+    "passport.src.reorder": {"ru": "Что заказать и сколько", "uk": "Що замовити і скільки", "en": "What to order and how much"},
 }
 
 
