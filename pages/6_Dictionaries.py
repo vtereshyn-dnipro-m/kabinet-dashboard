@@ -1731,6 +1731,7 @@ def _section_mp():
 
     blockers = _mp_blockers(int(sel))
     st.markdown(f"#### {row['code']} · {row['name']}")
+    st.caption(f"ID {int(sel)}")
     if blockers:
         st.caption(_tr("mp_deps_head") + " " + "; ".join(blockers))
     else:
@@ -2010,7 +2011,7 @@ def _section_plat():
         total = int(mp_cnt["total"].get(row["short_name"], 0))
         active = int(mp_cnt["active"].get(row["short_name"], 0))
         st.markdown(f"#### {row['full_name']}")
-        st.caption(_trf("plat_off_mps", n=total, a=active))
+        st.caption(f"ID {int(sel)} · " + _trf("plat_off_mps", n=total, a=active))
 
         c1, c2 = st.columns([1, 2])
         # краткое название входит в код каждого маркетплейса и в внешний ключ: пока на площадку
