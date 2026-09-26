@@ -385,7 +385,7 @@ CUR_MONTH = date(TODAY.year, TODAY.month, 1)
 
 def load_objects() -> pd.DataFrame:
     mp = q("""SELECT 'marketplace' AS object_type, id AS object_id, code AS name, country_alpha2 AS country, platform_short AS platform
-              FROM kabinet_data.marketplaces_new WHERE is_active ORDER BY code""")
+              FROM kabinet_data.v_marketplaces_selectable ORDER BY code""")
     pl = q("""SELECT 'pool' AS object_type, p.id AS object_id, p.name, MIN(m.country_alpha2) AS country, NULL::text AS platform
               FROM kabinet_data.pools p LEFT JOIN kabinet_data.pool_members pm ON pm.pool_id = p.id
                    AND pm.valid_from <= current_date AND (pm.valid_to IS NULL OR pm.valid_to >= current_date)
