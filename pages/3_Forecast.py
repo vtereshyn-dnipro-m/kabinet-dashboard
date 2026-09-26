@@ -10,19 +10,23 @@
 прошедших месяцев и полноты (§4, §9, §12, сценарии 8, 17), замена действующих записей с двусторонними
 ссылками (сценарий 20), добавление SKU с проверкой допуска по матрице (§3, §7, сценарий 4), заполнение
 по матрице (сценарий 16), пустоты → нули (сценарий 5), удаление строк черновика (сценарий 18), журнал
-изменений (§10, сценарий 13). Не реализовано: роли COUNTRY_MANAGER / DEMAND_PLANNER (у приложения нет
-входа по пользователям), загрузка из файла в черновик (§11 — лист Google грузит загрузчик),
-пересоздание после изменения пула (сценарии 12, 21), зависимая потребность (ТЗ 011 — отдельный расчёт).
+изменений (§10, сценарий 13), загрузка значений в черновик из файла Excel/CSV и из Google Таблицы
+(§11, сценарий 15). Не реализовано: роли COUNTRY_MANAGER / DEMAND_PLANNER (у приложения нет входа
+по пользователям), пересоздание после изменения пула (сценарии 12, 21).
+
+Зависимая потребность (ТЗ 011) считается в базе и показывается отдельным блоком карточки.
 """
+import base64
 import calendar
 import json
+import re
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
 
-from db.connection import get_connection
+from db.connection import get_connection, get_workspace_client
 from i18n import init_lang, get_lang
 
 init_lang()
@@ -73,6 +77,30 @@ TR = {
         "why_inactive": "SKU деактивирован в справочнике", "why_restricted": "ограничение применения для этой площадки или страны",
         "why_unknown": "нет в справочнике SKU",
         "post_restricted": "продажа запрещена у SKU: {skus} — снимите их из документа или устраните запрет;",
+        # ── загрузка из файла и из Google Таблицы ──
+        "sec_upload": "Загрузка из файла", "up_help": "Строка источника — один SKU, значения прогноза — колонками по месяцам. "
+                 "Объект берётся из документа, в файле его указывать не нужно. Загрузка кладёт значения в черновик и ничего не утверждает: "
+                 "пустая ячейка ничего не меняет, 0 означает «продаж не планируем». Ошибка хотя бы в одной ячейке останавливает всю загрузку.",
+        "up_src": "Источник", "up_src_file": "Файл Excel или CSV", "up_src_gs": "Google Таблица",
+        "up_file": "Файл", "up_sheet": "Лист", "up_header": "Строка заголовков", "up_gs_url": "Ссылка на Google Таблицу",
+        "up_sku_col": "Колонка с артикулом SKU", "up_map": "Какой месяц документа берёт каждая колонка источника",
+        "up_skip": "пропустить", "up_col_nameless": "колонка", "up_col_month": "Месяц", "up_col_old": "Было", "up_col_new": "Станет",
+        "up_map_dup": "Один месяц документа выбран у двух колонок — оставьте одну.",
+        "up_no_months": "Сопоставьте хотя бы одну колонку с месяцем документа.",
+        "up_preview": "К загрузке: SKU {s}, значений {v}; новых SKU {a}, замен заполненного {r}.",
+        "up_errors": "Загрузка заблокирована, ошибок {n}. Документ не изменён — исправьте источник и проверьте снова.",
+        "up_err_unknown": "{sku} — нет в справочнике SKU, загрузка новые артикулы не создаёт",
+        "up_err_admission": "{sku} — нет допуска на объекте прогноза, добавить его загрузкой нельзя",
+        "up_err_value": "{sku} · {m}: «{v}» — нужно целое число не меньше нуля",
+        "up_err_dup": "{sku} · {m} — сочетание артикула и месяца в источнике повторяется",
+        "up_err_approved": "{sku} · {m} — значение утверждено; сначала снимите утверждение",
+        "up_err_past": "{sku} · {m} — прошедший месяц не меняется",
+        "up_replace": "Заполненных значений будет заменено: {n}. Проверьте столбцы «Было» и «Станет» и нажмите «Да, заменить и загрузить».",
+        "up_btn_apply": "Загрузить", "up_btn_apply_confirm": "Да, заменить и загрузить",
+        "up_done": "Загружено значений: {n}, добавлено SKU: {k}.",
+        "up_nothing": "Загружать нечего: значения источника совпадают с документом.",
+        "up_read_fail": "Источник не прочитан: {e}", "up_gs_fail": "Google Таблица недоступна: {e}",
+        "liq_note": "распродажа по прежнему допуску", "src_file": "загрузка из файла", "src_gsheet": "загрузка из Google Таблицы",
         "sec_actions": "Действия", "pick_skus": "SKU", "pick_months": "Месяцы", "all_skus": "все SKU", "all_months": "все месяцы",
         "btn_approve": "Утвердить", "btn_unapprove": "Снять утверждение", "btn_zeros": "Пустоты → 0", "btn_delete": "Удалить строки",
         "approved_n": "Утверждено ячеек: {n}.", "approve_empty": "Не утверждено — пустые ячейки: {cells}",
@@ -151,6 +179,30 @@ TR = {
         "why_inactive": "SKU деактивовано в довіднику", "why_restricted": "обмеження застосування для цього майданчика або країни",
         "why_unknown": "немає в довіднику SKU",
         "post_restricted": "продаж заборонено в SKU: {skus} — приберіть їх з документа або усуньте заборону;",
+        # ── завантаження з файлу і з Google Таблиці ──
+        "sec_upload": "Завантаження з файлу", "up_help": "Рядок джерела — один SKU, прогнозні значення — колонками за місяцями. "
+                 "Обʼєкт береться з документа, у файлі його вказувати не потрібно. Завантаження кладе значення в чернетку і нічого не затверджує: "
+                 "порожня клітинка нічого не змінює, 0 означає «продажів не плануємо». Помилка хоча б в одній клітинці зупиняє все завантаження.",
+        "up_src": "Джерело", "up_src_file": "Файл Excel або CSV", "up_src_gs": "Google Таблиця",
+        "up_file": "Файл", "up_sheet": "Аркуш", "up_header": "Рядок заголовків", "up_gs_url": "Посилання на Google Таблицю",
+        "up_sku_col": "Колонка з артикулом SKU", "up_map": "Який місяць документа бере кожна колонка джерела",
+        "up_skip": "пропустити", "up_col_nameless": "колонка", "up_col_month": "Місяць", "up_col_old": "Було", "up_col_new": "Стане",
+        "up_map_dup": "Один місяць документа вибрано у двох колонок — залиште одну.",
+        "up_no_months": "Зіставте хоча б одну колонку з місяцем документа.",
+        "up_preview": "До завантаження: SKU {s}, значень {v}; нових SKU {a}, замін заповненого {r}.",
+        "up_errors": "Завантаження заблоковано, помилок {n}. Документ не змінено — виправте джерело і перевірте знову.",
+        "up_err_unknown": "{sku} — немає в довіднику SKU, завантаження нові артикули не створює",
+        "up_err_admission": "{sku} — немає допуску на обʼєкті прогнозу, додати його завантаженням не можна",
+        "up_err_value": "{sku} · {m}: «{v}» — потрібне ціле число не менше нуля",
+        "up_err_dup": "{sku} · {m} — поєднання артикула і місяця в джерелі повторюється",
+        "up_err_approved": "{sku} · {m} — значення затверджено; спершу зніміть затвердження",
+        "up_err_past": "{sku} · {m} — минулий місяць не змінюється",
+        "up_replace": "Заповнених значень буде замінено: {n}. Перевірте стовпці «Було» і «Стане» та натисніть «Так, замінити і завантажити».",
+        "up_btn_apply": "Завантажити", "up_btn_apply_confirm": "Так, замінити і завантажити",
+        "up_done": "Завантажено значень: {n}, додано SKU: {k}.",
+        "up_nothing": "Завантажувати нічого: значення джерела збігаються з документом.",
+        "up_read_fail": "Джерело не прочитано: {e}", "up_gs_fail": "Google Таблиця недоступна: {e}",
+        "liq_note": "розпродаж за колишнім допуском", "src_file": "завантаження з файлу", "src_gsheet": "завантаження з Google Таблиці",
         "sec_actions": "Дії", "pick_skus": "SKU", "pick_months": "Місяці", "all_skus": "усі SKU", "all_months": "усі місяці",
         "btn_approve": "Затвердити", "btn_unapprove": "Зняти затвердження", "btn_zeros": "Порожні → 0", "btn_delete": "Видалити рядки",
         "approved_n": "Затверджено клітинок: {n}.", "approve_empty": "Не затверджено — порожні клітинки: {cells}",
@@ -229,6 +281,30 @@ TR = {
         "why_inactive": "the SKU is deactivated in the directory", "why_restricted": "a usage restriction for this platform or country",
         "why_unknown": "not in the SKU directory",
         "post_restricted": "selling is prohibited for SKUs: {skus} — remove them from the document or lift the restriction;",
+        # ── upload from a file or a Google Sheet ──
+        "sec_upload": "Upload from a file", "up_help": "One source row is one SKU; forecast values go in columns by month. "
+                 "The object comes from the document, so the file does not need it. The upload fills the draft and approves nothing: "
+                 "an empty cell changes nothing, 0 means no sales planned. A single bad cell stops the whole upload.",
+        "up_src": "Source", "up_src_file": "Excel or CSV file", "up_src_gs": "Google Sheet",
+        "up_file": "File", "up_sheet": "Sheet", "up_header": "Header row", "up_gs_url": "Google Sheet link",
+        "up_sku_col": "SKU column", "up_map": "Which document month each source column feeds",
+        "up_skip": "skip", "up_col_nameless": "column", "up_col_month": "Month", "up_col_old": "Was", "up_col_new": "Will be",
+        "up_map_dup": "The same document month is picked for two columns — leave one.",
+        "up_no_months": "Map at least one column to a document month.",
+        "up_preview": "To upload: {s} SKU, {v} values; {a} new SKU, {r} filled values replaced.",
+        "up_errors": "Upload blocked, {n} errors. The document is unchanged — fix the source and check again.",
+        "up_err_unknown": "{sku} — not in the SKU directory; the upload does not create new codes",
+        "up_err_admission": "{sku} — not admitted on this forecast object, the upload cannot add it",
+        "up_err_value": "{sku} · {m}: \u00ab{v}\u00bb — an integer of zero or more is required",
+        "up_err_dup": "{sku} · {m} — this SKU and month pair repeats in the source",
+        "up_err_approved": "{sku} · {m} — the value is approved; unapprove it first",
+        "up_err_past": "{sku} · {m} — a past month is not changed",
+        "up_replace": "{n} filled values will be replaced. Check the Was / Will be columns and press Yes, replace and upload.",
+        "up_btn_apply": "Upload", "up_btn_apply_confirm": "Yes, replace and upload",
+        "up_done": "{n} values uploaded, {k} SKU added.",
+        "up_nothing": "Nothing to upload: the source matches the document.",
+        "up_read_fail": "Source not read: {e}", "up_gs_fail": "Google Sheet unavailable: {e}",
+        "liq_note": "liquidation under the former admission", "src_file": "file upload", "src_gsheet": "Google Sheet upload",
         "sec_actions": "Actions", "pick_skus": "SKUs", "pick_months": "Months", "all_skus": "all SKUs", "all_months": "all months",
         "btn_approve": "Approve", "btn_unapprove": "Unapprove", "btn_zeros": "Empty → 0", "btn_delete": "Delete rows",
         "approved_n": "Approved cells: {n}.", "approve_empty": "Not approved — empty cells: {cells}",
@@ -292,9 +368,12 @@ VALUE_LBL = {"ru": {"unapproved": "не утверждено", "approved": "ут
              "uk": {"unapproved": "не затверджено", "approved": "затверджено", "draft": "чернетка", "posted": "проведено", "added": "додано", "deleted": "видалено", "present": "була",
                     "added (liquidation)": "додано (розпродаж)"},
              "en": {}}
-SOURCE_LBL = {"ru": {"manual": "вручную", "manual:fill_zeros": "пустоты → 0", "approve": "утверждение", "unapprove": "снятие утверждения", "post": "проведение"},
-              "uk": {"manual": "вручну", "manual:fill_zeros": "порожні → 0", "approve": "затвердження", "unapprove": "зняття затвердження", "post": "проведення"},
-              "en": {"manual": "manual", "manual:fill_zeros": "empty → 0", "approve": "approve", "unapprove": "unapprove", "post": "post"}}
+SOURCE_LBL = {"ru": {"manual": "вручную", "manual:fill_zeros": "пустоты → 0", "approve": "утверждение", "unapprove": "снятие утверждения", "post": "проведение",
+                     "import:file": "загрузка из файла", "import:gsheet": "загрузка из Google Таблицы"},
+              "uk": {"manual": "вручну", "manual:fill_zeros": "порожні → 0", "approve": "затвердження", "unapprove": "зняття затвердження", "post": "проведення",
+                     "import:file": "завантаження з файлу", "import:gsheet": "завантаження з Google Таблиці"},
+              "en": {"manual": "manual", "manual:fill_zeros": "empty → 0", "approve": "approve", "unapprove": "unapprove", "post": "post",
+                     "import:file": "file upload", "import:gsheet": "Google Sheet upload"}}
 
 
 def _log_view(lg: pd.DataFrame) -> pd.DataFrame:
@@ -613,6 +692,194 @@ def save_grid(doc, rows: pd.DataFrame, edited: pd.DataFrame, months: list) -> tu
                 log(cur, doc["id"], sku, m, "quantity", old, new, "manual", actor)
         tx(_do)
     return len(changes), rejected
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ЗАГРУЗКА ИЗ ФАЙЛА И ИЗ GOOGLE ТАБЛИЦЫ (§11)
+# ═══════════════════════════════════════════════════════════════════════════
+# Строка источника — один SKU, значения прогноза — колонками по месяцам; объект прогноза берётся
+# из документа, в источнике его не указывают. Загрузка кладёт значения в черновик и ничего не
+# утверждает и не проводит — это отдельные действия ниже на карточке.
+#
+# Главное правило проверок: ошибка хотя бы в одной ячейке останавливает загрузку целиком, и человек
+# получает протокол «SKU, месяц, что было в файле, почему отказ». Половина загруженного файла хуже
+# незагруженного: по документу потом не понять, какие строки из источника, а какие остались прежними.
+
+GS_SCOPE, GS_KEY = "kabinet-external", "google-sa-json"     # ключ сервисного аккаунта — в скоупе, не в коде
+GS_AUTH = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+
+
+@st.cache_resource(show_spinner=False)
+def _gs_client():
+    """Клиент Google Таблиц. Ключ читаем из скоупа Databricks тем же принципалом, что и базу:
+    копии в st.secrets нет намеренно — иначе ротация требует правки ещё и в Streamlit."""
+    import gspread                                           # не в шапке: без листов страница обязана работать
+    from google.oauth2.service_account import Credentials
+    raw = base64.b64decode(get_workspace_client().secrets.get_secret(scope=GS_SCOPE, key=GS_KEY).value).decode()
+    info = json.loads(raw, strict=False)                     # в ключе переводы строк внутри private_key
+    return gspread.authorize(Credentials.from_service_account_info(info, scopes=GS_AUTH))
+
+
+def gs_open(url: str):
+    return _gs_client().open_by_url(url.strip())
+
+
+def read_source(kind: str, handle, sheet: str) -> pd.DataFrame:
+    """Лист целиком, без заголовков: какая строка заголовочная, решает человек (§11.2).
+    Всё читаем как текст — иначе Excel отдаёт «08455000» числом 8455000.0 и SKU не сопоставится."""
+    if kind == "gsheet":
+        return pd.DataFrame(handle.worksheet(sheet).get_values()).astype(object)
+    handle.seek(0)                                           # ExcelFile оставляет указатель в конце
+    if str(getattr(handle, "name", "")).lower().endswith(".csv"):
+        return pd.read_csv(handle, header=None, dtype=str, sep=None, engine="python", keep_default_na=False)
+    return pd.read_excel(handle, sheet_name=sheet, header=None, dtype=object)
+
+
+def source_sheets(kind: str, handle) -> list:
+    if kind == "gsheet":
+        return [w.title for w in handle.worksheets()]
+    if str(getattr(handle, "name", "")).lower().endswith(".csv"):
+        return ["CSV"]
+    handle.seek(0)
+    return pd.ExcelFile(handle).sheet_names
+
+
+def header_and_body(raw: pd.DataFrame, header_row: int) -> tuple:
+    """Заголовки — строка header_row (1-based), дальше данные. Пустые и повторяющиеся имена колонок
+    получают номер: в источниках месяцы нередко подписаны одинаково («шт», «шт»)."""
+    hdr = raw.iloc[header_row - 1]
+    labels, seen = [], {}
+    for i, v in enumerate(hdr):
+        name = "" if v is None or (isinstance(v, float) and pd.isna(v)) else str(v).strip()
+        if isinstance(v, (datetime, date, pd.Timestamp)):
+            name = month_label(v)
+        name = name or f"{_tr('up_col_nameless')} {i + 1}"
+        seen[name] = seen.get(name, 0) + 1
+        labels.append(name if seen[name] == 1 else f"{name} ({seen[name]})")
+    body = raw.iloc[header_row:].reset_index(drop=True)
+    body.columns = labels
+    return labels, body
+
+
+def guess_month(label: str, months: list):
+    """Месяц по подписи колонки: «11.2026», «2026-11», «ноя.26», дата — всё это встречается в
+    присланных файлах. Что не разобралось — человек сопоставляет руками, молча не угадываем."""
+    s = str(label).strip().lower()
+    for m in months:
+        if s in (month_label(m).lower(), f"{m.year}-{m.month:02d}", f"{m.month:02d}/{m.year}",
+                 f"{m.month}.{m.year}", f"{m.year}{m.month:02d}"):
+            return m
+    digits = re.findall(r"\d+", s)
+    if len(digits) >= 2:
+        a, b = int(digits[0]), int(digits[1])
+        for mm, yy in ((a, b), (b, a)):
+            yy = yy + 2000 if yy < 100 else yy
+            for m in months:
+                if m.month == mm and m.year == yy:
+                    return m
+    return None
+
+
+def match_sku(raw, known: set):
+    """Артикул из ячейки. Excel теряет ведущий ноль и дописывает «.0», поэтому пробуем варианты:
+    как есть, без дробной части, дополненный нулями до восьми знаков. Ничего не подошло — вернём
+    текст как есть, и проверка скажет «нет в справочнике», а не подставит похожий код."""
+    if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+        return ""
+    s = str(raw).strip().upper()
+    if s.endswith(".0") and s[:-2].isdigit():
+        s = s[:-2]
+    for cand in (s, s.zfill(8) if s.isdigit() else s, s.replace(" ", "")):
+        if cand in known:
+            return cand
+    return s
+
+
+def plan_upload(doc, rows: pd.DataFrame, body: pd.DataFrame, sku_col: str, mapping: dict,
+                months: list, active: set, former: set, known: set) -> dict:
+    """Протокол загрузки до записи (§11.3–11.4): что изменится, что заменится и что не так.
+
+    Пустая ячейка источника ничего не меняет — это не команда обнулить: явный 0 означает «продаж не
+    планируем», пустота означает «не сказано». Значения, совпавшие с документом, в изменения не
+    попадают, иначе журнал заполнялся бы строками без содержания."""
+    by_key = {(r.sku, pd.Timestamp(r.month).date()): r for r in rows.itertuples()}
+    present = set(rows["sku"]) if not rows.empty else set()
+    errors, changes, replaces, adds, seen = [], [], [], {}, set()
+    for _, sr in body.iterrows():
+        sku = match_sku(sr.get(sku_col), known)
+        if not sku:
+            continue                                  # пустая строка источника — не ошибка, а конец данных
+        new_sku = sku not in present
+        if new_sku and sku not in known:
+            errors.append(_trf("up_err_unknown", sku=sku))
+            continue
+        if new_sku and sku not in active and sku not in former:
+            errors.append(_trf("up_err_admission", sku=sku))
+            continue
+        for col, m in mapping.items():
+            if m is None or col not in body.columns:
+                continue
+            cell = sr.get(col)
+            if is_empty(cell):
+                continue                              # §11.4: пустота не меняет и не обнуляет
+            if (sku, m) in seen:
+                errors.append(_trf("up_err_dup", sku=sku, m=month_label(m)))
+                continue
+            seen.add((sku, m))
+            txt = str(cell).strip().replace(" ", "").replace(" ", "").replace(",", ".")
+            try:
+                val = float(txt)
+                if val < 0 or val != int(val):
+                    raise ValueError
+                val = int(val)
+            except (TypeError, ValueError):
+                errors.append(_trf("up_err_value", sku=sku, m=month_label(m), v=str(cell)[:20]))
+                continue
+            cur = by_key.get((sku, m))
+            old = None if cur is None or pd.isna(cur.quantity) else int(cur.quantity)
+            if old == val:
+                continue                              # совпало — не изменение
+            if cur is not None and cur.status == "approved":
+                errors.append(_trf("up_err_approved", sku=sku, m=month_label(m)))
+                continue
+            if m < CUR_MONTH:
+                errors.append(_trf("up_err_past", sku=sku, m=month_label(m)))
+                continue
+            if new_sku:
+                adds.setdefault(sku, {})[m] = val
+            else:
+                changes.append((cur.id, sku, m, old, val))
+                if old is not None:
+                    replaces.append((sku, month_label(m), old, val))
+    return {"errors": errors, "changes": changes, "replaces": replaces, "adds": adds,
+            "skus": len({c[1] for c in changes} | set(adds)),
+            "values": len(changes) + sum(len(v) for v in adds.values())}
+
+
+def apply_upload(doc, plan: dict, months: list, former: set, source: str) -> tuple:
+    """Одна транзакция: новые строки SKU и значения. Журнал получает источник загрузки — иначе
+    через месяц не отличить правку руками от загруженной."""
+    actor = _actor()
+
+    def _do(cur):
+        for sku, vals in plan["adds"].items():
+            for m in months:
+                v = vals.get(m)
+                cur.execute("""INSERT INTO kabinet_data.forecast_register
+                                  (record_type, object_type, object_id, sku, month, quantity, version,
+                                   status, is_current, document_id, line_comment, created_by)
+                               VALUES ('sales', %s, %s, %s, %s, %s, 1, 'unapproved', FALSE, %s, %s, %s)""",
+                            (doc["object_type"], int(doc["object_id"]), sku, m, v, int(doc["id"]),
+                             _tr("liq_note") if sku in former else None, actor))
+            log(cur, doc["id"], sku, None, "row", None, "added", source, actor)
+            for m, v in sorted(vals.items()):
+                log(cur, doc["id"], sku, m, "quantity", None, v, source, actor)
+        for rid, sku, m, old, new in plan["changes"]:
+            cur.execute("""UPDATE kabinet_data.forecast_register SET quantity = %s
+                           WHERE id = %s AND status = 'unapproved'""", (new, int(rid)))
+            log(cur, doc["id"], sku, m, "quantity", old, new, source, actor)
+    tx(_do)
+    return plan["values"], len(plan["adds"])
 
 
 def save_prices(doc, rows: pd.DataFrame, edited: pd.DataFrame, months: list) -> int:
@@ -1140,6 +1407,107 @@ with tab_docs:
             lost = sorted(present - active_matrix - former_matrix) if present else []
             if lost:
                 st.warning(_tr("lost_admission") + ", ".join(lost[:20]))
+
+            with st.expander(_tr("sec_upload")):
+                st.caption(_tr("up_help"))
+                kind = st.radio(_tr("up_src"), ["file", "gsheet"], horizontal=True,
+                                format_func=lambda k: _tr("up_src_file") if k == "file" else _tr("up_src_gs"),
+                                key=f"fc_up_kind_{doc['id']}")
+                handle, sheets, err = None, [], ""
+                if kind == "file":
+                    handle = st.file_uploader(_tr("up_file"), type=["xlsx", "xlsm", "xls", "csv"],
+                                              key=f"fc_up_file_{doc['id']}")
+                else:
+                    url = st.text_input(_tr("up_gs_url"), key=f"fc_up_url_{doc['id']}",
+                                        placeholder="https://docs.google.com/spreadsheets/d/…")
+                    if url.strip():
+                        try:
+                            handle = gs_open(url)
+                        except Exception as e:      # нет библиотеки, нет ключа, нет доступа к листу
+                            err = _trf("up_gs_fail", e=str(e)[:200])
+                if err:
+                    st.warning(err)
+                if handle is not None and not err:
+                    try:
+                        sheets = source_sheets(kind, handle)
+                    except Exception as e:
+                        st.error(_trf("up_read_fail", e=str(e)[:200]))
+                        sheets = []
+                if sheets:
+                    s1, s2 = st.columns([3, 1])
+                    sheet = s1.selectbox(_tr("up_sheet"), sheets, key=f"fc_up_sheet_{doc['id']}")
+                    hrow = s2.number_input(_tr("up_header"), min_value=1, max_value=50, value=1, step=1,
+                                           key=f"fc_up_hrow_{doc['id']}")
+                    try:
+                        raw_src = read_source(kind, handle, sheet)
+                        labels, body = header_and_body(raw_src, int(hrow))
+                    except Exception as e:
+                        labels, body = [], None
+                        st.error(_trf("up_read_fail", e=str(e)[:200]))
+                    if body is not None and len(labels):
+                        # колонка артикула: угадываем по подписи, но последнее слово за человеком
+                        guess_sku = next((c for c in labels if any(w in str(c).lower()
+                                                                   for w in ("sku", "артик", "код", "code"))), labels[0])
+                        sku_col = st.selectbox(_tr("up_sku_col"), labels, index=labels.index(guess_sku),
+                                               key=f"fc_up_skucol_{doc['id']}")
+                        st.caption(_tr("up_map"))
+                        mapping, cols_left = {}, [c for c in labels if c != sku_col]
+                        mcols_ui = st.columns(3)
+                        # сентинел «—», а не None: вариант None в selectbox неотличим от «ничего не
+                        # выбрано» и показывается служебным «Choose an option» вместо нашей подписи
+                        SKIP = "—"
+                        for i, c in enumerate(cols_left):
+                            g = guess_month(c, months)
+                            opts = [SKIP] + months
+                            got = mcols_ui[i % 3].selectbox(
+                                c, opts, index=(opts.index(g) if g in opts else 0),
+                                format_func=lambda m: _tr("up_skip") if m == SKIP else month_label(m),
+                                key=f"fc_up_map_{doc['id']}_{i}")
+                            mapping[c] = None if got == SKIP else got
+                        picked_months = [m for m in mapping.values() if m is not None]
+                        if len(picked_months) != len(set(picked_months)):
+                            st.error(_tr("up_map_dup"))
+                        elif not picked_months:
+                            st.info(_tr("up_no_months"))
+                        else:
+                            plan = plan_upload(doc, rows, body, sku_col, mapping, months,
+                                               active_matrix, former_matrix, known)
+                            prev = pd.DataFrame(
+                                [(sku, month_label(m), "" if o is None else o, n)
+                                 for _, sku, m, o, n in plan["changes"]]
+                                + [(sku, month_label(m), "", v) for sku, vals in plan["adds"].items()
+                                   for m, v in sorted(vals.items())],
+                                columns=[_tr("col_sku"), _tr("up_col_month"), _tr("up_col_old"), _tr("up_col_new")])
+                            if plan["errors"]:
+                                st.error(_trf("up_errors", n=len(plan["errors"])) + "\n\n"
+                                         + "\n".join(f"- {x}" for x in plan["errors"][:30])
+                                         + ("\n- …" if len(plan["errors"]) > 30 else ""))
+                            if not prev.empty:
+                                st.caption(_trf("up_preview", s=plan["skus"], v=plan["values"],
+                                                a=len(plan["adds"]), r=len(plan["replaces"])))
+                                st.dataframe(prev, use_container_width=True, hide_index=True,
+                                             height=min(320, 38 + 35 * max(1, len(prev))))
+                            elif not plan["errors"]:
+                                st.info(_tr("up_nothing"))
+                            uk_ = f"fc_up_confirm_{doc['id']}"
+                            need_ok = bool(plan["replaces"])          # §11.5: замену заполненного подтверждают
+                            armed = st.session_state.get(uk_) == (plan["values"], len(plan["replaces"]))
+                            if need_ok and not armed and not plan["errors"] and not prev.empty:
+                                st.warning(_trf("up_replace", n=len(plan["replaces"])))
+                            if st.button(_tr("up_btn_apply_confirm") if (need_ok and armed) else _tr("up_btn_apply"),
+                                         type="primary", disabled=bool(plan["errors"]) or prev.empty,
+                                         key=f"fc_up_apply_{doc['id']}"):
+                                if need_ok and not armed:
+                                    st.session_state[uk_] = (plan["values"], len(plan["replaces"]))
+                                    st.rerun()
+                                try:
+                                    n, k = apply_upload(doc, plan, months, former_matrix,
+                                                        "import:file" if kind == "file" else "import:gsheet")
+                                    st.session_state.pop(uk_, None)
+                                    flash("success", _trf("up_done", n=n, k=k))
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(_trf("err_write", e=e))
 
             st.markdown(f"##### {_tr('sec_actions')}")
             b1, b2 = st.columns(2)
