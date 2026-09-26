@@ -205,6 +205,34 @@ TR = {
         "wh_prio_hint": "Приоритет 1 — куда товар с этого склада уходит в первую очередь. Один маркетплейс или пул на строку; фильтр по стране сужает список. Пустая строка — приоритет не занят. Склад без привязок сохранить можно; убрать у склада продаж последнюю привязку — нельзя.",
         "wh_src_h": "Откуда пополняется",
         "wh_src_none": "Маршрутов подпитки на этот склад пока нет.",
+        # --- ТЗ 002: страны ---
+        "tab_ctry": "Страны",
+        "ctry_hint": "Единый справочник стран для всех кабинетов: географическая привязка складов, маркетплейсов и прочих сущностей. "
+                     "Название хранится латиницей — это нормативное значение; на языке интерфейса страны показываются из отдельного словаря. "
+                     "Физического удаления нет: страна выключается.",
+        "ctry_id_note": "Ключ ссылок — код Alpha-2: он неизменяем, и на него построены все связи в базе.",
+        "ctry_search": "Поиск по названию или коду", "ctry_only_active": "Только активные",
+        "ctry_found": "Найдено: {n} из {all}",
+        "ctry_col_a2": "Alpha-2", "ctry_col_a3": "Alpha-3", "ctry_col_num": "Numeric",
+        "ctry_col_name": "Название (латиница)", "ctry_col_local": "На языке интерфейса",
+        "ctry_pick": "Страна", "ctry_card": "Карточка страны",
+        "ctry_codes_ro": "ISO-коды после создания не меняются: по ним страна опознаётся во всех кабинетах.",
+        "ctry_new": "Новая страна", "ctry_create": "Создать",
+        "ctry_a2_bad": "Alpha-2: ровно две заглавные латинские буквы.",
+        "ctry_a3_bad": "Alpha-3: ровно три заглавные латинские буквы.",
+        "ctry_num_bad": "Numeric: число от 1 до 999.",
+        "ctry_name_bad": "Название: только латиница, знаки и пробелы; минимум два символа.",
+        "ctry_dup_a2": "Alpha-2 {v} уже занят страной {name}.",
+        "ctry_dup_a3": "Alpha-3 {v} уже занят страной {name}.",
+        "ctry_dup_num": "Numeric {v} уже занят страной {name}.",
+        "ctry_dup_name": "Название совпадает со страной {name} — сравнение без учёта регистра и лишних пробелов.",
+        "ctry_created": "Страна создана.", "ctry_saved": "Сохранено.",
+        "ctry_off_deps": "Перед выключением: что сейчас ссылается на страну",
+        "ctry_dep_mp": "маркетплейсов: {n}", "ctry_dep_wh": "складов (страна нахождения): {n}",
+        "ctry_dep_serve": "складов обслуживают: {n}", "ctry_dep_none": "ссылок нет",
+        "ctry_off_note": "Выключенная страна не предлагается в новых связях. Существующие связи, история и документы сохраняются, включить можно снова.",
+        "ctry_local_note": "Названия на русском, украинском и английском лежат в отдельном словаре Кабинета и в нормативный справочник не входят — так требует ТЗ 002 §2.",
+        "ctry_log": "История изменений",
         # --- ТЗ 003: площадки и маркетплейсы ---
         "tab_plat": "Площадки",
         "plat_hint": "Площадка — оператор или платформа: Amazon, Leroy Merlin, ManoMano. Внутри площадки живут маркетплейсы по странам. "
@@ -531,6 +559,34 @@ TR = {
         "wh_prio_hint": "Пріоритет 1 — куди товар із цього складу йде насамперед. Один маркетплейс або пул на рядок; фільтр за країною звужує список. Порожній рядок — пріоритет не зайнятий. Склад без привʼязок зберегти можна; прибрати у складу продажу останню привʼязку — ні.",
         "wh_src_h": "Звідки поповнюється",
         "wh_src_none": "Маршрутів підживлення на цей склад поки немає.",
+        # --- ТЗ 002 ---
+        "tab_ctry": "Країни",
+        "ctry_hint": "Єдиний довідник країн для всіх кабінетів: географічна привʼязка складів, маркетплейсів та інших сутностей. "
+                     "Назва зберігається латиницею — це нормативне значення; мовою інтерфейсу країни показуються з окремого словника. "
+                     "Фізичного видалення немає: країна вимикається.",
+        "ctry_id_note": "Ключ посилань — код Alpha-2: він незмінний, і на нього побудовані всі зв’язки в базі.",
+        "ctry_search": "Пошук за назвою або кодом", "ctry_only_active": "Лише активні",
+        "ctry_found": "Знайдено: {n} з {all}",
+        "ctry_col_a2": "Alpha-2", "ctry_col_a3": "Alpha-3", "ctry_col_num": "Numeric",
+        "ctry_col_name": "Назва (латиниця)", "ctry_col_local": "Мовою інтерфейсу",
+        "ctry_pick": "Країна", "ctry_card": "Картка країни",
+        "ctry_codes_ro": "ISO-коди після створення не змінюються: за ними країна розпізнається у всіх кабінетах.",
+        "ctry_new": "Нова країна", "ctry_create": "Створити",
+        "ctry_a2_bad": "Alpha-2: рівно дві великі латинські літери.",
+        "ctry_a3_bad": "Alpha-3: рівно три великі латинські літери.",
+        "ctry_num_bad": "Numeric: число від 1 до 999.",
+        "ctry_name_bad": "Назва: лише латиниця, знаки і пробіли; мінімум два символи.",
+        "ctry_dup_a2": "Alpha-2 {v} вже зайнятий країною {name}.",
+        "ctry_dup_a3": "Alpha-3 {v} вже зайнятий країною {name}.",
+        "ctry_dup_num": "Numeric {v} вже зайнятий країною {name}.",
+        "ctry_dup_name": "Назва збігається з країною {name} — порівняння без урахування регістру та зайвих пробілів.",
+        "ctry_created": "Країну створено.", "ctry_saved": "Збережено.",
+        "ctry_off_deps": "Перед вимкненням: що зараз посилається на країну",
+        "ctry_dep_mp": "маркетплейсів: {n}", "ctry_dep_wh": "складів (країна розташування): {n}",
+        "ctry_dep_serve": "складів обслуговують: {n}", "ctry_dep_none": "посилань немає",
+        "ctry_off_note": "Вимкнена країна не пропонується в нових зв’язках. Наявні зв’язки, історія та документи зберігаються, увімкнути можна знову.",
+        "ctry_local_note": "Назви російською, українською та англійською лежать в окремому словнику Кабінету і до нормативного довідника не входять — так вимагає ТЗ 002 §2.",
+        "ctry_log": "Історія змін",
         # --- ТЗ 003 ---
         "tab_plat": "Майданчики",
         "plat_hint": "Майданчик — оператор або платформа: Amazon, Leroy Merlin, ManoMano. Усередині майданчика живуть маркетплейси по країнах. "
@@ -856,6 +912,34 @@ TR = {
         "wh_prio_hint": "Priority 1 — where goods from this warehouse go first. One marketplace or pool per row; the country filter narrows the list. An empty row means the priority is free. A warehouse with no bindings can be saved; removing the last binding from a sales warehouse cannot.",
         "wh_src_h": "Replenished from",
         "wh_src_none": "No supply routes into this warehouse yet.",
+        # --- spec 002 ---
+        "tab_ctry": "Countries",
+        "ctry_hint": "One country directory for every cabinet: geography for warehouses, marketplaces and anything else that needs a country. "
+                     "The name is stored in Latin script — that is the normative value; interface languages come from a separate dictionary. "
+                     "There is no physical delete: a country is switched off.",
+        "ctry_id_note": "The reference key is the Alpha-2 code: it never changes and every link in the database is built on it.",
+        "ctry_search": "Search by name or code", "ctry_only_active": "Active only",
+        "ctry_found": "Found: {n} of {all}",
+        "ctry_col_a2": "Alpha-2", "ctry_col_a3": "Alpha-3", "ctry_col_num": "Numeric",
+        "ctry_col_name": "Name (Latin)", "ctry_col_local": "In interface language",
+        "ctry_pick": "Country", "ctry_card": "Country card",
+        "ctry_codes_ro": "ISO codes never change after creation: every cabinet identifies the country by them.",
+        "ctry_new": "New country", "ctry_create": "Create",
+        "ctry_a2_bad": "Alpha-2: exactly two capital Latin letters.",
+        "ctry_a3_bad": "Alpha-3: exactly three capital Latin letters.",
+        "ctry_num_bad": "Numeric: a number from 1 to 999.",
+        "ctry_name_bad": "Name: Latin letters, punctuation and spaces only; at least two characters.",
+        "ctry_dup_a2": "Alpha-2 {v} already belongs to {name}.",
+        "ctry_dup_a3": "Alpha-3 {v} already belongs to {name}.",
+        "ctry_dup_num": "Numeric {v} already belongs to {name}.",
+        "ctry_dup_name": "The name matches {name} — compared ignoring case and extra spaces.",
+        "ctry_created": "Country created.", "ctry_saved": "Saved.",
+        "ctry_off_deps": "Before switching off: what refers to this country now",
+        "ctry_dep_mp": "marketplaces: {n}", "ctry_dep_wh": "warehouses (location): {n}",
+        "ctry_dep_serve": "warehouses serving it: {n}", "ctry_dep_none": "no references",
+        "ctry_off_note": "An inactive country is not offered for new links. Existing links, history and documents are kept, and it can be switched back on.",
+        "ctry_local_note": "Russian, Ukrainian and English names live in a separate Kabinet dictionary and are not part of the normative directory — spec 002 §2 requires that.",
+        "ctry_log": "Change history",
         # --- spec 003 ---
         "tab_plat": "Platforms",
         "plat_hint": "A platform is the operator: Amazon, Leroy Merlin, ManoMano. Marketplaces live inside a platform, one per country. "
@@ -1235,7 +1319,7 @@ st.caption(_tr("sub"))
 # Разделы — не st.tabs. Вкладки Streamlit исполняются все разом при каждом прогоне: на любое действие
 # страница делала 44 запроса и отправляла в браузер десять таблиц (PeID — 4 076 строк, матрица — 2 204),
 # после каждого сохранения — заново. Здесь исполняется только выбранный раздел (замер 21.09.2026).
-_SECTIONS = ["wh", "ch", "plat", "mp", "pool", "norm", "alerts", "sku", "peid", "vg", "matrix"]
+_SECTIONS = ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "peid", "vg", "matrix"]
 _sec = st.segmented_control(_tr("title"), _SECTIONS, format_func=lambda k: _tr(f"tab_{k}"), default="wh",
                             key="dict_section", label_visibility="collapsed")
 if _sec is None:
@@ -1897,6 +1981,212 @@ def _section_mp():
             st.dataframe(lg, hide_index=True, use_container_width=True,
                          height=min(320, 38 + 35 * len(lg)))
 
+
+
+# ---------------------------------------------------------------- ТЗ 002 ---
+A2_RE = re.compile(r"^[A-Z]{2}$")
+A3_RE = re.compile(r"^[A-Z]{3}$")
+CNAME_RE = re.compile(r"^[A-Za-z][A-Za-z\s\.\-'’()]{1,}$")
+CLOG = ("INSERT INTO kabinet_data.country_change_log (alpha2, field, old_value, new_value, actor) "
+        "VALUES (%s, %s, %s, %s, 'kabinet')")
+
+
+def _cname_key(v: str) -> str:
+    """Нормализация названия для контроля дублей (ТЗ 002 §4): регистр не важен, края обрезаны,
+    несколько пробелов внутри сведены к одному. Дефисы и прочие знаки остаются как есть —
+    «Guinea-Bissau» и «Guinea Bissau» это разные названия, и склеивать их нельзя."""
+    return re.sub(r"\s+", " ", (v or "").strip()).lower()
+
+
+def _country_deps(a2: str) -> list:
+    """На что страна уже ссылается: показываем перед выключением (ТЗ 002 §3)."""
+    r = q1("""
+        SELECT (SELECT count(*) FROM kabinet_data.marketplaces_new WHERE country_alpha2 = %s) AS mp,
+               (SELECT count(*) FROM kabinet_data.warehouses WHERE country = %s) AS wh,
+               (SELECT count(*) FROM kabinet_data.warehouse_countries WHERE country_alpha2 = %s) AS serve
+    """, (a2, a2, a2))
+    out = []
+    if int(r["mp"].iloc[0]):
+        out.append(_trf("ctry_dep_mp", n=int(r["mp"].iloc[0])))
+    if int(r["wh"].iloc[0]):
+        out.append(_trf("ctry_dep_wh", n=int(r["wh"].iloc[0])))
+    if int(r["serve"].iloc[0]):
+        out.append(_trf("ctry_dep_serve", n=int(r["serve"].iloc[0])))
+    return out or [_tr("ctry_dep_none")]
+
+
+def _section_ctry():
+    st.caption(_tr("ctry_hint"))
+    st.caption(_tr("ctry_id_note"))
+    _lang_col = {"ru": "name_ru", "uk": "name_uk"}.get(get_lang(), "name_en")
+    ctry = q(f"""
+        SELECT c.alpha2, c.alpha3, c."numeric" AS num, c.name, c.is_active,
+               COALESCE(n.{_lang_col}, n.name_en) AS local_name
+        FROM kabinet_data.countries c
+        LEFT JOIN kabinet_data.country_names n ON n.alpha2 = c.alpha2
+        ORDER BY c.name
+    """)
+
+    f1, f2 = st.columns([3, 1])
+    needle = f1.text_input(_tr("ctry_search"), key="ctry_search").strip().lower()
+    only_active = f2.checkbox(_tr("ctry_only_active"), value=False, key="ctry_active_only")
+    view = ctry
+    if needle:
+        view = view[view.apply(lambda r: needle in str(r["name"]).lower()
+                               or needle in str(r["local_name"] or "").lower()
+                               or needle in str(r["alpha2"]).lower()
+                               or needle in str(r["alpha3"]).lower()
+                               or needle == str(r["num"]), axis=1)]
+    if only_active:
+        view = view[view["is_active"]]
+    st.caption(_trf("ctry_found", n=len(view), all=len(ctry)))
+
+    # активность правится из списка (ТЗ §7); ISO-коды и название — только в карточке
+    ed = st.data_editor(
+        view[["alpha2", "alpha3", "num", "name", "local_name", "is_active"]],
+        key="ed_ctry", hide_index=True, use_container_width=True, num_rows="fixed",
+        height=min(420, 38 + 35 * max(len(view), 1)),
+        disabled=["alpha2", "alpha3", "num", "name", "local_name"],
+        column_config={
+            "alpha2": st.column_config.TextColumn(_tr("ctry_col_a2"), width="small"),
+            "alpha3": st.column_config.TextColumn(_tr("ctry_col_a3"), width="small"),
+            "num": st.column_config.TextColumn(_tr("ctry_col_num"), width="small"),
+            "name": st.column_config.TextColumn(_tr("ctry_col_name"), width="medium"),
+            "local_name": st.column_config.TextColumn(_tr("ctry_col_local"), width="medium"),
+            "is_active": st.column_config.CheckboxColumn(_tr("col_active"), width="small"),
+        })
+    if st.button(_tr("save"), key="ctry_save_list"):
+        before = view.set_index("alpha2")
+        stmts = []
+        for r in ed.itertuples():
+            was = bool(before.loc[r.alpha2, "is_active"])
+            if bool(r.is_active) != was:
+                stmts.append(("UPDATE kabinet_data.countries SET is_active = %s WHERE alpha2 = %s",
+                              (bool(r.is_active), r.alpha2)))
+                stmts.append((CLOG, (r.alpha2, "is_active", str(was), str(bool(r.is_active)))))
+        if not stmts:
+            st.info(_tr("nochange"))
+        else:
+            try:
+                exec_sql(stmts); st.cache_data.clear(); st.success(_tr("ctry_saved")); st.rerun()
+            except Exception as e:
+                st.error(_trf("err", e=e))
+
+    st.divider()
+    left, right = st.columns([1, 2])
+    with left:
+        with st.form("new_ctry", clear_on_submit=True):
+            st.markdown(f"**{_tr('ctry_new')}**")
+            n_a2 = st.text_input(_tr("ctry_col_a2"))
+            n_a3 = st.text_input(_tr("ctry_col_a3"))
+            n_num = st.text_input(_tr("ctry_col_num"))
+            n_name = st.text_input(_tr("ctry_col_name"))
+            if st.form_submit_button(_tr("ctry_create")):
+                a2, a3 = (n_a2 or "").strip().upper(), (n_a3 or "").strip().upper()
+                name = (n_name or "").strip()
+                errs = []
+                if not A2_RE.match(a2):
+                    errs.append(_tr("ctry_a2_bad"))
+                if not A3_RE.match(a3):
+                    errs.append(_tr("ctry_a3_bad"))
+                try:
+                    num = int((n_num or "").strip())
+                    if not 1 <= num <= 999:
+                        raise ValueError
+                except ValueError:
+                    num = None
+                    errs.append(_tr("ctry_num_bad"))
+                if not CNAME_RE.match(name):
+                    errs.append(_tr("ctry_name_bad"))
+                # дубли ищем среди ВСЕХ записей, активных и неактивных (ТЗ §4)
+                if a2 in set(ctry["alpha2"]):
+                    errs.append(_trf("ctry_dup_a2", v=a2,
+                                     name=ctry.set_index("alpha2").loc[a2, "name"]))
+                if a3 in set(ctry["alpha3"]):
+                    errs.append(_trf("ctry_dup_a3", v=a3,
+                                     name=ctry.set_index("alpha3").loc[a3, "name"]))
+                if num is not None and num in set(int(x) for x in ctry["num"]):
+                    errs.append(_trf("ctry_dup_num", v=num,
+                                     name=ctry[ctry["num"] == num]["name"].iloc[0]))
+                keys = {_cname_key(x): x for x in ctry["name"]}
+                if _cname_key(name) in keys:
+                    errs.append(_trf("ctry_dup_name", name=keys[_cname_key(name)]))
+                if errs:
+                    for e in errs:
+                        st.error(e)
+                else:
+                    try:
+                        exec_sql([
+                            ("INSERT INTO kabinet_data.countries (alpha2, alpha3, \"numeric\", name, is_active) "
+                             "VALUES (%s, %s, %s, %s, true)", (a2, a3, num, name)),
+                            (CLOG, (a2, "created", None, f"{a2}/{a3}/{num} {name}")),
+                        ])
+                        st.cache_data.clear(); st.success(_tr("ctry_created")); st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
+
+    with right:
+        if ctry.empty:
+            return
+        labels = {r.alpha2: f"{r.name} ({r.alpha2})" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
+                  for r in ctry.itertuples()}
+        sel = st.selectbox(_tr("ctry_pick"), list(labels), format_func=lambda a: labels[a], key="ctry_pick")
+        row = ctry.set_index("alpha2").loc[sel]
+        st.markdown(f"##### {_tr('ctry_card')}")
+        c1, c2, c3 = st.columns(3)
+        c1.text_input(_tr("ctry_col_a2"), value=sel, disabled=True, key=f"ca2_{sel}")
+        c2.text_input(_tr("ctry_col_a3"), value=row["alpha3"], disabled=True, key=f"ca3_{sel}")
+        c3.text_input(_tr("ctry_col_num"), value=str(row["num"]), disabled=True, key=f"cnum_{sel}")
+        st.caption(_tr("ctry_codes_ro"))
+        new_name = st.text_input(_tr("ctry_col_name"), value=row["name"], key=f"cname_{sel}")
+        if row["local_name"]:
+            st.caption(f"{_tr('ctry_col_local')}: {row['local_name']} · {_tr('ctry_local_note')}")
+        new_act = st.checkbox(_tr("col_active"), value=bool(row["is_active"]), key=f"cact_{sel}")
+        if bool(row["is_active"]) and not new_act:
+            st.warning(_tr("ctry_off_deps") + ": " + "; ".join(_country_deps(sel)))
+            st.caption(_tr("ctry_off_note"))
+
+        if st.button(_tr("save"), key=f"ctry_save_{sel}", type="primary"):
+            name = (new_name or "").strip()
+            errs = []
+            if not CNAME_RE.match(name):
+                errs.append(_tr("ctry_name_bad"))
+            others = ctry[ctry["alpha2"] != sel]
+            keys = {_cname_key(x): x for x in others["name"]}
+            if _cname_key(name) in keys:
+                errs.append(_trf("ctry_dup_name", name=keys[_cname_key(name)]))
+            if errs:
+                for e in errs:
+                    st.error(e)
+            else:
+                stmts = []
+                if name != row["name"]:
+                    stmts.append(("UPDATE kabinet_data.countries SET name = %s WHERE alpha2 = %s", (name, sel)))
+                    stmts.append((CLOG, (sel, "name", row["name"], name)))
+                if bool(new_act) != bool(row["is_active"]):
+                    stmts.append(("UPDATE kabinet_data.countries SET is_active = %s WHERE alpha2 = %s",
+                                  (bool(new_act), sel)))
+                    stmts.append((CLOG, (sel, "is_active", str(bool(row["is_active"])), str(bool(new_act)))))
+                if not stmts:
+                    st.info(_tr("nochange"))
+                else:
+                    try:
+                        exec_sql(stmts); st.cache_data.clear(); st.success(_tr("ctry_saved")); st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
+
+        with st.expander(_tr("ctry_log")):
+            lg = q1("""SELECT changed_at, field, old_value, new_value, actor
+                       FROM kabinet_data.country_change_log WHERE alpha2 = %s
+                       ORDER BY changed_at DESC LIMIT 200""", (sel,))
+            if lg.empty:
+                st.caption(_tr("mp_log_empty"))
+            else:
+                lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+                lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"),
+                              _tr("mp_log_new"), _tr("mp_log_who")]
+                st.dataframe(lg, hide_index=True, use_container_width=True,
+                             height=min(300, 38 + 35 * len(lg)))
 
 # ---------------------------------------------------------------- ТЗ 003 ---
 SHORT_RE = re.compile(r"^[A-Z0-9]{2,10}$")
@@ -3545,4 +3835,4 @@ def _section_matrix():
                             st.error(_trf("err", e=e))
 
 
-{"wh": _section_wh, "ch": _section_ch, "plat": _section_plat, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sku": _section_sku, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
+{"wh": _section_wh, "ch": _section_ch, "ctry": _section_ctry, "plat": _section_plat, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sku": _section_sku, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
