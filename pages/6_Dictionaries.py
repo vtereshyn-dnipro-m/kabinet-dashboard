@@ -240,6 +240,7 @@ TR = {
         "mp_site": "Ссылка на сайт", "mp_site_bad": "Ссылка должна начинаться с https:// и не содержать пробелов.",
         "mp_locked": "Нельзя изменить {what}: marketplace уже используется в ассортиментной матрице или документах прогноза. "
                      "Для другой {what2} создайте отдельный marketplace.",
+        "mp_locked_advice": "Нужен другой рынок — заведите новый маркетплейс с нужной страной или площадкой, а этот выключите: история, допуски и прогнозы останутся при нём и никуда не переедут.",
         "mp_locked_what_platform": "Площадку", "mp_locked_what_country": "страну",
         "mp_locked_for_platform": "площадки", "mp_locked_for_country": "страны",
         "mp_deps_head": "Что мешает менять площадку и страну:",
@@ -564,6 +565,7 @@ TR = {
         "mp_site": "Посилання на сайт", "mp_site_bad": "Посилання має починатися з https:// і не містити пробілів.",
         "mp_locked": "Не можна змінити {what}: marketplace уже використовується в асортиментній матриці або документах прогнозу. "
                      "Для іншої {what2} створіть окремий marketplace.",
+        "mp_locked_advice": "Потрібен інший ринок — створіть новий маркетплейс з потрібною країною або майданчиком, а цей вимкніть: історія, допуски та прогнози залишаться при ньому й нікуди не переїдуть.",
         "mp_locked_what_platform": "Майданчик", "mp_locked_what_country": "країну",
         "mp_locked_for_platform": "майданчика", "mp_locked_for_country": "країни",
         "mp_deps_head": "Що перешкоджає зміні майданчика і країни:",
@@ -888,6 +890,7 @@ TR = {
         "mp_site": "Website", "mp_site_bad": "The link must start with https:// and contain no spaces.",
         "mp_locked": "Cannot change the {what}: this marketplace is already used in the assortment matrix or forecast documents. "
                      "Create a separate marketplace for another {what2}.",
+        "mp_locked_advice": "Need another market? Create a new marketplace with the country or platform you need and switch this one off: its history, admissions and forecasts stay with it and do not move.",
         "mp_locked_what_platform": "platform", "mp_locked_what_country": "country",
         "mp_locked_for_platform": "platform", "mp_locked_for_country": "country",
         "mp_deps_head": "What blocks changing the platform and country:",
@@ -1760,7 +1763,10 @@ def _section_mp():
                             help=_tr("mp_currency_help"),
                             format_func=lambda c_: f"{c_} — {curr.set_index('code').loc[c_, 'name']}")
     if blockers:
+        # рядом с заблокированным полем говорим не только «нельзя», но и что делать вместо этого:
+        # отказ без выхода читается как поломка экрана
         st.caption(_trf("mp_locked", what=_tr("mp_locked_what_platform"), what2=_tr("mp_locked_for_platform")))
+        st.info(_tr("mp_locked_advice"))
 
     e1, e2, e3 = st.columns([1, 1, 2])
     new_esys = e1.text_input(_tr("mp_ext_sys"), value=row["external_system"] or "", key=f"mes_{sel}")
@@ -1781,7 +1787,8 @@ def _section_mp():
         ctry_changed = new_ctry != row["country_alpha2"]
         if (plat_changed or ctry_changed) and blockers:
             errs.append(_trf("mp_locked", what=_tr("mp_locked_what_platform"),
-                             what2=_tr("mp_locked_for_platform")) + " " + "; ".join(blockers))
+                             what2=_tr("mp_locked_for_platform")) + " " + "; ".join(blockers)
+                        + " " + _tr("mp_locked_advice"))
         if plat_changed and not bool(plats.set_index("short_name").loc[new_plat, "is_active"]):
             errs.append(_trf("mp_platform_inactive", name=new_plat))
         if plat_changed or ctry_changed:
