@@ -205,6 +205,60 @@ TR = {
         "wh_prio_hint": "Приоритет 1 — куда товар с этого склада уходит в первую очередь. Один маркетплейс или пул на строку; фильтр по стране сужает список. Пустая строка — приоритет не занят. Склад без привязок сохранить можно; убрать у склада продаж последнюю привязку — нельзя.",
         "wh_src_h": "Откуда пополняется",
         "wh_src_none": "Маршрутов подпитки на этот склад пока нет.",
+        # --- ТЗ 003: площадки и маркетплейсы ---
+        "tab_plat": "Площадки",
+        "plat_hint": "Площадка — оператор или платформа: Amazon, Leroy Merlin, ManoMano. Внутри площадки живут маркетплейсы по странам. "
+                     "Обозначения ассортиментной структуры задаются здесь и используются всеми её маркетплейсами — отдельных копий нет.",
+        "plat_list": "Площадки", "plat_new": "Новая площадка", "plat_create": "Создать",
+        "plat_short": "Краткое название", "plat_short_help": "От 2 до 10 знаков: только заглавные латинские буквы и цифры. Входит в код маркетплейса: AMZ → AMZ-ES.",
+        "plat_short_bad": "Краткое название: от 2 до 10 знаков, только заглавные латинские буквы и цифры.",
+        "plat_short_dup": "Такое краткое название уже есть у другой площадки.",
+        "plat_short_locked": "Краткое название не меняется: на площадку ссылаются маркетплейсы ({n}), и их коды построены из него. Для другого названия нужна площадка без маркетплейсов.",
+        "plat_name": "Название", "plat_name_empty": "Название обязательно.",
+        "plat_comment": "Комментарий",
+        "plat_labels": "Обозначения ассортиментной структуры",
+        "plat_labels_hint": "Заполняются, только если площадка такую сущность использует. Пусто — значит на площадке её нет, и в матрице поле не показывается.",
+        "plat_vg": "Группа вариаций", "plat_vg_ph": "например Parent ASIN",
+        "plat_var": "Вариация", "plat_var_ph": "например Child ASIN",
+        "plat_peid": "Товарная сущность (PeID)", "plat_peid_ph": "например ASIN",
+        "plat_peid_fmt": "Правило формата PeID", "plat_peid_fmt_ph": "например 10 знаков, начинается с B0",
+        "plat_active": "Активна",
+        "plat_off_deps": "Перед выключением: что у площадки есть сейчас",
+        "plat_off_mps": "маркетплейсов: {n}, из них активных {a}",
+        "plat_off_note": "Выключенная площадка недоступна для новых маркетплейсов, допусков и прогнозов. История сохраняется, запись не удаляется.",
+        "plat_created": "Площадка создана.", "plat_saved": "Сохранено.",
+        "plat_mps": "Маркетплейсы площадки",
+        # маркетплейс
+        "mp_pick": "Маркетплейс", "mp_code_ro": "Код (собирается сам)",
+        "mp_code_hint": "Код — производный: краткое название площадки и код страны. Вручную не правится и пересчитывается, если разрешена смена площадки или страны.",
+        "mp_platform": "Площадка", "mp_country": "Страна покрытия", "mp_currency": "Валюта",
+        "mp_currency_help": "Перечень ISO 4217. Страна не определяет валюту сама: у маркетплейса могут быть свои расчёты.",
+        "mp_ext_sys": "Внешняя система", "mp_ext_id": "Внешний идентификатор",
+        "mp_ext_hint": "Заполняются только вместе. Пара «система + идентификатор» уникальна; один и тот же идентификатор в разных системах допустим.",
+        "mp_ext_half": "Внешние данные заполняются парой: нужны и система, и идентификатор.",
+        "mp_ext_dup": "Эта пара «внешняя система + идентификатор» уже занята маркетплейсом {code}.",
+        "mp_site": "Ссылка на сайт", "mp_site_bad": "Ссылка должна начинаться с https:// и не содержать пробелов.",
+        "mp_locked": "Нельзя изменить {what}: marketplace уже используется в ассортиментной матрице или документах прогноза. "
+                     "Для другой {what2} создайте отдельный marketplace.",
+        "mp_locked_what_platform": "Площадку", "mp_locked_what_country": "страну",
+        "mp_locked_for_platform": "площадки", "mp_locked_for_country": "страны",
+        "mp_deps_head": "Что мешает менять площадку и страну:",
+        "mp_dep_matrix": "записей матрицы: {n} (включая закрытые)",
+        "mp_dep_repr": "представлений SKU: {n}",
+        "mp_dep_forecast": "документов прогноза: {n} (включая черновики и исторические)",
+        "mp_dep_register": "записей в реестре прогноза: {n}",
+        "mp_dep_pool": "участий в пулах: {n}",
+        "mp_dep_peid": "PeID/ASIN: {n}",
+        "mp_dep_alerts": "открытых алертов: {n}",
+        "mp_free": "Матрицы и прогнозов по этому маркетплейсу нет — площадку и страну ещё можно изменить.",
+        "mp_dup_pair": "Пара «площадка + страна» уже занята маркетплейсом {code} — такой маркетплейс может быть только один.",
+        "mp_pool_country": "Смена страны сломает пул «{pool}»: в пуле маркетплейсы одной страны, а остальные его участники — {countries}.",
+        "mp_platform_inactive": "Площадка «{name}» выключена — на неё нельзя переводить маркетплейс.",
+        "mp_off_deps": "Перед выключением: что сейчас связано",
+        "mp_off_note": "Выключенный маркетплейс не выбирается в новых операциях: допусках, пулах, прогнозах, PeID. Связи, история и документы сохраняются, запись не удаляется, включить можно снова.",
+        "mp_log": "Журнал изменений", "mp_log_empty": "Изменений нет.",
+        "mp_log_when": "Когда", "mp_log_field": "Поле", "mp_log_old": "Было", "mp_log_new": "Стало", "mp_log_who": "Кто",
+        "mp_saved": "Сохранено. Код: {code}.", "mp_nochange": "Изменений нет.",
         "col_lt_plan": "План LT, дн", "col_lt_fact": "Факт, дн", "col_lt_dev": "Отклонение",
         "wh_lt_hint": "План LT — прогнозный гарантированный срок, он идёт в расчёты обеспечения и правится здесь. Факт — медиана «отгрузка → приёмка» по закрытым накладным ERP за {w} дн, только для сравнения: Кабинет LT не меняет сам (ТЗ 001 §5). При отклонении больше {t} % на закрытых поставках (минимум {m}) приходит информационный алерт.",
         "wh_lt_nofact": "Фактического срока нет ни по одному маршруту: ERP почти не закрывает накладные — из {n} строк дату приёмки имеют {k}. Пока так, сравнивать не с чем, и алерт молчит.",
@@ -256,7 +310,7 @@ TR = {
         "ch_from": "Склад-источник", "ch_to": "Склад-получатель",
         "ch_same": "Источник и получатель не могут совпадать",
         "ch_exists": "Такая связь уже есть",
-        "mp_hint": "Справочник маркетплейсов. Код и Amazon ID менять нельзя.",
+        "mp_hint": "Маркетплейс — торговая среда одной площадки в одной стране. Код собирается сам из краткого названия площадки и кода страны, вручную не правится. Площадку и страну можно менять только пока по маркетплейсу нет записей матрицы и документов прогноза: для другой страны или площадки заводится отдельный маркетплейс.",
         "pool_hint": "Пул — группа маркетплейсов с общим совокупным прогнозом. "
                      "Маркетплейс не может одновременно быть в двух активных пулах.",
         "pool_list": "Пулы", "pool_new": "Новый пул", "pool_name": "Название",
@@ -476,6 +530,59 @@ TR = {
         "wh_prio_hint": "Пріоритет 1 — куди товар із цього складу йде насамперед. Один маркетплейс або пул на рядок; фільтр за країною звужує список. Порожній рядок — пріоритет не зайнятий. Склад без привʼязок зберегти можна; прибрати у складу продажу останню привʼязку — ні.",
         "wh_src_h": "Звідки поповнюється",
         "wh_src_none": "Маршрутів підживлення на цей склад поки немає.",
+        # --- ТЗ 003 ---
+        "tab_plat": "Майданчики",
+        "plat_hint": "Майданчик — оператор або платформа: Amazon, Leroy Merlin, ManoMano. Усередині майданчика живуть маркетплейси по країнах. "
+                     "Позначення асортиментної структури задаються тут і використовуються всіма його маркетплейсами — окремих копій немає.",
+        "plat_list": "Майданчики", "plat_new": "Новий майданчик", "plat_create": "Створити",
+        "plat_short": "Коротка назва", "plat_short_help": "Від 2 до 10 знаків: лише великі латинські літери й цифри. Входить у код маркетплейсу: AMZ → AMZ-ES.",
+        "plat_short_bad": "Коротка назва: від 2 до 10 знаків, лише великі латинські літери й цифри.",
+        "plat_short_dup": "Така коротка назва вже є в іншого майданчика.",
+        "plat_short_locked": "Коротка назва не змінюється: на майданчик посилаються маркетплейси ({n}), і їхні коди побудовані з неї. Для іншої назви потрібен майданчик без маркетплейсів.",
+        "plat_name": "Назва", "plat_name_empty": "Назва обов’язкова.",
+        "plat_comment": "Коментар",
+        "plat_labels": "Позначення асортиментної структури",
+        "plat_labels_hint": "Заповнюються, лише якщо майданчик таку сутність використовує. Порожньо — значить її немає, і в матриці поле не показується.",
+        "plat_vg": "Група варіацій", "plat_vg_ph": "наприклад Parent ASIN",
+        "plat_var": "Варіація", "plat_var_ph": "наприклад Child ASIN",
+        "plat_peid": "Товарна сутність (PeID)", "plat_peid_ph": "наприклад ASIN",
+        "plat_peid_fmt": "Правило формату PeID", "plat_peid_fmt_ph": "наприклад 10 знаків, починається з B0",
+        "plat_active": "Активний",
+        "plat_off_deps": "Перед вимкненням: що в майданчика є зараз",
+        "plat_off_mps": "маркетплейсів: {n}, з них активних {a}",
+        "plat_off_note": "Вимкнений майданчик недоступний для нових маркетплейсів, допусків і прогнозів. Історія зберігається, запис не видаляється.",
+        "plat_created": "Майданчик створено.", "plat_saved": "Збережено.",
+        "plat_mps": "Маркетплейси майданчика",
+        "mp_pick": "Маркетплейс", "mp_code_ro": "Код (збирається сам)",
+        "mp_code_hint": "Код — похідний: коротка назва майданчика і код країни. Вручну не правиться і перераховується, якщо дозволена зміна майданчика або країни.",
+        "mp_platform": "Майданчик", "mp_country": "Країна покриття", "mp_currency": "Валюта",
+        "mp_currency_help": "Перелік ISO 4217. Країна не визначає валюту сама: у маркетплейсу можуть бути свої розрахунки.",
+        "mp_ext_sys": "Зовнішня система", "mp_ext_id": "Зовнішній ідентифікатор",
+        "mp_ext_hint": "Заповнюються лише разом. Пара «система + ідентифікатор» унікальна; той самий ідентифікатор у різних системах допустимий.",
+        "mp_ext_half": "Зовнішні дані заповнюються парою: потрібні і система, і ідентифікатор.",
+        "mp_ext_dup": "Ця пара «зовнішня система + ідентифікатор» вже зайнята маркетплейсом {code}.",
+        "mp_site": "Посилання на сайт", "mp_site_bad": "Посилання має починатися з https:// і не містити пробілів.",
+        "mp_locked": "Не можна змінити {what}: marketplace уже використовується в асортиментній матриці або документах прогнозу. "
+                     "Для іншої {what2} створіть окремий marketplace.",
+        "mp_locked_what_platform": "Майданчик", "mp_locked_what_country": "країну",
+        "mp_locked_for_platform": "майданчика", "mp_locked_for_country": "країни",
+        "mp_deps_head": "Що перешкоджає зміні майданчика і країни:",
+        "mp_dep_matrix": "записів матриці: {n} (включно із закритими)",
+        "mp_dep_repr": "представлень SKU: {n}",
+        "mp_dep_forecast": "документів прогнозу: {n} (включно з чернетками та історичними)",
+        "mp_dep_register": "записів у реєстрі прогнозу: {n}",
+        "mp_dep_pool": "участей у пулах: {n}",
+        "mp_dep_peid": "PeID/ASIN: {n}",
+        "mp_dep_alerts": "відкритих алертів: {n}",
+        "mp_free": "Матриці та прогнозів за цим маркетплейсом немає — майданчик і країну ще можна змінити.",
+        "mp_dup_pair": "Пара «майданчик + країна» вже зайнята маркетплейсом {code} — такий маркетплейс може бути лише один.",
+        "mp_pool_country": "Зміна країни зламає пул «{pool}»: у пулі маркетплейси однієї країни, а інші його учасники — {countries}.",
+        "mp_platform_inactive": "Майданчик «{name}» вимкнено — на нього не можна переводити маркетплейс.",
+        "mp_off_deps": "Перед вимкненням: що зараз пов’язано",
+        "mp_off_note": "Вимкнений маркетплейс не обирається в нових операціях: допусках, пулах, прогнозах, PeID. Зв’язки, історія і документи зберігаються, запис не видаляється, увімкнути можна знову.",
+        "mp_log": "Журнал змін", "mp_log_empty": "Змін немає.",
+        "mp_log_when": "Коли", "mp_log_field": "Поле", "mp_log_old": "Було", "mp_log_new": "Стало", "mp_log_who": "Хто",
+        "mp_saved": "Збережено. Код: {code}.", "mp_nochange": "Змін немає.",
         "col_lt_plan": "План LT, дн", "col_lt_fact": "Факт, дн", "col_lt_dev": "Відхилення",
         "wh_lt_hint": "План LT — прогнозний гарантований термін, він іде в розрахунки забезпечення і правиться тут. Факт — медіана «відправлення → приймання» за закритими накладними ERP за {w} дн, лише для порівняння: Кабінет LT сам не змінює (ТЗ 001 §5). За відхилення більше {t} % на закритих поставках (мінімум {m}) надходить інформаційний алерт.",
         "wh_lt_nofact": "Фактичного терміну немає ні по одному маршруту: ERP майже не закриває накладні — з {n} рядків дату приймання мають {k}. Поки так, порівнювати ні з чим, і алерт мовчить.",
@@ -527,7 +634,7 @@ TR = {
         "ch_from": "Склад-джерело", "ch_to": "Склад-отримувач",
         "ch_same": "Джерело та отримувач не можуть збігатися",
         "ch_exists": "Такий звʼязок уже є",
-        "mp_hint": "Довідник маркетплейсів. Код та Amazon ID змінювати не можна.",
+        "mp_hint": "Маркетплейс — торгове середовище однієї площадки в одній країні. Код збирається сам із короткої назви майданчика і коду країни, вручну не правиться. Майданчик і країну можна змінювати лише поки за маркетплейсом немає записів матриці та документів прогнозу: для іншої країни чи майданчика створюється окремий маркетплейс.",
         "pool_hint": "Пул — група маркетплейсів зі спільним сукупним прогнозом. "
                      "Маркетплейс не може одночасно бути у двох активних пулах.",
         "pool_list": "Пули", "pool_new": "Новий пул", "pool_name": "Назва",
@@ -747,6 +854,59 @@ TR = {
         "wh_prio_hint": "Priority 1 — where goods from this warehouse go first. One marketplace or pool per row; the country filter narrows the list. An empty row means the priority is free. A warehouse with no bindings can be saved; removing the last binding from a sales warehouse cannot.",
         "wh_src_h": "Replenished from",
         "wh_src_none": "No supply routes into this warehouse yet.",
+        # --- spec 003 ---
+        "tab_plat": "Platforms",
+        "plat_hint": "A platform is the operator: Amazon, Leroy Merlin, ManoMano. Marketplaces live inside a platform, one per country. "
+                     "Assortment-structure labels are set here and used by every marketplace of the platform — no separate copies.",
+        "plat_list": "Platforms", "plat_new": "New platform", "plat_create": "Create",
+        "plat_short": "Short name", "plat_short_help": "2 to 10 characters: capital Latin letters and digits only. It forms the marketplace code: AMZ → AMZ-ES.",
+        "plat_short_bad": "Short name: 2 to 10 characters, capital Latin letters and digits only.",
+        "plat_short_dup": "Another platform already uses this short name.",
+        "plat_short_locked": "The short name cannot change: {n} marketplaces reference it and their codes are built from it. Use a platform without marketplaces for a different name.",
+        "plat_name": "Name", "plat_name_empty": "Name is required.",
+        "plat_comment": "Comment",
+        "plat_labels": "Assortment structure labels",
+        "plat_labels_hint": "Fill in only if the platform uses that entity. Empty means it does not exist there, and the field is hidden in the matrix.",
+        "plat_vg": "Variation group", "plat_vg_ph": "e.g. Parent ASIN",
+        "plat_var": "Variation", "plat_var_ph": "e.g. Child ASIN",
+        "plat_peid": "Product entity (PeID)", "plat_peid_ph": "e.g. ASIN",
+        "plat_peid_fmt": "PeID format rule", "plat_peid_fmt_ph": "e.g. 10 characters, starts with B0",
+        "plat_active": "Active",
+        "plat_off_deps": "Before switching off: what this platform has now",
+        "plat_off_mps": "marketplaces: {n}, active: {a}",
+        "plat_off_note": "An inactive platform is unavailable for new marketplaces, admissions and forecasts. History is kept, the record is not deleted.",
+        "plat_created": "Platform created.", "plat_saved": "Saved.",
+        "plat_mps": "Marketplaces of this platform",
+        "mp_pick": "Marketplace", "mp_code_ro": "Code (derived)",
+        "mp_code_hint": "The code is derived from the platform short name and the country code. It is never typed and is recalculated when a platform or country change is allowed.",
+        "mp_platform": "Platform", "mp_country": "Country", "mp_currency": "Currency",
+        "mp_currency_help": "ISO 4217 list. The country alone does not define the currency: a marketplace may settle differently.",
+        "mp_ext_sys": "External system", "mp_ext_id": "External id",
+        "mp_ext_hint": "Filled in as a pair. The pair “system + id” is unique; the same id may exist in different systems.",
+        "mp_ext_half": "External data is a pair: both the system and the id are required.",
+        "mp_ext_dup": "This “external system + id” pair already belongs to marketplace {code}.",
+        "mp_site": "Website", "mp_site_bad": "The link must start with https:// and contain no spaces.",
+        "mp_locked": "Cannot change the {what}: this marketplace is already used in the assortment matrix or forecast documents. "
+                     "Create a separate marketplace for another {what2}.",
+        "mp_locked_what_platform": "platform", "mp_locked_what_country": "country",
+        "mp_locked_for_platform": "platform", "mp_locked_for_country": "country",
+        "mp_deps_head": "What blocks changing the platform and country:",
+        "mp_dep_matrix": "matrix records: {n} (closed ones included)",
+        "mp_dep_repr": "SKU representations: {n}",
+        "mp_dep_forecast": "forecast documents: {n} (drafts and historical included)",
+        "mp_dep_register": "forecast register rows: {n}",
+        "mp_dep_pool": "pool memberships: {n}",
+        "mp_dep_peid": "PeIDs/ASINs: {n}",
+        "mp_dep_alerts": "open alerts: {n}",
+        "mp_free": "No matrix records and no forecasts for this marketplace — the platform and country can still be changed.",
+        "mp_dup_pair": "The “platform + country” pair already belongs to marketplace {code} — only one such marketplace may exist.",
+        "mp_pool_country": "Changing the country would break pool “{pool}”: a pool holds marketplaces of one country, and its other members are {countries}.",
+        "mp_platform_inactive": "Platform “{name}” is inactive — a marketplace cannot be moved to it.",
+        "mp_off_deps": "Before switching off: what is linked now",
+        "mp_off_note": "An inactive marketplace is not offered in new operations: admissions, pools, forecasts, PeIDs. Links, history and documents are kept, the record is not deleted, and it can be switched back on.",
+        "mp_log": "Change log", "mp_log_empty": "No changes.",
+        "mp_log_when": "When", "mp_log_field": "Field", "mp_log_old": "Was", "mp_log_new": "Now", "mp_log_who": "Who",
+        "mp_saved": "Saved. Code: {code}.", "mp_nochange": "No changes.",
         "col_lt_plan": "Planned LT, days", "col_lt_fact": "Actual, days", "col_lt_dev": "Deviation",
         "wh_lt_hint": "Planned LT is the guaranteed lead time used in supply calculations and edited here. Actual is the median dispatch-to-receipt over closed ERP invoices for the last {w} days, for comparison only: Kabinet never changes LT by itself (spec 001 §5). A deviation above {t} % on closed deliveries (at least {m}) raises an informational alert.",
         "wh_lt_nofact": "No actual lead time for any route: ERP almost never closes invoices — {k} of {n} rows carry a receipt date. Until that changes there is nothing to compare, and the alert stays silent.",
@@ -798,7 +958,7 @@ TR = {
         "ch_from": "Source warehouse", "ch_to": "Receiver warehouse",
         "ch_same": "Source and receiver must differ",
         "ch_exists": "This link already exists",
-        "mp_hint": "Marketplace registry. Code and Amazon ID are read-only.",
+        "mp_hint": "A marketplace is one platform's trading environment in one country. The code is derived from the platform short name and the country code and is never typed. The platform and country can change only while the marketplace has no matrix records and no forecast documents: for another country or platform, create a separate marketplace.",
         "pool_hint": "A pool is a group of marketplaces sharing one aggregate forecast. "
                      "A marketplace cannot belong to two active pools.",
         "pool_list": "Pools", "pool_new": "New pool", "pool_name": "Name",
@@ -1072,7 +1232,7 @@ st.caption(_tr("sub"))
 # Разделы — не st.tabs. Вкладки Streamlit исполняются все разом при каждом прогоне: на любое действие
 # страница делала 44 запроса и отправляла в браузер десять таблиц (PeID — 4 076 строк, матрица — 2 204),
 # после каждого сохранения — заново. Здесь исполняется только выбранный раздел (замер 21.09.2026).
-_SECTIONS = ["wh", "ch", "mp", "pool", "norm", "alerts", "sku", "peid", "vg", "matrix"]
+_SECTIONS = ["wh", "ch", "plat", "mp", "pool", "norm", "alerts", "sku", "peid", "vg", "matrix"]
 _sec = st.segmented_control(_tr("title"), _SECTIONS, format_func=lambda k: _tr(f"tab_{k}"), default="wh",
                             key="dict_section", label_visibility="collapsed")
 if _sec is None:
@@ -1099,7 +1259,7 @@ def _section_wh():
         # ── маркетплейсы и пулы — из справочников: список склада обязан совпадать с ними (доработка 17.09) ──
         mp = q("""
             SELECT id, code, name, country_alpha2 AS country, platform_short AS channel
-            FROM kabinet_data.marketplaces_new WHERE is_active ORDER BY code
+            FROM kabinet_data.v_marketplaces_selectable ORDER BY code
         """)
         pools_df = q("""
             SELECT p.id, p.name, string_agg(DISTINCT m.country_alpha2, ',') AS country, string_agg(m.code, ', ' ORDER BY m.code) AS members
@@ -1542,32 +1702,393 @@ def _section_ch():
 
 # -------------------------------------------------------- маркетплейсы ---
 def _section_mp():
+    """Карточка маркетплейса по ТЗ 003: код производный, площадка и страна меняются только пока
+    нет матрицы и прогнозов, валюта из перечня ISO 4217, внешние коды парой, ссылка только https."""
     st.caption(_tr("mp_hint"))
-    mp = q("""
-        SELECT id, code, name, country, currency, amazon_id, is_active
-        FROM kabinet_data.marketplaces
-        ORDER BY code
+    mps = q("""
+        SELECT m.id, m.code, m.name, m.platform_short, m.country_alpha2, m.currency, m.is_active,
+               m.legacy_code, m.amazon_id,
+               a.external_system, a.external_id, a.website_url
+        FROM kabinet_data.marketplaces_new m
+        LEFT JOIN kabinet_data.marketplace_attributes a ON a.marketplace_id = m.id
+        ORDER BY m.code
     """)
-    if mp.empty:
+    if mps.empty:
         st.info(_tr("no_data"))
+        return
+    plats = _plat_attrs()
+    _lang_col = {"ru": "name_ru", "uk": "name_uk"}.get(get_lang(), "name_en")
+    countries = q(f"""SELECT c.alpha2, COALESCE(n.{_lang_col}, n.name_en, c.name) AS name
+                      FROM kabinet_data.countries c
+                      LEFT JOIN kabinet_data.country_names n ON n.alpha2 = c.alpha2
+                      WHERE c.is_active ORDER BY 2""")
+    curr = q("SELECT code, name FROM kabinet_data.currencies WHERE is_active ORDER BY code")
+
+    labels = {int(r.id): f"{r.code} — {r['name']}" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
+              for _, r in mps.iterrows()}
+    sel = st.selectbox(_tr("mp_pick"), list(labels), format_func=lambda i: labels[i], key="mp_pick")
+    row = mps.set_index("id").loc[sel]
+
+    blockers = _mp_blockers(int(sel))
+    st.markdown(f"#### {row['code']} · {row['name']}")
+    if blockers:
+        st.caption(_tr("mp_deps_head") + " " + "; ".join(blockers))
     else:
-        ed_mp = st.data_editor(
-            mp, key="ed_mp", use_container_width=True, height=420,
-            hide_index=True, num_rows="fixed",
-            disabled=["id", "code", "amazon_id"],
-            column_config={
-                "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
-                "code": st.column_config.TextColumn(_tr("col_code"), width="small"),
-                "name": st.column_config.TextColumn(_tr("col_name"), width="medium"),
-                "country": st.column_config.TextColumn(_tr("col_country"), width="small"),
-                "currency": st.column_config.TextColumn(_tr("col_currency"), width="small"),
-                "amazon_id": st.column_config.TextColumn(_tr("col_amazon_id"), width="medium"),
-                "is_active": st.column_config.CheckboxColumn(_tr("col_active")),
-            },
-        )
-        if st.button(_tr("save"), key="save_mp", type="primary"):
-            save_block(mp, ed_mp, "kabinet_data.marketplaces", "id",
-                       ["name", "country", "currency", "is_active"])
+        st.caption(_tr("mp_free"))
+
+    c1, c2 = st.columns([1, 2])
+    c1.text_input(_tr("mp_code_ro"), value=row["code"], disabled=True, key=f"mc_{sel}",
+                  help=_tr("mp_code_hint"))
+    new_name = c2.text_input(_tr("col_name"), value=row["name"] or "", key=f"mn_{sel}")
+
+    p1, p2, p3 = st.columns(3)
+    # площадку и страну меняем только при пустых матрице и прогнозах (ТЗ §5) — иначе поля видны,
+    # но заблокированы, и рядом написано, что именно мешает
+    plat_opts = list(plats["short_name"])
+    new_plat = p1.selectbox(_tr("mp_platform"), plat_opts, index=plat_opts.index(row["platform_short"]),
+                            key=f"mp_{sel}", disabled=bool(blockers),
+                            format_func=lambda sh: f"{sh} — {plats.set_index('short_name').loc[sh, 'full_name']}")
+    ctry_opts = list(countries["alpha2"])
+    _ci = ctry_opts.index(row["country_alpha2"]) if row["country_alpha2"] in ctry_opts else 0
+    new_ctry = p2.selectbox(_tr("mp_country"), ctry_opts, index=_ci, key=f"mcy_{sel}",
+                            disabled=bool(blockers),
+                            format_func=lambda a: f"{countries.set_index('alpha2').loc[a, 'name']} ({a})")
+    cur_opts = list(curr["code"])
+    _cu = cur_opts.index(row["currency"]) if row["currency"] in cur_opts else 0
+    new_curr = p3.selectbox(_tr("mp_currency"), cur_opts, index=_cu, key=f"mcu_{sel}",
+                            help=_tr("mp_currency_help"),
+                            format_func=lambda c_: f"{c_} — {curr.set_index('code').loc[c_, 'name']}")
+    if blockers:
+        st.caption(_trf("mp_locked", what=_tr("mp_locked_what_platform"), what2=_tr("mp_locked_for_platform")))
+
+    e1, e2, e3 = st.columns([1, 1, 2])
+    new_esys = e1.text_input(_tr("mp_ext_sys"), value=row["external_system"] or "", key=f"mes_{sel}")
+    new_eid = e2.text_input(_tr("mp_ext_id"), value=row["external_id"] or "", key=f"mei_{sel}")
+    new_site = e3.text_input(_tr("mp_site"), value=row["website_url"] or "", key=f"mw_{sel}")
+    st.caption(_tr("mp_ext_hint"))
+
+    new_act = st.checkbox(_tr("col_active"), value=bool(row["is_active"]), key=f"ma_{sel}")
+    if bool(row["is_active"]) and not new_act:
+        deps = _mp_active_deps(int(sel))
+        if deps:
+            st.warning(_tr("mp_off_deps") + ": " + "; ".join(deps))
+        st.caption(_tr("mp_off_note"))
+
+    if st.button(_tr("save"), key=f"mp_save_{sel}", type="primary"):
+        errs = []
+        plat_changed = new_plat != row["platform_short"]
+        ctry_changed = new_ctry != row["country_alpha2"]
+        if (plat_changed or ctry_changed) and blockers:
+            errs.append(_trf("mp_locked", what=_tr("mp_locked_what_platform"),
+                             what2=_tr("mp_locked_for_platform")) + " " + "; ".join(blockers))
+        if plat_changed and not bool(plats.set_index("short_name").loc[new_plat, "is_active"]):
+            errs.append(_trf("mp_platform_inactive", name=new_plat))
+        if plat_changed or ctry_changed:
+            dup = q1("""SELECT code FROM kabinet_data.marketplaces_new
+                        WHERE platform_short = %s AND country_alpha2 = %s AND id <> %s""",
+                     (new_plat, new_ctry, int(sel)))
+            if not dup.empty:
+                errs.append(_trf("mp_dup_pair", code=dup["code"].iloc[0]))
+        if ctry_changed:
+            # пул по ТЗ 004 — маркетплейсы ОДНОЙ страны: увести участника в другую страну значит
+            # сломать пул, поэтому проверяем страны остальных действующих участников
+            pools = q1("""SELECT p.name, string_agg(DISTINCT m2.country_alpha2, ', ') AS countries
+                          FROM kabinet_data.pool_members pm
+                          JOIN kabinet_data.pools p ON p.id = pm.pool_id
+                          JOIN kabinet_data.pool_members pm2 ON pm2.pool_id = pm.pool_id
+                               AND pm2.marketplace_id <> pm.marketplace_id
+                               AND (pm2.valid_to IS NULL OR pm2.valid_to >= CURRENT_DATE)
+                          JOIN kabinet_data.marketplaces_new m2 ON m2.id = pm2.marketplace_id
+                          WHERE pm.marketplace_id = %s AND (pm.valid_to IS NULL OR pm.valid_to >= CURRENT_DATE)
+                          GROUP BY p.name""", (int(sel),))
+            for _, pr in pools.iterrows():
+                others = [x.strip() for x in (pr["countries"] or "").split(",") if x.strip()]
+                if any(o != new_ctry for o in others):
+                    errs.append(_trf("mp_pool_country", pool=pr["name"], countries=", ".join(others)))
+        if bool(new_esys) != bool(new_eid):
+            errs.append(_tr("mp_ext_half"))
+        if new_esys and new_eid:
+            dup = q1("""SELECT m.code FROM kabinet_data.marketplace_attributes a
+                        JOIN kabinet_data.marketplaces_new m ON m.id = a.marketplace_id
+                        WHERE a.external_system = %s AND a.external_id = %s AND a.marketplace_id <> %s""",
+                     (new_esys.strip(), new_eid.strip(), int(sel)))
+            if not dup.empty:
+                errs.append(_trf("mp_ext_dup", code=dup["code"].iloc[0]))
+        if new_site and not re.match(r"^https://[^\s/]+\.[^\s/]+", new_site.strip()):
+            errs.append(_tr("mp_site_bad"))
+        if not (new_name or "").strip():
+            errs.append(_tr("plat_name_empty"))
+
+        if errs:
+            for e in errs:
+                st.error(e)
+        else:
+            stmts, log = [], []
+            new_code = f"{new_plat}-{new_ctry}" if (plat_changed or ctry_changed) else row["code"]
+            if (new_name or "").strip() != (row["name"] or ""):
+                stmts.append(("UPDATE kabinet_data.marketplaces_new SET name = %s WHERE id = %s",
+                              (new_name.strip(), int(sel))))
+                log.append(("name", row["name"], new_name.strip()))
+            if new_curr != row["currency"]:
+                stmts.append(("UPDATE kabinet_data.marketplaces_new SET currency = %s WHERE id = %s",
+                              (new_curr, int(sel))))
+                log.append(("currency", row["currency"], new_curr))
+            if plat_changed:
+                stmts.append(("UPDATE kabinet_data.marketplaces_new SET platform_short = %s WHERE id = %s",
+                              (new_plat, int(sel))))
+                log.append(("platform_short", row["platform_short"], new_plat))
+            if ctry_changed:
+                stmts.append(("UPDATE kabinet_data.marketplaces_new SET country_alpha2 = %s WHERE id = %s",
+                              (new_ctry, int(sel))))
+                log.append(("country_alpha2", row["country_alpha2"], new_ctry))
+            if new_code != row["code"]:
+                # код производный: после разрешённой смены пересобираем его сами, id не трогаем (§4)
+                stmts.append(("UPDATE kabinet_data.marketplaces_new SET code = %s WHERE id = %s",
+                              (new_code, int(sel))))
+                log.append(("code", row["code"], new_code))
+            if bool(new_act) != bool(row["is_active"]):
+                stmts.append(("UPDATE kabinet_data.marketplaces_new SET is_active = %s WHERE id = %s",
+                              (bool(new_act), int(sel))))
+                log.append(("is_active", row["is_active"], new_act))
+            ext = {"external_system": (new_esys or "").strip() or None,
+                   "external_id": (new_eid or "").strip() or None,
+                   "website_url": (new_site or "").strip() or None}
+            if any(not _same(row[k], v) for k, v in ext.items()):
+                stmts.append(("INSERT INTO kabinet_data.marketplace_attributes (marketplace_id) VALUES (%s) "
+                              "ON CONFLICT (marketplace_id) DO NOTHING", (int(sel),)))
+                stmts.append(("UPDATE kabinet_data.marketplace_attributes SET external_system = %s, "
+                              "external_id = %s, website_url = %s, updated_at = now(), updated_by = 'kabinet' "
+                              "WHERE marketplace_id = %s",
+                              (ext["external_system"], ext["external_id"], ext["website_url"], int(sel))))
+                log += [(k, row[k], v) for k, v in ext.items() if not _same(row[k], v)]
+            if not stmts:
+                st.info(_tr("mp_nochange"))
+            else:
+                stmts += [(MPLOG, ("marketplace", int(sel), f,
+                                   None if (o is None or (isinstance(o, float) and pd.isna(o))) else str(o),
+                                   None if v is None else str(v))) for f, o, v in log]
+                try:
+                    exec_sql(stmts)
+                    st.cache_data.clear()
+                    st.success(_trf("mp_saved", code=new_code))
+                    st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+
+    with st.expander(_tr("mp_log")):
+        lg = q1("""SELECT changed_at, field, old_value, new_value, actor
+                   FROM kabinet_data.marketplace_change_log
+                   WHERE object_type = 'marketplace' AND object_id = %s
+                   ORDER BY changed_at DESC LIMIT 200""", (int(sel),))
+        if lg.empty:
+            st.caption(_tr("mp_log_empty"))
+        else:
+            lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"),
+                          _tr("mp_log_new"), _tr("mp_log_who")]
+            st.dataframe(lg, hide_index=True, use_container_width=True,
+                         height=min(320, 38 + 35 * len(lg)))
+
+
+# ---------------------------------------------------------------- ТЗ 003 ---
+SHORT_RE = re.compile(r"^[A-Z0-9]{2,10}$")
+MPLOG = ("INSERT INTO kabinet_data.marketplace_change_log (object_type, object_id, field, old_value, new_value, actor) "
+         "VALUES (%s, %s, %s, %s, %s, 'kabinet')")
+
+
+def _plat_attrs() -> pd.DataFrame:
+    """Реквизиты площадок из таблицы рядом; строки может не быть у только что созданной площадки."""
+    return q("""
+        SELECT p.id, p.short_name, p.full_name,
+               COALESCE(a.is_active, true) AS is_active, a.comment,
+               a.variation_group_label, a.variation_label, a.product_entity_label, a.peid_format_hint
+        FROM kabinet_data.platforms p
+        LEFT JOIN kabinet_data.platform_attributes a ON a.platform_id = p.id
+        ORDER BY p.short_name
+    """)
+
+
+def _mp_blockers(mp_id: int) -> list:
+    """Связи, из-за которых по ТЗ 003 §5 запрещена смена страны и площадки.
+
+    Считаем ВСЁ, включая закрытое и историческое: «закрытие записи, перевод в историю или
+    деактивация marketplace не снимают запрет» — так в ТЗ, и это правильно, иначе смена страны
+    задним числом переписала бы историю чужого рынка.
+    """
+    rows = q1("""
+        SELECT (SELECT count(*) FROM kabinet_data.assortment_admissions
+                 WHERE level = 'marketplace' AND marketplace_id = %s) AS adm,
+               (SELECT count(*) FROM kabinet_data.assortment_representations r
+                 JOIN kabinet_data.assortment_admissions a ON a.id = r.admission_id
+                 WHERE a.level = 'marketplace' AND a.marketplace_id = %s) AS repr,
+               (SELECT count(*) FROM kabinet_data.forecast_documents
+                 WHERE object_type = 'marketplace' AND object_id = %s) AS docs,
+               (SELECT count(*) FROM kabinet_data.forecast_register
+                 WHERE object_type = 'marketplace' AND object_id = %s) AS reg
+    """, (mp_id, mp_id, mp_id, mp_id))
+    out = []
+    if int(rows["adm"].iloc[0]):
+        out.append(_trf("mp_dep_matrix", n=int(rows["adm"].iloc[0])))
+    if int(rows["repr"].iloc[0]):
+        out.append(_trf("mp_dep_repr", n=int(rows["repr"].iloc[0])))
+    if int(rows["docs"].iloc[0]):
+        out.append(_trf("mp_dep_forecast", n=int(rows["docs"].iloc[0])))
+    if int(rows["reg"].iloc[0]):
+        out.append(_trf("mp_dep_register", n=int(rows["reg"].iloc[0])))
+    return out
+
+
+def _mp_active_deps(mp_id: int) -> list:
+    """Что показать перед деактивацией (ТЗ 003 §7): действующие связи, а не вся история."""
+    rows = q1("""
+        SELECT (SELECT count(*) FROM kabinet_data.assortment_admissions
+                 WHERE level = 'marketplace' AND marketplace_id = %s AND removed_on IS NULL) AS adm,
+               (SELECT count(*) FROM kabinet_data.pool_members
+                 WHERE marketplace_id = %s AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)) AS pools,
+               (SELECT count(*) FROM kabinet_data.forecast_register
+                 WHERE object_type = 'marketplace' AND object_id = %s AND is_current) AS fc,
+               (SELECT count(*) FROM kabinet_data.product_entities
+                 WHERE marketplace_id = %s AND is_active IS NOT FALSE) AS peid
+    """, (mp_id, mp_id, mp_id, mp_id))
+    out = []
+    if int(rows["adm"].iloc[0]):
+        out.append(_trf("mp_dep_matrix", n=int(rows["adm"].iloc[0])))
+    if int(rows["pools"].iloc[0]):
+        out.append(_trf("mp_dep_pool", n=int(rows["pools"].iloc[0])))
+    if int(rows["fc"].iloc[0]):
+        out.append(_trf("mp_dep_forecast", n=int(rows["fc"].iloc[0])))
+    if int(rows["peid"].iloc[0]):
+        out.append(_trf("mp_dep_peid", n=int(rows["peid"].iloc[0])))
+    return out
+
+
+def _section_plat():
+    st.caption(_tr("plat_hint"))
+    plats = _plat_attrs()
+    mp_cnt = q("""
+        SELECT platform_short, count(*) AS total, count(*) FILTER (WHERE is_active) AS active
+        FROM kabinet_data.marketplaces_new GROUP BY 1
+    """).set_index("platform_short")
+
+    left, right = st.columns([1, 2])
+    with left:
+        st.markdown(f"**{_tr('plat_list')}**")
+        labels = {int(r.id): f"{r.short_name} — {r.full_name}" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
+                  for _, r in plats.iterrows()}
+        sel = st.radio(" ", list(labels), format_func=lambda i: labels[i], key="plat_pick",
+                       label_visibility="collapsed") if labels else None
+        with st.form("new_plat", clear_on_submit=True):
+            st.markdown(f"**{_tr('plat_new')}**")
+            n_short = st.text_input(_tr("plat_short"), help=_tr("plat_short_help"))
+            n_name = st.text_input(_tr("plat_name"))
+            if st.form_submit_button(_tr("plat_create")):
+                short = (n_short or "").strip().upper()
+                if not SHORT_RE.match(short):
+                    st.error(_tr("plat_short_bad"))
+                elif not (n_name or "").strip():
+                    st.error(_tr("plat_name_empty"))
+                elif short in set(plats["short_name"]):
+                    st.error(_tr("plat_short_dup"))
+                else:
+                    try:
+                        exec_sql([
+                            ("INSERT INTO kabinet_data.platforms (short_name, full_name) VALUES (%s, %s)",
+                             (short, n_name.strip())),
+                            ("INSERT INTO kabinet_data.platform_attributes (platform_id, is_active, updated_by) "
+                             "SELECT id, true, 'kabinet' FROM kabinet_data.platforms WHERE short_name = %s "
+                             "ON CONFLICT (platform_id) DO NOTHING", (short,)),
+                            (MPLOG, ("platform", 0, "created", None, short)),
+                        ])
+                        st.cache_data.clear(); st.success(_tr("plat_created")); st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
+
+    with right:
+        if sel is None:
+            return
+        row = plats.set_index("id").loc[sel]
+        total = int(mp_cnt["total"].get(row["short_name"], 0))
+        active = int(mp_cnt["active"].get(row["short_name"], 0))
+        st.markdown(f"#### {row['full_name']}")
+        st.caption(_trf("plat_off_mps", n=total, a=active))
+
+        c1, c2 = st.columns([1, 2])
+        # краткое название входит в код каждого маркетплейса и в внешний ключ: пока на площадку
+        # ссылаются маркетплейсы, переименование не даст база, и честнее сказать это сразу
+        if total:
+            c1.text_input(_tr("plat_short"), value=row["short_name"], disabled=True,
+                          key=f"ps_{sel}", help=_trf("plat_short_locked", n=total))
+            new_short = row["short_name"]
+        else:
+            new_short = c1.text_input(_tr("plat_short"), value=row["short_name"], key=f"ps_{sel}",
+                                      help=_tr("plat_short_help"))
+        new_name = c2.text_input(_tr("plat_name"), value=row["full_name"] or "", key=f"pn_{sel}")
+        new_cmt = st.text_input(_tr("plat_comment"), value=row["comment"] or "", key=f"pc2_{sel}")
+
+        st.markdown("##### " + _tr("plat_labels"))
+        st.caption(_tr("plat_labels_hint"))
+        l1, l2, l3 = st.columns(3)
+        new_vg = l1.text_input(_tr("plat_vg"), value=row["variation_group_label"] or "",
+                               placeholder=_tr("plat_vg_ph"), key=f"pvg_{sel}")
+        new_var = l2.text_input(_tr("plat_var"), value=row["variation_label"] or "",
+                                placeholder=_tr("plat_var_ph"), key=f"pvar_{sel}")
+        new_pe = l3.text_input(_tr("plat_peid"), value=row["product_entity_label"] or "",
+                               placeholder=_tr("plat_peid_ph"), key=f"ppe_{sel}")
+        new_fmt = st.text_input(_tr("plat_peid_fmt"), value=row["peid_format_hint"] or "",
+                                placeholder=_tr("plat_peid_fmt_ph"), key=f"pfmt_{sel}")
+        new_act = st.checkbox(_tr("plat_active"), value=bool(row["is_active"]), key=f"pa_{sel}")
+        if bool(row["is_active"]) and not new_act:
+            st.warning(_tr("plat_off_note"))
+
+        if st.button(_tr("save"), key=f"plat_save_{sel}", type="primary"):
+            short = (new_short or "").strip().upper()
+            errs = []
+            if not SHORT_RE.match(short):
+                errs.append(_tr("plat_short_bad"))
+            if not (new_name or "").strip():
+                errs.append(_tr("plat_name_empty"))
+            if short != row["short_name"] and short in set(plats["short_name"]):
+                errs.append(_tr("plat_short_dup"))
+            if errs:
+                for e in errs:
+                    st.error(e)
+            else:
+                stmts, log = [], []
+                if short != row["short_name"]:
+                    stmts.append(("UPDATE kabinet_data.platforms SET short_name = %s WHERE id = %s", (short, int(sel))))
+                    log.append(("short_name", row["short_name"], short))
+                if (new_name or "").strip() != (row["full_name"] or ""):
+                    stmts.append(("UPDATE kabinet_data.platforms SET full_name = %s WHERE id = %s",
+                                  (new_name.strip(), int(sel))))
+                    log.append(("full_name", row["full_name"], new_name.strip()))
+                fields = {"comment": new_cmt or None, "variation_group_label": new_vg or None,
+                          "variation_label": new_var or None, "product_entity_label": new_pe or None,
+                          "peid_format_hint": new_fmt or None, "is_active": new_act}
+                changed = {k: v for k, v in fields.items() if not _same(row[k], v)}
+                if changed:
+                    sets = ", ".join(f"{k} = %s" for k in changed)
+                    stmts.append((f"INSERT INTO kabinet_data.platform_attributes (platform_id) VALUES (%s) "
+                                  f"ON CONFLICT (platform_id) DO NOTHING", (int(sel),)))
+                    stmts.append((f"UPDATE kabinet_data.platform_attributes SET {sets}, updated_at = now(), "
+                                  f"updated_by = 'kabinet' WHERE platform_id = %s",
+                                  tuple(changed.values()) + (int(sel),)))
+                    log += [(k, row[k], v) for k, v in changed.items()]
+                if not stmts:
+                    st.info(_tr("nochange"))
+                else:
+                    stmts += [(MPLOG, ("platform", int(sel), f, None if pd.isna(o) else str(o),
+                                       None if v is None else str(v))) for f, o, v in log]
+                    try:
+                        exec_sql(stmts); st.cache_data.clear(); st.success(_tr("plat_saved")); st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
+
+        if total:
+            st.markdown("##### " + _tr("plat_mps"))
+            st.dataframe(q(f"""SELECT code, name, country_alpha2 AS country, currency, is_active
+                               FROM kabinet_data.marketplaces_new
+                               WHERE platform_short = '{row["short_name"]}' ORDER BY code"""),
+                         hide_index=True, use_container_width=True)
 
 # ------------------------------------------------------------------ пулы ---
 def _section_pool():
@@ -2488,7 +3009,8 @@ def _section_vg():
         #    внутри маркетплейса и против вариантных PeID (§11)
         with st.expander(_tr("vg_add_title")):
             st.caption(_tr("vg_add_hint"))
-            _fam = q("SELECT id, code FROM kabinet_data.marketplaces_new WHERE is_active AND variation_group_label IS NOT NULL ORDER BY code")
+            # обозначения теперь на площадке (ТЗ 003 §3), а выбор — только у активной площадки (§7)
+            _fam = q("SELECT id, code FROM kabinet_data.v_marketplaces_selectable WHERE variation_group_label IS NOT NULL ORDER BY code")
             if _fam.empty or "code" not in _fam.columns:
                 _fam = pd.DataFrame(columns=["id", "code"])
             c1, c2 = st.columns([1, 2])
@@ -2570,7 +3092,7 @@ def _section_matrix():
                        FROM kabinet_data.assortment_checks WHERE register = 'admission' GROUP BY 1) c ON c.record_id = a.id
             ORDER BY a.platform, m.code NULLS FIRST, a.sku, a.added_on DESC
         """)
-        mps_all = q("SELECT id, code, platform_short, country_alpha2, variation_group_label FROM kabinet_data.marketplaces_new WHERE is_active IS NOT FALSE ORDER BY code")
+        mps_all = q("SELECT id, code, platform_short, country_alpha2, variation_group_label FROM kabinet_data.v_marketplaces_selectable ORDER BY code")
         skus_all = q("SELECT sku, sku_type, intro_date, exit_date, restrictions, is_active FROM kabinet_data.sku_master ORDER BY sku")
         _sku_by = skus_all.set_index("sku")
         _mp_by_id = mps_all.set_index("id")
@@ -3015,4 +3537,4 @@ def _section_matrix():
                             st.error(_trf("err", e=e))
 
 
-{"wh": _section_wh, "ch": _section_ch, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sku": _section_sku, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
+{"wh": _section_wh, "ch": _section_ch, "plat": _section_plat, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sku": _section_sku, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
