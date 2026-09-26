@@ -6,6 +6,10 @@ pandas
 numpy
 plotly
 openpyxl
+# Google Таблицы как источник загрузки прогноза (ТЗ 010 §11). Ключ сервисного аккаунта берётся из
+# скоупа Databricks, не из st.secrets; без этих двух библиотек страница работает и предлагает файл.
+gspread
+google-auth
 databricks-sdk
 anthropic
 pydeck
