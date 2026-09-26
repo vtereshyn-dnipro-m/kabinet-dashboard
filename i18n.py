@@ -435,6 +435,52 @@ TRANSLATIONS = {
                              "uk": "Дефіцит через 5–13 тижнів",
                              "en": "Shortage in 5–13 weeks"},
     "stock.cov.st_ok": {"ru": "Запас достаточен", "uk": "Запас достатній", "en": "Well covered"},
+    "stock.cov.st_no_forecast": {"ru": "Нет прогноза", "uk": "Немає прогнозу", "en": "No forecast"},
+    "stock.cov.st_explicit_zero": {"ru": "Явный нулевой прогноз", "uk": "Явний нульовий прогноз",
+                                   "en": "Explicit zero forecast"},
+    "stock.cov.kpi_no_forecast": {"ru": "Без прогноза", "uk": "Без прогнозу", "en": "No forecast"},
+    "stock.cov.kpi_no_forecast_help": {
+        "ru": "SKU с остатком или продажами, по которым нет действующего прогноза на объекте: покрытие "
+              "по плану для них не считается вовсе, и это не ноль. Рядом показана скорость продаж — "
+              "справочно, чтобы был виден масштаб.",
+        "uk": "SKU із залишком або продажами, за якими немає чинного прогнозу на обʼєкті: покриття за "
+              "планом для них не рахується зовсім, і це не нуль. Поряд показано швидкість продажів — "
+              "довідково, щоб було видно масштаб.",
+        "en": "SKUs with stock or sales but no effective forecast on the object: plan-based coverage is not "
+              "calculated for them at all, and that is not a zero. The run rate beside it shows the scale.",
+    },
+    "stock.cov.col_plan": {"ru": "План, шт/нед", "uk": "План, шт/тиж", "en": "Plan, units/wk"},
+    "stock.cov.col_plan_help": {
+        "ru": "Средний недельный прогноз на горизонте: месячный план делится по календарным дням, "
+              "поэтому неделя на стыке месяцев берёт доли обоих.",
+        "uk": "Середній тижневий прогноз на горизонті: місячний план ділиться за календарними днями, "
+              "тому тиждень на стику місяців бере частки обох.",
+        "en": "Average weekly forecast over the horizon: the monthly plan is split by calendar days, so a "
+              "week spanning two months takes a share of each.",
+    },
+    "stock.cov.col_velocity": {"ru": "Скорость, шт/нед", "uk": "Швидкість, шт/тиж", "en": "Run rate, units/wk"},
+    "stock.cov.col_velocity_help": {
+        "ru": "Темп продаж за последние 30 дней — справочно. В покрытие не входит: покрытие меряется "
+              "против плана, а не против недавних продаж.",
+        "uk": "Темп продажів за останні 30 днів — довідково. У покриття не входить: покриття міряється "
+              "проти плану, а не проти недавніх продажів.",
+        "en": "Sales pace over the last 30 days, for reference only. It does not feed coverage: coverage is "
+              "measured against the plan, not against recent sales.",
+    },
+    "stock.cov.plan_note": {
+        "ru": "Покрытие считается против прогноза продаж (ТЗ «Остатки» §3): месячный план делится по "
+              "календарным дням и списывается по неделям. Скорость продаж — отдельная колонка, справочно. "
+              "Где действующего прогноза нет, покрытие не рассчитывается и показан статус «Нет прогноза»; "
+              "явный нулевой план — отдельное состояние, а не «запас достаточен».",
+        "uk": "Покриття рахується проти прогнозу продажів (ТЗ «Залишки» §3): місячний план ділиться за "
+              "календарними днями і списується по тижнях. Швидкість продажів — окрема колонка, довідково. "
+              "Де чинного прогнозу немає, покриття не розраховується і показано статус «Немає прогнозу»; "
+              "явний нульовий план — окремий стан, а не «запас достатній».",
+        "en": "Coverage is measured against the sales forecast: the monthly plan is split by calendar days and "
+              "drawn down week by week. The run rate is a separate, reference-only column. Where there is no "
+              "effective forecast, coverage is not calculated and the status says so; an explicit zero plan is "
+              "its own state, not “well covered”.",
+    },
     "stock.cov.filter_mp": {"ru": "Маркетплейс", "uk": "Маркетплейс", "en": "Marketplace"},
     "stock.cov.filter_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
     "stock.cov.kpi_critical": {"ru": "Дефицит ≤ 4 недель", "uk": "Дефіцит ≤ 4 тижнів", "en": "Shortage ≤ 4 weeks"},
