@@ -612,6 +612,13 @@ TRANSLATIONS = {
     },
     "stock.cov.col_first_deficit": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Shortage from"},
     "stock.cov.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "stock.src_lag": {
+        "ru": "Источники остатка обновились в разное время, и остаток показан по последнему снимку "
+              "КАЖДОГО: {items}. Отстающий источник — это данные на свою дату, а не ноль.",
+        "uk": "Джерела залишку оновилися в різний час, і залишок показано за останнім знімком "
+              "КОЖНОГО: {items}. Джерело, що відстає, — це дані на свою дату, а не нуль.",
+        "en": "Stock sources refreshed at different times, so each is shown at its own latest "
+              "snapshot: {items}. A lagging source means data as of its date, not zero."},
     "stock.cov.note": {
         "ru": "Прогноз продаж пока считается по скорости за 30 дней. Когда появится плановый "
               "прогноз, расчёт переключится на него — остальная логика не изменится.",
