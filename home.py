@@ -862,6 +862,13 @@ else:
         _dt = total.get("data_through")
         st.caption(t("home.plan.note", d=(_dt.strftime("%d.%m") if _dt else "—"),
                      k=total["covered"], n=total["days_in_month"], thr=f"{pace_thr:.0f}"))
+        # отгрузка без строки заказа: в штуках она есть, в евро её нет — и об этом надо
+        # сказать словом, иначе «Факт, €» выглядит полным при неполной цене
+        _unp = float(total.get("fact_unpriced_units") or 0)
+        if _unp > 0:
+            _fu = float(total.get("fact_units") or 0)
+            st.caption(t("plan.unpriced", n=f"{_unp:,.0f}".replace(",", " "),
+                         p=f"{(_unp / _fu * 100) if _fu else 0:.1f}"))
         st.caption(t("home.plan.pool_note"))
     st.page_link("pages/5_Money.py", label=t("home.link.money"),
                  icon=":material/euro:")

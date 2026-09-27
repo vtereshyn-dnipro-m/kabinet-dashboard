@@ -843,15 +843,26 @@ TRANSLATIONS = {
     "home.plan.title": {
         "ru": "План месяца", "uk": "План місяця", "en": "Month plan"},
     "home.plan.note": {
-        "ru": "Деньги с НДС, только Amazon: план — по листу, факт — продажи по заказам до {d} (как в кабинете Amazon и в карточке «Продажи по заказам» — при периоде «текущий месяц» суммы совпадают). Ожидание — "
+        "ru": "Деньги с НДС, только Amazon: план — по листу, факт — отгруженное покупателю до {d} (по дате отгрузки, а не заказа; поэтому сумма не равна карточке «Продажи по заказам»: в месяц входят отгрузки заказов конца прошлого месяца и не входят заказы, которые ещё не уехали — на сентябре расхождение около 2 %). Ожидание — "
               "доля календарных дней месяца с данными ({k} из {n}). Темп: "
               "факт / ожидание − 1, порог {thr}%.",
-        "uk": "Гроші з ПДВ, лише Amazon: план — за листом, факт — продажі за замовленнями до {d} (як у кабінеті Amazon і в картці «Продажі за замовленнями» — за періоду «поточний місяць» суми збігаються). Очікування — "
+        "uk": "Гроші з ПДВ, лише Amazon: план — за листом, факт — відвантажене покупцеві до {d} (за датою відвантаження, а не замовлення; тому сума не дорівнює картці «Продажі за замовленнями»: до місяця входять відвантаження замовлень кінця минулого місяця і не входять замовлення, які ще не поїхали — у вересні розбіжність близько 2 %). Очікування — "
               "частка календарних днів місяця з даними ({k} з {n}). Темп: "
               "факт / очікування − 1, поріг {thr}%.",
-        "en": "Money incl. VAT, Amazon only: plan per the sheet, fact — ordered sales through {d} (as in Seller Central and the «Ordered sales» card — with the period set to the current month the sums match). Expectation is "
+        "en": "Money incl. VAT, Amazon only: plan per the sheet, fact — shipped to the customer through {d} (by ship date, not order date; the sum therefore differs from the «Ordered sales» card: shipments of late-previous-month orders count in, orders not yet shipped do not — about 2 % apart in September). Expectation is "
               "the share of calendar days with data ({k} of {n}). Pace: "
               "fact / expected − 1, threshold {thr}%.",
+    },
+    "plan.unpriced": {
+        "ru": "Неполные данные факта: у {n} шт ({p} %) не нашлась строка заказа — они посчитаны "
+              "в штуках, но не в евро. Средняя цена не подставляется: подмена сделала бы евро "
+              "правдоподобными и неверными.",
+        "uk": "Неповні дані факту: у {n} шт ({p} %) не знайшовся рядок замовлення — вони "
+              "порахованi в штуках, але не в євро. Середня ціна не підставляється: підміна "
+              "зробила б євро правдоподібними та неправильними.",
+        "en": "Incomplete fact data: {n} units ({p} %) have no matching order line — they count "
+              "in units but not in euro. No average price is substituted: that would make the "
+              "euro figures plausible and wrong.",
     },
     "home.plan.none": {
         "ru": "Плана на этот месяц в реестре прогноза нет.",
@@ -880,9 +891,9 @@ TRANSLATIONS = {
         "uk": "План × {k} днів з даними / {n} днів у місяці",
         "en": "Plan × {k} days with data / {n} days in month"},
     "home.plan.total_fact_help": {
-        "ru": "Продажи по заказам Amazon с НДС по всем строкам блока, включая страны без плана (BE, GB) — та же сумма, что в карточке «Продажи по заказам» за тот же период. Каналы Mirakl в блок не входят: план есть только по Amazon. Темп в дельте — только по строкам, у которых план есть",
-        "uk": "Продажі за замовленнями Amazon з ПДВ за всіма рядками блоку, включно з країнами без плану (BE, GB) — та сама сума, що в картці «Продажі за замовленнями» за той самий період. Канали Mirakl до блоку не входять: план є лише за Amazon. Темп у дельті — лише за рядками, де план є",
-        "en": "Amazon ordered sales incl. VAT across all rows, including countries without a plan (BE, GB) — the same sum as the «Ordered sales» card for the same period. Mirakl channels are not in this block: the plan exists for Amazon only. The pace delta covers only rows that have a plan"},
+        "ru": "Отгруженное покупателю с НДС по всем строкам блока, включая страны без плана (BE, GB): отчёт отгрузок FBA плюс MFN мадридского склада, цена — из строки заказа. Карточка «Продажи по заказам» считает по дате заказа, поэтому суммы не обязаны совпадать. Каналы Mirakl в блок не входят: план есть только по Amazon. Темп в дельте — только по строкам, у которых план есть",
+        "uk": "Відвантажене покупцеві з ПДВ за всіма рядками блоку, включно з країнами без плану (BE, GB): звіт відвантажень FBA плюс MFN мадридського складу, ціна — з рядка замовлення. Картка «Продажі за замовленнями» рахує за датою замовлення, тому суми не мусять збігатися. Канали Mirakl до блоку не входять: план є лише за Amazon. Темп у дельті — лише за рядками, де план є",
+        "en": "Shipped to the customer incl. VAT across all rows, including countries without a plan (BE, GB): the FBA shipments report plus MFN from the Madrid warehouse, priced from the order line. The «Ordered sales» card counts by order date, so the sums need not match. Mirakl channels are not in this block: the plan exists for Amazon only. The pace delta covers only rows that have a plan"},
     "home.plan.total_help": {
         "ru": "Сумма по всем объектам плана текущего месяца; одинакова во всех разрезах",
         "uk": "Сума за всіма обʼєктами плану поточного місяця; однакова в усіх розрізах",
@@ -924,13 +935,13 @@ TRANSLATIONS = {
     "money.plan.note": {
         "ru": "План из реестра прогноза берётся пропорционально календарным дням периода, по "
               "которым есть факт (месяцев: {months}). Строка «€» — с НДС: план по листу, "
-              "факт — продажи по заказам; строка «шт» — штуки.",
+              "факт — отгруженное покупателю по дате отгрузки (не заказа); строка «шт» — штуки.",
         "uk": "План із реєстру прогнозу береться пропорційно календарним дням періоду, за "
               "якими є факт (місяців: {months}). Рядок «€» — з ПДВ: план за листом, "
-              "факт — продажі за замовленнями; рядок «шт» — штуки.",
+              "факт — відвантажене покупцеві за датою відвантаження (не замовлення); рядок «шт» — штуки.",
         "en": "The forecast register plan is prorated by the calendar days of the period that "
               "have fact (months: {months}). «€» row — incl. VAT: plan per the sheet, "
-              "fact — ordered sales; «шт» row — units."},
+              "fact — shipped to the customer by ship date (not order date); «шт» row — units."},
     "money.plan.none": {
         "ru": "На месяцы выбранного периода плана в реестре нет.",
         "uk": "На місяці обраного періоду плану в реєстрі немає.",
