@@ -642,7 +642,7 @@ with tab_cov:
                    else pd.Timestamp(d["last_calc"]).strftime("%d.%m.%Y %H:%M"))))
         st.caption(t("stock.cov.no_data"))
     else:
-        for c in ("available_now", "coverage_weeks", "fbm_fallback_qty",
+        for c in ("available_now", "coverage_weeks", "fbm_fallback_qty", "plan_weekly", "velocity_weekly",
                   "total_coverage_weeks", "realistic_coverage_weeks",
                   "pool_exhaustion_weeks", "competing_marketplaces",
                   "pool_total_weekly_demand", "gaps_count", "gaps_total_qty",
@@ -664,9 +664,45 @@ with tab_cov:
             st.markdown("---")
             st.markdown(t("stock.cov.horizon_note"))
 
+        # Переключатель основания: загрузчик считает оба покрытия, страница выбирает, какое смотреть.
+        # По умолчанию — по темпу продаж, как было до появления второго расчёта.
+        BASIS = {"velocity": t("stock.cov.basis_velocity"), "plan": t("stock.cov.basis_plan")}
+        basis = st.radio(t("stock.cov.basis"), list(BASIS), index=0, horizontal=True,
+                         format_func=lambda k: BASIS[k], key="cov_basis",
+                         help=t("stock.cov.basis_help"))
+        if basis == "plan":
+            _velocity_only = bool(cov["coverage_status"].notna().all())
+            # Колонки второго основания подставляем под те же имена — дальше по странице код один
+            PLAN_MAP = {"plan_coverage_weeks": "coverage_weeks",
+                        "plan_total_coverage_weeks": "total_coverage_weeks",
+                        "plan_realistic_weeks": "realistic_coverage_weeks",
+                        "plan_status": "coverage_status",
+                        "plan_first_deficit_week": "first_deficit_week",
+                        "plan_gaps_count": "gaps_count", "plan_gaps_total_qty": "gaps_total_qty",
+                        "plan_gaps_detail": "gaps_detail", "plan_overstock_qty": "overstock_qty",
+                        "plan_weeks_until_first_gap": "weeks_until_first_gap",
+                        "plan_competing_marketplaces": "competing_marketplaces",
+                        "plan_pool_weekly_demand": "pool_total_weekly_demand",
+                        "plan_pool_exhaustion_weeks": "pool_exhaustion_weeks"}
+            have = {a: b for a, b in PLAN_MAP.items() if a in cov.columns}
+            cov = cov.drop(columns=[b for b in have.values() if b in cov.columns]).rename(columns=have)
+            # «Переключение канала» и оверсток в неделях у второго основания не считаются —
+            # показывать вместо них цифры, посчитанные по темпу, было бы подлогом
+            for c in ("channel_switch_week", "overstock_weeks"):
+                if c in cov.columns:
+                    cov[c] = None
+            st.caption(t("stock.cov.basis_plan_note"))
+            if _velocity_only:
+                st.caption(t("stock.cov.basis_partial"))
+
         CST = {"critical": t("stock.cov.st_critical"),
                "warning": t("stock.cov.st_warning"),
                "ok": t("stock.cov.st_ok")}
+        if basis == "plan":
+            # §6.3 и §13 ТЗ: без прогноза покрытие не считается (и это не ноль), явный нулевой план —
+            # действительный прогноз, но не «запас достаточен». В режиме по темпу этих состояний нет
+            CST["no_forecast"] = t("stock.cov.st_no_forecast")
+            CST["explicit_zero"] = t("stock.cov.st_explicit_zero")
 
         cf1, cf2 = st.columns([1.3, 2])
         with cf1:
@@ -696,7 +732,10 @@ with tab_cov:
             st.session_state.cov_quick = (
                 None if st.session_state.cov_quick == key else key)
 
-        m1, m2, m3, m4, m5 = st.columns(5)
+        n_nofc = int((cv["coverage_status"] == "no_forecast").sum()) if basis == "plan" else 0
+        _cols = st.columns(6 if basis == "plan" else 5)
+        m1, m2, m3, m4, m5 = _cols[:5]
+        m6 = _cols[5] if basis == "plan" else None
         with m1:
             st.metric(t("stock.cov.kpi_critical"), f"{n_crit:,}",
                       help=t("stock.cov.kpi_critical_help"))
@@ -738,6 +777,16 @@ with tab_cov:
                             else "secondary"),
                       on_click=_toggle, args=("over",))
 
+        if m6 is not None:
+            with m6:
+                # §10.4 ТЗ: SKU без прогноза — отдельная карточка. Ноль здесь значит «прогноз есть
+                # у всех строк периметра», а не «покрытие полное»
+                st.metric(t("stock.cov.kpi_no_forecast"), f"{n_nofc:,}",
+                          help=t("stock.cov.kpi_no_forecast_help"))
+                st.button(t("stock.cov.show"), key="btn_nofc", use_container_width=True,
+                          type=("primary" if st.session_state.cov_quick == "nofc" else "secondary"),
+                          on_click=_toggle, args=("nofc",))
+
         quick = st.session_state.cov_quick
         if quick == "critical":
             cv = cv[cv["coverage_status"] == "critical"]
@@ -749,6 +798,8 @@ with tab_cov:
             cv = cv[cv["pool_exhaustion_weeks"] < cv["total_coverage_weeks"]]
         elif quick == "over":
             cv = cv[cv["overstock_qty"].fillna(0) > 0]
+        elif quick == "nofc":
+            cv = cv[cv["coverage_status"] == "no_forecast"]
         elif cov_st:
             keys = [k for k, v in CST.items() if v in cov_st]
             cv = cv[cv["coverage_status"].isin(keys)]
@@ -774,9 +825,19 @@ with tab_cov:
                 skus=cview["sku"], markets=cview["marketplace"])
             cview["photo"] = catalog.image_series(
                 skus=cview["sku"], markets=cview["marketplace"])
-            _cov_cols = ["photo", "sku", "asin_url", "product_name",
+            # У строк «Нет прогноза» и «Явный нулевой прогноз» покрытие не считалось: пустые недели
+            # и нулевые дыры рядом выдавали бы отсутствие расчёта за результат
+            _bare = (basis == "plan"
+                     and set(cview["coverage_status"]) <= {"no_forecast", "explicit_zero"})
+            _ref = ["plan_weekly", "velocity_weekly"] if basis == "plan" else ["velocity_weekly"]
+            _ref = [c for c in _ref if c in cview.columns]
+            if _bare:
+                _cov_cols = ["photo", "sku", "asin_url", "product_name", "marketplace",
+                             "available_now", "fbm_fallback_qty"] + _ref + ["odoo_incoming_qty"]
+            else:
+                _cov_cols = ["photo", "sku", "asin_url", "product_name",
                          "marketplace",
-                         "available_now",
+                         "available_now"] + _ref + [
                          "weeks_until_first_gap", "coverage_weeks",
                          "fbm_fallback_qty", "total_coverage_weeks",
                          "shared_note", "realistic_coverage_weeks",
@@ -786,7 +847,8 @@ with tab_cov:
             # и в одной сумме с нашим приходом читались как «товар едет к нам» (25.09.2026)
             if "odoo_incoming_stores_qty" in cview.columns:
                 _cov_cols.append("odoo_incoming_stores_qty")
-            _cov_cols += ["overstock_qty", "status_label"]
+            _cov_cols += (["status_label"] if _bare else ["overstock_qty", "status_label"])
+            _cov_cols = [c for c in _cov_cols if c in cview.columns]
             st.dataframe(
                 cview[_cov_cols],
                 use_container_width=True, height=460, hide_index=True,
@@ -800,6 +862,12 @@ with tab_cov:
                         t("stock.cov.col_mp"), width="small"),
                     "available_now": st.column_config.NumberColumn(
                         t("stock.cov.col_stock"), width="small"),
+                    "plan_weekly": st.column_config.NumberColumn(
+                        t("stock.cov.col_plan"), width="small", format="%.1f",
+                        help=t("stock.cov.col_plan_help")),
+                    "velocity_weekly": st.column_config.NumberColumn(
+                        t("stock.cov.col_velocity"), width="small", format="%.1f",
+                        help=t("stock.cov.col_velocity_help")),
                     "weeks_until_first_gap": st.column_config.NumberColumn(
                         t("stock.cov.col_until_gap"), width="small",
                         help=t("stock.cov.col_until_gap_help")),
