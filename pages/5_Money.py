@@ -925,6 +925,12 @@ with tab_country:
             "skus": st.column_config.NumberColumn(t("home.plan.col_skus"), format="%d"),
         })
         st.caption(t("money.plan.note", months=int(pf["months"].max())))
+        # см. Обзор: отгрузка без строки заказа считается в штуках, но не в евро
+        _unp = float(pf["fact_unpriced_units"].sum())
+        if _unp > 0:
+            _fu = float(pf["fact_units"].sum())
+            st.caption(t("plan.unpriced", n=f"{_unp:,.0f}".replace(",", " "),
+                         p=f"{(_unp / _fu * 100) if _fu else 0:.1f}"))
 
 # ---------- комиссии/структура ----------
 with tab_fees:

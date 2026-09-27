@@ -1,21 +1,31 @@
 # plan_fact.py — факт против действующего прогноза по объектам реестра (ТЗ 010 §13)
 """Один расчёт на «Обзор» и «Деньги».
 
-Объект прогноза — marketplace или пул (`v_forecast_current`), факт — продажи
-`economics_summary` по кодам рынков объекта: у marketplace один код, у пула —
+Объект прогноза — marketplace или пул (`v_forecast_current`), факт — отгрузки
+`shipment_facts` по кодам рынков объекта: у marketplace один код, у пула —
 коды участников из `pool_members`. План месяца сравнивается с фактом только за
 ту часть месяца, по которой есть данные: доля календарных дней (ТЗ §13 —
 равномерное потребление, рабочие дни не подставляются). Поэтому ожидание —
 это `план × дней_с_данными / дней_в_месяце`, а не весь план.
 
-Факт — продажи по заказам **с НДС**, как план в листе и как карточка «Продажи
-по заказам» на Обзоре: только Amazon, `sales_traffic_daily.ordered_sales` (сходится
-с кабинетом Amazon). Каналы Mirakl в блок не входят — план есть только по Amazon,
-а с ними (19–20.09.2026) факт блока расходился с карточкой на их продажи: 48 720
-против 43 547 €. Одна цифра — один источник. Чистые продажи без НДС и возвратов
-(`net_product_sales`) здесь не годятся: 18.09.2026 они давали −63 % к плану при
-реальных −40 %. Факт по дате заказа, не отгрузки; отгрузочный факт по ТЗ живёт
-в алертах темпа.
+Факт — по ДАТЕ ОТГРУЗКИ (ТЗ 010 §13, с 27.09.2026): план сравнивается с тем, что
+реально уехало покупателю, а не с тем, что заказали. Источник — `shipment_facts`
+(канал AMZ: отчёт отгрузок FBA плюс MFN через SendCloud), цена — из строки заказа
+`orders_history.item_price` (сумма строки **с НДС**, как план в листе), поэтому евро
+остаются в одной системе координат с планом. Проверка на сентябре 2026: по штукам
+ES 100 %, IT 102 %, FR 104 %, DE 104 %, GB 100 %, BE 91 % от заказанного, по евро
+итог 98 % — расхождение в пределах пары процентов и объясняется тем, что это разные
+события в одном месяце (отгрузки конца августа входят, заказы конца сентября ещё нет).
+
+Отгрузки, которым не нашлась строка заказа, считаются в штуках, но не в евро:
+их количество отдаётся полем `fact_unpriced_units`, и страница подписывает такой
+факт как неполный. Подменять цену средней или брать дату заказа вместо отгрузки
+нельзя — это вернуло бы сравнение к прежнему основанию молча.
+
+Каналы Mirakl в блок не входят — план есть только по Amazon, а с ними (19–20.09.2026)
+факт блока расходился с карточкой на их продажи: 48 720 против 43 547 €. Чистые продажи
+без НДС и возвратов (`net_product_sales`) здесь не годятся: 18.09.2026 они давали
+−63 % к плану при реальных −40 %.
 """
 import calendar
 from datetime import date
@@ -47,22 +57,35 @@ SQL = """
         WHERE month BETWEEN %(m0)s AND %(m1)s
         GROUP BY 1, 2, 3, 4
     ),
-    daily AS (   -- только Amazon: тот же источник, что у карточки «Продажи по заказам»
-        SELECT marketplace, snapshot_date AS d, units_ordered, ordered_sales AS gross
-        FROM kabinet_data.sales_traffic_daily WHERE snapshot_date BETWEEN %(d0)s AND %(d1)s
+    -- Факт по ДАТЕ ОТГРУЗКИ (ТЗ 010 §13), а не по дате заказа: план сравнивается с тем, что
+    -- реально уехало покупателю. Цена берётся из строки заказа (`item_price` — сумма строки с НДС,
+    -- как план в листе), поэтому евро остаются в одной системе координат с планом.
+    lines AS (   -- цена и количество по заказу × артикулу: делим на количество, умножаем на отгруженное
+        SELECT order_id, sku, SUM(quantity)::numeric AS q, SUM(item_price) AS p
+        FROM kabinet_data.orders_history WHERE order_status <> 'Canceled' GROUP BY 1, 2
+    ),
+    daily AS (   -- только Amazon: у Mirakl плана нет, и в блоке их не считаем
+        SELECT s.marketplace, s.shipped_date AS d, s.qty AS units,
+               s.qty * (l.p / NULLIF(l.q, 0)) AS gross,
+               (l.order_id IS NULL) AS unpriced
+        FROM kabinet_data.shipment_facts s
+        LEFT JOIN lines l ON l.order_id = s.order_ref AND l.sku = s.sku
+        WHERE s.channel = 'AMZ' AND s.shipped_date BETWEEN %(d0)s AND %(d1)s
     ),
     fact AS (
         SELECT c.object_type, c.object_id,
                date_trunc('month', e.d)::date AS month,
-               SUM(e.units_ordered)::int    AS fact_units,
-               SUM(e.gross)                 AS fact_rev,
-               MAX(e.d)                     AS data_through
+               SUM(e.units)::int                                  AS fact_units,
+               SUM(e.gross)                                       AS fact_rev,
+               SUM(e.units) FILTER (WHERE e.unpriced)::int        AS fact_unpriced_units,
+               MAX(e.d)                                           AS data_through
         FROM daily e
         JOIN codes c ON c.code = CASE WHEN e.marketplace = 'GB' THEN 'CO.UK' ELSE e.marketplace END
         GROUP BY 1, 2, 3
     )
     SELECT p.object_type, p.object_id, p.object_name, p.month, p.plan_units, p.plan_rev, p.plan_skus,
-           COALESCE(f.fact_units, 0) AS fact_units, COALESCE(f.fact_rev, 0) AS fact_rev, f.data_through
+           COALESCE(f.fact_units, 0) AS fact_units, COALESCE(f.fact_rev, 0) AS fact_rev,
+           COALESCE(f.fact_unpriced_units, 0) AS fact_unpriced_units, f.data_through
     FROM plan p LEFT JOIN fact f USING (object_type, object_id, month)
     ORDER BY p.object_name, p.month
 """
@@ -114,12 +137,15 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
     факт, выполнение и относительное отклонение темпа по ТЗ §13
     (факт / ожидание − 1) — и в штуках, и в евро (`*_rev_*`). Без ожидания
     (план 0) отклонение не считается. Выручка плана — `forecast_revenue`
-    реестра (штуки × целевая цена из листа), факт — `net_product_sales`."""
+    реестра (штуки × целевая цена из листа), факт — отгруженные штуки × цена
+    строки заказа; `fact_unpriced_units` — сколько штук уехало без строки заказа
+    и поэтому в евро не попало."""
     if df.empty:
         return df
     g = (df.groupby("object_name", as_index=False)
            .agg(plan_units=("plan_units", "sum"), expected_units=("expected_units", "sum"),
-                fact_units=("fact_units", "sum"), plan_rev=("plan_rev", "sum"),
+                fact_units=("fact_units", "sum"), fact_unpriced_units=("fact_unpriced_units", "sum"),
+                plan_rev=("plan_rev", "sum"),
                 expected_rev=("expected_rev", "sum"), fact_rev=("fact_rev", "sum"),
                 plan_skus=("plan_skus", "max"), data_through=("data_through", "max"),
                 days_covered=("days_covered", "sum"), days_in_month=("days_in_month", "sum"),
@@ -156,10 +182,20 @@ SQL_MONTH = """
                CASE WHEN upper(legacy_code) = 'CO.UK' THEN 'GB' ELSE upper(legacy_code) END AS econ_code
         FROM kabinet_data.marketplaces_new
     ),
-    fact AS (   -- только Amazon: тот же источник и та же сумма, что у карточки «Продажи по заказам»
-        SELECT marketplace AS econ_code, SUM(units_ordered)::int AS fact_units, SUM(ordered_sales) AS fact_rev,
-               MAX(snapshot_date) AS data_through
-        FROM kabinet_data.sales_traffic_daily WHERE snapshot_date >= %(m0)s AND snapshot_date <= %(d1)s
+    -- Факт по ДАТЕ ОТГРУЗКИ (ТЗ 010 §13): план месяца сравнивается с тем, что уехало покупателю.
+    -- Цена — из строки заказа (сумма строки с НДС), чтобы евро совпадали по смыслу с планом листа.
+    lines AS (
+        SELECT order_id, sku, SUM(quantity)::numeric AS q, SUM(item_price) AS p
+        FROM kabinet_data.orders_history WHERE order_status <> 'Canceled' GROUP BY 1, 2
+    ),
+    fact AS (
+        SELECT s.marketplace AS econ_code, SUM(s.qty)::int AS fact_units,
+               SUM(s.qty * (l.p / NULLIF(l.q, 0))) AS fact_rev,
+               SUM(s.qty) FILTER (WHERE l.order_id IS NULL)::int AS fact_unpriced_units,
+               MAX(s.shipped_date) AS data_through
+        FROM kabinet_data.shipment_facts s
+        LEFT JOIN lines l ON l.order_id = s.order_ref AND l.sku = s.sku
+        WHERE s.channel = 'AMZ' AND s.shipped_date >= %(m0)s AND s.shipped_date <= %(d1)s
         GROUP BY 1
     ),
     plan AS (
@@ -174,7 +210,8 @@ SQL_MONTH = """
     )
     SELECT 'marketplace' AS kind, mp.id, mp.code, mp.name, mp.platform_short AS platform, mp.country_alpha2 AS country,
            NULL::text[] AS members,
-           COALESCE(f.fact_units, 0) AS fact_units, COALESCE(f.fact_rev, 0) AS fact_rev, f.data_through,
+           COALESCE(f.fact_units, 0) AS fact_units, COALESCE(f.fact_rev, 0) AS fact_rev,
+           COALESCE(f.fact_unpriced_units, 0) AS fact_unpriced_units, f.data_through,
            p.plan_units, p.plan_rev, p.plan_skus,
            EXISTS (SELECT 1 FROM kabinet_data.pool_members pm WHERE pm.marketplace_id = mp.id) AS in_pool
     FROM mp LEFT JOIN fact f USING (econ_code)
@@ -182,7 +219,7 @@ SQL_MONTH = """
     WHERE mp.platform_short = 'AMZ'
     UNION ALL
     SELECT 'pool', p.object_id, p.object_name, p.object_name, NULL, pc.country, pc.members,
-           0, 0, NULL, p.plan_units, p.plan_rev, p.plan_skus, true
+           0, 0, 0, NULL, p.plan_units, p.plan_rev, p.plan_skus, true
     FROM plan p JOIN pool_country pc ON pc.pool_id = p.object_id WHERE p.object_type = 'pool'
 """
 
@@ -199,7 +236,8 @@ def load_month(conn, today: date) -> pd.DataFrame:
 def _agg(rows: pd.DataFrame, pools: pd.DataFrame, share: float) -> dict:
     """Узел или лист таблицы «План месяца».
 
-    Факт — по всем строкам узла (сходится с карточкой «Продажи по заказам»);
+    Факт — по всем строкам узла (по дате отгрузки; карточка «Продажи по заказам»
+    считает по дате заказа, и равенства с ней тут больше нет — см. докстринг модуля);
     план, ожидание, выполнение и темп — только по строкам, у которых план есть.
     У маркетплейса без плана план и ожидание 0, выполнение и темп не считаются
     (решение Ярослава, 18.09.2026): строка видна, факт виден, сравнивать нечего."""
@@ -212,6 +250,7 @@ def _agg(rows: pd.DataFrame, pools: pd.DataFrame, share: float) -> dict:
     exp_u, exp_r = plan_u * share, plan_r * share
     return dict(plan_units=plan_u, plan_rev=plan_r, expected_units=exp_u, expected_rev=exp_r,
                 fact_units=float(rows["fact_units"].sum()), fact_rev=float(rows["fact_rev"].sum()),
+                fact_unpriced_units=float(rows.get("fact_unpriced_units", pd.Series(dtype=float)).sum()),
                 done_units=(pf_u / plan_u * 100) if plan_u else None, done_rev=(pf_r / plan_r * 100) if plan_r else None,
                 pace_units=(pf_u / exp_u - 1) * 100 if exp_u else None, pace_rev=(pf_r / exp_r - 1) * 100 if exp_r else None,
                 plan_skus=int(planned["plan_skus"].fillna(0).sum() + pools["plan_skus"].fillna(0).sum()) if has_plan else 0,
@@ -236,9 +275,11 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     covered = min(today, max(dt)).day if len(dt) else 0
     share = covered / dim
     pool_countries = set(pools["country"].dropna())
-    # периметр — рынки Amazon с планом ИЛИ с продажами в этом месяце: страны без плана (BE, GB)
+    # периметр — рынки Amazon с планом ИЛИ с отгрузками в этом месяце: страны без плана (BE, GB)
     # отдельными строками с нулевым планом. Каналов Mirakl здесь нет: план только по Amazon,
-    # и факт блока обязан совпадать с карточкой «Продажи по заказам» (20.09.2026, третье расхождение)
+    # и с ними итог блока расходился с карточкой на их продажи (20.09.2026, третье расхождение).
+    # Периметр тот же, а основание с 27.09 другое — дата отгрузки, — поэтому равенства с карточкой
+    # уже не ждём: подпись под таблицей называет причину и порядок расхождения
     in_scope = mps[mps["plan_units"].notna() | (mps["fact_units"] > 0) | (mps["fact_rev"] > 0)]
     plan_countries = set(in_scope["country"].dropna()) | pool_countries
 

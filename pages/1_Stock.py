@@ -36,13 +36,27 @@ st.caption(t("stock.caption"))
 # ---------- данные ----------
 @st.cache_data(ttl=600)
 def load_stock() -> pd.DataFrame:
+    """Последний снимок остатков — ПО КАЖДОМУ ИСТОЧНИКУ, а не общий максимум.
+
+    `stock_local` наполняют несколько загрузчиков, и `snapshot_date` у них значит разное:
+    ячейка FBA пишет дату исходного отчёта (`ledger-summary`), ячейки Mirakl — сегодняшнюю.
+    Пока источники идут в ногу, разницы не видно. Стоит отчёту FBA отстать на день — общий
+    максимум указывает на снимок, в котором есть только офферы Mirakl, и весь остаток FBA
+    молча исчезает: 26–27.09.2026 на странице было «Доступно 0» по всем товарам, а джобы
+    при этом зелёные и правило свежести проходило (сегодняшние строки в таблице есть).
+
+    Поэтому берём максимум внутри каждого `source`. Отстающий источник виден датой в строке
+    и подписью под таблицей — лучше показать остаток по 25-е и сказать об этом, чем выдать
+    ноль за факт."""
     conn = get_connection()
     df = pd.read_sql("""
-        SELECT snapshot_date, sku, asin, product_name,
-               warehouse_name, location, availability_status, quality_status,
-               quantity, source, sync_status
-        FROM kabinet_data.stock_local
-        WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM kabinet_data.stock_local)
+        SELECT s.snapshot_date, s.sku, s.asin, s.product_name,
+               s.warehouse_name, s.location, s.availability_status, s.quality_status,
+               s.quantity, s.source, s.sync_status
+        FROM kabinet_data.stock_local s
+        JOIN (SELECT source, MAX(snapshot_date) AS last_snap
+              FROM kabinet_data.stock_local GROUP BY source) m
+          ON m.source IS NOT DISTINCT FROM s.source AND m.last_snap = s.snapshot_date
     """, conn)
     conn.close()
     return df
@@ -425,6 +439,14 @@ df = load_stock()
 if df.empty:
     st.warning(t("stock.no_data_warning"))
     st.stop()
+
+# Источники в снимке идут каждый со своей датой (см. load_stock). Отставание надо назвать
+# словом: без этого остаток по 25-е читается как остаток на сегодня
+_src_dates = (df.groupby(df["source"].fillna("—"))["snapshot_date"]
+                .max().sort_values(ascending=False))
+if len(_src_dates) > 1 and _src_dates.iloc[0] != _src_dates.iloc[-1]:
+    st.caption(t("stock.src_lag", items=" · ".join(
+        f"{k}: {pd.Timestamp(v).strftime('%d.%m')}" for k, v in _src_dates.items())))
 
 df["category"] = df["product_name"].apply(detect_category)
 df["power_w"] = df["product_name"].str.extract(r"(\d{3,4})\s*W", flags=re.I)[0].astype(float)
