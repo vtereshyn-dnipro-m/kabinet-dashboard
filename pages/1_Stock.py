@@ -705,7 +705,10 @@ with tab_cov:
                         "plan_weeks_until_first_gap": "weeks_until_first_gap",
                         "plan_competing_marketplaces": "competing_marketplaces",
                         "plan_pool_weekly_demand": "pool_total_weekly_demand",
-                        "plan_pool_exhaustion_weeks": "pool_exhaustion_weeks"}
+                        "plan_pool_exhaustion_weeks": "pool_exhaustion_weeks",
+                        # статус относительно норматива считается от покрытия, а покрытие у
+                        # основания «по плану» другое — значит и статус свой
+                        "plan_norm_status": "norm_status"}
             have = {a: b for a, b in PLAN_MAP.items() if a in cov.columns}
             cov = cov.drop(columns=[b for b in have.values() if b in cov.columns]).rename(columns=have)
             # «Переключение канала» и оверсток в неделях у второго основания не считаются —
@@ -843,6 +846,21 @@ with tab_cov:
 
             # ASIN в coverage_summary нет — добираем по артикулу из общего
             # справочника, чтобы из таблицы можно было открыть карточку
+            # Норматив покрытия (ТЗ «Остатки» §9): что применилось к строке и куда она попала
+            # относительно минимума и максимума. Текстом, а не числами: пустое число
+            # st.dataframe рисует словом «None», а норматив есть не у каждой строки
+            NST = {"below": t("stock.cov.norm_below"), "norm": t("stock.cov.norm_ok"),
+                   "above": t("stock.cov.norm_above"), "no_norm": t("stock.cov.norm_none")}
+            _lvl = {"sku": t("stock.cov.norm_lvl_sku"), "category": t("stock.cov.norm_lvl_cat"),
+                    "default": t("stock.cov.norm_lvl_default")}
+            if "norm_min_days" in cview.columns:
+                cview["norm_text"] = [
+                    "—" if pd.isna(r.norm_min_days) else
+                    f"{int(r.norm_min_days)} / {int(r.norm_target_days)} / {int(r.norm_max_days)}"
+                    + (f" · {_lvl.get(r.norm_level, r.norm_level)}" if r.norm_level else "")
+                    for r in cview.itertuples()]
+                cview["norm_label"] = [NST.get(x, NST["no_norm"]) for x in
+                                       cview.get("norm_status", pd.Series([None] * len(cview)))]
             cview["asin_url"] = catalog.url_series(
                 skus=cview["sku"], markets=cview["marketplace"])
             cview["photo"] = catalog.image_series(
@@ -870,6 +888,7 @@ with tab_cov:
             if "odoo_incoming_stores_qty" in cview.columns:
                 _cov_cols.append("odoo_incoming_stores_qty")
             _cov_cols += (["status_label"] if _bare else ["overstock_qty", "status_label"])
+            _cov_cols += ["norm_text", "norm_label"]
             _cov_cols = [c for c in _cov_cols if c in cview.columns]
             st.dataframe(
                 cview[_cov_cols],
@@ -928,9 +947,21 @@ with tab_cov:
                         help=t("stock.cov.col_overstock_help")),
                     "status_label": st.column_config.TextColumn(
                         t("stock.cov.col_status"), width="small"),
+                    "norm_text": st.column_config.TextColumn(
+                        t("stock.cov.col_norm"), width="small",
+                        help=t("stock.cov.col_norm_help")),
+                    "norm_label": st.column_config.TextColumn(
+                        t("stock.cov.col_norm_status"), width="small",
+                        help=t("stock.cov.col_norm_status_help")),
                 },
             )
             st.caption(t("stock.cov.note"))
+            # сколько строк вообще сравнивается с нормативом: пока реестр пуст, это ноль,
+            # и об этом надо сказать словом — пустая колонка читается как поломка
+            if "norm_status" in cview.columns:
+                _nn = int((cview["norm_status"].fillna("no_norm") == "no_norm").sum())
+                if _nn:
+                    st.caption(t("stock.cov.norm_missing", n=_nn, total=len(cview)))
 
             # ---- проекция по неделям для выбранного товара ----
             st.divider()
