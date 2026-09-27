@@ -24,6 +24,7 @@ import streamlit as st
 
 from db.connection import get_connection
 from i18n import t
+from util import as_text
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,14 @@ class Source:
     default_max_age_h: int    # порог, если правила в data_freshness_rules нет
     feeds: tuple = field(default_factory=tuple)   # ключи цифр, которые кормит
     watch: bool = True        # False — дату показываем, но «устарело» не считаем
+    # Условие на строки таблицы. Нужно там, где таблицу пишут несколько загрузчиков с разным
+    # смыслом даты: `MAX` по всей таблице тогда показывает самого быстрого писателя, а цифру
+    # на экране кормит другой. Ровно так остаток FBA выпал из покрытия (см. AGENTS.md).
+    where: str = ""
+    # Ключ порога в `reorder_params`, если правило свежести на таблицу описывает НЕ то же самое.
+    # У `stock_local` правило про всю таблицу (её каждый день пишет Mirakl), а нас интересует
+    # возраст одних строк FBA — порог у них свой, и он тот же, что читает сторож.
+    param_key: str = ""
 
 
 # Что стоит за цифрами каждой страницы. Порядок — как на экране сверху вниз.
@@ -52,6 +61,13 @@ PAGES = {
         # висело бы там, где ничего не случилось, и его перестали бы читать
         Source("forecast", "forecast_register", "changed_at", "Kabinet - Forecast Plan Loader", 720,
                ("plan",), watch=False),
+        # Остаток FBA — отдельной строкой, хотя лежит в той же `stock_local`, что офферы Mirakl:
+        # у них разный смысл `snapshot_date` (у FBA это дата отчёта Amazon, у Mirakl — сегодня),
+        # и без фильтра по источнику возраст считался бы по Mirakl. Порог — `stock_fba_max_age_hours`,
+        # тот же, что у проверки сторожа `[STOCK_FBA]`: одно число, два читателя.
+        Source("fba_stock", "stock_local", "snapshot_date", "Kabinet - Stock Loader", 72,
+               ("coverage", "stock"), where="source = 'ledger-summary'",
+               param_key="stock_fba_max_age_hours"),
         Source("coverage", "coverage_summary", "calc_date", "Kabinet - Coverage Projection", 38, ("coverage",)),
         Source("transfers", "transfer_recommendations", "calc_date", "Kabinet - Stock Loader", 38, ("transfers",)),
         Source("incidents", "incidents", "created_at", "Kabinet - Watchdog", 48, ("incidents",), watch=False),
@@ -91,12 +107,13 @@ def _state(page: str) -> pd.DataFrame:
             parts.append(
                 f"SELECT '{s.key}' AS key, MAX({s.anchor})::text AS as_of, "
                 f"EXTRACT(EPOCH FROM (now() - MAX({s.anchor})::timestamptz)) / 3600 AS age_h "
-                f"FROM kabinet_data.{s.table}")
+                f"FROM kabinet_data.{s.table}" + (f" WHERE {s.where}" if s.where else ""))
         df = pd.read_sql(" UNION ALL ".join(parts), conn) if parts else pd.DataFrame(columns=["key", "as_of", "age_h"])
         rules = pd.read_sql(
             """SELECT replace(table_name, 'kabinet_data.', '') AS tbl,
                       COALESCE(max_content_age_hours, max_age_hours) AS max_age_h
                FROM kabinet_data.data_freshness_rules WHERE is_active""", conn)
+        params = pd.read_sql("SELECT key, value::numeric AS v FROM kabinet_data.reorder_params", conn)
         # последнее звено: откуда загрузчик берёт данные у площадки и как часто она их обновляет.
         # Живёт в своей таблице, потому что data_freshness_rules принадлежит владельцу базы —
         # колонок туда роль Кабинета не добавит
@@ -110,11 +127,14 @@ def _state(page: str) -> pd.DataFrame:
         conn.close()
 
     thr = {r.tbl: r.max_age_h for r in rules.itertuples() if r.max_age_h}
+    prm = {r.key: float(r.v) for r in params.itertuples() if r.v is not None}
     org = {r.tbl: r for r in origins.itertuples()}
     rows = []
     for s in srcs:
         r = df[df["key"] == s.key]
-        limit = thr.get(s.table)
+        # порог: сначала свой ключ настройки, если объявлен, потом правило на таблицу
+        limit = prm.get(s.param_key) if s.param_key else thr.get(s.table)
+        limit_src = "param" if (s.param_key and limit is not None) else ("db" if limit is not None else "code")
         o = org.get(s.table)
         rows.append({
             "key": s.key, "table": s.table, "anchor": s.anchor, "loader": s.loader,
@@ -127,6 +147,7 @@ def _state(page: str) -> pd.DataFrame:
             "age_h": (float(r["age_h"].iloc[0]) if len(r) and pd.notna(r["age_h"].iloc[0]) else None),
             "limit_h": limit or s.default_max_age_h,
             "limit_from_db": limit is not None,
+            "limit_src": limit_src,
             "watch": s.watch,
             "absent": s.key in missing,
         })
@@ -169,9 +190,9 @@ def tip(page: str, metric_key: str, base: str = "") -> str:
                  loader=r.loader)
         # у площадки данные обновляются со своей частотой, и подпись должна называть её:
         # «данные по 25.09» без этого читается как «в источнике больше ничего нет»
-        if r.platform_source:
-            line += " " + t("passport.tip_origin", origin=r.platform_source,
-                            refresh=r.platform_refresh)
+        if as_text(r.platform_source):
+            line += " " + t("passport.tip_origin", origin=as_text(r.platform_source),
+                            refresh=as_text(r.platform_refresh, "—"))
         lines.append(line)
     tail = t("passport.tip_head") + "\n" + "\n".join(f"- {x}" for x in lines)
     return (base + "\n\n" + tail) if base else tail
@@ -218,18 +239,21 @@ def footer(page: str) -> None:
                                       for r in st_.itertuples()],
             t("passport.col_age"): [_age_text(r.age_h) for r in st_.itertuples()],
             t("passport.col_limit"): [
-                (f"{int(r.limit_h)} " + (t("passport.limit_db") if r.limit_from_db else t("passport.limit_code")))
+                (f"{int(r.limit_h)} " + {"param": t("passport.limit_param"),
+                                         "db": t("passport.limit_db")}.get(r.limit_src,
+                                                                           t("passport.limit_code")))
                 if r.watch else t("passport.limit_none")
                 for r in st_.itertuples()],
-            t("passport.col_origin"): [r.platform_source or "—" for r in st_.itertuples()],
-            t("passport.col_platform_refresh"): [r.platform_refresh or "—" for r in st_.itertuples()],
-            t("passport.col_our_refresh"): [r.our_refresh or r.loader for r in st_.itertuples()],
+            t("passport.col_origin"): [as_text(r.platform_source, "—") for r in st_.itertuples()],
+            t("passport.col_platform_refresh"): [as_text(r.platform_refresh, "—") for r in st_.itertuples()],
+            t("passport.col_our_refresh"): [as_text(r.our_refresh) or as_text(r.loader, "—")
+                                            for r in st_.itertuples()],
             # расхождение частот — то, что иначе не видно ниоткуда: тянем чаще площадки — лишние
             # запросы к общей квоте, реже — цифры могут отставать, и человек должен знать насколько
+            # только значок: текст «тянем реже» в узкой колонке обрезался на полуслове,
+            # а расшифровка всех трёх значков стоит в подсказке к колонке и в подписи под таблицей
             t("passport.col_verdict"): [
-                {"we_pull_more": "⚠️ " + t("passport.v_more"),
-                 "we_pull_less": "⏳ " + t("passport.v_less"),
-                 "ok": t("passport.v_ok")}.get(r.verdict, "—")
+                {"we_pull_more": "⚠️", "we_pull_less": "⏳", "ok": "✓"}.get(as_text(r.verdict), "—")
                 for r in st_.itertuples()],
             t("passport.col_loader"): [r.loader for r in st_.itertuples()],
             t("passport.col_state"): [
@@ -239,8 +263,14 @@ def footer(page: str) -> None:
                 for r in st_.itertuples()],
         })
         st.dataframe(view, hide_index=True, use_container_width=True,
-                     height=min(420, 38 + 35 * len(view)))
+                     height=min(420, 38 + 35 * len(view)),
+                     column_config={
+                         t("passport.col_verdict"): st.column_config.TextColumn(
+                             t("passport.col_verdict"), width="small",
+                             help=t("passport.verdict_help")),
+                     })
         st.caption(t("passport.verdict_hint"))
-        notes = [(t(f"passport.src.{r.key}"), r.origin_note) for r in st_.itertuples() if r.origin_note]
+        notes = [(t(f"passport.src.{r.key}"), as_text(r.origin_note))
+                 for r in st_.itertuples() if as_text(r.origin_note)]
         if notes:
             st.markdown("\n".join(f"- **{n}** — {x}" for n, x in notes))

@@ -3771,6 +3771,16 @@ TRANSLATIONS = {
     "passport.state_stale": {"ru": "устарело", "uk": "застаріло", "en": "stale"},
     "passport.state_absent": {"ru": "нет данных", "uk": "немає даних", "en": "no data"},
     "passport.limit_db": {"ru": "из справочника", "uk": "з довідника", "en": "from rules"},
+    "passport.limit_param": {"ru": "из настроек", "uk": "з налаштувань", "en": "from settings"},
+    "passport.verdict_help": {
+        "ru": "⚠️ тянем чаще, чем площадка обновляет данные — лишние запросы к общей квоте аккаунта. "
+              "⏳ тянем реже, чем данные меняются — цифра может отставать. ✓ частоты сходятся.",
+        "uk": "⚠️ тягнемо частіше, ніж майданчик оновлює дані — зайві запити до спільної квоти акаунта. "
+              "⏳ тягнемо рідше, ніж дані змінюються — цифра може відставати. ✓ частоти збігаються.",
+        "en": "⚠️ we pull more often than the platform refreshes — wasted calls against the shared quota. "
+              "⏳ we pull less often than the data changes — the number may lag. ✓ cadences match."},
+    "passport.src.fba_stock": {
+        "ru": "Остаток FBA", "uk": "Залишок FBA", "en": "FBA stock"},
     "passport.limit_code": {"ru": "по умолчанию", "uk": "за замовчуванням", "en": "default"},
     "passport.limit_none": {"ru": "не проверяем", "uk": "не перевіряємо", "en": "not checked"},
     "passport.age_hours": {"ru": "{n} ч", "uk": "{n} год", "en": "{n} h"},

@@ -48,6 +48,20 @@ st.markdown(
     "overflow:visible !important;text-overflow:clip !important;"
     "line-height:1.2 !important;}"
     '[data-testid="stMetricLabel"] > div{overflow:visible !important;}'
+    # ...но переносить надо ПО СЛОВАМ. По умолчанию перенос рвёт слово в любом
+    # месте, и на 1100 px подписи превращались в «Прода жи по заказа м» и
+    # «Дней у старе йшего» — читается хуже обрезанной строки. Запрещаем разрыв
+    # внутри слова и переносы по дефису; вместо этого подпись мельчает через
+    # clamp, пока не уместится. Правило на подпись и на её <p> разом: Streamlit
+    # ставит стиль на оба, и одного элемента не хватает.
+    '[data-testid="stMetricLabel"],[data-testid="stMetricLabel"] p,'
+    '[data-testid="stMetricLabel"] div{word-break:normal !important;'
+    "overflow-wrap:normal !important;hyphens:none !important;}"
+    '[data-testid="stMetricLabel"] p{'
+    "font-size:clamp(0.66rem,0.55vw + 0.42rem,0.82rem) !important;}"
+    # Длинный артикул или ASIN в подписи — единственное слово, которое всё
+    # равно не уместится: ему разрыв разрешён, иначе он вылезет за карточку.
+    '[data-testid="stMetricLabel"] p code{overflow-wrap:anywhere !important;}'
     # в сайдбаре между логотипом и пунктами меню остаётся пустая полоса —
     # поджимаем, чтобы навигация начиналась сразу под лого
     '[data-testid="stSidebarHeader"]{padding:0.6rem 1rem 0.2rem !important;}'
