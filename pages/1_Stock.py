@@ -63,6 +63,50 @@ def load_stock() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
+def load_mp_country() -> dict:
+    """Код рынка покрытия → страна. Берём из справочника, а не отрезанием двух букв от кода:
+    у Amazon рынок и страна совпадают (ES), а у Mirakl код канала (LM, MM_ES) страну не называет.
+    `GB` в покрытии против `co.uk` в справочнике — то же приведение, что в плане-факте."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("""
+            SELECT CASE WHEN upper(legacy_code) = 'CO.UK' THEN 'GB' ELSE upper(legacy_code) END AS code,
+                   country_alpha2 AS country
+            FROM kabinet_data.marketplaces_new WHERE legacy_code IS NOT NULL
+        """, conn)
+        return {r.code: (r.country or r.code) for r in df.itertuples()}
+    except Exception:
+        return {}
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_sales_warehouses() -> dict:
+    """Код рынка → склады продаж, которые его обслуживают (ТЗ «Остатки» §10.1, фильтр по складу).
+    Связь живёт в `warehouse_priorities` — там приоритет свойство пары «склад × маркетплейс»;
+    старую `warehouse_marketplaces` не читаем, её никто не поддерживает."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("""
+            SELECT CASE WHEN upper(m.legacy_code) = 'CO.UK' THEN 'GB'
+                        ELSE upper(m.legacy_code) END AS code, w.name AS warehouse
+            FROM kabinet_data.warehouse_priorities p
+            JOIN kabinet_data.warehouses w ON w.id = p.warehouse_id AND w.is_active IS NOT FALSE
+            JOIN kabinet_data.marketplaces_new m ON m.id = p.target_id
+            WHERE p.target_type = 'marketplace'
+        """, conn)
+    except Exception:
+        return {}
+    finally:
+        conn.close()
+    out = {}
+    for r in df.itertuples():
+        out.setdefault(r.code, []).append(r.warehouse)
+    return out
+
+
+@st.cache_data(ttl=600)
 def table_exists(name: str) -> bool:
     conn = get_connection()
     try:
@@ -728,18 +772,60 @@ with tab_cov:
             # действительный прогноз, но не «запас достаточен». В режиме по темпу этих состояний нет
             CST["no_forecast"] = t("stock.cov.st_no_forecast")
             CST["explicit_zero"] = t("stock.cov.st_explicit_zero")
+            # ТЗ 011 §9: зависимая потребность по набору не рассчитана — спрос компонентов
+            # НЕИЗВЕСТЕН. Показать вместо него ноль значит выдать неполный план за полный
+            CST["not_calculated"] = t("stock.cov.st_not_calculated")
 
-        cf1, cf2 = st.columns([1.3, 2])
+        # Фильтры верхнего уровня по ТЗ §10.1. Страна и маркетплейс — разные вещи: у нас код
+        # рынка и есть страна (AMZ-ES → ES), но у Mirakl это не так, поэтому страна берётся из
+        # справочника, а не отрезанием двух букв от кода.
+        cf1, cf2, cf3 = st.columns([1.3, 1.3, 1.4])
+        _mp_country = load_mp_country()
         with cf1:
+            _countries = sorted({_mp_country.get(m, m) for m in cov["marketplace"].dropna().unique()})
+            cov_country = st.multiselect(t("stock.cov.filter_country"), _countries,
+                                         default=_countries, key="cov_country")
+        with cf2:
             cov_mps = sorted(cov["marketplace"].dropna().unique().tolist())
             cov_mp = st.multiselect(t("stock.cov.filter_mp"), cov_mps,
                                     default=cov_mps, key="cov_mp")
-        with cf2:
+        with cf3:
             cov_st = st.multiselect(
                 t("stock.cov.filter_status"), list(CST.values()),
                 default=[CST["critical"], CST["warning"]], key="cov_st")
 
+        cf4, cf5, cf6 = st.columns([1.3, 1.3, 1.4])
+        with cf4:
+            _wh_map = load_sales_warehouses()
+            _wh_names = sorted({w for ws in _wh_map.values() for w in ws})
+            cov_wh = st.multiselect(t("stock.cov.filter_wh"), _wh_names, default=[], key="cov_wh",
+                                    help=t("stock.cov.filter_wh_help"))
+        with cf5:
+            cov_sku_q = st.text_input(t("stock.cov.filter_sku"), key="cov_sku_q",
+                                      placeholder=t("stock.cov.filter_sku_ph")).strip()
+        with cf6:
+            # ТЗ §10.2: основные горизонты 13 и 26 недель, можно другой, но не больше 52.
+            # Горизонт режет не расчёт (он всегда на 52 недели), а то, что считается дефицитом:
+            # «дыра на 40-й неделе» при горизонте 13 — не повод для тревоги сегодня.
+            HOR = {13: t("stock.cov.hor_13"), 26: t("stock.cov.hor_26"), 52: t("stock.cov.hor_52")}
+            cov_hor = st.radio(t("stock.cov.horizon"), list(HOR), index=1, horizontal=True,
+                               format_func=lambda h: HOR[h], key="cov_hor",
+                               help=t("stock.cov.horizon_help"))
+
         cv = cov[cov["marketplace"].isin(cov_mp)].copy()
+        cv = cv[[_mp_country.get(m, m) in cov_country for m in cv["marketplace"]]]
+        if cov_wh:
+            _allowed = {m for m, ws in _wh_map.items() if set(ws) & set(cov_wh)}
+            cv = cv[cv["marketplace"].isin(_allowed)]
+        if cov_sku_q:
+            _q = cov_sku_q.lower()
+            cv = cv[cv["sku"].astype(str).str.lower().str.contains(_q, regex=False)
+                    | cv["product_name"].fillna("").astype(str).str.lower().str.contains(_q, regex=False)]
+        # За горизонтом дефицит виден, но тревогой не считается: строка остаётся, а её статус
+        # опускается до «ok» — иначе выбор горизонта ничего не менял бы, кроме подписи.
+        if cov_hor < 52:
+            _far = cv["weeks_until_first_gap"].fillna(999) > cov_hor
+            cv.loc[_far & cv["coverage_status"].isin(["critical", "warning"]), "coverage_status"] = "ok"
 
         n_crit = int((cv["coverage_status"] == "critical").sum())
         n_warn = int((cv["coverage_status"] == "warning").sum())
@@ -868,7 +954,8 @@ with tab_cov:
             # У строк «Нет прогноза» и «Явный нулевой прогноз» покрытие не считалось: пустые недели
             # и нулевые дыры рядом выдавали бы отсутствие расчёта за результат
             _bare = (basis == "plan"
-                     and set(cview["coverage_status"]) <= {"no_forecast", "explicit_zero"})
+                     and set(cview["coverage_status"]) <= {"no_forecast", "explicit_zero",
+                                                           "not_calculated"})
             _ref = ["plan_weekly", "velocity_weekly"] if basis == "plan" else ["velocity_weekly"]
             _ref = [c for c in _ref if c in cview.columns]
             if _bare:
@@ -956,6 +1043,10 @@ with tab_cov:
                 },
             )
             st.caption(t("stock.cov.note"))
+            if basis == "plan":
+                _nc = int((cv["coverage_status"] == "not_calculated").sum())
+                if _nc:
+                    st.warning(t("stock.cov.not_calculated_note", n=_nc))
             # сколько строк вообще сравнивается с нормативом: пока реестр пуст, это ноль,
             # и об этом надо сказать словом — пустая колонка читается как поломка
             if "norm_status" in cview.columns:

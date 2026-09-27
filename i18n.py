@@ -612,6 +612,47 @@ TRANSLATIONS = {
     },
     "stock.cov.col_first_deficit": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Shortage from"},
     "stock.cov.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "stock.cov.st_not_calculated": {
+        "ru": "Потребность не рассчитана", "uk": "Потребу не розраховано", "en": "Demand not calculated"},
+    "stock.cov.not_calculated_note": {
+        "ru": "У {n} строк зависимая потребность от наборов не рассчитана, поэтому план по ним "
+              "НЕИЗВЕСТЕН — это не ноль. Покрытие по таким строкам не считается: показать его "
+              "значило бы выдать неполный план за полный. Причина — в прогнозе набора: расчёт "
+              "не прошёл или состав не раскрылся.",
+        "uk": "У {n} рядків залежну потребу від наборів не розраховано, тому план за ними "
+              "НЕВІДОМИЙ — це не нуль. Покриття за такими рядками не рахується: показати його "
+              "означало б видати неповний план за повний. Причина — у прогнозі набору: розрахунок "
+              "не пройшов або склад не розкрився.",
+        "en": "For {n} rows the dependent demand from kits has not been calculated, so their plan is "
+              "UNKNOWN — not zero. Coverage is not computed for them: showing it would pass an "
+              "incomplete plan off as complete. The cause is in the kit's forecast: the calculation "
+              "failed or the composition could not be resolved."},
+    "stock.cov.filter_country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "stock.cov.filter_wh": {"ru": "Склад продаж", "uk": "Склад продажів", "en": "Sales warehouse"},
+    "stock.cov.filter_wh_help": {
+        "ru": "Пусто — все склады. Связь «склад × маркетплейс» берётся из справочника складов; "
+              "рынки без привязанного склада фильтр по складу отсеивает.",
+        "uk": "Порожньо — усі склади. Звʼязок «склад × маркетплейс» береться з довідника складів; "
+              "ринки без привʼязаного складу фільтр за складом відсіює.",
+        "en": "Empty means all warehouses. The warehouse↔marketplace link comes from the warehouse "
+              "register; markets with no linked warehouse are filtered out by this filter."},
+    "stock.cov.filter_sku": {"ru": "SKU или название", "uk": "SKU або назва", "en": "SKU or name"},
+    "stock.cov.filter_sku_ph": {"ru": "часть артикула или названия", "uk": "частина артикула або назви",
+                                "en": "part of the code or name"},
+    "stock.cov.horizon": {"ru": "Горизонт", "uk": "Горизонт", "en": "Horizon"},
+    "stock.cov.hor_13": {"ru": "13 нед", "uk": "13 тижн", "en": "13 wks"},
+    "stock.cov.hor_26": {"ru": "26 нед", "uk": "26 тижн", "en": "26 wks"},
+    "stock.cov.hor_52": {"ru": "52 нед", "uk": "52 тижн", "en": "52 wks"},
+    "stock.cov.horizon_help": {
+        "ru": "Расчёт всегда идёт на 52 недели — горизонт решает, что считать тревогой сегодня. "
+              "Дефицит за пределами горизонта строку не окрашивает: «дыра на 40-й неделе» при "
+              "горизонте 13 недель — не повод для действия сейчас. Сама строка никуда не девается.",
+        "uk": "Розрахунок завжди йде на 52 тижні — горизонт вирішує, що вважати тривогою сьогодні. "
+              "Дефіцит поза горизонтом рядок не фарбує: «дірка на 40-му тижні» за горизонту "
+              "13 тижнів — не привід діяти зараз. Сам рядок нікуди не дінеться.",
+        "en": "The projection always runs 52 weeks — the horizon decides what counts as an alarm "
+              "today. A gap beyond the horizon does not colour the row: a hole in week 40 with a "
+              "13-week horizon is not a reason to act now. The row itself stays."},
     "stock.src_lag": {
         "ru": "Источники остатка обновились в разное время, и остаток показан по последнему снимку "
               "КАЖДОГО: {items}. Отстающий источник — это данные на свою дату, а не ноль.",
