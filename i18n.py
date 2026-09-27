@@ -612,6 +612,39 @@ TRANSLATIONS = {
     },
     "stock.cov.col_first_deficit": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Shortage from"},
     "stock.cov.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    # Норматив покрытия (ТЗ «Остатки» §9): дни — единица хранения и расчёта, недели на экране
+    # выводятся из них. Поэтому в колонке дни, а не недели: пересчёт в недели тут был бы вторым
+    # представлением одной величины, и совпадать они перестали бы на первом же округлении
+    "stock.cov.col_norm": {"ru": "Норматив, дн", "uk": "Норматив, дн", "en": "Norm, days"},
+    "stock.cov.col_norm_help": {
+        "ru": "Минимум / цель / максимум в календарных днях и уровень, с которого норматив взялся "
+              "(SKU, категория или по умолчанию для маркетплейса). Задаются в «Справочники → Нормативы».",
+        "uk": "Мінімум / ціль / максимум у календарних днях і рівень, з якого норматив узявся "
+              "(SKU, категорія або за замовчуванням для маркетплейсу). Задаються в «Довідники → Нормативи».",
+        "en": "Minimum / target / maximum in calendar days and the level the norm came from "
+              "(SKU, category or marketplace default). Set in «Dictionaries → Norms»."},
+    "stock.cov.col_norm_status": {"ru": "К норме", "uk": "До норми", "en": "vs norm"},
+    "stock.cov.col_norm_status_help": {
+        "ru": "Где покрытие относительно норматива: ниже минимума, внутри, выше максимума. "
+              "Считается от того же покрытия, что показано в строке, — значит зависит от выбранного основания.",
+        "uk": "Де покриття відносно нормативу: нижче мінімуму, всередині, вище максимуму. "
+              "Рахується від того ж покриття, що показано в рядку, — отже залежить від обраної основи.",
+        "en": "Where coverage sits relative to the norm: below the minimum, inside, above the maximum. "
+              "Computed from the coverage shown in the row, so it follows the selected basis."},
+    "stock.cov.norm_below": {"ru": "Недостаточное", "uk": "Недостатнє", "en": "Insufficient"},
+    "stock.cov.norm_ok": {"ru": "Норма", "uk": "Норма", "en": "Within norm"},
+    "stock.cov.norm_above": {"ru": "Избыточное", "uk": "Надлишкове", "en": "Excess"},
+    "stock.cov.norm_none": {"ru": "Не настроен", "uk": "Не налаштовано", "en": "Not configured"},
+    "stock.cov.norm_lvl_sku": {"ru": "по SKU", "uk": "за SKU", "en": "by SKU"},
+    "stock.cov.norm_lvl_cat": {"ru": "по категории", "uk": "за категорією", "en": "by category"},
+    "stock.cov.norm_lvl_default": {"ru": "по умолчанию", "uk": "за замовчуванням", "en": "default"},
+    "stock.cov.norm_missing": {
+        "ru": "Норматив покрытия не настроен у {n} строк из {total}: пока его нет, сравнивать покрытие "
+              "не с чем. Значения заводятся в «Справочники → Нормативы» и применяются со следующего расчёта.",
+        "uk": "Норматив покриття не налаштовано у {n} рядків із {total}: поки його немає, порівнювати покриття "
+              "ні з чим. Значення заводяться в «Довідники → Нормативи» і застосовуються з наступного розрахунку.",
+        "en": "No coverage norm for {n} of {total} rows: until one exists there is nothing to compare coverage "
+              "against. Values are entered in «Dictionaries → Norms» and apply from the next calculation."},
     "stock.cov.note": {
         "ru": "Прогноз продаж пока считается по скорости за 30 дней. Когда появится плановый "
               "прогноз, расчёт переключится на него — остальная логика не изменится.",
