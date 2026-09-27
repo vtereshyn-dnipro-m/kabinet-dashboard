@@ -3606,6 +3606,31 @@ TRANSLATIONS = {
     "passport.col_age": {"ru": "Возраст", "uk": "Вік", "en": "Age"},
     "passport.col_limit": {"ru": "Порог, ч", "uk": "Поріг, год", "en": "Limit, h"},
     "passport.col_loader": {"ru": "Обновляет", "uk": "Оновлює", "en": "Updated by"},
+    "passport.col_origin": {"ru": "Источник у площадки", "uk": "Джерело у майданчика", "en": "Source at the platform"},
+    "passport.col_platform_refresh": {"ru": "Площадка обновляет", "uk": "Майданчик оновлює", "en": "Platform refreshes"},
+    "passport.col_our_refresh": {"ru": "Тянем мы", "uk": "Тягнемо ми", "en": "We pull"},
+    "passport.col_verdict": {"ru": "Частоты", "uk": "Частоти", "en": "Cadence"},
+    "passport.v_ok": {"ru": "совпадают", "uk": "збігаються", "en": "matched"},
+    "passport.v_more": {"ru": "тянем чаще, чем обновляется", "uk": "тягнемо частіше, ніж оновлюється",
+                        "en": "we pull more often than it changes"},
+    "passport.v_less": {"ru": "тянем реже — возможно отставание", "uk": "тягнемо рідше — можливе відставання",
+                        "en": "we pull less often — may lag"},
+    "passport.verdict_hint": {
+        "ru": "Колонка «Частоты» сравнивает два соседних столбца. ⚠️ — тянем чаще, чем площадка обновляет данные: "
+              "лишние запросы к общей квоте аккаунта. ⏳ — тянем реже, чем данные меняются: цифра на экране может "
+              "отставать, и насколько — написано ниже.",
+        "uk": "Колонка «Частоти» порівнює два сусідні стовпці. ⚠️ — тягнемо частіше, ніж майданчик оновлює дані: "
+              "зайві запити до спільної квоти акаунта. ⏳ — тягнемо рідше, ніж дані змінюються: цифра на екрані може "
+              "відставати, і наскільки — написано нижче.",
+        "en": "The Cadence column compares the two columns beside it. ⚠️ — we pull more often than the platform "
+              "refreshes the data: wasted calls against the shared account quota. ⏳ — we pull less often than the "
+              "data changes: the number on screen may lag, and by how much is written below.",
+    },
+    "passport.tip_origin": {
+        "ru": "· у площадки это {origin}, обновляется: {refresh}",
+        "uk": "· у майданчика це {origin}, оновлюється: {refresh}",
+        "en": "· at the platform this is {origin}, refreshed: {refresh}",
+    },
     "passport.col_state": {"ru": "Состояние", "uk": "Стан", "en": "State"},
     "passport.state_fresh": {"ru": "свежо", "uk": "свіжо", "en": "fresh"},
     "passport.state_stale": {"ru": "устарело", "uk": "застаріло", "en": "stale"},
