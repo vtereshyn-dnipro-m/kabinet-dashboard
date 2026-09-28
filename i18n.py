@@ -1637,7 +1637,32 @@ TRANSLATIONS = {
         "en": "Will run out before the shipment arrives",
     },
     "ro.kpi.warning": {"ru": "🟡 Пора заказывать", "uk": "🟡 Час замовляти", "en": "🟡 Time to order"},
-    "ro.kpi.total_qty": {"ru": "Всего к заказу, шт", "uk": "Всього до замовлення, шт", "en": "Total to order, pcs"},
+    "ro.kpi.total_qty": {"ru": "Срочно к заказу, шт", "uk": "Терміново до замовлення, шт",
+                         "en": "Urgent to order, pcs"},
+    "ro.kpi.total_qty_help": {
+        "ru": "Сумма по строкам «срочно» и «предупреждение» — ровно тем, что показывает таблица ниже "
+              "по умолчанию. Позиции со статусом «ok» сюда не входят: им дозаказ тоже предлагается, "
+              "но ждать он может.",
+        "uk": "Сума за рядками «терміново» і «попередження» — саме тими, що показує таблиця нижче "
+              "за замовчуванням. Позиції зі статусом «ok» сюди не входять: їм дозамовлення теж "
+              "пропонується, але воно може зачекати.",
+        "en": "The sum over the «urgent» and «warning» rows — exactly what the table below shows by "
+              "default. Items with status «ok» are not included: they also get a suggested top-up, "
+              "but it can wait."},
+    "ro.kpi.all_qty": {"ru": "Всего на {n} дней, шт", "uk": "Усього на {n} днів, шт",
+                       "en": "Total for {n} days, pcs"},
+    "ro.kpi.all_qty_plain": {"ru": "Всего к заказу, шт", "uk": "Усього до замовлення, шт",
+                             "en": "Total to order, pcs"},
+    "ro.kpi.all_qty_help": {
+        "ru": "Весь дозаказ, который предлагает расчёт на горизонт {n} дней, включая позиции со "
+              "статусом «ok» — их {extra} шт. Соседняя карточка показывает только срочную часть, "
+              "и раньше разница между ними выглядела расхождением, хотя это две разные величины.",
+        "uk": "Усе дозамовлення, яке пропонує розрахунок на горизонт {n} днів, включно з позиціями зі "
+              "статусом «ok» — їх {extra} шт. Сусідня картка показує лише термінову частину, і раніше "
+              "різниця між ними виглядала розбіжністю, хоча це дві різні величини.",
+        "en": "The whole top-up the calculation suggests over a {n}-day horizon, including items with "
+              "status «ok» — {extra} pcs of them. The card beside it shows only the urgent part; the "
+              "gap between the two used to look like a discrepancy, though they are different figures."},
     "ro.kpi.sku_controlled": {"ru": "SKU под контролем", "uk": "SKU під контролем", "en": "SKUs monitored"},
     "ro.priority_title": {"ru": "🔴 Требуют заказа в первую очередь", "uk": "🔴 Потребують замовлення в першу чергу", "en": "🔴 Needs ordering first"},
     "ro.priority.value": {"ru": "заказать {n}", "uk": "замовити {n}", "en": "order {n}"},

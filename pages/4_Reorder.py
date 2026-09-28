@@ -88,6 +88,22 @@ def mark_ordered(skus, qtys):
 
 
 @st.cache_data(ttl=600)
+def cover_target_days() -> int:
+    """На сколько дней считается дозаказ. Берём из reorder_params, а не пишем 60 в подпись:
+    цель покрытия — настройка, и в тот день, когда её поменяют, подпись обязана поменяться сама."""
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT value::numeric FROM kabinet_data.reorder_params WHERE key = 'cover_target_days'")
+        row = cur.fetchone()
+        return int(row[0]) if row and row[0] is not None else 0
+    except Exception:
+        return 0
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
 def has_reorder_col(col: str) -> bool:
     """Проверка наличия колонки без DDL (дашборд не владеет таблицей)."""
     try:
@@ -170,20 +186,35 @@ def urg_label(u): return t(f"ro.urg.{u}")
 
 df["urg_rank"] = df["urgency"].map(URG_ORDER)
 
+# Горизонт, на который считается дозаказ: он стоит в настройках, и в подписи карточки должен
+# стоять тот же, иначе «на 60 дней» разойдётся с расчётом ровно в день, когда цель поменяют
+COVER_DAYS = cover_target_days()
+
 active = df[df["order_status"] != "ordered"]
 ordered = df[df["order_status"] == "ordered"]
 
 # ---------- KPI ----------
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5 = st.columns(5)
 crit = active[active["urgency"] == "critical"]
 warn = active[active["urgency"] == "warning"]
 c1.metric(t("ro.kpi.critical"), len(crit),
           help=passport.tip("reorder", "critical", t("ro.kpi.critical_help")))
 c2.metric(t("ro.kpi.warning"), len(warn), help=passport.tip("reorder", "warning"))
-c3.metric(t("ro.kpi.total_qty"),
-          int(active.loc[active["urgency"] != "ok", "suggested_qty"].sum()),
-          help=passport.tip("reorder", "qty"))
-c4.metric(t("ro.kpi.sku_controlled"), len(df), help=passport.tip("reorder", "controlled"))
+# Две цифры рядом, потому что они про разное и раньше путали: «срочно» — это сумма по строкам
+# critical и warning, то есть по тем, что видно в таблице по умолчанию; «всего» — весь расчёт
+# на горизонт покрытия, включая позиции со статусом «ok», которым дозаказ тоже предлагается.
+# Когда видна только первая, вторая выглядит расхождением, хотя это другая величина.
+_urgent_qty = int(active.loc[active["urgency"] != "ok", "suggested_qty"].sum())
+_all_qty = int(active["suggested_qty"].sum())
+c3.metric(t("ro.kpi.total_qty"), _urgent_qty, help=passport.tip("reorder", "qty",
+                                                                t("ro.kpi.total_qty_help")))
+c4.metric(t("ro.kpi.all_qty", n=int(COVER_DAYS)) if COVER_DAYS else t("ro.kpi.all_qty_plain"),
+          _all_qty,
+          delta=(f"+{_all_qty - _urgent_qty}" if _all_qty > _urgent_qty else None),
+          delta_color="off",
+          help=t("ro.kpi.all_qty_help", n=int(COVER_DAYS) if COVER_DAYS else 60,
+                 extra=_all_qty - _urgent_qty))
+c5.metric(t("ro.kpi.sku_controlled"), len(df), help=passport.tip("reorder", "controlled"))
 
 st.divider()
 
