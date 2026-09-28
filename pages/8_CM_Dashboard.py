@@ -10,6 +10,7 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 from db.connection import get_connection
+import data_passport as passport
 from i18n import init_lang, t
 import period as period_mod
 from util import day_axis
@@ -28,6 +29,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title(t("cm.title"))
+passport.banner("cm")
 st.caption(t("cm.caption"))
 
 BLUE = "#1f77b4"
@@ -598,7 +600,7 @@ with tab_sum:
             kc[i].metric(ch, fmt_money(wide[f"revenue_{slug[ch]}"].sum()),
                          help=t("cm.kpi.revenue_ch_help"))
         k1, k2, k3 = st.columns(3)
-        k1.metric(t("cm.kpi.skus"), f"{len(wide):,}")
+        k1.metric(t("cm.kpi.skus"), f"{len(wide):,}", help=passport.tip("cm", "revenue"))
         k2.metric(t("cm.kpi.price_alerts"), f"{int(wide['price_alert'].sum()):,}",
                   help=t("cm.kpi.price_alerts_help"))
         k3.metric(t("cm.kpi.return_alerts"), f"{int(wide['returns_alert'].sum()):,}",
@@ -1119,3 +1121,5 @@ with tab_all:
             },
         )
         st.caption(t("cm.all.note"))
+
+passport.footer("cm")

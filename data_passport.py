@@ -79,6 +79,94 @@ PAGES = {
         Source("transfers", "transfer_recommendations", "calc_date", "Kabinet - Stock Loader", 38,
                ("tr_own", "tr_fba", "tr_qty")),
     ),
+    # ── Остатки ──────────────────────────────────────────────────────────
+    # Остаток FBA — снова отдельной строкой с фильтром по источнику: `stock_local` пишут
+    # несколько загрузчиков, и у них разный смысл `snapshot_date` (см. Source.where).
+    "stock": (
+        Source("fba_stock", "stock_local", "snapshot_date", "Kabinet - Stock Loader", 72,
+               ("stock", "countries"), where="source = 'ledger-summary'",
+               param_key="stock_fba_max_age_hours"),
+        Source("mirakl_stock", "stock_local", "snapshot_date", "Kabinet - LM Orders Loader", 48,
+               ("stock",), where="source <> 'ledger-summary'"),
+        Source("coverage", "coverage_summary", "calc_date", "Kabinet - Coverage Projection", 38,
+               ("deficit_soon", "deficit_later", "overstock", "secured")),
+        Source("projection", "coverage_projection", "calc_date", "Kabinet - Coverage Projection", 38,
+               ("deficit_soon",)),
+        Source("ledger", "fba_ledger_detail", "event_date", "FBA Ledger Detail Loader", 72, ("moves",)),
+    ),
+    # ── Деньги ───────────────────────────────────────────────────────────
+    "money": (
+        Source("economics", "economics_summary", "sales_date", "Kabinet - Economics Loader", 96,
+               ("ordered", "revenue", "net", "cogs", "cm")),
+        Source("logistics", "economics_logistics", "sales_date", "Kabinet - Economics Loader", 96,
+               ("logistics", "cm")),
+        Source("ads", "ads_spend", "date", "Kabinet - Economics Loader", 96, ("ads", "cm")),
+        Source("traffic", "sales_traffic_daily", "snapshot_date", "Kabinet - Sales & Traffic Replica", 72,
+               ("ordered", "plan")),
+        Source("shipments", "shipment_facts", "shipped_date", "Kabinet - Shipment Facts", 48, ("plan",)),
+        Source("settlements", "raw_amazon_settlements", "posted_date", "Kabinet - Settlements Loader", 240,
+               ("cm_settle",), watch=False),
+        Source("forecast", "forecast_register", "changed_at", "Kabinet - Forecast Plan Loader", 720,
+               ("plan",), watch=False),
+    ),
+    # ── Прогноз ──────────────────────────────────────────────────────────
+    # Реестр меняется от руки: человек проводит документ тогда, когда решил, и «устарело»
+    # тут не про данные, а про решение — поэтому watch=False у всех строк.
+    "forecast": (
+        Source("forecast", "forecast_register", "changed_at", "Kabinet - Forecast Plan Loader", 720,
+               ("docs", "cells"), watch=False),
+        Source("fc_docs", "forecast_documents", "created_at", "Kabinet - Forecast Plan Loader", 720,
+               ("docs",), watch=False),
+        Source("sku", "sku_master", "updated_at", "Kabinet - SKU Master Loader", 48, ("sku",)),
+        Source("admissions", "assortment_admissions", "updated_at", "Kabinet - Assortment Matrix Loader", 48,
+               ("admissions",)),
+    ),
+    # ── Инциденты ────────────────────────────────────────────────────────
+    "incidents": (
+        Source("incidents", "incidents", "created_at", "Kabinet - Watchdog", 48,
+               ("open", "critical", "oldest"), watch=False),
+        Source("fba_stock", "stock_local", "snapshot_date", "Kabinet - Stock Loader", 72, ("stock",),
+               where="source = 'ledger-summary'", param_key="stock_fba_max_age_hours"),
+        Source("reorder", "reorder_recommendations", "calc_date", "Kabinet - Stock Loader", 38, ("reorder",)),
+    ),
+    # ── Отзывы ───────────────────────────────────────────────────────────
+    "reviews": (
+        Source("reviews", "asin_reviews_daily", "snapshot_date", "Listing Suite Sync Reviews Daily", 72,
+               ("rating", "count", "new")),
+        Source("requests", "review_request_log", "checked_at", "Kabinet - Review Requests (Morning)", 48,
+               ("requests", "sent")),
+        Source("orders", "orders_history", "purchase_date", "Kabinet - Orders Loader", 48, ("eligible",)),
+    ),
+    # ── Реклама ──────────────────────────────────────────────────────────
+    "ads": (
+        Source("amc", "v_amc_attribution", "report_date", "AMC Collect", 72,
+               ("campaigns", "no_sales", "acos")),
+        Source("ads", "ads_spend", "date", "Kabinet - Economics Loader", 96, ("spend",)),
+        Source("ads_alerts", "ads_alerts", "calc_date", "Kabinet - Ads Alerts", 48, ("alerts",)),
+        # журнал кнопок: пишется только когда человек нажал, «устарел» он по делу не бывает
+        Source("ads_actions", "ads_actions", "created_at", "—", 720, ("actions",), watch=False),
+    ),
+    # ── Справочники ──────────────────────────────────────────────────────
+    # Справочники правятся руками, и «давно не менялся» здесь — норма, а не тревога.
+    # Следим только за теми, что наполняет загрузчик: если он встал, справочник тихо отстанет.
+    "dictionaries": (
+        Source("sku", "sku_master", "updated_at", "Kabinet - SKU Master Loader", 48, ("sku",)),
+        Source("peid", "product_entities", "updated_at", "Kabinet - Product Entities Loader", 48, ("peid",)),
+        Source("admissions", "assortment_admissions", "updated_at", "Kabinet - Assortment Matrix Loader", 48,
+               ("matrix",)),
+        Source("warehouses", "warehouses", "created_at", "—", 720, ("wh",), watch=False),
+        Source("chains", "supply_chains", "updated_at", "—", 720, ("chains",), watch=False),
+        Source("marketplaces", "marketplaces_new", "created_at", "—", 720, ("mp",), watch=False),
+    ),
+    # ── Площадки (CM Dashboard) ──────────────────────────────────────────
+    "cm": (
+        Source("economics", "economics_summary", "sales_date", "Kabinet - Economics Loader", 96,
+               ("revenue", "cm")),
+        Source("mirakl_stock", "stock_local", "snapshot_date", "Kabinet - LM Orders Loader", 48, ("stock",),
+               where="source <> 'ledger-summary'"),
+        Source("parity", "price_parity", "updated_at", "Kabinet - Price Parity", 48, ("parity",)),
+        Source("incidents", "incidents", "created_at", "Kabinet - Watchdog", 48, ("health",), watch=False),
+    ),
 }
 
 
@@ -172,7 +260,12 @@ def _fmt_date(v) -> str:
 
 
 def _age_text(age_h) -> str:
-    if age_h is None:
+    # ПУСТАЯ таблица — не то же самое, что отсутствующая. Отсутствующую паспорт уже умел
+    # показывать строкой «нет данных», а у пустой `MAX(дата)` возвращает NULL, возраст
+    # приходит NaN, и `int(NaN)` роняет страницу целиком: так «Реклама» упала на журнале
+    # нажатий, где записей ещё нет и не должно быть (28.09.2026). Проверять только на None
+    # мало — `pd.isna` ловит оба случая.
+    if age_h is None or pd.isna(age_h):
         return "—"
     if age_h < 36:
         return t("passport.age_hours", n=int(age_h))

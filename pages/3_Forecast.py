@@ -27,6 +27,7 @@ import pandas as pd
 import streamlit as st
 
 from db.connection import get_connection, get_workspace_client
+import data_passport as passport
 from i18n import init_lang, get_lang
 from util import as_text
 
@@ -1580,6 +1581,7 @@ def show_flash(consume: bool = True) -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.title(_tr("title"))
+passport.banner("forecast")
 st.caption(_tr("caption"))
 
 try:
@@ -2262,3 +2264,5 @@ with tab_log:
         lg.columns = [_tr("log_col_at"), _tr("log_col_actor"), _tr("log_col_doc"), _tr("col_object"), _tr("col_status"), _tr("col_sku"),
                       _tr("log_month"), _tr("log_col_field"), _tr("log_col_old"), _tr("log_col_new"), _tr("log_col_src")]
         st.dataframe(lg, hide_index=True, use_container_width=True, height=min(600, 38 + 35 * len(lg)))
+
+passport.footer("forecast")

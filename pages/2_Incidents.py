@@ -4,6 +4,7 @@ import streamlit as st
 import plotly.express as px
 
 from db.connection import get_connection
+import data_passport as passport
 from i18n import init_lang, t, incident_type_label
 from util import as_text
 import catalog
@@ -23,6 +24,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title(t("inc.title"))
+passport.banner("incidents")
 st.caption(t("inc.caption"))
 
 with st.expander(t("inc.how_title")):
@@ -372,3 +374,5 @@ st.download_button(
     file_name="incidents.csv",
     mime="text/csv",
 )
+
+passport.footer("incidents")

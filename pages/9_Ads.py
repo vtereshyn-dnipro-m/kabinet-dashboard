@@ -17,6 +17,7 @@ import streamlit as st
 
 import json
 from db.connection import get_connection
+import data_passport as passport
 from i18n import init_lang, t
 from util import as_text
 import period as period_mod
@@ -224,6 +225,7 @@ def card(col, label: str, base: str, value: str, tone: str = "") -> None:
 
 
 st.title(t("ads.title"))
+passport.banner("ads")
 st.caption(t("ads.subtitle"))
 
 attr, ATTR_SRC, _err = load_first("v_amc_attribution", "amc_attribution")
@@ -1052,3 +1054,5 @@ with st.expander(t("ads.ref.overlap"), expanded=True):
         st.caption(t("ads.ref.overlap_note"))
         if st.toggle(t("ads.ref.numbers"), key="amc_overlap_tbl"):
             st.dataframe(_o, use_container_width=True, hide_index=True)
+
+passport.footer("ads")

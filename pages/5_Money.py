@@ -6,6 +6,7 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection, data_version
+import data_passport as passport
 from i18n import init_lang, t
 from util import as_text, data_boundary
 import catalog
@@ -28,6 +29,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title(t("money.title"))
+passport.banner("money")
 st.caption(t("money.caption"))
 
 
@@ -1123,3 +1125,5 @@ with tab_alerts:
         )
         st.caption(t("money.alerts.note"))
         st.caption(t("money.alerts.window_note"))
+
+passport.footer("money")

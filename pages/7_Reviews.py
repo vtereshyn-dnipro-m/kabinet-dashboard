@@ -11,6 +11,7 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 from db.connection import get_connection
+import data_passport as passport
 from i18n import init_lang, t
 from util import as_text, day_axis
 import period as period_mod
@@ -29,6 +30,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title(t("rev.title"))
+passport.banner("reviews")
 st.caption(t("rev.caption"))
 
 BLUE = "#1f77b4"
@@ -801,8 +803,10 @@ k1.metric(t("rev.kpi.today"), f"{int(health.get('today') or 0):,}",
           help=t("rev.kpi.today_help"))
 k2.metric(t("rev.kpi.week"), f"{int(health.get('sent7') or 0):,}",
           help=t("rev.kpi.week_help"))
-k3.metric(t("rev.kpi.pool"), f"{pool_total:,}", help=t("rev.kpi.pool_help"))
-k4.metric(t("rev.kpi.burning"), f"{pool_burning:,}", help=t("rev.kpi.burning_help"))
+k3.metric(t("rev.kpi.pool"), f"{pool_total:,}",
+          help=passport.tip("reviews", "eligible", t("rev.kpi.pool_help")))
+k4.metric(t("rev.kpi.burning"), f"{pool_burning:,}",
+          help=passport.tip("reviews", "requests", t("rev.kpi.burning_help")))
 k5.metric(t("rev.kpi.skipped"), f"{int(health.get('skipped') or 0):,}",
           help=t("rev.kpi.skipped_help"))
 
@@ -1725,3 +1729,5 @@ with tab_asin:
                         st.caption(t("rev.asin.shown", 
                             n=len(grown), total=_grown_all))
                         st.caption(t("rev.dyn.note"))
+
+passport.footer("reviews")
