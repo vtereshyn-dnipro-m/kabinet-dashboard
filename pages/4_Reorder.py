@@ -417,8 +417,18 @@ for _c in ("in_transit_qty", "quarantine_qty", "planned_qty"):
     edit[_c] = edit[_c].map(lambda x: int(x) if x > 0 else None)
 # Срок поставки — по плечу, откуда ближайшее пополнение (PL / UA / поставщик);
 # у поставщика маршрута в справочнике нет, срок помечен как оценка
+def _lead_label(src: str) -> str:
+    """Плечо приходит из расчёта кодом (PL / UA / supplier / комплект) и ещё несёт хвост
+    вроде «· Мадрид 11 дн». Переводим ТОЛЬКО первое слово: хвост собран на языке интерфейса,
+    а «supplier» посреди русской строки читается как недоделка."""
+    txt = as_text(src)
+    for code, key in (("supplier", "ro.lead.supplier"), ("PL", "ro.lead.pl"), ("UA", "ro.lead.ua")):
+        if txt.startswith(code):
+            return t(key) + txt[len(code):]
+    return txt
+
 edit["lead"] = edit.apply(
-    lambda r: (f"{int(r['lead_time_days'])} · {as_text(r['lead_source'])}"
+    lambda r: (f"{int(r['lead_time_days'])} · {_lead_label(r['lead_source'])}"
                if pd.notna(r["lead_time_days"]) else ""), axis=1)
 edited = st.data_editor(
     edit[["✓", "Срочность", "sku_display", "product_name", "current_stock", "fba_stock", "madrid_stock",

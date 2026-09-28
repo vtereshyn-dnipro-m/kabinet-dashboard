@@ -83,6 +83,28 @@ def load_mp_country() -> dict:
 
 
 @st.cache_data(ttl=600)
+def load_mp_codes() -> dict:
+    """Код рынка покрытия → код маркетплейса (ES → AMZ-ES). В `coverage_summary` рынок записан
+    кодом страны, потому что остаток FBA приходит по странам, — но человеку в фильтре нужен код
+    маркетплейса, как во всех остальных справочниках. Каналов Mirakl в покрытии нет вовсе:
+    их офферы убраны из остатка 19.09.2026 как квота витрины, а не физический запас."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("""
+            SELECT CASE WHEN upper(legacy_code) = 'CO.UK' THEN 'GB' ELSE upper(legacy_code) END AS code,
+                   string_agg(code_full, ', ' ORDER BY code_full) AS mp
+            FROM (SELECT legacy_code, code AS code_full FROM kabinet_data.marketplaces_new
+                  WHERE platform_short = 'AMZ' AND legacy_code IS NOT NULL) x
+            GROUP BY 1
+        """, conn)
+        return {r.code: r.mp for r in df.itertuples()}
+    except Exception:
+        return {}
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
 def load_sales_warehouses() -> dict:
     """Код рынка → склады продаж, которые его обслуживают (ТЗ «Остатки» §10.1, фильтр по складу).
     Связь живёт в `warehouse_priorities` — там приоритет свойство пары «склад × маркетплейс»;
@@ -91,9 +113,13 @@ def load_sales_warehouses() -> dict:
     try:
         df = pd.read_sql("""
             SELECT CASE WHEN upper(m.legacy_code) = 'CO.UK' THEN 'GB'
-                        ELSE upper(m.legacy_code) END AS code, w.name AS warehouse
+                        ELSE upper(m.legacy_code) END AS code,
+                   -- имя из ERP остаётся ключом сопоставления, на экран идёт отображаемое:
+                   -- в «RS Warszawa Piasecznie (Основний)» украинское слово посреди интерфейса
+                   COALESCE(a.display_name, w.name) AS warehouse
             FROM kabinet_data.warehouse_priorities p
             JOIN kabinet_data.warehouses w ON w.id = p.warehouse_id AND w.is_active IS NOT FALSE
+            LEFT JOIN kabinet_data.warehouse_attributes a ON a.warehouse_id = w.id
             JOIN kabinet_data.marketplaces_new m ON m.id = p.target_id
             WHERE p.target_type = 'marketplace'
         """, conn)
@@ -784,12 +810,17 @@ with tab_cov:
         _mp_country = load_mp_country()
         with cf1:
             _countries = sorted({_mp_country.get(m, m) for m in cov["marketplace"].dropna().unique()})
+            # Пустой выбор — это «все», а не «ничего»: человек снимает галочки, чтобы перестать
+            # фильтровать, и получить пустую таблицу вместо полной он не ожидает
             cov_country = st.multiselect(t("stock.cov.filter_country"), _countries,
-                                         default=_countries, key="cov_country")
+                                         default=[], key="cov_country",
+                                         placeholder=t("stock.cov.filter_all"))
         with cf2:
+            _mp_code = load_mp_codes()
             cov_mps = sorted(cov["marketplace"].dropna().unique().tolist())
-            cov_mp = st.multiselect(t("stock.cov.filter_mp"), cov_mps,
-                                    default=cov_mps, key="cov_mp")
+            cov_mp = st.multiselect(t("stock.cov.filter_mp"), cov_mps, default=[], key="cov_mp",
+                                    format_func=lambda c: _mp_code.get(c, c),
+                                    placeholder=t("stock.cov.filter_all"))
         with cf3:
             cov_st = st.multiselect(
                 t("stock.cov.filter_status"), list(CST.values()),
@@ -813,8 +844,11 @@ with tab_cov:
                                format_func=lambda h: HOR[h], key="cov_hor",
                                help=t("stock.cov.horizon_help"))
 
-        cv = cov[cov["marketplace"].isin(cov_mp)].copy()
-        cv = cv[[_mp_country.get(m, m) in cov_country for m in cv["marketplace"]]]
+        cv = cov.copy()
+        if cov_mp:
+            cv = cv[cv["marketplace"].isin(cov_mp)]
+        if cov_country:
+            cv = cv[[_mp_country.get(m, m) in cov_country for m in cv["marketplace"]]]
         if cov_wh:
             _allowed = {m for m, ws in _wh_map.items() if set(ws) & set(cov_wh)}
             cv = cv[cv["marketplace"].isin(_allowed)]
@@ -924,11 +958,19 @@ with tab_cov:
             cview["status_label"] = cview["coverage_status"].map(CST)
             cview["first_deficit_week"] = pd.to_datetime(
                 cview["first_deficit_week"], errors="coerce").dt.strftime("%d.%m.%Y")
+            # «3 стран» читается как ошибка перевода, поэтому форма выбирается по числу
+            def _countries_word(n: int) -> str:
+                n = abs(int(n))
+                if n % 10 == 1 and n % 100 != 11:
+                    return t("stock.cov.shared_one")
+                if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
+                    return t("stock.cov.shared_few")
+                return t("stock.cov.shared_many")
             cview["shared_note"] = np.where(
                 (cview["pool_exhaustion_weeks"] < cview["total_coverage_weeks"])
                 & (cview["competing_marketplaces"] > 1),
-                cview["competing_marketplaces"].fillna(0).astype(int).astype(str)
-                + " " + t("stock.cov.col_shared_suffix"),
+                [f"{int(n or 0)} {_countries_word(n or 0)}"
+                 for n in cview["competing_marketplaces"].fillna(0)],
                 "—")
 
             # Страна и склад продаж (ТЗ §10.5). Страна — из справочника, а не из кода рынка;
