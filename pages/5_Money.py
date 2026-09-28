@@ -917,7 +917,8 @@ with tab_country:
         st.caption(t("money.plan.none"))
     else:
         _pf = plan_fact.two_rows(pf)
-        _pf["done"] = [None if pd.isna(v) else min(200.0, v) for v in _pf["done"]]
+        # текстом, как на Обзоре: см. home.py — виджет прогресса показывал неокруглённое число
+        _pf["done"] = [("—" if pd.isna(v) else f"{float(v):.0f} %") for v in _pf["done"]]
         _pf["plan"] = _pf["expected"].round(0); _pf["fact"] = _pf["fact"].round(0)
         st.dataframe(_pf[["obj", "unit", "plan", "fact", "done", "pace", "skus"]], hide_index=True,
                      use_container_width=True, column_config={
@@ -926,8 +927,7 @@ with tab_country:
             "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%,.0f",
                                                   help=t("home.plan.col_expected_help")),
             "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%,.0f"),
-            "done": st.column_config.ProgressColumn(t("home.plan.col_done"), format="%.0f%%",
-                                                    min_value=0, max_value=200),
+            "done": st.column_config.TextColumn(t("home.plan.col_done"), width="small"),
             "pace": st.column_config.NumberColumn(t("home.plan.col_pace"), format="%+.0f%%",
                                                   help=t("home.plan.col_pace_help")),
             "skus": st.column_config.NumberColumn(t("home.plan.col_skus"), format="%d"),

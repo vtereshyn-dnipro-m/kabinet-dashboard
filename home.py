@@ -848,9 +848,11 @@ else:
         for c in ("plan", "expected", "fact"):
             _pt[c] = _pt[c].round(0)
         _pt["skus"] = pd.to_numeric(_pt["skus"], errors="coerce").astype("Int64")
-        # срезаем по верхней границе шкалы, как в «Деньгах»: без этого значение за пределами
-        # max_value отдаётся виджету как есть и полоса упирается в край
-        _pt["done"] = [None if pd.isna(v) else min(200.0, float(v)) for v in _pt["done"]]
+        # «Выполнение» — ТЕКСТОМ, а не ProgressColumn. Веб-агент видел в этой колонке
+        # 29.897751605995726: виджет прогресса при части значений отдаёт число как есть,
+        # и воспроизвести это в отрыве от страницы не удалось. Соседний «Темп» с самого
+        # начала собирается текстом и таких сюрпризов не давал — приводим к нему.
+        _pt["done"] = [("—" if pd.isna(v) else f"{float(v):.0f} %") for v in _pt["done"]]
         # в разрезе «По стране» строка узла — единственная, колонка «Маркетплейс» сплошь «итого» — не показываем
         _has_mp = _mode != "country"
         _cols = [c for c in (["group", "name", "unit", "plan", "expected", "fact", "done", "pace", "skus", "sub"] if _units
@@ -867,11 +869,7 @@ else:
                          "expected": st.column_config.NumberColumn(t("home.plan.col_expected"), format="%,.0f",
                                                                    help=t("home.plan.col_expected_help")),
                          "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%,.0f"),
-                         # шкала до 200 %, как в «Деньгах»: при max_value=100 строка со 148 %
-                         # рисовала полосу ровно той же длины, что строка со 100 %, и перевыполнение
-                         # от выполнения на глаз не отличалось (проверено рендером 28.09.2026)
-                         "done": st.column_config.ProgressColumn(t("home.plan.col_done"), format="%.0f%%",
-                                                                 min_value=0, max_value=200),
+                         "done": st.column_config.TextColumn(t("home.plan.col_done"), width="small"),
                          "pace": st.column_config.TextColumn(t("home.plan.col_pace"),
                                                              help=t("home.plan.col_pace_help")),
                          "skus": st.column_config.NumberColumn(t("home.plan.col_skus"), format="%d"),

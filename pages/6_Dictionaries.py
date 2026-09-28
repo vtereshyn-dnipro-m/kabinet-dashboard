@@ -163,7 +163,7 @@ TR = {
         "al_only_routed": "Только со списком", "al_search": "Тип",
         "al_col_type": "Тип", "al_col_title": "Название", "al_col_descr": "Что означает",
         "al_col_list": "Список ClickUp (id)", "al_col_list_name": "Путь списка",
-        "al_col_mode": "Режим", "al_col_watch": "Контроль закрытия", "al_col_risk": "Risk",
+        "al_risk_Critical": "критично", "al_risk_High": "высокий", "al_risk_Medium": "средний", "al_risk_Low": "низкий", "al_col_mode": "Режим", "al_col_watch": "Контроль закрытия", "al_col_risk": "Риск",
         "al_col_due": "Срок, дн", "al_col_role": "Роль ClickUp", "al_col_role_id": "id роли",
         "al_col_since": "Задачи с даты", "al_col_open": "Открыто", "al_col_tasks": "Задач в ClickUp",
         "al_col_check": "Проверка списка", "al_col_checked": "Проверено",
@@ -552,7 +552,7 @@ TR = {
         "al_only_routed": "Лише зі списком", "al_search": "Тип",
         "al_col_type": "Тип", "al_col_title": "Назва", "al_col_descr": "Що означає",
         "al_col_list": "Список ClickUp (id)", "al_col_list_name": "Шлях списку",
-        "al_col_mode": "Режим", "al_col_watch": "Контроль закриття", "al_col_risk": "Risk",
+        "al_risk_Critical": "критично", "al_risk_High": "високий", "al_risk_Medium": "середній", "al_risk_Low": "низький", "al_col_mode": "Режим", "al_col_watch": "Контроль закриття", "al_col_risk": "Ризик",
         "al_col_due": "Термін, дн", "al_col_role": "Роль ClickUp", "al_col_role_id": "id ролі",
         "al_col_since": "Задачі з дати", "al_col_open": "Відкрито", "al_col_tasks": "Задач у ClickUp",
         "al_col_check": "Перевірка списку", "al_col_checked": "Перевірено",
@@ -940,7 +940,7 @@ TR = {
         "al_only_routed": "Only with a list", "al_search": "Type",
         "al_col_type": "Type", "al_col_title": "Title", "al_col_descr": "Meaning",
         "al_col_list": "ClickUp list (id)", "al_col_list_name": "List path",
-        "al_col_mode": "Mode", "al_col_watch": "Watch close", "al_col_risk": "Risk",
+        "al_risk_Critical": "Critical", "al_risk_High": "High", "al_risk_Medium": "Medium", "al_risk_Low": "Low", "al_col_mode": "Mode", "al_col_watch": "Watch close", "al_col_risk": "Risk",
         "al_col_due": "Due, days", "al_col_role": "ClickUp role", "al_col_role_id": "role id",
         "al_col_since": "Tasks since", "al_col_open": "Open", "al_col_tasks": "Tasks in ClickUp",
         "al_col_check": "List check", "al_col_checked": "Checked",
@@ -2589,7 +2589,9 @@ def _section_pool():
         if sel_pool:
             cur_cmt = pools.loc[pools["id"] == sel_pool, "comment"].iloc[0]
             c1, c2 = st.columns([3, 1])
-            new_cmt = c1.text_input(_tr("pool_comment"), value=cur_cmt or "",
+            # `cur_cmt` у пула без комментария приходит NaN, а `NaN or ""` даёт сам NaN
+            # (NaN в Python истинен) — поле показывало «nan». Только через `as_text`.
+            new_cmt = c1.text_input(_tr("pool_comment"), value=as_text(cur_cmt),
                                     key=f"pc_{sel_pool}")
             if c2.button(_tr("pool_save_cmt"), key=f"pr_{sel_pool}"):
                 try:
@@ -3054,9 +3056,13 @@ def _section_alerts():
 
         _mode_lbl = {"task": _tr("al_mode_task"), "digest": _tr("al_mode_digest")}
         _mode_code = {v: k for k, v in _mode_lbl.items()}
-        RISKS = ["", "Low", "Medium", "High", "Critical"]
+        # Уровень в базе — английский код (его читают сторож и ClickUp), на экране — слово.
+        # Тот же приём, что у «Режима»: показываем подпись, сохраняем код.
+        _risk_lbl = {c: _tr("al_risk_" + c) for c in ("Low", "Medium", "High", "Critical")}
+        _risk_code = {v: k for k, v in _risk_lbl.items()}
+        RISKS = [""] + [_risk_lbl[c] for c in ("Low", "Medium", "High", "Critical")]
         view["mode"] = view["mode"].map(_mode_lbl)
-        view["risk"] = view["risk"].fillna("")
+        view["risk"] = view["risk"].fillna("").map(lambda v: _risk_lbl.get(v, v))
         # id списка — целое, а не float: иначе 901222107497 в редакторе превратится в 9.01e11
         view["clickup_list_id"] = view["clickup_list_id"].astype("Int64")
         view["enabled_since"] = pd.to_datetime(view["enabled_since"])
@@ -3106,7 +3112,10 @@ def _section_alerts():
                     "clickup_list_id": None if pd.isna(r["clickup_list_id"]) else int(r["clickup_list_id"]),
                     "mode": _mode_code.get(r["mode"], "task"),
                     "watch_close": bool(r["watch_close"]),
-                    "risk": _py(r["risk"]), "due_days": _int0(r["due_days"]),
+                    # в базу — английский код уровня: его читают сторож и ClickUp,
+                    # на экране он подписан словом (как и «Режим»)
+                    "risk": _risk_code.get(_py(r["risk"]), _py(r["risk"])),
+                    "due_days": _int0(r["due_days"]),
                     "assignee_group_name": _py(r["assignee_group_name"]),
                     "assignee_group_id": _py(r["assignee_group_id"]),
                     "enabled_since": _py(r["enabled_since"]), "note": _py(r["note"]),
@@ -3116,7 +3125,8 @@ def _section_alerts():
                     "clickup_list_id": None if pd.isna(before.at[it, "clickup_list_id"]) else int(before.at[it, "clickup_list_id"]),
                     "mode": _mode_code.get(before.at[it, "mode"], "task"),
                     "watch_close": bool(before.at[it, "watch_close"]),
-                    "risk": _py(before.at[it, "risk"]), "due_days": _int0(before.at[it, "due_days"]),
+                    "risk": _risk_code.get(_py(before.at[it, "risk"]), _py(before.at[it, "risk"])),
+                    "due_days": _int0(before.at[it, "due_days"]),
                     "assignee_group_name": _py(before.at[it, "assignee_group_name"]),
                     "assignee_group_id": _py(before.at[it, "assignee_group_id"]),
                     "enabled_since": _py(before.at[it, "enabled_since"]), "note": _py(before.at[it, "note"]),
