@@ -350,7 +350,7 @@ TR = {
         "pool_members": "Состав пула", "pool_select": "Маркетплейсы",
         "pool_from": "Действует с", "pool_to": "Действует по (пусто — бессрочно)",
         "pool_save": "💾 Сохранить состав", "pool_none": "Пулов пока нет — создай первый",
-        "pool_conflict": "Уже в другом пуле: {mp}", "pool_created": "Пул создан",
+        "pool_conflict": "По ТЗ 004 маркетплейс не может состоять в двух пулах. Пересекается по периоду: {mp}. Сначала закройте прежнее участие датой.", "pool_created": "Пул создан",
         "pool_min_two": "В пуле должно быть не меньше двух маркетплейсов — пул из одного не допускается. Сейчас выбран {n}: добавьте ещё маркетплейс. Если пул больше не нужен, закройте участие всем и удалите сам пул.",
         "pool_min_two_zero": "В пуле должно быть не меньше двух маркетплейсов — пул из одного не допускается. Не выбрано ни одного: выберите минимум два. Чтобы распустить пул, удалите его целиком.",
         "pool_deleted": "Пул удалён", "pool_empty_name": "Укажи название пула",
@@ -738,7 +738,7 @@ TR = {
         "pool_members": "Склад пулу", "pool_select": "Маркетплейси",
         "pool_from": "Діє з", "pool_to": "Діє по (порожньо — безстроково)",
         "pool_save": "💾 Зберегти склад", "pool_none": "Пулів поки немає — створи перший",
-        "pool_conflict": "Уже в іншому пулі: {mp}", "pool_created": "Пул створено",
+        "pool_conflict": "За ТЗ 004 маркетплейс не може перебувати у двох пулах. Перетинається за періодом: {mp}. Спершу закрийте попередню участь датою.", "pool_created": "Пул створено",
         "pool_min_two": "У пулі має бути не менше двох маркетплейсів — пул з одного не допускається. Зараз обрано {n}: додайте ще маркетплейс. Якщо пул більше не потрібен, закрийте участь усім і видаліть сам пул.",
         "pool_min_two_zero": "У пулі має бути не менше двох маркетплейсів — пул з одного не допускається. Не обрано жодного: виберіть щонайменше два. Щоб розпустити пул, видаліть його повністю.",
         "pool_deleted": "Пул видалено", "pool_empty_name": "Вкажи назву пулу",
@@ -1126,7 +1126,7 @@ TR = {
         "pool_members": "Pool members", "pool_select": "Marketplaces",
         "pool_from": "Valid from", "pool_to": "Valid to (empty — open-ended)",
         "pool_save": "💾 Save members", "pool_none": "No pools yet — create the first one",
-        "pool_conflict": "Already in another pool: {mp}", "pool_created": "Pool created",
+        "pool_conflict": "Per spec 004 a marketplace cannot belong to two pools. Overlapping period: {mp}. Close the previous membership with a date first.", "pool_created": "Pool created",
         "pool_min_two": "A pool needs at least two marketplaces — a pool of one is not allowed. Only {n} selected: add another marketplace. If the pool is no longer needed, close every membership and delete the pool itself.",
         "pool_min_two_zero": "A pool needs at least two marketplaces — a pool of one is not allowed. None selected: pick at least two. To dissolve the pool, delete it entirely.",
         "pool_deleted": "Pool deleted", "pool_empty_name": "Enter a pool name",
@@ -1327,6 +1327,20 @@ def _py(v):
     return v
 
 
+def q_now(sql: str, params: tuple) -> pd.DataFrame:
+    """Чтение БЕЗ кеша — для проверок непосредственно перед записью.
+
+    `q1` кеширует на 600 с, и для показа это правильно, но проверка «можно ли сохранить»
+    на кеше десятиминутной давности разрешила бы то, что уже нельзя. Здесь кеш не нужен:
+    запрос один на нажатие кнопки.
+    """
+    conn = get_connection()
+    try:
+        return pd.read_sql(sql, conn, params=params)
+    finally:
+        conn.close()
+
+
 def exec_sql(statements):
     conn = get_connection()
     try:
@@ -1469,7 +1483,7 @@ def _section_wh():
         pools_df = q("""
             SELECT p.id, p.name, string_agg(DISTINCT m.country_alpha2, ',') AS country, string_agg(m.code, ', ' ORDER BY m.code) AS members
             FROM kabinet_data.pools p
-            LEFT JOIN kabinet_data.pool_members pm ON pm.pool_id = p.id AND pm.valid_from <= current_date AND (pm.valid_to IS NULL OR pm.valid_to >= current_date)
+            LEFT JOIN kabinet_data.pool_members pm ON pm.pool_id = p.id AND pm.valid_from <= current_date AND (pm.valid_to IS NULL OR pm.valid_to > current_date)
             LEFT JOIN kabinet_data.marketplaces_new m ON m.id = pm.marketplace_id
             GROUP BY p.id, p.name ORDER BY p.name
         """) if has_table("kabinet_data.pools") else pd.DataFrame(columns=["id", "name", "country", "members"])
@@ -2023,9 +2037,9 @@ def _section_mp():
                           JOIN kabinet_data.pools p ON p.id = pm.pool_id
                           JOIN kabinet_data.pool_members pm2 ON pm2.pool_id = pm.pool_id
                                AND pm2.marketplace_id <> pm.marketplace_id
-                               AND (pm2.valid_to IS NULL OR pm2.valid_to >= CURRENT_DATE)
+                               AND (pm2.valid_to IS NULL OR pm2.valid_to > CURRENT_DATE)
                           JOIN kabinet_data.marketplaces_new m2 ON m2.id = pm2.marketplace_id
-                          WHERE pm.marketplace_id = %s AND (pm.valid_to IS NULL OR pm.valid_to >= CURRENT_DATE)
+                          WHERE pm.marketplace_id = %s AND (pm.valid_to IS NULL OR pm.valid_to > CURRENT_DATE)
                           GROUP BY p.name""", (int(sel),))
             for _, pr in pools.iterrows():
                 others = [x.strip() for x in (pr["countries"] or "").split(",") if x.strip()]
@@ -2376,7 +2390,7 @@ def _mp_active_deps(mp_id: int) -> list:
         SELECT (SELECT count(*) FROM kabinet_data.assortment_admissions
                  WHERE level = 'marketplace' AND marketplace_id = %s AND removed_on IS NULL) AS adm,
                (SELECT count(*) FROM kabinet_data.pool_members
-                 WHERE marketplace_id = %s AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)) AS pools,
+                 WHERE marketplace_id = %s AND (valid_to IS NULL OR valid_to > CURRENT_DATE)) AS pools,
                (SELECT count(*) FROM kabinet_data.forecast_register
                  WHERE object_type = 'marketplace' AND object_id = %s AND is_current) AS fc,
                (SELECT count(*) FROM kabinet_data.product_entities
@@ -2583,7 +2597,7 @@ def _section_pool():
             st.markdown(f"**{_tr('pool_members')}**")
             members = q(f"""
                 SELECT marketplace_id FROM kabinet_data.pool_members
-                WHERE pool_id = {sel_pool} AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)
+                WHERE pool_id = {sel_pool} AND (valid_to IS NULL OR valid_to > CURRENT_DATE)
             """)
             cur_ids = set(members["marketplace_id"].astype(int)) if not members.empty else set()
             picked = st.multiselect(
@@ -2603,15 +2617,23 @@ def _section_pool():
                 if len(picked_ids) < 2:
                     st.error(_tr("pool_min_two_zero") if not picked_ids else _trf("pool_min_two", n=len(picked_ids)))
                     st.stop()
-                busy = q(f"""
-                    SELECT pm.marketplace_id
+                # ТЗ 004: маркетплейс не может состоять в двух пулах. Сравниваем ПЕРИОД, который
+                # человек вводит, с периодами чужих пулов, а не «кто активен сегодня»: иначе членство,
+                # начинающееся завтра, проверку проходило бы, а завтра давало бы два пула.
+                # Период полуоткрытый [valid_from, valid_to): valid_to — первый день БЕЗ пула, поэтому
+                # снятие сегодня и добавление в другой пул сегодня же пересечением не считаются.
+                # Та же формула стоит триггером в базе (sql/pool_single_membership_OWNER_2026-09-28.sql):
+                # проверка здесь объясняет человеку, триггер держит остальные пути записи.
+                busy = q_now("""
+                    SELECT pm.marketplace_id, p.name AS pool_name, pm.valid_from, pm.valid_to
                     FROM kabinet_data.pool_members pm
-                    WHERE pm.pool_id <> {sel_pool}
-                      AND (pm.valid_to IS NULL OR pm.valid_to >= CURRENT_DATE)
-                """)
-                clash = [mp_label.get(int(r.marketplace_id), str(r.marketplace_id))
-                         for _, r in busy.iterrows()
-                         if int(r.marketplace_id) in picked_ids]
+                    JOIN kabinet_data.pools p ON p.id = pm.pool_id
+                    WHERE pm.pool_id <> %s AND pm.marketplace_id = ANY(%s)
+                      AND daterange(pm.valid_from, pm.valid_to, '[)')
+                       && daterange(%s::date, %s::date, '[)')
+                """, (int(sel_pool), [int(x) for x in picked_ids], v_from, v_to or None))
+                clash = [f"{mp_label.get(int(r.marketplace_id), r.marketplace_id)} → {r.pool_name}"
+                         for _, r in busy.iterrows()]
                 if clash:
                     st.error(_tr("pool_conflict").format(mp=", ".join(sorted(set(clash)))))
                 else:
@@ -2622,7 +2644,7 @@ def _section_pool():
                         removed = sorted(cur_ids - set(picked_ids))
                         if removed:
                             stmts.append(("""UPDATE kabinet_data.pool_members SET valid_to = CURRENT_DATE
-                                             WHERE pool_id = %s AND marketplace_id = ANY(%s) AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)""",
+                                             WHERE pool_id = %s AND marketplace_id = ANY(%s) AND (valid_to IS NULL OR valid_to > CURRENT_DATE)""",
                                           [sel_pool, removed]))
                         for mid in picked_ids:
                             if mid in cur_ids:
