@@ -8,6 +8,7 @@ import pydeck as pdk
 import plotly.express as px
 import plotly.graph_objects as go
 from db.connection import get_connection
+import data_passport as passport
 from i18n import init_lang, t
 import catalog
 import period as period_mod
@@ -31,6 +32,7 @@ hr { margin: 0.6rem 0 !important; }
 """, unsafe_allow_html=True)
 
 st.title(t("stock.title"))
+passport.banner("stock")
 st.caption(t("stock.caption"))
 
 
@@ -581,8 +583,10 @@ if country_filter:
 
 # ---------- KPI ----------
 k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric(t("stock.kpi.total_sku"), f["sku"].nunique())
+k1.metric(t("stock.kpi.total_sku"), f["sku"].nunique(),
+          help=passport.tip("stock", "stock"))
 k2.metric(t("stock.kpi.countries"), f["location"].nunique(),
+          help=passport.tip("stock", "countries"),
           help=t("stock.kpi.countries_help"))
 k3.metric(t("stock.kpi.total_qty"), int(f["quantity"].sum()),
           help=t("stock.kpi.total_qty_help"))
@@ -1975,3 +1979,4 @@ with tab_map:
                 },
             )
 
+passport.footer("stock")

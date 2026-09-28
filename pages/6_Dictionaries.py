@@ -20,6 +20,7 @@ import pandas as pd
 import streamlit as st
 
 from i18n import init_lang, get_lang
+import data_passport as passport
 from db.connection import get_connection
 from util import as_text
 
@@ -1445,6 +1446,7 @@ def save_block(orig, edited, table, pk, cols):
 init_lang()
 
 st.title(_tr("title"))
+passport.banner("dictionaries")
 st.caption(_tr("sub"))
 
 # «Ассортимент» (факт + намерение по SKU × рынок) снят 18.09.2026: это не матрица по ТЗ 007,
@@ -4218,3 +4220,5 @@ def _section_matrix():
 
 
 {"wh": _section_wh, "ch": _section_ch, "ctry": _section_ctry, "plat": _section_plat, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sku": _section_sku, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
+
+passport.footer("dictionaries")
