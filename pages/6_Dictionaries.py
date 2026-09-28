@@ -350,7 +350,7 @@ TR = {
         "pool_members": "Состав пула", "pool_select": "Маркетплейсы",
         "pool_from": "Действует с", "pool_to": "Действует по (пусто — бессрочно)",
         "pool_save": "💾 Сохранить состав", "pool_none": "Пулов пока нет — создай первый",
-        "pool_conflict": "По ТЗ 004 маркетплейс не может состоять в двух пулах. Пересекается по периоду: {mp}. Сначала закройте прежнее участие датой.", "pool_created": "Пул создан",
+        "pool_conflict": "Периоды членства пересекаются: {mp}. По ТЗ 004 у маркетплейса не может быть двух членств с пересекающимися периодами — новое участие возможно только с даты после закрытия прежнего.", "pool_same": "тот же пул", "pool_open": "без срока", "pool_created": "Пул создан",
         "pool_min_two": "В пуле должно быть не меньше двух маркетплейсов — пул из одного не допускается. Сейчас выбран {n}: добавьте ещё маркетплейс. Если пул больше не нужен, закройте участие всем и удалите сам пул.",
         "pool_min_two_zero": "В пуле должно быть не меньше двух маркетплейсов — пул из одного не допускается. Не выбрано ни одного: выберите минимум два. Чтобы распустить пул, удалите его целиком.",
         "pool_deleted": "Пул удалён", "pool_empty_name": "Укажи название пула",
@@ -738,7 +738,7 @@ TR = {
         "pool_members": "Склад пулу", "pool_select": "Маркетплейси",
         "pool_from": "Діє з", "pool_to": "Діє по (порожньо — безстроково)",
         "pool_save": "💾 Зберегти склад", "pool_none": "Пулів поки немає — створи перший",
-        "pool_conflict": "За ТЗ 004 маркетплейс не може перебувати у двох пулах. Перетинається за періодом: {mp}. Спершу закрийте попередню участь датою.", "pool_created": "Пул створено",
+        "pool_conflict": "Періоди членства перетинаються: {mp}. За ТЗ 004 у маркетплейсу не може бути двох членств із періодами, що перетинаються — нова участь можлива лише з дати після закриття попередньої.", "pool_same": "той самий пул", "pool_open": "без терміну", "pool_created": "Пул створено",
         "pool_min_two": "У пулі має бути не менше двох маркетплейсів — пул з одного не допускається. Зараз обрано {n}: додайте ще маркетплейс. Якщо пул більше не потрібен, закрийте участь усім і видаліть сам пул.",
         "pool_min_two_zero": "У пулі має бути не менше двох маркетплейсів — пул з одного не допускається. Не обрано жодного: виберіть щонайменше два. Щоб розпустити пул, видаліть його повністю.",
         "pool_deleted": "Пул видалено", "pool_empty_name": "Вкажи назву пулу",
@@ -1126,7 +1126,7 @@ TR = {
         "pool_members": "Pool members", "pool_select": "Marketplaces",
         "pool_from": "Valid from", "pool_to": "Valid to (empty — open-ended)",
         "pool_save": "💾 Save members", "pool_none": "No pools yet — create the first one",
-        "pool_conflict": "Per spec 004 a marketplace cannot belong to two pools. Overlapping period: {mp}. Close the previous membership with a date first.", "pool_created": "Pool created",
+        "pool_conflict": "Membership periods overlap: {mp}. Per spec 004 a marketplace cannot have two memberships with overlapping periods — a new one may start only after the previous is closed.", "pool_same": "same pool", "pool_open": "open-ended", "pool_created": "Pool created",
         "pool_min_two": "A pool needs at least two marketplaces — a pool of one is not allowed. Only {n} selected: add another marketplace. If the pool is no longer needed, close every membership and delete the pool itself.",
         "pool_min_two_zero": "A pool needs at least two marketplaces — a pool of one is not allowed. None selected: pick at least two. To dissolve the pool, delete it entirely.",
         "pool_deleted": "Pool deleted", "pool_empty_name": "Enter a pool name",
@@ -2617,22 +2617,30 @@ def _section_pool():
                 if len(picked_ids) < 2:
                     st.error(_tr("pool_min_two_zero") if not picked_ids else _trf("pool_min_two", n=len(picked_ids)))
                     st.stop()
-                # ТЗ 004: маркетплейс не может состоять в двух пулах. Сравниваем ПЕРИОД, который
-                # человек вводит, с периодами чужих пулов, а не «кто активен сегодня»: иначе членство,
-                # начинающееся завтра, проверку проходило бы, а завтра давало бы два пула.
-                # Период полуоткрытый [valid_from, valid_to): valid_to — первый день БЕЗ пула, поэтому
-                # снятие сегодня и добавление в другой пул сегодня же пересечением не считаются.
-                # Та же формула стоит триггером в базе (sql/pool_single_membership_OWNER_2026-09-28.sql):
+                # ТЗ 004: у маркетплейса не может быть двух членств с пересекающимися периодами —
+                # ни в разных пулах, ни в одном. Сравниваем ПЕРИОД, который человек вводит, с периодами
+                # уже записанных членств, а не «кто активен сегодня»: иначе членство, начинающееся
+                # завтра, проверку проходило бы, а завтра давало бы два пула. Период полуоткрытый
+                # [valid_from, valid_to): valid_to — первый день БЕЗ пула, поэтому снятие сегодня и
+                # вступление в другой пул сегодня же пересечением не считаются.
+                # Проверяем ровно то, что будет ВСТАВЛЕНО: действующих участников этого пула мы не
+                # трогаем, и сравнивать их с самими собой значило бы ругаться на каждое сохранение.
+                # Та же формула стоит триггером в базе (sql/pool_members_periods_OWNER_2026-09-28.sql):
                 # проверка здесь объясняет человеку, триггер держит остальные пути записи.
+                to_insert = [int(x) for x in picked_ids if x not in cur_ids]
                 busy = q_now("""
-                    SELECT pm.marketplace_id, p.name AS pool_name, pm.valid_from, pm.valid_to
+                    SELECT pm.marketplace_id, p.name AS pool_name, pm.valid_from, pm.valid_to,
+                           pm.pool_id = %s AS same_pool
                     FROM kabinet_data.pool_members pm
                     JOIN kabinet_data.pools p ON p.id = pm.pool_id
-                    WHERE pm.pool_id <> %s AND pm.marketplace_id = ANY(%s)
+                    WHERE pm.marketplace_id = ANY(%s)
                       AND daterange(pm.valid_from, pm.valid_to, '[)')
                        && daterange(%s::date, %s::date, '[)')
-                """, (int(sel_pool), [int(x) for x in picked_ids], v_from, v_to or None))
+                """, (int(sel_pool), to_insert, v_from, v_to or None)) if to_insert else pd.DataFrame()
                 clash = [f"{mp_label.get(int(r.marketplace_id), r.marketplace_id)} → {r.pool_name}"
+                         + (f" ({_tr('pool_same')}, {r.valid_from:%d.%m.%Y}"
+                            + (f"–{r.valid_to:%d.%m.%Y})" if pd.notna(r.valid_to) else f"–{_tr('pool_open')})")
+                            if r.same_pool else "")
                          for _, r in busy.iterrows()]
                 if clash:
                     st.error(_tr("pool_conflict").format(mp=", ".join(sorted(set(clash)))))
