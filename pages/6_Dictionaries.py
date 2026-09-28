@@ -32,7 +32,7 @@ TR = {
     "ru": {
         "title": "📚 Справочники",
         "sub": "Настройки, на которых считаются остатки, покрытие и автозаказ",
-        "tab_wh": "🏭 Склады", "tab_ch": "🔗 Подпитка", "tab_mp": "🌍 Маркетплейсы",
+        "ch_route_internal": "между складами", "ch_route_last_mile": "последняя миля", "ch_route_fba_inbound": "поставка на FBA", "curr_EUR": "евро", "curr_PLN": "злотый", "curr_UAH": "гривна", "curr_GBP": "фунт", "curr_USD": "доллар США", "curr_SEK": "шведская крона", "tab_wh": "🏭 Склады", "tab_ch": "🔗 Подпитка", "tab_mp": "🌍 Маркетплейсы",
         "tab_pool": "📦 Пулы", "tab_norm": "📏 Нормативы",
         "tab_assort": "🧭 Ассортимент",
         "tab_alerts": "🔔 Алерты",
@@ -421,7 +421,7 @@ TR = {
     "uk": {
         "title": "📚 Довідники",
         "sub": "Налаштування, на яких рахуються залишки, покриття та автозамовлення",
-        "tab_wh": "🏭 Склади", "tab_ch": "🔗 Підживлення", "tab_mp": "🌍 Маркетплейси",
+        "ch_route_internal": "між складами", "ch_route_last_mile": "остання миля", "ch_route_fba_inbound": "постачання на FBA", "curr_EUR": "євро", "curr_PLN": "злотий", "curr_UAH": "гривня", "curr_GBP": "фунт", "curr_USD": "долар США", "curr_SEK": "шведська крона", "tab_wh": "🏭 Склади", "tab_ch": "🔗 Підживлення", "tab_mp": "🌍 Маркетплейси",
         "tab_pool": "📦 Пули", "tab_norm": "📏 Нормативи",
         "tab_assort": "🧭 Асортимент",
         "tab_alerts": "🔔 Алерти",
@@ -809,7 +809,7 @@ TR = {
     "en": {
         "title": "📚 Dictionaries",
         "sub": "Settings behind stock, coverage and replenishment calculations",
-        "tab_wh": "🏭 Warehouses", "tab_ch": "🔗 Supply chains", "tab_mp": "🌍 Marketplaces",
+        "ch_route_internal": "between warehouses", "ch_route_last_mile": "last mile", "ch_route_fba_inbound": "inbound to FBA", "curr_EUR": "Euro", "curr_PLN": "Zloty", "curr_UAH": "Hryvnia", "curr_GBP": "Pound", "curr_USD": "US Dollar", "curr_SEK": "Swedish Krona", "tab_wh": "🏭 Warehouses", "tab_ch": "🔗 Supply chains", "tab_mp": "🌍 Marketplaces",
         "tab_pool": "📦 Pools", "tab_norm": "📏 Coverage norms",
         "tab_assort": "🧭 Assortment",
         "tab_alerts": "🔔 Alerts",
@@ -1468,10 +1468,12 @@ st.session_state["dict_section_last"] = _sec
 def _section_wh():
     st.caption(_tr("wh_hint"))
     wh = q("""
-        SELECT id, name, code, type, marketplace, country,
-               shipping_priority, is_active, canonical_id, note
-        FROM kabinet_data.warehouses
-        ORDER BY name
+        SELECT w.id, COALESCE(a.display_name, w.name) AS name, w.code, w.type,
+               w.marketplace, w.country, w.shipping_priority, w.is_active,
+               w.canonical_id, w.note, w.name AS erp_name
+        FROM kabinet_data.warehouses w
+        LEFT JOIN kabinet_data.warehouse_attributes a ON a.warehouse_id = w.id
+        ORDER BY 2
     """)
     if wh.empty:
         st.info(_tr("no_data"))
@@ -1547,10 +1549,14 @@ def _section_wh():
             # Имя из ERP правится только в ERP: по `warehouses.name` склады сопоставляются
             # в остатках, накладных и маршрутах, и переименование у нас порвало бы связи
             # (так уже было с дублями «Amazon FBA XX»). Поэтому здесь — отдельное имя для экрана.
+            # ВАЖНО: `row["name"]` — уже подпись для экрана (запрос отдаёт COALESCE(display_name, name)),
+            # а здесь нужно имя ИЗ ERP, иначе подсказка «в ERP склад называется …» назовёт
+            # отображаемое имя и будет врать ровно про то, что объясняет. Оно в `erp_name`.
+            _erp = as_text(row.get("erp_name"), as_text(row["name"]))
             disp_new = st.text_input(_tr("wh_display"), value=_disp, key=f"wh_disp_{sel}",
-                                     placeholder=row["name"], help=_trf("wh_display_help", n=row["name"]))
+                                     placeholder=_erp, help=_trf("wh_display_help", n=_erp))
             if _disp:
-                st.caption(_trf("wh_display_erp", n=row["name"]))
+                st.caption(_trf("wh_display_erp", n=_erp))
             # владелец — реквизит ERP (Odoo, stock.warehouse.company_id): в Кабинете только показываем.
             # У складов, которых в Odoo нет (FBA, Piasecznie, Тернополь), значение дало снабжение —
             # подписываем источник, иначе строка обещает ERP там, где её нет.
@@ -1862,27 +1868,45 @@ def _section_wh():
 # ------------------------------------------------------------- подпитка ---
 def _section_ch():
     st.caption(_tr("ch_hint"))
+    # Имя склада на экран — всегда `COALESCE(display_name, name)`: в `warehouses.name` лежит имя
+    # из ERP, и у польских складов оно украинское («… (Основний)») посреди русского интерфейса.
+    # Сопоставление и ключи — по `name`, меняется только подпись (доработка 28.09).
     ch = q("""
         SELECT c.id,
-               f.name  AS from_name,
-               tw.name AS to_name,
+               COALESCE(fa.display_name, f.name)   AS from_name,
+               COALESCE(ta.display_name, tw.name)  AS to_name,
                c.route_type, c.median_days, c.shipment_count,
                c.lead_source, c.sample_size, c.is_active, c.note
         FROM kabinet_data.supply_chains c
         LEFT JOIN kabinet_data.warehouses f  ON f.id  = c.from_warehouse_id
         LEFT JOIN kabinet_data.warehouses tw ON tw.id = c.to_warehouse_id
-        ORDER BY tw.name, c.median_days
+        LEFT JOIN kabinet_data.warehouse_attributes fa ON fa.warehouse_id = f.id
+        LEFT JOIN kabinet_data.warehouse_attributes ta ON ta.warehouse_id = tw.id
+        ORDER BY 3, c.median_days
     """)
     wh_all = q("""
-        SELECT id, name, COALESCE(code, '') AS code
-        FROM kabinet_data.warehouses
-        WHERE is_active IS NOT FALSE
-        ORDER BY name
+        SELECT w.id, COALESCE(a.display_name, w.name) AS name, COALESCE(w.code, '') AS code
+        FROM kabinet_data.warehouses w
+        LEFT JOIN kabinet_data.warehouse_attributes a ON a.warehouse_id = w.id
+        WHERE w.is_active IS NOT FALSE
+        ORDER BY 2
     """)
     wh_label = {int(r.id): (f"{r['name']} ({r.code})" if r.code else r["name"])
                 for _, r in wh_all.iterrows()}
     label_wh = {v: k for k, v in wh_label.items()}
+    # Тип маршрута в базе — английский код, на экране слово: код читают загрузчики,
+    # человек — подпись. Тот же приём, что у «Режима» и «Уровня» в алертах.
     ROUTES = ["internal", "last_mile", "fba_inbound"]
+    _route_lbl = {c: _tr("ch_route_" + c) for c in ROUTES}
+    _route_code = {v: k for k, v in _route_lbl.items()}
+    ROUTE_OPTS = [_route_lbl[c] for c in ROUTES]
+    if not ch.empty:
+        ch = ch.copy()
+        ch["route_type"] = ch["route_type"].map(lambda v: _route_lbl.get(v, v))
+        # В редактируемой сетке пустых ячеек быть не должно: Streamlit рисует любую пустую
+        # словом «None» (это рендер редактора, а не тип данных). Обе колонки только для чтения.
+        for _c in ("shipment_count", "sample_size"):
+            ch[_c] = ch[_c].map(lambda v: "—" if pd.isna(v) else f"{int(v)}")
 
     if ch.empty:
         st.info(_tr("no_data"))
@@ -1897,19 +1921,23 @@ def _section_ch():
                 "from_name": st.column_config.TextColumn(_tr("ch_from"), width="medium"),
                 "to_name": st.column_config.TextColumn(_tr("ch_to"), width="medium"),
                 "route_type": st.column_config.SelectboxColumn(
-                    _tr("col_route"), options=ROUTES),
+                    _tr("col_route"), options=ROUTE_OPTS),
                 "median_days": st.column_config.NumberColumn(
                     _tr("col_median"), min_value=0, max_value=365, step=1),
-                "shipment_count": st.column_config.NumberColumn(
+                "shipment_count": st.column_config.TextColumn(
                     _tr("col_shipments"), width="small", help=_tr("col_shipments_help")),
                 "lead_source": st.column_config.TextColumn(_tr("col_lead_src"), width="small"),
-                "sample_size": st.column_config.NumberColumn(_tr("col_sample"), width="small", help=_tr("col_sample_help")),
+                "sample_size": st.column_config.TextColumn(_tr("col_sample"), width="small", help=_tr("col_sample_help")),
                 "is_active": st.column_config.CheckboxColumn(_tr("col_active")),
                 "note": st.column_config.TextColumn(_tr("col_note"), width="large"),
             },
         )
         if st.button(_tr("save"), key="save_ch", type="primary"):
-            save_block(ch, ed_ch, "kabinet_data.supply_chains", "id",
+            _ed = ed_ch.copy()
+            _ed["route_type"] = _ed["route_type"].map(lambda v: _route_code.get(v, v))
+            _orig = ch.copy()
+            _orig["route_type"] = _orig["route_type"].map(lambda v: _route_code.get(v, v))
+            save_block(_orig, _ed, "kabinet_data.supply_chains", "id",
                        ["route_type", "median_days", "is_active", "note"])
 
     with st.expander(_tr("ch_add")):
@@ -1917,7 +1945,7 @@ def _section_ch():
         src = c1.selectbox(_tr("ch_from"), list(label_wh.keys()), key="new_ch_src")
         rec = c2.selectbox(_tr("ch_to"), list(label_wh.keys()), key="new_ch_rec")
         c3, c4, c5 = st.columns([1, 1, 2])
-        rtype = c3.selectbox(_tr("col_route"), ROUTES, key="new_ch_type")
+        rtype = _route_code[c3.selectbox(_tr("col_route"), ROUTE_OPTS, key="new_ch_type")]
         lead = c4.number_input(_tr("col_median"), 0, 365, 14, key="new_ch_lead")
         note = c5.text_input(_tr("col_note"), key="new_ch_note")
         if st.button(_tr("ch_add"), key="add_ch", type="primary"):
@@ -1946,6 +1974,17 @@ def _section_ch():
                     st.error(_tr("err").format(e=e))
 
 # -------------------------------------------------------- маркетплейсы ---
+def _curr_label(code: str, curr: pd.DataFrame) -> str:
+    """Валюта на экране. Названия в `currencies` пришли из ISO 4217 и все английские
+    («Euro», «Pound Sterling»). Для ходовых валют показываем подпись на языке интерфейса,
+    для остальных — код: «EUR — Euro» посреди русского экрана читается как недоделка,
+    а переводить все 178 кодов ради трёх используемых незачем."""
+    own = _tr("curr_" + code)
+    if own and not own.startswith("curr_"):
+        return f"{code} — {own}"
+    return code
+
+
 def _section_mp():
     """Карточка маркетплейса по ТЗ 003: код производный, площадка и страна меняются только пока
     нет матрицы и прогнозов, валюта из перечня ISO 4217, внешние коды парой, ссылка только https."""
@@ -2003,7 +2042,7 @@ def _section_mp():
     _cu = cur_opts.index(row["currency"]) if row["currency"] in cur_opts else 0
     new_curr = p3.selectbox(_tr("mp_currency"), cur_opts, index=_cu, key=f"mcu_{sel}",
                             help=_tr("mp_currency_help"),
-                            format_func=lambda c_: f"{c_} — {curr.set_index('code').loc[c_, 'name']}")
+                            format_func=lambda c_: _curr_label(c_, curr))
     if blockers:
         # рядом с заблокированным полем говорим не только «нельзя», но и что делать вместо этого:
         # отказ без выхода читается как поломка экрана

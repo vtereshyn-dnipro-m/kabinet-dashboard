@@ -674,7 +674,7 @@ def load_docs() -> pd.DataFrame:
         LEFT JOIN kabinet_data.marketplaces_new m ON d.object_type = 'marketplace' AND m.id = d.object_id
         LEFT JOIN kabinet_data.pools p ON d.object_type = 'pool' AND p.id = d.object_id
         LEFT JOIN kabinet_data.forecast_register r ON r.document_id = d.id AND r.record_type = 'sales'
-        GROUP BY d.id, m.code, p.name
+        GROUP BY d.id, m.code, m.name, p.name
         ORDER BY d.status = 'draft' DESC, d.created_at DESC""")
 
 
