@@ -3819,12 +3819,12 @@ TRANSLATIONS = {
               "actually has content for — not when the loader ran: what matters is how current the numbers are.",
     },
     "passport.col_src": {"ru": "Что даёт", "uk": "Що дає", "en": "What it feeds"},
-    "passport.col_table": {"ru": "Таблица", "uk": "Таблиця", "en": "Table"},
-    "passport.col_as_of": {"ru": "Данные по", "uk": "Дані по", "en": "Data through"},
+    "passport.col_table": {"ru": "Наша таблица", "uk": "Наша таблиця", "en": "Our table"},
+    "passport.col_as_of": {"ru": "Данные по / возраст", "uk": "Дані по / вік", "en": "Data through / age"},
     "passport.col_age": {"ru": "Возраст", "uk": "Вік", "en": "Age"},
     "passport.col_limit": {"ru": "Порог, ч", "uk": "Поріг, год", "en": "Limit, h"},
-    "passport.col_loader": {"ru": "Обновляет", "uk": "Оновлює", "en": "Updated by"},
-    "passport.col_origin": {"ru": "Источник у площадки", "uk": "Джерело у майданчика", "en": "Source at the platform"},
+    "passport.col_loader": {"ru": "Загрузчик и расписание", "uk": "Завантажувач і розклад", "en": "Loader and schedule"},
+    "passport.col_origin": {"ru": "Площадка и API/отчёт", "uk": "Майданчик і API/звіт", "en": "Platform and API/report"},
     "passport.col_platform_refresh": {"ru": "Площадка обновляет", "uk": "Майданчик оновлює", "en": "Platform refreshes"},
     "passport.col_our_refresh": {"ru": "Тянем мы", "uk": "Тягнемо ми", "en": "We pull"},
     "passport.col_verdict": {"ru": "Частоты", "uk": "Частоти", "en": "Cadence"},
@@ -3854,6 +3854,68 @@ TRANSLATIONS = {
     "passport.state_stale": {"ru": "устарело", "uk": "застаріло", "en": "stale"},
     "passport.state_absent": {"ru": "нет данных", "uk": "немає даних", "en": "no data"},
     "passport.limit_db": {"ru": "из справочника", "uk": "з довідника", "en": "from rules"},
+    "passport.col_shows": {"ru": "Что показывает", "uk": "Що показує", "en": "What it shows"},
+    "passport.col_reconcile": {"ru": "Сверка", "uk": "Звірка", "en": "Reconciliation"},
+    "passport.col_reconcile_help": {
+        "ru": "С чем сверяется цифра, когда сверялась и чем кончилось. «Не сверяется» — так и есть: "
+              "источник ни с чем не сопоставляется, и это честнее пустой ячейки, которая читается "
+              "как «сверка была, а результата нет».",
+        "uk": "З чим звіряється цифра, коли звірялася і чим скінчилося. «Не звіряється» — так і є: "
+              "джерело ні з чим не зіставляється, і це чесніше за порожню комірку, яка читається "
+              "як «звірка була, а результату немає».",
+        "en": "What the figure is reconciled against, when, and how it ended. «Not reconciled» means "
+              "exactly that — the source is not compared with anything, which is more honest than an "
+              "empty cell reading as «it ran but produced nothing»."},
+    "passport.rec_none": {"ru": "не сверяется", "uk": "не звіряється", "en": "not reconciled"},
+    "passport.rec_planned": {"ru": "{with_} — сверка заведена, ещё не шла",
+                             "uk": "{with_} — звірку заведено, ще не йшла",
+                             "en": "{with_} — set up, has not run yet"},
+    "passport.rec_done": {"ru": "{with_}, {date}: {result}", "uk": "{with_}, {date}: {result}",
+                          "en": "{with_}, {date}: {result}"},
+    "passport.rec_no_result": {"ru": "результат не записан", "uk": "результат не записано",
+                               "en": "no result recorded"},
+    "passport.col_table_help": {
+        "ru": "Понятное имя источника. Техническое — kabinet_data.<таблица> — стоит в подсказке ⓘ "
+              "у самой цифры: в таблице оно занимало полколонки и ничего не говорило тому, кто "
+              "смотрит на число, а нужно тому, кто пойдёт проверять его запросом.",
+        "uk": "Зрозуміла назва джерела. Технічна — kabinet_data.<таблиця> — стоїть у підказці ⓘ "
+              "біля самої цифри: у таблиці вона займала півколонки й нічого не казала тому, хто "
+              "дивиться на число, а потрібна тому, хто піде перевіряти його запитом.",
+        "en": "A readable source name. The technical one — kabinet_data.<table> — lives in the ⓘ tip "
+              "next to the figure itself: in the table it ate half a column and told nothing to the "
+              "person looking at the number, while the person about to query it does need it."},
+    "passport.col_as_of_help": {
+        "ru": "По какое число данные и сколько им лет. Порог, по которому решается «устарело», "
+              "написан подписью под таблицей — вместе с тем, откуда он взялся.",
+        "uk": "По яке число дані та скільки їм років. Поріг, за яким вирішується «застаріло», "
+              "написано підписом під таблицею — разом із тим, звідки він узявся.",
+        "en": "Through which date the data runs and how old it is. The threshold that decides «stale» "
+              "is in the caption below the table, together with where it came from."},
+    "passport.limits_hint": {
+        "ru": "Пороги «устарело», часов: {items}.",
+        "uk": "Пороги «застаріло», годин: {items}.",
+        "en": "Staleness thresholds, hours: {items}."},
+    "passport.tip_table": {
+        "ru": "· таблица {table}", "uk": "· таблиця {table}", "en": "· table {table}"},
+    "passport.feeds.revenue": {"ru": "выручка", "uk": "виручка", "en": "revenue"},
+    "passport.feeds.margin": {"ru": "маржа", "uk": "маржа", "en": "margin"},
+    "passport.feeds.units": {"ru": "штуки", "uk": "штуки", "en": "units"},
+    "passport.feeds.channels": {"ru": "продажи по каналам", "uk": "продажі за каналами", "en": "sales by channel"},
+    "passport.feeds.ordered": {"ru": "продажи по заказам", "uk": "продажі за замовленнями", "en": "ordered sales"},
+    "passport.feeds.plan": {"ru": "план месяца", "uk": "план місяця", "en": "month plan"},
+    "passport.feeds.coverage": {"ru": "покрытие и дефициты", "uk": "покриття і дефіцити", "en": "coverage and gaps"},
+    "passport.feeds.stock": {"ru": "остаток", "uk": "залишок", "en": "stock"},
+    "passport.feeds.transfers": {"ru": "переброска", "uk": "перекидання", "en": "transfers"},
+    "passport.feeds.incidents": {"ru": "инциденты", "uk": "інциденти", "en": "incidents"},
+    "passport.feeds.reviews": {"ru": "отзывы", "uk": "відгуки", "en": "reviews"},
+    "passport.feeds.critical": {"ru": "срочные позиции", "uk": "термінові позиції", "en": "urgent items"},
+    "passport.feeds.warning": {"ru": "предупреждения", "uk": "попередження", "en": "warnings"},
+    "passport.feeds.qty": {"ru": "сколько заказать", "uk": "скільки замовити", "en": "how much to order"},
+    "passport.feeds.controlled": {"ru": "SKU под контролем", "uk": "SKU під контролем", "en": "SKUs tracked"},
+    "passport.feeds.tr_own": {"ru": "переброска со своих складов", "uk": "перекидання зі своїх складів",
+                              "en": "transfers from own warehouses"},
+    "passport.feeds.tr_fba": {"ru": "переброска на FBA", "uk": "перекидання на FBA", "en": "transfers to FBA"},
+    "passport.feeds.tr_qty": {"ru": "объём переброски", "uk": "обсяг перекидання", "en": "transfer volume"},
     "passport.limit_param": {"ru": "из настроек", "uk": "з налаштувань", "en": "from settings"},
     "passport.verdict_help": {
         "ru": "⚠️ тянем чаще, чем площадка обновляет данные — лишние запросы к общей квоте аккаунта. "

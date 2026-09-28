@@ -119,7 +119,8 @@ def _state(page: str) -> pd.DataFrame:
         # колонок туда роль Кабинета не добавит
         origins = pd.read_sql(
             """SELECT replace(table_name, 'kabinet_data.', '') AS tbl,
-                      platform_source, platform_refresh, our_refresh, verdict, note
+                      platform_source, platform_refresh, our_refresh, verdict, note,
+                      reconcile_with, reconciled_at, reconcile_result
                FROM kabinet_data.data_source_origins""", conn)
     except Exception as e:                      # паспорт не имеет права ронять страницу
         return pd.DataFrame({"key": [s.key for s in srcs], "error": str(e)[:200]})
@@ -143,6 +144,9 @@ def _state(page: str) -> pd.DataFrame:
             "our_refresh": (o.our_refresh if o else None),
             "verdict": (o.verdict if o else None),
             "origin_note": (o.note if o else None),
+            "reconcile_with": (o.reconcile_with if o else None),
+            "reconciled_at": (o.reconciled_at if o else None),
+            "reconcile_result": (o.reconcile_result if o else None),
             "as_of": (r["as_of"].iloc[0] if len(r) and r["as_of"].iloc[0] else None),
             "age_h": (float(r["age_h"].iloc[0]) if len(r) and pd.notna(r["age_h"].iloc[0]) else None),
             "limit_h": limit or s.default_max_age_h,
@@ -188,6 +192,10 @@ def tip(page: str, metric_key: str, base: str = "") -> str:
     for r in used:
         line = t("passport.tip_line", src=t(f"passport.src.{r.key}"), date=_fmt_date(r.as_of),
                  loader=r.loader)
+        # техническое имя таблицы живёт здесь, а не в таблице паспорта: в строке оно занимает
+        # половину ширины и ничего не говорит тому, кто смотрит на цифру, — но нужно тому,
+        # кто пойдёт проверять её запросом
+        line += " " + t("passport.tip_table", table=f"kabinet_data.{r.table}")
         # у площадки данные обновляются со своей частотой, и подпись должна называть её:
         # «данные по 25.09» без этого читается как «в источнике больше ничего нет»
         if as_text(r.platform_source):
@@ -232,30 +240,39 @@ def footer(page: str) -> None:
             st.caption(t("passport.unavailable"))
             return
         st.caption(t("passport.hint"))
+
+        def _feeds(key: str) -> str:
+            """Первая колонка — что это за цифра на экране. Берём из объявления источника:
+            там уже написано, какие метрики он кормит, и второй список заводить незачем."""
+            keys = dict((x.key, x.feeds) for x in PAGES[page]).get(key, ())
+            names = [t(f"passport.feeds.{k}") for k in keys]
+            return " · ".join(names) if names else "—"
+
+        def _reconcile(r) -> str:
+            """С чем сверяется, когда и чем кончилось. Пусто — «не сверяется»: пустая ячейка
+            читается как «сверка была, результата нет», а это разные вещи."""
+            with_ = as_text(r.reconcile_with)
+            if not with_:
+                return t("passport.rec_none")
+            when = _fmt_date(r.reconciled_at) if r.reconciled_at is not None else None
+            res = as_text(r.reconcile_result)
+            if not when:
+                return t("passport.rec_planned", with_=with_)
+            return t("passport.rec_done", with_=with_, date=when, result=res or t("passport.rec_no_result"))
+
         view = pd.DataFrame({
-            t("passport.col_src"): [t(f"passport.src.{r.key}") for r in st_.itertuples()],
-            t("passport.col_table"): [f"kabinet_data.{r.table}" for r in st_.itertuples()],
-            t("passport.col_as_of"): [t("passport.absent_short") if r.absent else _fmt_date(r.as_of)
-                                      for r in st_.itertuples()],
-            t("passport.col_age"): [_age_text(r.age_h) for r in st_.itertuples()],
-            t("passport.col_limit"): [
-                (f"{int(r.limit_h)} " + {"param": t("passport.limit_param"),
-                                         "db": t("passport.limit_db")}.get(r.limit_src,
-                                                                           t("passport.limit_code")))
-                if r.watch else t("passport.limit_none")
-                for r in st_.itertuples()],
+            t("passport.col_shows"): [_feeds(r.key) for r in st_.itertuples()],
             t("passport.col_origin"): [as_text(r.platform_source, "—") for r in st_.itertuples()],
-            t("passport.col_platform_refresh"): [as_text(r.platform_refresh, "—") for r in st_.itertuples()],
-            t("passport.col_our_refresh"): [as_text(r.our_refresh) or as_text(r.loader, "—")
-                                            for r in st_.itertuples()],
-            # расхождение частот — то, что иначе не видно ниоткуда: тянем чаще площадки — лишние
-            # запросы к общей квоте, реже — цифры могут отставать, и человек должен знать насколько
-            # только значок: текст «тянем реже» в узкой колонке обрезался на полуслове,
-            # а расшифровка всех трёх значков стоит в подсказке к колонке и в подписи под таблицей
+            t("passport.col_loader"): [as_text(r.our_refresh) or as_text(r.loader, "—")
+                                       for r in st_.itertuples()],
+            t("passport.col_table"): [t(f"passport.src.{r.key}") for r in st_.itertuples()],
+            t("passport.col_as_of"): [
+                t("passport.absent_short") if r.absent else
+                (_fmt_date(r.as_of) + " · " + _age_text(r.age_h)) for r in st_.itertuples()],
             t("passport.col_verdict"): [
                 {"we_pull_more": "⚠️", "we_pull_less": "⏳", "ok": "✓"}.get(as_text(r.verdict), "—")
                 for r in st_.itertuples()],
-            t("passport.col_loader"): [r.loader for r in st_.itertuples()],
+            t("passport.col_reconcile"): [_reconcile(r) for r in st_.itertuples()],
             t("passport.col_state"): [
                 ("🔴 " + t("passport.state_absent")) if r.absent
                 else ("🔴 " + t("passport.state_stale")) if r.stale
@@ -265,11 +282,34 @@ def footer(page: str) -> None:
         st.dataframe(view, hide_index=True, use_container_width=True,
                      height=min(420, 38 + 35 * len(view)),
                      column_config={
+                         t("passport.col_shows"): st.column_config.TextColumn(
+                             t("passport.col_shows"), width="medium"),
+                         t("passport.col_origin"): st.column_config.TextColumn(
+                             t("passport.col_origin"), width="medium"),
+                         t("passport.col_loader"): st.column_config.TextColumn(
+                             t("passport.col_loader"), width="medium"),
+                         t("passport.col_table"): st.column_config.TextColumn(
+                             t("passport.col_table"), width="small",
+                             help=t("passport.col_table_help")),
+                         t("passport.col_as_of"): st.column_config.TextColumn(
+                             t("passport.col_as_of"), width="small",
+                             help=t("passport.col_as_of_help")),
                          t("passport.col_verdict"): st.column_config.TextColumn(
                              t("passport.col_verdict"), width="small",
                              help=t("passport.verdict_help")),
+                         t("passport.col_reconcile"): st.column_config.TextColumn(
+                             t("passport.col_reconcile"), width="medium",
+                             help=t("passport.col_reconcile_help")),
                      })
         st.caption(t("passport.verdict_hint"))
+        # Пороги ушли из таблицы: строка «96 из справочника» занимала колонку и читалась как
+        # часть данных, хотя это настройка проверки. Здесь же видно, у кого порог откуда.
+        _lim = [f"{t(f'passport.src.{r.key}')}: {int(r.limit_h)} "
+                + {"param": t("passport.limit_param"), "db": t("passport.limit_db")}.get(
+                    r.limit_src, t("passport.limit_code"))
+                for r in st_.itertuples() if r.watch]
+        if _lim:
+            st.caption(t("passport.limits_hint", items=" · ".join(_lim)))
         notes = [(t(f"passport.src.{r.key}"), as_text(r.origin_note))
                  for r in st_.itertuples() if as_text(r.origin_note)]
         if notes:
