@@ -544,6 +544,14 @@ k5.metric(t("money.kpi.cm"),
           delta=None if pd.isna(tot_cogs) else f"{cm_pct:.1f}%",
           help=t("money.kpi.cm_help"))
 
+# «По какое число» — подписью под карточками, как на Обзоре: сумма за период без даты
+# окончания каждую неделю расходится с внешним отчётом ровно на день (28.09.2026).
+# `_to_eff` — фактическая граница периода (заданная дата, обрезанная по последнему дню
+# с данными); у окна «N дней» она не задана, и тогда берём сам последний день с данными.
+_kpi_to = _to_eff if _to_eff is not None else (_last if pd.notna(_last) else None)
+if _kpi_to is not None:
+    st.caption(t("home.kpi.as_of", d=pd.Timestamp(_kpi_to).strftime("%d.%m")))
+
 m1, m2, _ = st.columns([1, 1, 4])
 m1.metric(t("money.kpi.cm_dk"),
           "—" if pd.isna(tot_cogs) else f"{cm:,.0f} €",

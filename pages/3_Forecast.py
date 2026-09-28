@@ -28,6 +28,7 @@ import streamlit as st
 
 from db.connection import get_connection, get_workspace_client
 from i18n import init_lang, get_lang
+from util import as_text
 
 init_lang()
 
@@ -40,7 +41,7 @@ TR = {
         "st_draft": "Черновик", "st_posted": "Проведён", "full": "весь ассортимент матрицы", "partial": "часть ассортимента",
         "col_number": "Номер", "col_date": "Дата", "col_object": "Объект", "col_period": "Период", "col_compl": "Охват матрицы",
         "col_status": "Статус", "col_rows": "SKU", "col_filled": "Заполнено", "col_approved": "Утверждено", "col_source": "Источник",
-        "col_created_by": "Создал", "col_posted_at": "Проведён", "col_comment": "Комментарий",
+        "actor_app": "Кабинет", "actor_job": "загрузчик", "src_sheet": "лист планов", "src_gsheet": "Google Таблица", "src_file": "файл", "src_replace": "замена после изменения пула", "src_manual": "вручную", "col_created_by": "Создал", "col_posted_at": "Проведён", "col_comment": "Комментарий",
         "no_docs": "Документов по фильтру нет.", "open_doc": "Открыть документ",
         "new_object_type": "Тип объекта", "mp": "Marketplace", "pool": "Пул", "new_first": "Первый месяц", "new_last": "Последний месяц",
         "new_compl": "Охват матрицы", "new_comment": "Комментарий", "btn_create": "Создать черновик",
@@ -185,7 +186,7 @@ TR = {
         "st_draft": "Чернетка", "st_posted": "Проведено", "full": "увесь асортимент матриці", "partial": "частина асортименту",
         "col_number": "Номер", "col_date": "Дата", "col_object": "Обʼєкт", "col_period": "Період", "col_compl": "Охоплення матриці",
         "col_status": "Статус", "col_rows": "SKU", "col_filled": "Заповнено", "col_approved": "Затверджено", "col_source": "Джерело",
-        "col_created_by": "Створив", "col_posted_at": "Проведено", "col_comment": "Коментар",
+        "actor_app": "Кабінет", "actor_job": "завантажувач", "src_sheet": "аркуш планів", "src_gsheet": "Google Таблиця", "src_file": "файл", "src_replace": "заміна після зміни пулу", "src_manual": "вручну", "col_created_by": "Створив", "col_posted_at": "Проведено", "col_comment": "Коментар",
         "no_docs": "Документів за фільтром немає.", "open_doc": "Відкрити документ",
         "new_object_type": "Тип обʼєкта", "mp": "Marketplace", "pool": "Пул", "new_first": "Перший місяць", "new_last": "Останній місяць",
         "new_compl": "Охоплення матриці", "new_comment": "Коментар", "btn_create": "Створити чернетку",
@@ -330,7 +331,7 @@ TR = {
         "st_draft": "Draft", "st_posted": "Posted", "full": "whole matrix assortment", "partial": "part of the assortment",
         "col_number": "Number", "col_date": "Date", "col_object": "Object", "col_period": "Period", "col_compl": "Matrix coverage",
         "col_status": "Status", "col_rows": "SKUs", "col_filled": "Filled", "col_approved": "Approved", "col_source": "Source",
-        "col_created_by": "Created by", "col_posted_at": "Posted", "col_comment": "Comment",
+        "actor_app": "Kabinet", "actor_job": "loader", "src_sheet": "plan sheet", "src_gsheet": "Google Sheet", "src_file": "file", "src_replace": "replacement after pool change", "src_manual": "manual", "col_created_by": "Created by", "col_posted_at": "Posted", "col_comment": "Comment",
         "no_docs": "No documents match the filter.", "open_doc": "Open document",
         "new_object_type": "Object type", "mp": "Marketplace", "pool": "Pool", "new_first": "First month", "new_last": "Last month",
         "new_compl": "Matrix coverage", "new_comment": "Comment", "btn_create": "Create draft",
@@ -626,10 +627,45 @@ def pool_snapshot(pool_id: int) -> list:
     return [int(x) for x in d["marketplace_id"]]
 
 
+def actor_label(v) -> str:
+    """Кто завёл документ — словом, а не идентификатором.
+
+    Джобы идут под сервис-принципалом, и в `created_by` лежит его UUID
+    (`b1698364-…`): на экране это строка из тридцати шести знаков, по которой человек
+    не понимает ровно ничего. У приложения входа по пользователям нет, поэтому оттуда
+    приходит `kabinet-app`. Почту, если Streamlit Cloud её отдал, показываем как есть.
+    """
+    txt = as_text(v).strip()
+    if not txt:
+        return "—"
+    if "@" in txt:
+        return txt
+    if txt == "kabinet-app":
+        return _tr("actor_app")
+    if re.fullmatch(r"[0-9a-f-]{36}", txt):
+        return _tr("actor_job")
+    return txt
+
+
+def source_label(v) -> str:
+    """Источник документа — словом. В базе лежит `import:sheet:306822418`, и номер листа
+    на экране не значит ничего: он нужен при разборе, а не при чтении списка."""
+    txt = as_text(v).strip()
+    if txt.startswith("import:sheet"):
+        return _tr("src_sheet")
+    if txt.startswith("import:gsheet"):
+        return _tr("src_gsheet")
+    if txt.startswith("import:file"):
+        return _tr("src_file")
+    if txt.startswith("replace:"):
+        return _tr("src_replace")
+    return _tr("src_manual") if txt == "manual" else (txt or "—")
+
+
 def load_docs() -> pd.DataFrame:
     return q("""
         SELECT d.id, d.number, d.doc_date, d.object_type, d.object_id,
-               COALESCE(m.code, p.name) AS object_name, d.first_month, d.last_month, d.completeness, d.status, d.comment,
+               COALESCE(m.code || ' · ' || m.name, p.name) AS object_name, d.first_month, d.last_month, d.completeness, d.status, d.comment,
                d.source, d.created_by, d.created_at, d.posted_by, d.posted_at, d.pool_snapshot, d.pool_snapshot_date,
                COUNT(DISTINCT r.sku) AS n_sku, COUNT(r.id) AS n_cells,
                COUNT(r.id) FILTER (WHERE r.quantity IS NOT NULL) AS n_filled,
@@ -1611,7 +1647,9 @@ with tab_docs:
             _tr("col_period"): view["first_month"].map(month_label) + " – " + view["last_month"].map(month_label),
             _tr("col_compl"): view["completeness"].map(lambda x: _tr(x)), _tr("col_status"): view["status"].map(lambda s: _tr("st_" + s)),
             _tr("col_rows"): view["n_sku"], _tr("col_filled"): view["n_filled"].astype(str) + " / " + view["n_cells"].astype(str),
-            _tr("col_approved"): view["n_approved"], _tr("col_source"): view["source"], _tr("col_created_by"): view["created_by"],
+            _tr("col_approved"): view["n_approved"],
+            _tr("col_source"): view["source"].map(source_label),
+            _tr("col_created_by"): view["created_by"].map(actor_label),
             _tr("col_posted_at"): pd.to_datetime(view["posted_at"]).dt.strftime("%d.%m.%Y %H:%M").fillna("—"), _tr("col_comment"): view["comment"].fillna(""),
         })
         # §12: индикатор «Требуется пересоздание» — у документов пула, чей сохранённый состав

@@ -243,7 +243,7 @@ def build_transfer_order_xlsx(rows: pd.DataFrame):
     Возвращает (order_no, bytes)."""
     order_no = "TR-" + datetime.now().strftime("%Y%m%d-%H%M")
     out = rows[["sku_display", "product_name", "transfer_qty",
-                "from_location", "to_location", "eta_days"]].copy()
+                "from_display", "to_location", "eta_days"]].copy()
     out.columns = ["SKU", "Товар", "Кол-во, шт", "Склад отправки",
                    "Страна FBA", "Срок, дн"]
     buf = io.BytesIO()
@@ -266,13 +266,24 @@ def load_transfers(with_incoming: bool):
     conn = get_connection()
     incoming_col = ("COALESCE(incoming_to_madrid, 0) AS incoming_to_madrid"
                     if with_incoming else "0 AS incoming_to_madrid")
+    # Имя склада на экран — через `warehouse_attributes.display_name`: в `transfer_recommendations`
+    # лежит имя из ERP, и у польского склада оно украинское («RS Warszawa Piasecznie (Основний)»)
+    # посреди русского интерфейса. Сопоставление ТОЛЬКО по `warehouses.name`: по нему склады
+    # стыкуются в остатках, накладных и маршрутах, и переименовывать его нельзя (доработка 28.09).
+    # `from_location` остаётся КЛЮЧОМ (по нему идёт UPDATE статуса переброски), `from_display` —
+    # только для показа. Одной колонкой это делать нельзя: подтверждение переброски искало бы
+    # строку по отображаемому имени и молча не находило ни одной.
     tdf = pd.read_sql(f"""
-        SELECT sku, product_name, from_location, to_location, transfer_qty,
+        SELECT sku, product_name, t.from_location,
+               COALESCE(a.display_name, t.from_location) AS from_display,
+               to_location, transfer_qty,
                from_stock, from_cover_days, to_stock, to_cover_days,
                COALESCE(from_type,'fba') AS from_type,
                COALESCE(status,'new') AS status,
                {incoming_col}
-        FROM kabinet_data.transfer_recommendations
+        FROM kabinet_data.transfer_recommendations t
+        LEFT JOIN kabinet_data.warehouses w ON w.name = t.from_location
+        LEFT JOIN kabinet_data.warehouse_attributes a ON a.warehouse_id = w.id
         WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.transfer_recommendations)
     """, conn)
     conn.close()
@@ -320,7 +331,7 @@ if not active_tr.empty:
     # маршрут: уровень склада-донора + срок доставки + иконка (📦 PL / 🚛 UA / ✈️ FBA)
     tr[["tier", "eta_days", "route_icon"]] = tr.apply(
         lambda r: pd.Series(donor_info(r["from_location"], r["from_type"])), axis=1)
-    tr["Источник"] = tr["route_icon"] + " " + tr["from_location"].astype(str)
+    tr["Источник"] = tr["route_icon"] + " " + tr["from_display"].astype(str)
     tr["Срок"] = tr["eta_days"].astype(str) + " дн"
     tr["Куда"] = tr["to_location"]
     tr["Хватит(получатель)"] = tr["to_cover_days"].round(0).astype(int)
