@@ -611,7 +611,7 @@ def load_objects() -> pd.DataFrame:
               FROM kabinet_data.v_marketplaces_selectable ORDER BY code""")
     pl = q("""SELECT 'pool' AS object_type, p.id AS object_id, p.name, MIN(m.country_alpha2) AS country, NULL::text AS platform
               FROM kabinet_data.pools p LEFT JOIN kabinet_data.pool_members pm ON pm.pool_id = p.id
-                   AND pm.valid_from <= current_date AND (pm.valid_to IS NULL OR pm.valid_to >= current_date)
+                   AND pm.valid_from <= current_date AND (pm.valid_to IS NULL OR pm.valid_to > current_date)
               LEFT JOIN kabinet_data.marketplaces_new m ON m.id = pm.marketplace_id GROUP BY p.id, p.name ORDER BY p.name""")
     return pd.concat([mp, pl], ignore_index=True)
 
@@ -622,7 +622,7 @@ def object_label(row) -> str:
 
 def pool_snapshot(pool_id: int) -> list:
     d = q("""SELECT marketplace_id FROM kabinet_data.pool_members WHERE pool_id = %s
-             AND valid_from <= current_date AND (valid_to IS NULL OR valid_to >= current_date) ORDER BY 1""", (int(pool_id),))
+             AND valid_from <= current_date AND (valid_to IS NULL OR valid_to > current_date) ORDER BY 1""", (int(pool_id),))
     return [int(x) for x in d["marketplace_id"]]
 
 
