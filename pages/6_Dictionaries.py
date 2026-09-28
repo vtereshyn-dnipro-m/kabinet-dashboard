@@ -303,6 +303,9 @@ TR = {
                 "wh_owner_line": "Владелец: {o} — из ERP, в Кабинете не правится",
         "wh_owner_manual": "Владелец: {o} — уточнение от снабжения, этого склада в Odoo нет",
         "wh_partner": "Склад партнёра: остатки и продажи в расчёты Кабинета не берём — ни в остатки, ни в покрытие, ни в автозаказ, ни в переброски.",
+        "wh_display": "Название для экрана",
+        "wh_display_help": "Показывается вместо имени из ERP. Пусто — показываем имя ERP как есть «{n}». Само имя ERP не меняется: по нему склад сопоставляется в остатках, накладных и маршрутах.",
+        "wh_display_erp": "В ERP склад называется «{n}» — сопоставление идёт по этому имени.",
         "wh_owner_none": "Владелец не заполнен: этого склада нет в Odoo",
         "wh_serve_h": "Обслуживание",
         "wh_serve_hint": "Страны обслуживания — куда склад отгружает или для кого держит товар; это не то же, что страна нахождения.",
@@ -688,6 +691,9 @@ TR = {
                 "wh_owner_line": "Власник: {o} — з ERP, у Кабінеті не редагується",
         "wh_owner_manual": "Власник: {o} — уточнення від постачання, цього складу в Odoo немає",
         "wh_partner": "Склад партнера: залишки та продажі в розрахунки Кабінету не беремо — ні в залишки, ні в покриття, ні в автозамовлення, ні в перекидання.",
+        "wh_display": "Назва для екрана",
+        "wh_display_help": "Показується замість імені з ERP. Порожньо — показуємо імʼя ERP як є «{n}». Саме імʼя ERP не змінюється: за ним склад зіставляється в залишках, накладних і маршрутах.",
+        "wh_display_erp": "В ERP склад називається «{n}» — зіставлення йде за цим імʼям.",
         "wh_owner_none": "Власника не заповнено: цього складу немає в Odoo",
         "wh_serve_h": "Обслуговування",
         "wh_serve_hint": "Країни обслуговування — куди склад відвантажує або для кого тримає товар; це не те саме, що країна розташування.",
@@ -1073,6 +1079,9 @@ TR = {
                 "wh_owner_line": "Owner: {o} — from ERP, not editable here",
         "wh_owner_manual": "Owner: {o} — confirmed by supply, this warehouse is not in Odoo",
         "wh_partner": "Partner warehouse: its stock and sales are excluded from Kabinet — from stock, coverage, reordering and transfers.",
+        "wh_display": "Display name",
+        "wh_display_help": "Shown instead of the ERP name. Empty means the ERP name «{n}» is shown as is. The ERP name itself does not change: warehouses are matched by it in stock, shipments and routes.",
+        "wh_display_erp": "In ERP this warehouse is called «{n}» — matching goes by that name.",
         "wh_owner_none": "Owner is empty: this warehouse is not in Odoo",
         "wh_serve_h": "Service",
         "wh_serve_hint": "Countries served — where the warehouse ships or holds goods for; not the same as its own country.",
@@ -1498,16 +1507,26 @@ def _section_wh():
             sel = st.selectbox(_tr("wh_pick"), sorted(titles, key=lambda i: str(pool.set_index("id").loc[i, "name"]).lower()),
                                format_func=lambda i: titles[i], key="wh_pick")
             row = wh.set_index("id").loc[sel]
-            attrs = q1("""SELECT owner_company, owner_source, owner_synced_at, long_term_control, is_partner
+            attrs = q1("""SELECT owner_company, owner_source, owner_synced_at, long_term_control,
+                                 is_partner, display_name
                           FROM kabinet_data.warehouse_attributes WHERE warehouse_id = %s""", (int(sel),))
             _owner = attrs["owner_company"].iloc[0] if not attrs.empty else None
             _own_src = attrs["owner_source"].iloc[0] if not attrs.empty else None
             _partner = bool(attrs["is_partner"].iloc[0]) if not attrs.empty and "is_partner" in attrs.columns else False
             _long_term = bool(attrs["long_term_control"].iloc[0]) if not attrs.empty else False
+            _disp = (attrs["display_name"].iloc[0] if not attrs.empty and "display_name" in attrs.columns else None)
+            _disp = "" if _disp is None or pd.isna(_disp) else str(_disp)
             facts = [_type_lbl(row["type"]), str(row["country"] or "—"),
                      _tr("wh_inactive") if row["is_active"] is False else _tr("wh_active")]
-            st.markdown(f'#### {row["name"]}')
+            st.markdown(f'#### {_disp or row["name"]}')
             st.caption(" · ".join(facts))
+            # Имя из ERP правится только в ERP: по `warehouses.name` склады сопоставляются
+            # в остатках, накладных и маршрутах, и переименование у нас порвало бы связи
+            # (так уже было с дублями «Amazon FBA XX»). Поэтому здесь — отдельное имя для экрана.
+            disp_new = st.text_input(_tr("wh_display"), value=_disp, key=f"wh_disp_{sel}",
+                                     placeholder=row["name"], help=_trf("wh_display_help", n=row["name"]))
+            if _disp:
+                st.caption(_trf("wh_display_erp", n=row["name"]))
             # владелец — реквизит ERP (Odoo, stock.warehouse.company_id): в Кабинете только показываем.
             # У складов, которых в Odoo нет (FBA, Piasecznie, Тернополь), значение дало снабжение —
             # подписываем источник, иначе строка обещает ERP там, где её нет.
@@ -1697,6 +1716,12 @@ def _section_wh():
                     for c in set(served_new) - set(_served_now):
                         stmts.append(("INSERT INTO kabinet_data.warehouse_countries (warehouse_id, country_alpha2) VALUES (%s, %s) "
                                       "ON CONFLICT DO NOTHING", (int(sel), c)))
+                if (disp_new or "").strip() != _disp:
+                    _dv = (disp_new or "").strip() or None
+                    stmts.append(("""INSERT INTO kabinet_data.warehouse_attributes (warehouse_id, display_name)
+                                     VALUES (%s, %s)
+                                     ON CONFLICT (warehouse_id) DO UPDATE SET display_name = EXCLUDED.display_name,
+                                       updated_at = now(), updated_by = 'kabinet'""", (int(sel), _dv)))
                 if bool(long_term_new) != bool(_long_term):
                     stmts.append(("""INSERT INTO kabinet_data.warehouse_attributes (warehouse_id, long_term_control)
                                      VALUES (%s, %s)
