@@ -1269,7 +1269,7 @@ def num_text(v, nd: int = 0) -> str:
     рисуется словом «None» при любом типе — Int64 и Float64 с pd.NA, float64 с NaN, object с None.
     Приём «nullable-тип с pd.NA» здесь не работает, поэтому числовые колонки, где бывает пусто,
     показываем текстом, а при сохранении разбираем обратно."""
-    if v is None or (isinstance(v, float) and pd.isna(v)) or (hasattr(v, "__class__") and pd.isna(v) is True):
+    if v is None or (isinstance(v, float) and pd.isna(v)) or bool(pd.isna(v)):
         return ""
     try:
         f = float(v)
@@ -1537,8 +1537,11 @@ def _section_wh():
             _long_term = bool(attrs["long_term_control"].iloc[0]) if not attrs.empty else False
             _disp = (attrs["display_name"].iloc[0] if not attrs.empty and "display_name" in attrs.columns else None)
             _disp = "" if _disp is None or pd.isna(_disp) else str(_disp)
+            # `is False` тут не работал: из pandas приходит `numpy.bool`, а он НЕ тот же объект,
+            # что питоновский `False`. В NumPy 2 он и печатается как «bool», поэтому в отладке
+            # выглядит правильным. Проверка всегда ложна — неактивный склад подписывался «Активен».
             facts = [_type_lbl(row["type"]), as_text(row["country"], "—"),
-                     _tr("wh_inactive") if row["is_active"] is False else _tr("wh_active")]
+                     _tr("wh_active") if bool(row["is_active"]) else _tr("wh_inactive")]
             st.markdown(f'#### {_disp or row["name"]}')
             st.caption(" · ".join(facts))
             # Имя из ERP правится только в ERP: по `warehouses.name` склады сопоставляются
@@ -3753,7 +3756,7 @@ def _section_matrix():
             mid = None if pd.isna(r["marketplace_id"]) else int(r["marketplace_id"])
             if r["level"] == "marketplace" and (r["platform"], r["sku"]) not in _active_pl: return "blocked_platform"
             if _restricted(r["sku"], r["platform"], mid): return "blocked_restricted"
-            if r["sku"] in _sku_by.index and _sku_by.at[r["sku"], "is_active"] is False: return "blocked_inactive"
+            if r["sku"] in _sku_by.index and not bool(_sku_by.at[r["sku"], "is_active"]): return "blocked_inactive"
             if r["sku"] in _sku_by.index and pd.notna(_sku_by.at[r["sku"], "exit_date"]) and _sku_by.at[r["sku"], "exit_date"] <= date.today(): return "selloff"
             return "active"
         am["status"] = am.apply(_status, axis=1)
@@ -3999,7 +4002,7 @@ def _section_matrix():
             srow = _sku_by.loc[sku]
             if pd.isna(srow["intro_date"]): errs.append(_tr("am_add_no_intro"))
             if pd.notna(srow["exit_date"]): errs.append(_tr("am_add_exited"))
-            if srow["is_active"] is False: errs.append(_tr("am_add_sku_inactive"))
+            if not bool(srow["is_active"]): errs.append(_tr("am_add_sku_inactive"))
             if _restricted(sku, platform, mid): errs.append(_tr("am_add_restricted"))
             if comp and srow["sku_type"] == "composite": errs.append(_tr("am_add_comp_composite"))
             if comp and level == "platform": errs.append(_tr("am_rej_comp_platform_short"))
@@ -4130,7 +4133,7 @@ def _section_matrix():
                 ent = q1("SELECT peid, is_parent, is_active, variation_group_id FROM kabinet_data.product_entities WHERE marketplace_id = %s AND peid = %s", (mid_, ra_peid)) if ra_peid else pd.DataFrame()
                 if ra_peid and ent.empty: errs.append(_trf("am_repr_peid_not_on_mp", peid=ra_peid, mp=ra_mp))     # PeID должен относиться к этому marketplace (§8)
                 elif not ent.empty and bool(ent.at[0, "is_parent"]): errs.append(_tr("am_repr_peid_parent"))
-                elif not ent.empty and ent.at[0, "is_active"] is False: errs.append(_tr("am_repr_peid_inactive"))
+                elif not ent.empty and not bool(ent.at[0, "is_active"]): errs.append(_tr("am_repr_peid_inactive"))
                 if ra_peid:
                     # один PeID одновременно представляет один SKU в marketplace (§5) — блокируем с указанием SKU A
                     busy = q1(f"SELECT a.sku FROM {AR} r JOIN {AA} a ON a.id = r.admission_id WHERE r.marketplace_id = %s AND r.peid = %s AND r.valid_to IS NULL", (mid_, ra_peid))

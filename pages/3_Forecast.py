@@ -741,7 +741,7 @@ def sale_blocks(doc, skus, active: set, former: set) -> dict:
         r = known.get(sku)
         if r is None:
             out[sku] = _tr("why_unknown")
-        elif r.is_active is False:
+        elif not bool(r.is_active):
             out[sku] = _tr("why_inactive")
         elif codes & set(r.restr or []):
             out[sku] = _tr("why_restricted")
