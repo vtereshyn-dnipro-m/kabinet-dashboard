@@ -21,6 +21,7 @@ import streamlit as st
 
 from i18n import init_lang, get_lang
 from db.connection import get_connection
+from util import as_text
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1489,9 +1490,15 @@ def _section_wh():
         """) if has_table("kabinet_data.pools") else pd.DataFrame(columns=["id", "name", "country", "members"])
         # варианты привязки: ('marketplace', id) → (подпись, короткая подпись, страны); у пула страны — всех участников
         # (по ТЗ 004 пул одностранный, но фильтр по стране не должен терять пул, если это когда-нибудь изменится)
-        targets = {("marketplace", int(r["id"])): (f'{r["code"]} · {r["name"]}', r["code"], {r["country"]} if r["country"] else set()) for _, r in mp.iterrows()}
-        targets.update({("pool", int(r["id"])): (f'{_tr("t_pool")} {r["name"]} ({r["members"] or "—"})', f'{_tr("t_pool")} {r["name"]}',
-                                                 set((r["country"] or "").split(",")) - {""}) for _, r in pools_df.iterrows()})
+        # Пул БЕЗ действующих участников — реальный случай с 28.09.2026 (Spain распущен): LEFT JOIN
+        # не находит ни одной строки, `string_agg` по пустой группе возвращает NULL, а pandas отдаёт
+        # его как NaN. `NaN or ""` даёт сам NaN (NaN в Python истинен), и `.split()` падает
+        # AttributeError — так упала вкладка «Склады». Приведение только через `as_text`.
+        targets = {("marketplace", int(r["id"])): (f'{r["code"]} · {r["name"]}', r["code"],
+                                                   {as_text(r["country"])} - {""}) for _, r in mp.iterrows()}
+        targets.update({("pool", int(r["id"])): (f'{_tr("t_pool")} {r["name"]} ({as_text(r["members"], "—")})',
+                                                 f'{_tr("t_pool")} {r["name"]}',
+                                                 set(as_text(r["country"]).split(",")) - {""}) for _, r in pools_df.iterrows()})
         WP = "kabinet_data.warehouse_priorities"
         prios = q(f"SELECT warehouse_id, priority, target_type, target_id FROM {WP}") if has_table(WP) else pd.DataFrame(columns=["warehouse_id", "priority", "target_type", "target_id"])
         prio_by_wh = {int(k): {int(r.priority): (r.target_type, int(r.target_id)) for r in g.itertuples()} for k, g in prios.groupby("warehouse_id")}
@@ -1530,7 +1537,7 @@ def _section_wh():
             _long_term = bool(attrs["long_term_control"].iloc[0]) if not attrs.empty else False
             _disp = (attrs["display_name"].iloc[0] if not attrs.empty and "display_name" in attrs.columns else None)
             _disp = "" if _disp is None or pd.isna(_disp) else str(_disp)
-            facts = [_type_lbl(row["type"]), str(row["country"] or "—"),
+            facts = [_type_lbl(row["type"]), as_text(row["country"], "—"),
                      _tr("wh_inactive") if row["is_active"] is False else _tr("wh_active")]
             st.markdown(f'#### {_disp or row["name"]}')
             st.caption(" · ".join(facts))
@@ -2042,7 +2049,7 @@ def _section_mp():
                           WHERE pm.marketplace_id = %s AND (pm.valid_to IS NULL OR pm.valid_to > CURRENT_DATE)
                           GROUP BY p.name""", (int(sel),))
             for _, pr in pools.iterrows():
-                others = [x.strip() for x in (pr["countries"] or "").split(",") if x.strip()]
+                others = [x.strip() for x in as_text(pr["countries"]).split(",") if x.strip()]
                 if any(o != new_ctry for o in others):
                     errs.append(_trf("mp_pool_country", pool=pr["name"], countries=", ".join(others)))
         if bool(new_esys) != bool(new_eid):
