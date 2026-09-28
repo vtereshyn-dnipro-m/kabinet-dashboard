@@ -19,6 +19,11 @@
 
 BEGIN;
 
+
+-- Тело ниже — то, что РЕАЛЬНО лежит в базе: владелец собирал функцию по описанию, а не из
+-- этого файла, и записал два RAISE через IF/ELSE вместо одного с CASE. Поведение то же
+-- (сверено по каталогу и девятью проверками на живой таблице), но файл должен совпадать с
+-- базой дословно — иначе следующий, кто его прогонит, тихо перепишет чужую формулировку.
 CREATE OR REPLACE FUNCTION kabinet_data.pool_member_single_pool() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -26,15 +31,11 @@ DECLARE
     _from date;
     _to   date;
     _mp   text;
-    _same boolean;
 BEGIN
-    -- перевёрнутые даты проверяем ЗДЕСЬ: BEFORE-триггер срабатывает раньше CHECK, и
-    -- daterange() упал бы сообщением про диапазон, а не про членство в пуле
     IF NEW.valid_to IS NOT NULL AND NEW.valid_to < NEW.valid_from THEN
         RAISE EXCEPTION 'Дата окончания участия (%) раньше даты начала (%)', NEW.valid_to, NEW.valid_from;
     END IF;
 
-    -- условия «другой пул» больше нет: пересечение запрещено в любом пуле, в том числе в своём
     SELECT p.pool_id, p.valid_from, p.valid_to INTO _other_pool, _from, _to
     FROM kabinet_data.pool_members p
     WHERE p.marketplace_id = NEW.marketplace_id
@@ -45,14 +46,15 @@ BEGIN
 
     IF FOUND THEN
         SELECT code INTO _mp FROM kabinet_data.marketplaces_new WHERE id = NEW.marketplace_id;
-        _same := (_other_pool = NEW.pool_id);
-        RAISE EXCEPTION
-            'Маркетплейс % уже состоит в пуле % с % по %. Периоды членства пересекаются: %',
-            COALESCE(_mp, NEW.marketplace_id::text), _other_pool, _from, COALESCE(_to::text, 'без срока'),
-            CASE WHEN _same
-                 THEN 'повторное участие в том же пуле возможно только с даты после закрытия прежнего.'
-                 ELSE 'по ТЗ 004 маркетплейс не может состоять в двух действующих пулах — сначала закройте прежнее участие датой.'
-            END;
+        IF _other_pool = NEW.pool_id THEN
+            RAISE EXCEPTION
+                'Маркетплейс % уже состоит в этом пуле с % по %. Периоды участия в одном пуле не могут пересекаться.',
+                COALESCE(_mp, NEW.marketplace_id::text), _from, COALESCE(_to::text, 'без срока');
+        ELSE
+            RAISE EXCEPTION
+                'Маркетплейс % уже состоит в пуле % с % по %. По ТЗ 004 маркетплейс не может состоять в двух действующих пулах: сначала закройте прежнее участие датой.',
+                COALESCE(_mp, NEW.marketplace_id::text), _other_pool, _from, COALESCE(_to::text, 'без срока');
+        END IF;
     END IF;
     RETURN NEW;
 END;
