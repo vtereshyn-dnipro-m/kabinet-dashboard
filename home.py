@@ -592,6 +592,18 @@ else:
               help=passport.tip("home", "units", t("home.kpi.units_help")))
     s4.metric(t("home.kpi.markets"), f"{cur['marketplace'].nunique()}",
           help=passport.tip("home", "channels"))
+    # «По какое число» — подписью, а не только в подсказке ⓘ. Еженедельная сверка с внешним
+    # отчётом расходилась ровно на один день (28.09.2026: отчёт за 1–26.09 против наших 1–27.09,
+    # три рынка из четырёх сошлись до евро), и пока дата не написана рядом с цифрой, этот вопрос
+    # возвращается каждую неделю. Источников у ряда два, и даты у них разные, поэтому когда они
+    # расходятся — называем обе: карточка «Продажи по заказам» живёт на витрине S&T,
+    # выручка и маржа — на экономике, и экономика обычно отстаёт на день.
+    if pd.notna(_o_to) or pd.notna(_m_to):
+        if _spans_differ:
+            st.caption(t("home.kpi.as_of_split", o=_o_to.strftime("%d.%m"), m=_m_to.strftime("%d.%m")))
+        else:
+            _as_of = _m_to if pd.notna(_m_to) else _o_to
+            st.caption(t("home.kpi.as_of", d=_as_of.strftime("%d.%m")))
     if rev_cur and _no_cogs_rev > 0.5:
         st.caption(t("home.kpi.margin_partial", rev=f"{_no_cogs_rev:,.0f}", pct=f"{_no_cogs_rev / rev_cur * 100:.0f}",
                      known=f"{_rev_known / rev_cur * 100:.0f}"))
@@ -836,6 +848,9 @@ else:
         for c in ("plan", "expected", "fact"):
             _pt[c] = _pt[c].round(0)
         _pt["skus"] = pd.to_numeric(_pt["skus"], errors="coerce").astype("Int64")
+        # срезаем по верхней границе шкалы, как в «Деньгах»: без этого значение за пределами
+        # max_value отдаётся виджету как есть и полоса упирается в край
+        _pt["done"] = [None if pd.isna(v) else min(200.0, float(v)) for v in _pt["done"]]
         # в разрезе «По стране» строка узла — единственная, колонка «Маркетплейс» сплошь «итого» — не показываем
         _has_mp = _mode != "country"
         _cols = [c for c in (["group", "name", "unit", "plan", "expected", "fact", "done", "pace", "skus", "sub"] if _units
@@ -852,8 +867,11 @@ else:
                          "expected": st.column_config.NumberColumn(t("home.plan.col_expected"), format="%,.0f",
                                                                    help=t("home.plan.col_expected_help")),
                          "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%,.0f"),
+                         # шкала до 200 %, как в «Деньгах»: при max_value=100 строка со 148 %
+                         # рисовала полосу ровно той же длины, что строка со 100 %, и перевыполнение
+                         # от выполнения на глаз не отличалось (проверено рендером 28.09.2026)
                          "done": st.column_config.ProgressColumn(t("home.plan.col_done"), format="%.0f%%",
-                                                                 min_value=0, max_value=100),
+                                                                 min_value=0, max_value=200),
                          "pace": st.column_config.TextColumn(t("home.plan.col_pace"),
                                                              help=t("home.plan.col_pace_help")),
                          "skus": st.column_config.NumberColumn(t("home.plan.col_skus"), format="%d"),
