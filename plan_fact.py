@@ -204,9 +204,15 @@ SQL_MONTH = """
         FROM kabinet_data.v_forecast_current WHERE month = %(m0)s
         GROUP BY 1, 2, 3
     ),
+    -- Состав пула — только ДЕЙСТВУЮЩИЕ участники, период полуоткрытый [valid_from, valid_to):
+    -- без фильтра сюда попадали и закрытые членства, и у распущенного пула страна с составом
+    -- брались из истории. `has_amz` — есть ли в пуле хоть один рынок Amazon.
     pool_country AS (
-        SELECT pm.pool_id, MIN(m.country_alpha2) AS country, array_agg(m.code ORDER BY m.code) AS members
-        FROM kabinet_data.pool_members pm JOIN mp m ON m.id = pm.marketplace_id GROUP BY pm.pool_id
+        SELECT pm.pool_id, MIN(m.country_alpha2) AS country, array_agg(m.code ORDER BY m.code) AS members,
+               bool_or(m.platform_short = 'AMZ') AS has_amz
+        FROM kabinet_data.pool_members pm JOIN mp m ON m.id = pm.marketplace_id
+        WHERE pm.valid_from <= current_date AND (pm.valid_to IS NULL OR pm.valid_to > current_date)
+        GROUP BY pm.pool_id
     )
     SELECT 'marketplace' AS kind, mp.id, mp.code, mp.name, mp.platform_short AS platform, mp.country_alpha2 AS country,
            NULL::text[] AS members,
@@ -220,7 +226,8 @@ SQL_MONTH = """
     UNION ALL
     SELECT 'pool', p.object_id, p.object_name, p.object_name, NULL, pc.country, pc.members,
            0, 0, 0, NULL, p.plan_units, p.plan_rev, p.plan_skus, true
-    FROM plan p JOIN pool_country pc ON pc.pool_id = p.object_id WHERE p.object_type = 'pool'
+    FROM plan p JOIN pool_country pc ON pc.pool_id = p.object_id
+    WHERE p.object_type = 'pool' AND pc.has_amz
 """
 
 
@@ -278,6 +285,12 @@ def month_view(df: pd.DataFrame, mode: str, today: date) -> tuple:
     # периметр — рынки Amazon с планом ИЛИ с отгрузками в этом месяце: страны без плана (BE, GB)
     # отдельными строками с нулевым планом. Каналов Mirakl здесь нет: план только по Amazon,
     # и с ними итог блока расходился с карточкой на их продажи (20.09.2026, третье расхождение).
+    # Пул попадает в блок, только если в нём есть рынок Amazon (`has_amz` в SQL): у ветки пула
+    # факт зашит нулём, поэтому план пула из одних каналов Mirakl прибавился бы к плану страны,
+    # а факта под ним не появилось бы. Замер 28.09.2026 на плане листа LM/MM/CF: октябрьский итог
+    # блока 3 023 → 3 472 шт и 186 509 → 216 872 €, строка ES — план 2 297 при факте 0, и сама
+    # страна рисуется дважды (узел + AMZ-ES), потому что непустой пул отключает сокращение
+    # «узел из одного маркетплейса — одна строка».
     # Периметр тот же, а основание с 27.09 другое — дата отгрузки, — поэтому равенства с карточкой
     # уже не ждём: подпись под таблицей называет причину и порядок расхождения
     in_scope = mps[mps["plan_units"].notna() | (mps["fact_units"] > 0) | (mps["fact_rev"] > 0)]
