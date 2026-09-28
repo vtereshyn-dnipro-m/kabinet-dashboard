@@ -612,6 +612,31 @@ TRANSLATIONS = {
     },
     "stock.cov.col_first_deficit": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Shortage from"},
     "stock.cov.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "stock.cov.col_country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "stock.cov.col_wh": {"ru": "Склад продаж", "uk": "Склад продажів", "en": "Sales warehouse"},
+    "stock.cov.col_wh_help": {
+        "ru": "Склады, привязанные к этому маркетплейсу в справочнике складов. Прочерк — привязки "
+              "нет; это не значит, что товар отгружать неоткуда, значит — связь не заведена.",
+        "uk": "Склади, привʼязані до цього маркетплейсу в довіднику складів. Прочерк — привʼязки "
+              "немає; це не означає, що товар нема звідки відвантажувати, означає — звʼязок не заведено.",
+        "en": "Warehouses linked to this marketplace in the warehouse register. A dash means no link "
+              "is set up — not that there is nowhere to ship from."},
+    "stock.cov.col_months": {"ru": "Покрытие, мес", "uk": "Покриття, міс", "en": "Cover, months"},
+    "stock.cov.col_months_help": {
+        "ru": "Те же недели, что в соседней колонке, делённые на 4,33. Считается именно от неё, "
+              "а не от отдельной колонки расчёта: два числа об одном и том же обязаны сходиться.",
+        "uk": "Ті самі тижні, що в сусідній колонці, поділені на 4,33. Рахується саме від неї, "
+              "а не від окремої колонки розрахунку: два числа про одне й те саме мають збігатися.",
+        "en": "The same weeks as in the column beside it, divided by 4.33. Derived from that column "
+              "rather than from a separate one: two numbers about the same thing must agree."},
+    "stock.cov.col_next_gap": {"ru": "Следующий дефицит", "uk": "Наступний дефіцит", "en": "Next gap"},
+    "stock.cov.col_next_gap_help": {
+        "ru": "Когда дефицит вернётся ПОСЛЕ первого — начало второй товарной дыры. Первая уже "
+              "показана колонкой слева, и повторять её нечего; ценно то, что проблема приходит снова.",
+        "uk": "Коли дефіцит повернеться ПІСЛЯ першого — початок другої товарної дірки. Перша вже "
+              "показана колонкою ліворуч; цінне те, що проблема приходить знову.",
+        "en": "When the shortage returns AFTER the first one — the start of the second gap. The first "
+              "is already in the column to the left; what matters here is that the problem comes back."},
     "stock.cov.st_not_calculated": {
         "ru": "Потребность не рассчитана", "uk": "Потребу не розраховано", "en": "Demand not calculated"},
     "stock.cov.not_calculated_note": {

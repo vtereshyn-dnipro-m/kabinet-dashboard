@@ -1,4 +1,5 @@
 # pages/1_Stock.py — Остатки: аналитический дашборд
+import json
 import re
 import pandas as pd
 import numpy as np
@@ -930,6 +931,33 @@ with tab_cov:
                 + " " + t("stock.cov.col_shared_suffix"),
                 "—")
 
+            # Страна и склад продаж (ТЗ §10.5). Страна — из справочника, а не из кода рынка;
+            # складов у рынка бывает несколько, поэтому склеиваем через запятую, а не берём первый.
+            cview["country"] = [_mp_country.get(m, m) for m in cview["marketplace"]]
+            cview["warehouse"] = [", ".join(sorted(_wh_map.get(m, []))) or "—"
+                                  for m in cview["marketplace"]]
+            # Покрытие в месяцах (ТЗ §4: «пользователь видит покрытие в неделях и месяцах»).
+            # Считаем от той же реалистичной цифры, что стоит в колонке недель, а не от собственной
+            # колонки coverage_months: та посчитана по покрытию FBA и с недельной колонкой рядом
+            # расходилась бы, а два числа об одном и том же обязаны сходиться.
+            cview["cover_months"] = [
+                "—" if pd.isna(w) else f"{float(w) / 4.33:.1f}"
+                for w in cview["realistic_coverage_weeks"]]
+
+            def _next_gap(detail):
+                """Дата, когда дефицит вернётся ПОСЛЕ первого: начало второй дыры.
+                Первая дыра уже показана колонкой «Первый дефицит», и повторять её бессмысленно —
+                ценно как раз то, что после закрытия первой проблема приходит снова."""
+                try:
+                    gaps = json.loads(detail) if isinstance(detail, str) else (detail or [])
+                except Exception:
+                    return "—"
+                if not isinstance(gaps, list) or len(gaps) < 2:
+                    return "—"
+                d = pd.to_datetime(gaps[1].get("start"), errors="coerce")
+                return "—" if pd.isna(d) else d.strftime("%d.%m.%Y")
+            cview["next_gap"] = [_next_gap(x) for x in cview.get("gaps_detail", pd.Series([None] * len(cview)))]
+
             # ASIN в coverage_summary нет — добираем по артикулу из общего
             # справочника, чтобы из таблицы можно было открыть карточку
             # Норматив покрытия (ТЗ «Остатки» §9): что применилось к строке и куда она попала
@@ -959,16 +987,16 @@ with tab_cov:
             _ref = ["plan_weekly", "velocity_weekly"] if basis == "plan" else ["velocity_weekly"]
             _ref = [c for c in _ref if c in cview.columns]
             if _bare:
-                _cov_cols = ["photo", "sku", "asin_url", "product_name", "marketplace",
-                             "available_now", "fbm_fallback_qty"] + _ref + ["odoo_incoming_qty"]
+                _cov_cols = ["photo", "sku", "asin_url", "product_name", "country", "marketplace",
+                             "warehouse", "available_now", "fbm_fallback_qty"] + _ref + ["odoo_incoming_qty"]
             else:
                 _cov_cols = ["photo", "sku", "asin_url", "product_name",
-                         "marketplace",
+                         "country", "marketplace", "warehouse",
                          "available_now"] + _ref + [
                          "weeks_until_first_gap", "coverage_weeks",
                          "fbm_fallback_qty", "total_coverage_weeks",
-                         "shared_note", "realistic_coverage_weeks",
-                         "first_deficit_week", "gaps_count", "gaps_total_qty",
+                         "shared_note", "realistic_coverage_weeks", "cover_months",
+                         "first_deficit_week", "next_gap", "gaps_count", "gaps_total_qty",
                          "odoo_incoming_qty"]
             # поставки в наши фирменные магазины — отдельным числом: на склад они не приедут,
             # и в одной сумме с нашим приходом читались как «товар едет к нам» (25.09.2026)
@@ -986,8 +1014,19 @@ with tab_cov:
                     "asin_url": catalog.asin_column(),
                     "product_name": st.column_config.TextColumn(
                         t("stock.ctr.col_product"), width="medium"),
+                    "country": st.column_config.TextColumn(
+                        t("stock.cov.col_country"), width="small"),
                     "marketplace": st.column_config.TextColumn(
                         t("stock.cov.col_mp"), width="small"),
+                    "warehouse": st.column_config.TextColumn(
+                        t("stock.cov.col_wh"), width="medium",
+                        help=t("stock.cov.col_wh_help")),
+                    "cover_months": st.column_config.TextColumn(
+                        t("stock.cov.col_months"), width="small",
+                        help=t("stock.cov.col_months_help")),
+                    "next_gap": st.column_config.TextColumn(
+                        t("stock.cov.col_next_gap"), width="small",
+                        help=t("stock.cov.col_next_gap_help")),
                     "available_now": st.column_config.NumberColumn(
                         t("stock.cov.col_stock"), width="small"),
                     "plan_weekly": st.column_config.NumberColumn(
