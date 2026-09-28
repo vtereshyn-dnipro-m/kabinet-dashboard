@@ -612,6 +612,10 @@ TRANSLATIONS = {
     },
     "stock.cov.col_first_deficit": {"ru": "Дефицит с", "uk": "Дефіцит з", "en": "Shortage from"},
     "stock.cov.col_status": {"ru": "Статус", "uk": "Статус", "en": "Status"},
+    "stock.cov.filter_all": {"ru": "все", "uk": "усі", "en": "all"},
+    "stock.cov.shared_one": {"ru": "страна", "uk": "країна", "en": "country"},
+    "stock.cov.shared_few": {"ru": "страны", "uk": "країни", "en": "countries"},
+    "stock.cov.shared_many": {"ru": "стран", "uk": "країн", "en": "countries"},
     "stock.cov.col_country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
     "stock.cov.col_wh": {"ru": "Склад продаж", "uk": "Склад продажів", "en": "Sales warehouse"},
     "stock.cov.col_wh_help": {
@@ -1779,10 +1783,22 @@ TRANSLATIONS = {
     },
     "ro.order.col_planned": {"ru": "План снабжения", "uk": "План постачання", "en": "Supply plan"},
     "ro.order.col_planned_help": {
-        "ru": "Запланировано к отправке в Испанию по листу Poland-Spain (снабжение), но ещё не отгружено. Из «Заказать» вычтено.",
-        "uk": "Заплановано до відправки в Іспанію за листом Poland-Spain (постачання), але ще не відвантажено. Із «Замовити» віднято.",
-        "en": "Planned for shipment to Spain per the Poland-Spain supply sheet, not yet shipped. Deducted from “Order”.",
+        "ru": "Уже заказано и едет к нам, но ещё не пришло. Источник — незакрытые заказы Odoo на "
+              "мадридский склад и на Amazon FBA (без заказов партнёра, магазинов и склада запчастей); "
+              "лист Poland-Spain остался запасным, берётся большее из двух. Из «Заказать» вычтено, "
+              "чтобы не заказать второй раз то же самое.",
+        "uk": "Уже замовлено і їде до нас, але ще не прийшло. Джерело — незакриті замовлення Odoo на "
+              "мадридський склад і на Amazon FBA (без замовлень партнера, магазинів і складу запчастин); "
+              "лист Poland-Spain лишився запасним, береться більше з двох. Із «Замовити» віднято, "
+              "щоб не замовити вдруге те саме.",
+        "en": "Already ordered and on its way, not yet received. Source — open Odoo purchase orders to "
+              "the Madrid warehouse and Amazon FBA (excluding the partner, the shops and the spares "
+              "warehouse); the Poland-Spain sheet is the fallback, the larger of the two is used. "
+              "Deducted from “Order” so the same goods are not ordered twice.",
     },
+    "ro.lead.pl": {"ru": "Польша", "uk": "Польща", "en": "Poland"},
+    "ro.lead.ua": {"ru": "Украина", "uk": "Україна", "en": "Ukraine"},
+    "ro.lead.supplier": {"ru": "поставщик", "uk": "постачальник", "en": "supplier"},
     "ro.order.col_quarantine": {"ru": "Ожидает проверки", "uk": "Очікує перевірки", "en": "Awaiting check"},
     "ro.order.col_quarantine_help": {
         "ru": "Лежит на карантинном складе: пришло, ждёт проверки, через несколько недель станет доступным. В обеспечении не участвует, но из «Заказать» вычтено.",
@@ -1806,7 +1822,8 @@ TRANSLATIONS = {
             "(Польша / Украина / поставщик) из справочника маршрутов\n"
             "- **Заказать** — покрыть спрос на 60 дней минус остаток, минус то, что "
             "уже едет, минус то, что ждёт проверки на карантине, минус план снабжения "
-            "(лист Poland-Spain)\n\n"
+            "(незакрытые заказы Odoo на Мадрид и FBA; лист Poland-Spain — запасной источник, "
+            "берётся большее из двух)\n\n"
             "Сначала система предлагает переброску (свои склады → FBA), "
             "потом заказ у поставщика на то, что переброской не закрыть. "
             "Карантин донором не бывает — товар ещё не проверен."
