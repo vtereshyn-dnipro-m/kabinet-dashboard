@@ -216,12 +216,20 @@ def current() -> User:
     return u
 
 
-def _from_login() -> User:
+def _logged_in():
+    """True / False / None, где None — «OAuth не настроен».
+
+    Отдельной функцией, потому что об этом спрашивают два места, и потому что
+    локальная проверка экрана входа подменяет именно её: секретов `[auth]` на машине
+    разработчика нет, а посмотреть на экран надо."""
     try:
-        logged = bool(st.user.is_logged_in)
+        return bool(st.user.is_logged_in)
     except Exception:
-        logged = False
-    if not logged:
+        return None
+
+
+def _from_login() -> User:
+    if not _logged_in():
         return User(role=VIEWER, logged_in=False)
     email = as_text(getattr(st.user, "email", "")).strip().lower()
     name = as_text(getattr(st.user, "name", "")).strip()
@@ -314,6 +322,22 @@ def actor() -> str:
 
 
 # ---------- экраны ----------
+def _screen(page_fn, title):
+    """Показать ОДНУ страницу и ничего больше.
+
+    Без этого Streamlit, не увидев `st.navigation` (а `guard()` останавливает прогон
+    раньше него), собирает навигацию сам из папки `pages/` — и невошедшему видно всё
+    оглавление Кабинета: Stock, Money, Forecast, Access. Страницы при этом не
+    исполняются и данных не отдают, но показывать устройство системы тому, кого мы
+    только что не пустили, незачем.
+
+    Навигация из одной страницы с `position="hidden"` убирает список целиком:
+    проверено на минимальном примере — имён страниц нет и в разметке, то есть это
+    отсутствие, а не сокрытие стилями."""
+    st.navigation([st.Page(page_fn, title=title)], position="hidden").run()
+    st.stop()
+
+
 def _login_screen():
     """Экран входа: переключатель языка на нём свой, потому что человек ещё не внутри
     и сайдбара с общим переключателем не видит. По умолчанию английский —
@@ -337,7 +361,6 @@ def _login_screen():
         st.caption(texts["only"])
         if st.button(texts["button"], type="primary", width="stretch"):
             st.login()
-        st.stop()
 
 
 def _denied_screen(email):
@@ -351,7 +374,6 @@ def _denied_screen(email):
         st.caption(texts["only"])
         if st.button(texts["logout"], width="stretch"):
             st.logout()
-    st.stop()
 
 
 # Тексты экрана входа держим здесь, а не в общем словаре: до входа язык интерфейса
@@ -388,23 +410,25 @@ def guard():
     В режимах 2 и 0 не спрашивает ничего: на раскатке всё как было, в аварии все
     получают «Просмотр». Вход спрашивается только в режиме 1."""
     m = mode()
+    # замечаем смену режима в ЛЮБОМ режиме, до всякого ветвления: переход в аварийный
+    # ноль надо увидеть ровно так же, как включение входа
+    _note_mode(m)
     if m != MODE_ON:
         return
-    try:
-        logged = bool(st.user.is_logged_in)
-    except Exception:
+    logged = _logged_in()
+    if logged is None:
         # секреты [auth] не настроены — сказать об этом прямо лучше, чем пустить всех
-        st.error(t("auth.no_oauth"))
-        st.stop()
+        _screen(lambda: st.error(t("auth.no_oauth")), "Sign in")
+        return
     if not logged:
-        _login_screen()
+        _screen(_login_screen, "Sign in")
         return
     email = as_text(getattr(st.user, "email", "")).strip().lower()
     row = _load_user(email)
     if not _allowed_to_enter(email, row):
         _log_login(email, "denied_disabled" if row is not None else "denied_domain",
                    "строка отключена" if row is not None else "домен вне списка")
-        _denied_screen(email)
+        _screen(lambda: _denied_screen(email), "Access")
         return
     # первый вход заводит человека с ролью «Просмотр» и уведомляет администраторов
     if row is None:
@@ -418,30 +442,93 @@ def guard():
         st.session_state["_auth_touched"] = True
 
 
+def _telegram(text: str):
+    """Отправка в общий канал. Токен — в скоупе `kabinet-alerts`, читаем его тем же
+    принципалом, что и базу; копии в `st.secrets` нет намеренно."""
+    import base64
+    import requests
+    from db.connection import get_workspace_client
+    w = get_workspace_client()
+    token = base64.b64decode(
+        w.secrets.get_secret(scope="kabinet-alerts", key="telegram-bot-token").value).decode()
+    chat = base64.b64decode(
+        w.secrets.get_secret(scope="kabinet-alerts", key="telegram-chat-id").value).decode()
+    requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                  json={"chat_id": chat, "text": text, "parse_mode": "HTML"}, timeout=10)
+
+
 def notify_new_user(email, name):
     """Telegram администраторам о новом человеке.
 
-    Токен лежит в скоупе `kabinet-alerts`, и принципалу приложения READ на него нужен
-    отдельно. Без гранта отправка молча не выходит — поэтому неудача пишется в журнал
-    действий, а сторож досылает такие уведомления сам: канал не должен молчать только
-    потому, что грант забыли выдать."""
+    Неудачу кладём в журнал действий, а не глотаем: сторож досылает такие уведомления
+    сам, и канал не должен молчать только потому, что грант на скоуп забыли выдать."""
     try:
-        import base64
-        import requests
-        from db.connection import get_workspace_client
-        w = get_workspace_client()
-        token = base64.b64decode(
-            w.secrets.get_secret(scope="kabinet-alerts", key="telegram-bot-token").value).decode()
-        chat = base64.b64decode(
-            w.secrets.get_secret(scope="kabinet-alerts", key="telegram-chat-id").value).decode()
-        text = (f"👤 Новый человек в Кабинете: {name or ''} &lt;{email}&gt;\n"
-                f"Роль «Просмотр», действий нет. Назначить роль и страны — "
-                f"«Справочники → Доступ».")
-        requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                      json={"chat_id": chat, "text": text, "parse_mode": "HTML"}, timeout=10)
+        _telegram(f"👤 Новый человек в Кабинете: {name or ''} &lt;{email}&gt;\n"
+                  f"Роль «Просмотр», действий нет. Назначить роль и страны — "
+                  f"«Справочники → Доступ».")
         log_action("notify_new_user", True, "user", email, "отправлено приложением")
     except Exception as e:
         log_action("notify_new_user", False, "user", email,
+                   f"приложение не отправило: {type(e).__name__}: {str(e)[:120]}")
+
+
+@st.cache_data(ttl=60)
+def _journaled_mode():
+    """Режим, записанный в журнале последним. None — записи ещё нет.
+
+    Порядок по `ts DESC, id DESC`, а не по одному `ts`: `now()` в Postgres — время
+    НАЧАЛА транзакции, у строк одной транзакции оно совпадает до микросекунды, и
+    «последняя» выбиралась бы произвольно."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT details FROM kabinet_data.app_action_log
+                            WHERE action = 'auth_mode' ORDER BY ts DESC, id DESC LIMIT 1""")
+            row = cur.fetchone()
+        if not row or not row[0]:
+            return None
+        import re
+        m = re.search(r"режим (\d+)", row[0])
+        return int(m.group(1)) if m else None
+    except Exception:
+        return None
+    finally:
+        conn.close()
+
+
+def _note_mode(m: int):
+    """Смену режима замечает и приложение — при первом же открытии страницы.
+
+    Флаг правят ПРЯМО В БАЗЕ, и перехватить сам `UPDATE` нельзя, поэтому замечают
+    двое: здесь и сторож на своём прогоне. Запись одна на смену состояния, а не на
+    каждый прогон, иначе в чат уходило бы «режим 2» каждую минуту. Гонка между
+    приложением и сторожем безобидна: кто записал первым, у второго сравнение уже
+    сходится, и второго сообщения нет."""
+    last = _journaled_mode()
+    if last == m:
+        return
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""INSERT INTO kabinet_data.app_action_log
+                               (email, role, action, allowed, details)
+                           VALUES (NULL, NULL, 'auth_mode', true, %s)""",
+                        (f"режим {m}" + (f", было {last}" if last is not None else ", первая запись"),))
+        conn.commit()
+    except Exception:
+        return
+    finally:
+        conn.close()
+    _journaled_mode.clear()
+    if last is None:
+        return  # первая запись — это не «изменение», сообщать не о чем
+    words = {MODE_ROLLOUT: "раскатка — входа нет, кнопки у всех",
+             MODE_ON: "вход обязателен, роли работают",
+             MODE_OFF: "АВАРИЯ — входа нет, у всех «Просмотр»"}
+    try:
+        _telegram(f"🔑 Режим входа изменён: {last} → {m} ({words.get(m, '?')})")
+    except Exception as e:
+        log_action("auth_mode_notify", False, "mode", str(m),
                    f"приложение не отправило: {type(e).__name__}: {str(e)[:120]}")
 
 
