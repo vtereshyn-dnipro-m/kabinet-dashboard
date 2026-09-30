@@ -586,8 +586,7 @@ k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric(t("stock.kpi.total_sku"), f["sku"].nunique(),
           help=passport.tip("stock", "stock"))
 k2.metric(t("stock.kpi.countries"), f["location"].nunique(),
-          help=passport.tip("stock", "countries"),
-          help=t("stock.kpi.countries_help"))
+          help=passport.tip("stock", "countries", t("stock.kpi.countries_help")))
 k3.metric(t("stock.kpi.total_qty"), int(f["quantity"].sum()),
           help=t("stock.kpi.total_qty_help"))
 k4.metric(t("stock.kpi.median"),
