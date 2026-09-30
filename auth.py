@@ -210,7 +210,7 @@ def log_action(action, allowed, object_type=None, object_id=None, details=""):
                 INSERT INTO kabinet_data.app_action_log
                     (email, role, action, object_type, object_id, allowed, details)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (u.email or None, u.role, action, object_type,
+            """, (u.actor, u.role, action, object_type,
                   None if object_id is None else str(object_id), allowed, details or None))
         conn.commit()
     except Exception:
@@ -567,9 +567,11 @@ def _note_mode(m: int):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            # подписываемся приложением: смену заметил не человек, а код, и приписывать
+            # её кому-то из людей значило бы сказать, что он её и сделал
             cur.execute("""INSERT INTO kabinet_data.app_action_log
                                (email, role, action, allowed, details)
-                           VALUES (NULL, NULL, 'auth_mode', true, %s)""",
+                           VALUES ('kabinet-app', NULL, 'auth_mode', true, %s)""",
                         (f"режим {m}" + (f", было {last}" if last is not None else ", первая запись"),))
         conn.commit()
     except Exception:
