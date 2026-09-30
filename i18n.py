@@ -4023,6 +4023,121 @@ TRANSLATIONS = {
     "passport.src.marketplaces": {"ru": "Справочник маркетплейсов", "uk": "Довідник маркетплейсів", "en": "Marketplace directory"},
     "passport.src.parity": {"ru": "Сравнение цен между площадками", "uk": "Порівняння цін між майданчиками", "en": "Price parity across channels"},
     "passport.src.reorder": {"ru": "Что заказать и сколько", "uk": "Що замовити і скільки", "en": "What to order and how much"},
+
+    # --- вход и роли (ТЗ 010) ---
+    # Тексты САМОГО экрана входа живут в auth.py: до входа язык интерфейса ещё не
+    # выбран, у экрана свой переключатель, и тянуть сюда состояние сайдбара незачем.
+    "ads.act.no_rights": {
+        "ru": "Действия по рекламе доступны только администратору.",
+        "uk": "Дії з рекламою доступні лише адміністратору.",
+        "en": "Advertising actions are available to administrators only.",
+    },
+    "dict.readonly": {
+        "ru": "Справочники открыты на чтение: правка доступна планировщику спроса и администратору.",
+        "uk": "Довідники відкриті на читання: правка доступна планувальнику попиту та адміністратору.",
+        "en": "Directories are read-only: editing is available to demand planners and administrators.",
+    },
+    "auth.denied": {
+        "ru": "Недостаточно прав для этого действия. Ничего не изменено.",
+        "uk": "Недостатньо прав для цієї дії. Нічого не змінено.",
+        "en": "Not enough rights for this action. Nothing was changed.",
+    },
+    "auth.no_oauth": {
+        "ru": "Вход включён, но Google OAuth не настроен — обратитесь к администратору.",
+        "uk": "Вхід увімкнено, але Google OAuth не налаштовано — зверніться до адміністратора.",
+        "en": "Sign-in is on, but Google OAuth is not configured — contact an administrator.",
+    },
+    "auth.mode_rollout": {
+        "ru": "Вход ещё не включён — режим раскатки",
+        "uk": "Вхід ще не увімкнено — режим розкатки",
+        "en": "Sign-in not enabled yet — rollout mode",
+    },
+    "auth.mode_off": {
+        "ru": "Вход временно выключен — только просмотр",
+        "uk": "Вхід тимчасово вимкнено — лише перегляд",
+        "en": "Sign-in temporarily off — view only",
+    },
+    "auth.logout": {"ru": "Выйти", "uk": "Вийти", "en": "Sign out"},
+    "auth.no_countries": {
+        "ru": "страны не назначены",
+        "uk": "країни не призначені",
+        "en": "no countries assigned",
+    },
+    "auth.role.viewer": {"ru": "Просмотр", "uk": "Перегляд", "en": "Viewer"},
+    "auth.role.country_manager": {
+        "ru": "Страновой менеджер", "uk": "Країновий менеджер", "en": "Country manager"},
+    "auth.role.demand_planner": {
+        "ru": "Планировщик спроса", "uk": "Планувальник попиту", "en": "Demand planner"},
+    "auth.role.admin": {"ru": "Администратор", "uk": "Адміністратор", "en": "Administrator"},
+
+    # --- админка доступа ---
+    "auth.admin.title": {"ru": "Доступ", "uk": "Доступ", "en": "Access"},
+    "auth.admin.caption": {
+        "ru": "Кто входит в Кабинет, с какой ролью и по каким странам.",
+        "uk": "Хто входить до Кабінету, з якою роллю та за якими країнами.",
+        "en": "Who signs in, with which role and for which countries.",
+    },
+    "auth.admin.people": {"ru": "Люди", "uk": "Люди", "en": "People"},
+    "auth.admin.logins": {"ru": "Журнал входов", "uk": "Журнал входів", "en": "Sign-in log"},
+    "auth.admin.actions": {"ru": "Журнал действий", "uk": "Журнал дій", "en": "Action log"},
+    "auth.admin.col_email": {"ru": "Почта", "uk": "Пошта", "en": "Email"},
+    "auth.admin.col_role": {"ru": "Роль", "uk": "Роль", "en": "Role"},
+    "auth.admin.col_countries": {"ru": "Страны", "uk": "Країни", "en": "Countries"},
+    "auth.admin.col_active": {"ru": "Доступ", "uk": "Доступ", "en": "Access"},
+    "auth.admin.col_note": {"ru": "Примечание", "uk": "Примітка", "en": "Note"},
+    "auth.admin.col_first": {"ru": "Первый вход", "uk": "Перший вхід", "en": "First sign-in"},
+    "auth.admin.col_last": {"ru": "Последний вход", "uk": "Останній вхід", "en": "Last sign-in"},
+    "auth.admin.col_ts": {"ru": "Когда", "uk": "Коли", "en": "When"},
+    "auth.admin.col_result": {"ru": "Итог", "uk": "Підсумок", "en": "Result"},
+    "auth.admin.col_reason": {"ru": "Причина", "uk": "Причина", "en": "Reason"},
+    "auth.admin.col_action": {"ru": "Действие", "uk": "Дія", "en": "Action"},
+    "auth.admin.col_object": {"ru": "Объект", "uk": "Об’єкт", "en": "Object"},
+    "auth.admin.col_allowed": {"ru": "Разрешено", "uk": "Дозволено", "en": "Allowed"},
+    "auth.admin.col_details": {"ru": "Подробности", "uk": "Подробиці", "en": "Details"},
+    "auth.admin.save": {"ru": "Сохранить", "uk": "Зберегти", "en": "Save"},
+    "auth.admin.saved": {"ru": "Сохранено: {n}", "uk": "Збережено: {n}", "en": "Saved: {n}"},
+    "auth.admin.nochange": {
+        "ru": "Менять нечего.", "uk": "Змінювати нічого.", "en": "Nothing to change."},
+    "auth.admin.countries_help": {
+        "ru": "Коды стран через запятую (ES, FR). Нужны только страновому менеджеру.",
+        "uk": "Коди країн через кому (ES, FR). Потрібні лише країновому менеджеру.",
+        "en": "Country codes, comma separated (ES, FR). Only country managers need them.",
+    },
+    "auth.admin.bad_country": {
+        "ru": "Не код страны: {v} (у {email}). Нужны двухбуквенные коды из справочника.",
+        "uk": "Не код країни: {v} (у {email}). Потрібні дволітерні коди з довідника.",
+        "en": "Not a country code: {v} (for {email}). Two-letter codes from the directory.",
+    },
+    "auth.admin.cm_no_countries": {
+        "ru": "У странового менеджера {email} не назначено ни одной страны — он не сможет ничего править.",
+        "uk": "Країновому менеджеру {email} не призначено жодної країни — він не зможе нічого правити.",
+        "en": "Country manager {email} has no countries assigned and will not be able to edit anything.",
+    },
+    "auth.admin.mode": {
+        "ru": "Режим входа: {mode}",
+        "uk": "Режим входу: {mode}",
+        "en": "Sign-in mode: {mode}",
+    },
+    "auth.admin.mode_2": {
+        "ru": "раскатка — входа нет, кнопки у всех",
+        "uk": "розкатка — входу немає, кнопки в усіх",
+        "en": "rollout — no sign-in, buttons for everyone",
+    },
+    "auth.admin.mode_1": {
+        "ru": "вход обязателен, роли работают",
+        "uk": "вхід обов’язковий, ролі працюють",
+        "en": "sign-in required, roles in effect",
+    },
+    "auth.admin.mode_0": {
+        "ru": "авария — входа нет, у всех «Просмотр»",
+        "uk": "аварія — входу немає, в усіх «Перегляд»",
+        "en": "emergency — no sign-in, everyone is a viewer",
+    },
+    "auth.admin.mode_where": {
+        "ru": "Меняется в базе: reorder_params.auth_enabled. Каждое переключение уходит в Telegram.",
+        "uk": "Змінюється в базі: reorder_params.auth_enabled. Кожне перемикання йде в Telegram.",
+        "en": "Changed in the database: reorder_params.auth_enabled. Every switch is sent to Telegram.",
+    },
 }
 
 

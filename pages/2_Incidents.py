@@ -6,6 +6,7 @@ import plotly.express as px
 from db.connection import get_connection
 import data_passport as passport
 from i18n import init_lang, t, incident_type_label
+import auth
 from util import as_text
 import catalog
 
@@ -355,6 +356,8 @@ with b1:
     if st.button(t("inc.btn.acknowledge", n=len(selected_rows)),
                  disabled=not selected_rows, use_container_width=True):
         ids = show.loc[selected_rows, "id"].tolist()
+        if not auth.require("incident.act", None, "incident", ",".join(map(str, ids))[:200]):
+            st.stop()
         update_status(ids, "acknowledged")
         st.cache_data.clear()
         st.rerun()
@@ -362,6 +365,8 @@ with b2:
     if st.button(t("inc.btn.resolve", n=len(selected_rows)),
                  disabled=not selected_rows, use_container_width=True):
         ids = show.loc[selected_rows, "id"].tolist()
+        if not auth.require("incident.act", None, "incident", ",".join(map(str, ids))[:200]):
+            st.stop()
         update_status(ids, "resolved")
         st.cache_data.clear()
         st.rerun()

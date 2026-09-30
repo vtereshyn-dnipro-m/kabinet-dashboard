@@ -6,6 +6,7 @@ import streamlit as st
 from datetime import datetime, timezone
 from db.connection import get_connection
 from i18n import init_lang, t
+import auth
 from util import as_text
 import catalog
 
@@ -371,6 +372,8 @@ if not active_tr.empty:
     with tc1:
         if st.button(t("ro.tr.confirm", n=len(chosen_tr)),
                      use_container_width=True, disabled=chosen_tr.empty):
+            if not auth.require("reorder.act", None, "transfer", len(chosen_tr)):
+                st.stop()
             # полные строки выбранного берём по индексу (сохраняется из tr),
             # кол-во — правленое из редактора. Надёжнее парсинга строки с иконкой.
             sel = tr.loc[chosen_tr.index].copy()
@@ -526,6 +529,8 @@ with a1:
     if st.button(t("ro.order.form", n=len(chosen)),
                  type="primary", use_container_width=True,
                  disabled=chosen.empty or not HAS_ORDER_STATUS):
+        if not auth.require("reorder.act", None, "reorder", len(chosen)):
+            st.stop()
         # исходный sku — по индексу строки, не по отображаемому артикулу:
         # clean_sku схлопывает «41324000-A» в «41324000», и поиск по строке
         # отметил бы заказанным не тот вариант

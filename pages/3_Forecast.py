@@ -30,6 +30,7 @@ from db.connection import get_connection, get_workspace_client
 import data_passport as passport
 from i18n import init_lang, get_lang
 from util import as_text
+import auth
 
 init_lang()
 
@@ -523,16 +524,40 @@ def _log_view(lg: pd.DataFrame) -> pd.DataFrame:
 
 
 def _actor() -> str:
-    """Кто действует. У приложения нет входа по пользователям (роли ТЗ §9 не реализованы);
-    на Streamlit Cloud с закрытым доступом есть st.user.email — берём его, иначе имя приложения."""
-    try:
-        u = getattr(st, "user", None)
-        email = getattr(u, "email", None) if u is not None else None
-        if email:
-            return str(email)
-    except Exception:
-        pass
-    return _tr("actor_unknown")
+    """Кто действует. При включённом входе — почта вошедшего; на раскатке и в аварии
+    прежний `kabinet-app`, потому что никто не входил и подписывать действие чьим-то
+    именем было бы неправдой."""
+    return auth.actor()
+
+
+def object_countries(object_type, object_id) -> set:
+    """Страны объекта — для проверки прав странового менеджера.
+
+    У маркетплейса страна одна. У пула берём страны ВСЕХ действующих участников, а не
+    одну из них: правило строгое, и пул из разных стран не должен достаться человеку,
+    которому принадлежит лишь часть (решение владельца 30.09.2026). По ТЗ 004 пул
+    одностранный, так что в норме это то же самое — но не тогда, когда в справочнике
+    ошибка, а это ровно тот случай, ради которого правило и строгое.
+
+    Период участия полуоткрытый `[valid_from, valid_to)` — то же написание, что у
+    остальных читателей состава: снятый сегодня участник уже не участник."""
+    if object_id is None:
+        return set()
+    if as_text(object_type) == "marketplace":
+        d = q("""SELECT country_alpha2 FROM kabinet_data.marketplaces_new WHERE id = %s""",
+              (int(object_id),))
+    else:
+        d = q("""SELECT DISTINCT m.country_alpha2
+                   FROM kabinet_data.pool_members pm
+                   JOIN kabinet_data.marketplaces_new m ON m.id = pm.marketplace_id
+                  WHERE pm.pool_id = %s AND pm.valid_from <= current_date
+                    AND (pm.valid_to IS NULL OR pm.valid_to > current_date)""",
+              (int(object_id),))
+    return {as_text(v).upper() for v in d[d.columns[0]] if as_text(v)}
+
+
+def doc_countries(doc) -> set:
+    return object_countries(doc["object_type"], doc["object_id"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1610,6 +1635,8 @@ with tab_new:
     compl = c5.radio(_tr("new_compl"), ["partial", "full"], format_func=lambda x: _tr(x), horizontal=True, key="fc_new_compl")
     comment = st.text_input(_tr("new_comment"), key="fc_new_comment")
     if st.button(_tr("btn_create"), type="primary", disabled=pick is None, key="fc_create"):
+        if not auth.require("forecast.edit", object_countries(otype, pick), "object", pick):
+            st.stop()
         if last < first or add_months(first, 12) < last:
             st.error(_tr("err_period"))
         elif first < CUR_MONTH:
@@ -1748,6 +1775,8 @@ with tab_docs:
                               format_func=lambda x: _tr(x), horizontal=True, key=f"fc_hc_{doc['id']}")
                 ecm = st.text_input(_tr("new_comment"), value=doc.get("comment") or "", key=f"fc_hcm_{doc['id']}")
                 if st.button(_tr("btn_hdr_save"), key=f"fc_hsave_{doc['id']}"):
+                    if not auth.require("forecast.edit", doc_countries(doc), "document", doc['id']):
+                        st.stop()
                     if el < ef or add_months(ef, 12) < el:
                         st.error(_tr("err_period"))
                     elif ef < CUR_MONTH and not has_approved and ef != doc["first_month"]:
@@ -1804,6 +1833,8 @@ with tab_docs:
                                 disabled=not is_draft, key=f"fc_grid_{doc['id']}_{len(rows)}",
                                 height=min(560, 38 + 35 * max(1, len(grid))))
         if is_draft and st.button(_tr("btn_save"), type="primary", key=f"fc_save_{doc['id']}"):
+            if not auth.require("forecast.edit", doc_countries(doc), "document", doc['id']):
+                st.stop()
             try:
                 n, rej = save_grid(doc, rows, edited, months)
                 if n:
@@ -1844,6 +1875,8 @@ with tab_docs:
             pe = st.data_editor(view_pg, column_config=pcfg, hide_index=True, use_container_width=True, disabled=not is_draft,
                                 key=f"fc_prices_{doc['id']}_{len(rows)}", height=min(560, 38 + 35 * max(1, len(pg_))))
             if is_draft and st.button(_tr("btn_prices_save"), key=f"fc_psave_{doc['id']}"):
+                if not auth.require("forecast.edit", doc_countries(doc), "document", doc['id']):
+                    st.stop()
                 try:
                     n = save_prices(doc, rows, pe, months)
                     if n:
@@ -1977,6 +2010,9 @@ with tab_docs:
                             if st.button(_tr("up_btn_apply_confirm") if (need_ok and armed) else _tr("up_btn_apply"),
                                          type="primary", disabled=bool(plan["errors"]) or prev.empty,
                                          key=f"fc_up_apply_{doc['id']}"):
+                                if not auth.require("forecast.upload", doc_countries(doc),
+                                                    "document", doc["id"]):
+                                    st.stop()
                                 if need_ok and not armed:
                                     st.session_state[uk_] = (plan["values"], len(plan["replaces"]))
                                     st.rerun()
@@ -1996,6 +2032,8 @@ with tab_docs:
             eff_months = sel_months or months
             c1, c2, c3, c4 = st.columns(4)
             if c1.button(_tr("btn_approve"), type="primary", key=f"fc_appr_{doc['id']}"):
+                if not auth.require("forecast.approve", doc_countries(doc), "document", doc['id']):
+                    st.stop()
                 try:
                     n, empty = approve(doc, rows, sel_skus, eff_months, active_matrix, former_matrix)
                     say = flash if n else (lambda kind, text: getattr(st, kind)(text))
@@ -2008,6 +2046,8 @@ with tab_docs:
                 except Exception as e:
                     st.error(_trf("err_write", e=e))
             if c2.button(_tr("btn_unapprove"), key=f"fc_unappr_{doc['id']}"):
+                if not auth.require("forecast.approve", doc_countries(doc), "document", doc['id']):
+                    st.stop()
                 try:
                     n = unapprove(doc, rows, sel_skus, eff_months)
                     flash("success", _trf("unapproved_n", n=n))
@@ -2055,6 +2095,8 @@ with tab_docs:
             if armed:
                 st.warning(_trf("post_confirm", n=doc["number"], k=len(rows)))
             if st.button(_tr("btn_post_confirm") if armed else _tr("btn_post"), type="primary", disabled=bool(problems), key=f"fc_post_{doc['id']}"):
+                if not auth.require("forecast.post", None, "document", doc['id']):
+                    st.stop()
                 if not armed:
                     st.session_state[pk] = len(rows)
                     st.rerun()
@@ -2198,6 +2240,10 @@ with tab_repl:
         if st.button(_tr("repl_btn_confirm") if armed else _tr("repl_btn"), type="primary",
                     disabled=bool(plan["problems"]) or not plan["docs"] and not plan["terminate"],
                     key=f"fc_rp_go_{r.document_id}"):
+            # Замена не привязана к одной стране: она трогает документы нескольких
+            # объектов разом, поэтому страны не передаём — право на неё не страновое
+            if not auth.require("forecast.replace", None, "document", r.document_id):
+                st.stop()
             if not armed:
                 st.session_state[rk] = (len(plan["supersede"]), len(plan["terminate"]), len(plan["docs"]))
                 st.rerun()

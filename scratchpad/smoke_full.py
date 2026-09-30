@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
 """Все страницы и все двенадцать разделов «Справочников» на живой базе.
 
-Считаем провалом не только исключение, но и SQL-ошибку, ПОКАЗАННУЮ на экране: страница
-ловит её в st.error и «открывается», а данных нет — ровно так прошла мимо ошибка «Прогноза».
+Провалом считается три разных вещи, и каждая добавлена после того, как прошла мимо:
+
+1. исключение в прогоне — было с самого начала;
+2. SQL-ошибка, ПОКАЗАННАЯ на экране: страница ловит её в st.error и «открывается», а
+   данных нет — так прошла мимо ошибка «Прогноза» (28.09.2026);
+3. страница, которая НЕ КОМПИЛИРУЕТСЯ. AppTest на такой не даёт ни исключения, ни
+   ошибки на экране: Streamlit печатает SyntaxError в свой лог и возвращает пустой
+   прогон, а харнесс писал «ок» — ровно там, где страница мертва совсем. Так PR #195
+   уехал в прод с повторным help= в «Остатках» (30.09.2026). Поэтому компиляцию
+   проверяем САМИ, до запуска, и пустой прогон тоже считаем провалом.
 """
 import sys, json, psycopg2, warnings, logging, pandas as pd
 warnings.filterwarnings("ignore"); logging.disable(logging.WARNING)
@@ -17,16 +25,28 @@ R = "/Users/vitter/Documents/Code/kabinet-dashboard"
 SQLISH = ("syntax", "column", "relation", "does not exist", "group by", "psycopg2",
           "operator", "не прочиталось", "undefined")
 def прогнать(f, ss=None):
-    at = AppTest.from_file(f"{R}/{f}", default_timeout=300)
+    путь = f"{R}/{f}"
+    # компиляция — до запуска: см. пункт 3 в описании модуля
+    try:
+        compile(open(путь, encoding="utf-8").read(), путь, "exec")
+    except SyntaxError as e:
+        return None, [f"не компилируется: {e.msg} (строка {e.lineno})"]
+    at = AppTest.from_file(путь, default_timeout=300)
     for k, v in (ss or {}).items(): at.session_state[k] = v
     at.run()
     exc = [str(e.value).strip().splitlines()[-1][:130] for e in at.exception]
     errs = [str(e.value)[:130] for e in at.error if any(w in str(e.value).lower() for w in SQLISH)]
+    # прогон, не нарисовавший ни одного элемента, — это не «пустая страница», а
+    # скрипт, который не доехал: у любой нашей страницы есть хотя бы заголовок
+    видно = sum(len(getattr(at, имя)) for имя in
+                ("markdown", "dataframe", "metric", "header", "subheader", "caption", "table"))
+    if not видно:
+        errs.append("прогон пустой: ни одного элемента на экране")
     return at, exc + errs
 беда = 0
 for f in ("home.py", "pages/1_Stock.py", "pages/2_Incidents.py", "pages/3_Forecast.py",
           "pages/4_Reorder.py", "pages/5_Money.py", "pages/7_Reviews.py",
-          "pages/8_CM_Dashboard.py", "pages/9_Ads.py"):
+          "pages/8_CM_Dashboard.py", "pages/9_Ads.py", "pages/10_Access.py"):
     _, плохо = прогнать(f)
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
@@ -36,4 +56,4 @@ for sec in ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f"Справочники → {sec}"
           + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
-print(f"\nс бедой: {беда} из 21")
+print(f"\nс бедой: {беда} из 22")
