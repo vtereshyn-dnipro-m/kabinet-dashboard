@@ -28,4 +28,22 @@ def ждём(что, ожидание, факт):
      auth._allowed_to_enter("kto@notdniprom.com", None))
 ждём("поддомен не проходит", False,
      auth._allowed_to_enter("kto@mail.dniprom.com.evil.ru", None))
+
+from datetime import date, timedelta
+ВЧЕРА   = {"role": "admin", "is_active": True, "expired": True,
+           "access_until": date.today() - timedelta(days=1)}
+СЕГОДНЯ = {"role": "admin", "is_active": True, "expired": False,
+           "access_until": date.today()}
+ЗАВТРА  = {"role": "admin", "is_active": True, "expired": False,
+           "access_until": date.today() + timedelta(days=1)}
+БЕЗ_СРОКА = {"role": "admin", "is_active": True, "expired": False, "access_until": None}
+
+ждём("срок истёк вчера — не пускаем", False, auth._allowed_to_enter("kto@dniprom.com", ВЧЕРА))
+ждём("последний день включительно — пускаем", True, auth._allowed_to_enter("kto@dniprom.com", СЕГОДНЯ))
+ждём("срок завтра — пускаем", True, auth._allowed_to_enter("kto@dniprom.com", ЗАВТРА))
+ждём("без срока — пускаем", True, auth._allowed_to_enter("kto@dniprom.com", БЕЗ_СРОКА))
+ждём("истёкший срок у исключения вне домена — не пускаем", False,
+     auth._allowed_to_enter("kto@gmail.com", ВЧЕРА))
+ждём("снятый доступ важнее живого срока", False,
+     auth._allowed_to_enter("kto@dniprom.com", dict(ЗАВТРА, is_active=False)))
 print(f"расхождений: {беда}")
