@@ -19,6 +19,7 @@ import json
 from db.connection import get_connection
 import data_passport as passport
 from i18n import init_lang, t
+import auth
 from util import as_text
 import period as period_mod
 import catalog
@@ -613,12 +614,10 @@ def ads_param(key: str, default: float) -> float:
 
 
 def ads_actor() -> str:
-    # Входа по пользователям у приложения нет: если Streamlit Cloud отдаёт почту, пишем её,
-    # иначе честно пишем, что это Кабинет, а не конкретный человек
-    try:
-        return st.user.email or t("ads.act.actor_unknown")
-    except Exception:
-        return t("ads.act.actor_unknown")
+    # Кто нажал. При включённом входе это настоящая почта, на раскатке и в аварии —
+    # прежний `kabinet-app`: подписать действие именем, которого никто не вводил,
+    # хуже, чем честно сказать «это Кабинет, а не конкретный человек».
+    return auth.actor()
 
 
 def ads_log_write(row: dict) -> int:
@@ -692,6 +691,10 @@ else:
     _pool = _pool[_pool["campaign_id"].notna()].copy()
     if _pool.empty:
         st.info(t("ads.act.no_campaigns"))
+    elif not auth.can("ads.act"):
+        # Кнопки тратят деньги, поэтому их не показываем; но скрытая кнопка — только
+        # удобство, настоящий отказ стоит ниже, в самом обработчике нажатия
+        st.info(t("ads.act.no_rights"))
     else:
         def _camp_label(r) -> str:
             acos = "∞" if np.isinf(r["acos"]) else f'{r["acos"]:.0f} %'
@@ -756,6 +759,8 @@ else:
             _can = (_act == "pause") or bool(_plan)
             b1, b2 = st.columns([1, 4])
             if _can and b1.button(t("ads.act.confirm"), key="ads_confirm", type="primary"):
+                if not auth.require("ads.act", object_type="campaign", object_id=_cid):
+                    st.stop()
                 try:
                     if _act == "pause":
                         status, txt, body = ads_api.set_campaign_state(_cid, _prod, "paused")
@@ -815,6 +820,8 @@ else:
                                         a=t(f"ads.act.log_{_undoable.set_index('id').at[i, 'action']}")),
                                     key="ads_undo_pick")
                 if u2.button(t("ads.act.undo"), key="ads_undo"):
+                    if not auth.require("ads.act", object_type="ads_action", object_id=_uid):
+                        st.stop()
                     _u = _undoable.set_index("id").loc[_uid]
                     _before = _u["before_state"] if isinstance(_u["before_state"], dict) else json.loads(_u["before_state"])
                     _uprod = str(_u["ad_product"])

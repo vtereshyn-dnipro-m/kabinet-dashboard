@@ -19,8 +19,9 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from i18n import init_lang, get_lang
+from i18n import init_lang, get_lang, t as i18n_t
 import data_passport as passport
+import auth
 from db.connection import get_connection
 from util import as_text
 
@@ -1211,17 +1212,10 @@ def _tr(key: str) -> str:
 
 
 def _actor() -> str:
-    """Кто действует. Входа по пользователям у приложения нет; на Streamlit Cloud с закрытым
-    доступом есть st.user.email — берём его, иначе имя приложения. Та же логика, что на
-    «Прогнозе»: в журналах справочников должно стоять одно и то же «кто»."""
-    try:
-        u = getattr(st, "user", None)
-        email = getattr(u, "email", None) if u is not None else None
-        if email:
-            return str(email)
-    except Exception:
-        pass
-    return _tr("actor_unknown")
+    """Кто действует. При включённом входе — почта вошедшего, иначе прежний
+    `kabinet-app`. Та же функция, что на «Прогнозе» и в «Рекламе»: в журналах должно
+    стоять одно и то же «кто», иначе один и тот же человек выглядит тремя разными."""
+    return auth.actor()
 
 
 def _trf(key: str, **kw) -> str:
@@ -1344,6 +1338,12 @@ def q_now(sql: str, params: tuple) -> pd.DataFrame:
 
 
 def exec_sql(statements):
+    # Единственный путь записи на этой странице — двадцать шесть вызовов из всех
+    # разделов. Проверку ставим здесь, а не у каждой из двадцати семи кнопок: так
+    # пропущенная кнопка не становится дырой, и правило одно на всю страницу.
+    # Два места пишут мимо (реестр нормативов — там своя транзакция с порядком
+    # «сначала закрыть, потом вставить»), и у них проверка стоит своя.
+    auth.demand("dict.edit", None, "dictionaries", None)
     conn = get_connection()
     try:
         cur = conn.cursor()
@@ -1446,6 +1446,13 @@ def save_block(orig, edited, table, pk, cols):
 init_lang()
 
 st.title(_tr("title"))
+
+# Кнопки на этой странице остаются на месте и у того, кому править нельзя: разделов
+# двенадцать, кнопок двадцать семь, и прятать каждую значило бы двадцать семь мест,
+# где можно ошибиться. Отказ даёт единственный путь записи, а подпись наверху говорит
+# об этом заранее — чтобы он не был сюрпризом после нажатия.
+if not auth.can("dict.edit"):
+    st.info(i18n_t("dict.readonly"))
 passport.banner("dictionaries")
 st.caption(_tr("sub"))
 
@@ -2987,6 +2994,7 @@ def _insert_norm(lvl, sku_val, cat_val, tid, is_mp, mn, tg, mx, eff, note):
                         "max_days": int(mx), "effective_from": str(eff), "note": note},
                        ensure_ascii=False)
     try:
+        auth.demand("dict.edit", None, "coverage_norm_rules", None)
         conn = get_connection()
         try:
             cur = conn.cursor()
@@ -3019,6 +3027,7 @@ def _revise_norm(cur_row, mn, tg, mx, n_from, note):
                         col: tid, "min_days": int(mn), "target_days": int(tg), "max_days": int(mx),
                         "effective_from": str(n_from), "note": note}, ensure_ascii=False)
     try:
+        auth.demand("dict.edit", None, "coverage_norm_rules", int(cur_row["id"]))
         conn = get_connection()
         try:
             cur = conn.cursor()

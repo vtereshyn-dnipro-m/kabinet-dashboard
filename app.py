@@ -2,6 +2,7 @@
 import streamlit as st
 from i18n import init_lang, language_toggle, t
 from db.connection import get_connection
+import auth
 
 init_lang()
 
@@ -98,7 +99,16 @@ except Exception:
     _dark = True
 
 st.logo("logo_dark.png" if _dark else "logo_light.png", size="large")
+
+# Ворота стоят ЗДЕСЬ — раньше, чем читается хоть одна бизнес-таблица, и раньше
+# навигации. Страницы собраны через st.navigation, поэтому любой URL проходит через
+# app.py, и прямая ссылка на /Forecast закрывается этой же проверкой. Если навигацию
+# когда-нибудь заменят на автоматическую (папка pages/ без роутера), страницы станут
+# самостоятельными точками входа, и guard() придётся звать в начале каждой.
+auth.guard()
+
 language_toggle()
+auth.header()
 
 pages = st.navigation({
     t("nav.section"): [
@@ -119,6 +129,30 @@ pages = st.navigation({
                 icon=":material/library_books:"),
     ],
 })
+
+# Админка — отдельной страницей и только администраторам. Скрытый пункт меню сам по
+# себе не защита, поэтому на самой странице стоит своя проверка: сюда можно прийти по
+# прямой ссылке, и решает именно она, а не отсутствие ссылки в сайдбаре.
+if auth.can("admin"):
+    pages = st.navigation({
+        t("nav.section"): [
+            st.Page("home.py", title=t("nav.home"), icon=":material/home:", default=True),
+            st.Page("pages/1_Stock.py", title=t("nav.stock"), icon=":material/inventory_2:"),
+            st.Page("pages/2_Incidents.py", title=t("nav.incidents"), icon=":material/warning:"),
+            st.Page("pages/4_Reorder.py", title=t("nav.reorder"), icon=":material/shopping_cart:"),
+            st.Page("pages/5_Money.py", title=t("nav.money"), icon=":material/payments:"),
+            st.Page("pages/9_Ads.py", title=t("nav.ads"), icon=":material/campaign:"),
+            st.Page("pages/3_Forecast.py", title=t("nav.forecast"), icon=":material/show_chart:"),
+            st.Page("pages/7_Reviews.py", title=t("nav.reviews"),
+                    icon=":material/rate_review:"),
+            st.Page("pages/8_CM_Dashboard.py", title=t("nav.cm"),
+                    icon=":material/dashboard:"),
+            st.Page("pages/6_Dictionaries.py", title=t("nav.dictionaries"),
+                    icon=":material/library_books:"),
+            st.Page("pages/10_Access.py", title=t("auth.admin.title"),
+                    icon=":material/lock:"),
+        ],
+    })
 
 
 # ---------- бейджи-счётчики в сайдбаре ----------
