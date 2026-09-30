@@ -66,7 +66,15 @@ _MATRIX = {
 
 # Действия, где у странового менеджера считаются его страны. У ролей выше страна не
 # проверяется вовсе — у них все.
+#
+# Это ОСТАЁТСЯ В КОДЕ, когда сама матрица уехала в базу, и намеренно: страновое
+# ограничение — не право, а смысл действия. Галочкой его переключать нечего; таблица
+# отвечает «кому что можно», код — «что это действие означает».
 _COUNTRY_SCOPED = {"forecast.edit", "forecast.approve", "forecast.upload"}
+
+# Пара, без которой «Доступ» закрывается сам для всех: её нельзя снять ни галочкой,
+# ни запросом (в базе стоит триггер). Здесь — чтобы интерфейс знал, что заблокировать.
+LOCKED = ("admin", ADMIN)
 
 ANON = "kabinet-app"
 
@@ -116,13 +124,45 @@ def mode() -> int:
 
 
 @st.cache_data(ttl=60)
+def _matrix():
+    """Матрица прав из базы. None — «читать нечего, берём ту, что в коде».
+
+    Пустая таблица и нечитаемая таблица трактуются одинаково: правила берутся из
+    `_MATRIX`. Не потому что так безопаснее — потому что так ПРЕДСКАЗУЕМО. Считать
+    пустую таблицу запретом всего значило бы, что несозданная таблица кладёт Кабинет,
+    а считать разрешением всего — что она его открывает. Код остаётся тем, что было,
+    пока в базе не сказано иное.
+
+    Действие, которого в таблице нет, а в коде есть, запрещается всем: новая кнопка
+    не должна начать работать раньше, чем кто-то решил, кому она доступна. На экране
+    «Доступ» такие действия показываются отдельной строкой, а не молчат."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT action, role FROM kabinet_data.app_permissions WHERE allowed")
+            rows = cur.fetchall()
+    except Exception:
+        return None
+    finally:
+        conn.close()
+    if not rows:
+        return None
+    out = {}
+    for action, role in rows:
+        out.setdefault(action, set()).add(role)
+    return out
+
+
+@st.cache_data(ttl=60)
 def _load_user(email: str):
     """Строка человека и его страны. None — если строки нет."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT role, is_active FROM kabinet_data.app_users WHERE email = %s
+                SELECT role, is_active, access_until,
+                       access_until IS NOT NULL AND access_until < current_date AS expired
+                  FROM kabinet_data.app_users WHERE email = %s
             """, (email,))
             row = cur.fetchone()
             if not row:
@@ -131,7 +171,11 @@ def _load_user(email: str):
                 SELECT country FROM kabinet_data.app_user_countries WHERE email = %s
             """, (email,))
             countries = [r[0] for r in cur.fetchall()]
-        return {"role": row[0], "is_active": bool(row[1]), "countries": countries}
+        # «истёк» считает база, а не Python: сервер живёт по UTC, и с полуночи до трёх
+        # ночи по Киеву date.today() отдаёт вчерашнее число — доступ закрывался бы на
+        # сутки позже, чем написано в карточке
+        return {"role": row[0], "is_active": bool(row[1]),
+                "access_until": row[2], "expired": bool(row[3]), "countries": countries}
     finally:
         conn.close()
 
@@ -242,8 +286,14 @@ def _from_login() -> User:
 
 def _allowed_to_enter(email: str, row) -> bool:
     """Пускаем по домену ИЛИ по строке-исключению. Отключённая строка не пускает
-    даже своего: `is_active = false` — это «доступ снят», а не «нет записи»."""
+    даже своего: `is_active = false` — это «доступ снят», а не «нет записи».
+
+    Истёкший срок закрывает доступ так же, но запись НЕ выключается: дата видна в
+    карточке, и продлить её — значит вернуть дату, а не разбираться, кто и когда
+    выключил человека молча."""
     if row is not None and not row["is_active"]:
+        return False
+    if row is not None and row.get("expired"):
         return False
     if email.endswith("@" + DOMAIN):
         return True
@@ -266,7 +316,9 @@ def can(action: str, countries=None) -> bool:
         return False
     if not u.logged_in:
         return False
-    allowed_roles = _MATRIX.get(action)
+    из_базы = _matrix()
+    таблица = _MATRIX if из_базы is None else из_базы
+    allowed_roles = таблица.get(action)
     if not allowed_roles or u.role not in allowed_roles:
         return False
     if u.role == COUNTRY_MANAGER and action in _COUNTRY_SCOPED:
@@ -426,8 +478,13 @@ def guard():
     email = as_text(getattr(st.user, "email", "")).strip().lower()
     row = _load_user(email)
     if not _allowed_to_enter(email, row):
-        _log_login(email, "denied_disabled" if row is not None else "denied_domain",
-                   "строка отключена" if row is not None else "домен вне списка")
+        if row is None:
+            _log_login(email, "denied_domain", "домен вне списка")
+        elif row.get("expired"):
+            _log_login(email, "denied_disabled",
+                       f"срок доступа истёк {row['access_until']:%d.%m.%Y}")
+        else:
+            _log_login(email, "denied_disabled", "строка отключена")
         _screen(lambda: _denied_screen(email), "Access")
         return
     # первый вход заводит человека с ролью «Просмотр» и уведомляет администраторов

@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 """Матрица прав проверяется поведением, а не чтением словаря: словарь можно прочитать
 и глазами, а вот что `can()` делает со странами и режимами — нет."""
-import sys, warnings
+import sys, json, psycopg2, warnings
 warnings.filterwarnings("ignore")
 sys.path.insert(0, "/Users/vitter/Documents/Code/kabinet-dashboard")
+DSN = json.load(open("/Users/vitter/Documents/Code/kabinet-dashboard/.mcp.json"))["mcpServers"]["lakebase-kabinet"]["env"]["LAKEBASE_DSN"]
+import db.connection as dbc
+dbc.get_connection = lambda: psycopg2.connect(DSN)
 import auth
+auth.get_connection = dbc.get_connection
 
 ACTIONS = ["forecast.edit", "forecast.approve", "forecast.upload", "forecast.post",
            "forecast.replace", "ads.act", "dict.edit", "reorder.act", "incident.act", "admin"]
@@ -64,5 +68,30 @@ print("=== режим 0 (авария): только просмотр ===")
 for role in ROLES:
     setup(0, role, {"ES"})
     ждём(f"авария/{role}", False, any(auth.can(a, "ES") for a in ACTIONS))
+
+print("=== матрица берётся из БАЗЫ и совпадает с кодом ===")
+из_базы = auth._matrix()
+ждём("таблица прочиталась", True, из_базы is not None)
+if из_базы is not None:
+    for действие, роли in auth._MATRIX.items():
+        ждём(f"{действие}: база = код", роли, из_базы.get(действие, set()))
+    лишние = set(из_базы) - set(auth._MATRIX)
+    ждём("в базе нет действий, которых нет в коде", set(), лишние)
+
+print("=== таблица не прочиталась или пуста — берём код ===")
+настоящая = auth._matrix
+auth._matrix = lambda: None
+setup(1, auth.DEMAND_PLANNER, {"ES"})
+ждём("планировщик проводит по коду", True, auth.can("forecast.post", "ES"))
+ждём("просмотру всё так же нельзя", False, (setup(1, auth.VIEWER), auth.can("forecast.post", "ES"))[1])
+
+print("=== база ПЕРЕОПРЕДЕЛЯЕТ код ===")
+auth._matrix = lambda: {"ads.act": {auth.VIEWER}}
+setup(1, auth.VIEWER, set())
+ждём("дали просмотру рекламу — можно", True, auth.can("ads.act"))
+setup(1, auth.ADMIN, set())
+ждём("забрали у админа — нельзя", False, auth.can("ads.act"))
+ждём("действия нет в таблице — запрещено всем", False, auth.can("forecast.post"))
+auth._matrix = настоящая
 
 print(f"\nрасхождений: {беда}")
