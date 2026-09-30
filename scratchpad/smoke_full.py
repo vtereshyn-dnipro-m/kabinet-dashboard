@@ -38,8 +38,13 @@ def прогнать(f, ss=None):
     errs = [str(e.value)[:130] for e in at.error if any(w in str(e.value).lower() for w in SQLISH)]
     # прогон, не нарисовавший ни одного элемента, — это не «пустая страница», а
     # скрипт, который не доехал: у любой нашей страницы есть хотя бы заголовок
-    видно = sum(len(getattr(at, имя)) for имя in
-                ("markdown", "dataframe", "metric", "header", "subheader", "caption", "table"))
+    # Список полный намеренно: в первой версии не было ни title, ни error, и страница
+    # «Доступ», честно отказавшая невошедшему заголовком и красной плашкой, объявлялась
+    # пустым прогоном. Проверка, которая ругается на правильное поведение, хуже
+    # отсутствующей — её начинают игнорировать.
+    видно = sum(len(getattr(at, имя, [])) for имя in
+                ("title", "markdown", "dataframe", "metric", "header", "subheader",
+                 "caption", "table", "error", "warning", "info", "success"))
     if not видно:
         errs.append("прогон пустой: ни одного элемента на экране")
     return at, exc + errs
