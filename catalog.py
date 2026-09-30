@@ -73,14 +73,28 @@ NO_PHOTO = (
 
 
 # Один и тот же рынок записан в базе тремя способами: economics_summary
-# и listing_cards держат код страны (DE), orders_history — имя канала
-# (Amazon.de), asin_reviews_daily — хвост домена (de, co.uk). Последний
-# ломался тише всех: «co.uk» не код страны, поэтому британские строки
-# теряли и заголовок, и ссылку — она молча уезжала на испанскую витрину.
+# держит код страны (DE), orders_history — имя канала (Amazon.de), а
+# asin_reviews_daily И listing_cards — хвост домена (de, co.uk). Здесь
+# раньше было написано, что listing_cards держит код страны, — неверно:
+# хвосты там те же. Хвост ломается тише всех: «co.uk» не код страны,
+# поэтому британские строки теряли и заголовок, и ссылку — она молча
+# уезжала на испанскую витрину. Ниже _mk это и приводит; в SQL, где
+# функции нет, то же делается явным CASE (так чинился алерт Buy Box).
 # Таблицу хвостов выводим из справочника доменов, а не пишем заново
 _SUFFIX = {}
 for _code, _dom in AMAZON_DOMAIN.items():
     _SUFFIX.setdefault(_dom.split(".", 1)[1], _code)
+
+# У Британии в AMAZON_DOMAIN два кода на один домен (UK и GB — оба ведут на
+# amazon.co.uk), и setdefault выше берёт тот, что стоит первым, то есть UK.
+# А в самих таблицах британские строки лежат под GB: economics_summary,
+# shipment_facts, coverage_summary, buybox_status — все GB, значения UK нет
+# ни в одной. Приведение к UK поэтому не совпадало НИ С ЧЕМ: запрос
+# title_for(asin, "GB") не находил британскую карточку и отдавал испанский
+# или голландский заголовок с пометкой чужого рынка, хотя английский лежал
+# рядом. Канонический код один, и это GB — закрепляем явно, а не порядком
+# ключей в словаре, который молча переставят
+_ALIAS = {"UK": "GB"}
 
 
 def _mk(v) -> str:
@@ -89,7 +103,8 @@ def _mk(v) -> str:
     low = v.lower()
     if low.startswith("amazon."):
         low = low[len("amazon."):]
-    return _SUFFIX.get(low, v.upper())
+    code = _SUFFIX.get(low, v.upper())
+    return _ALIAS.get(code, code)
 
 
 @st.cache_data(ttl=600)
