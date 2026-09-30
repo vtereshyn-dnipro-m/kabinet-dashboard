@@ -13,3 +13,15 @@ google-auth
 databricks-sdk
 anthropic
 pydeck
+# Вход через Google (ТЗ 010). st.login() без Authlib отвечает StreamlitMissingAuthlibError,
+# и версия проверяется явно: streamlit/auth_util.py считает библиотеку отсутствующей, если
+# она старше 1.3.2. Верхняя граница не перестраховка — сам Authlib предупреждает, что
+# модуль authlib.jose, которым пользуется Streamlit, доживёт до 2.0.0 и не дальше.
+Authlib>=1.3.2,<2
+# httpx нужен НЕ напрямую нам, а импорту, который Streamlit делает на пути входа:
+# streamlit/web/server/starlette/starlette_auth_routes.py тянет
+# authlib.integrations.starlette_client, а тот — httpx. И его не ставит ни Streamlit,
+# ни Authlib: проверено в чистом окружении, где с одним Authlib импорт падал
+# «No module named 'httpx'». Объявить только Authlib значило бы починить первую ошибку
+# и получить вторую на том же нажатии.
+httpx
