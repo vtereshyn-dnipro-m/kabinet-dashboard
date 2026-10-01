@@ -578,6 +578,32 @@ TRANSLATIONS = {
               "shipments. Not a continuous run — there may be gaps between covered weeks, "
               "see the “Until shortage” column",
     },
+    # Доля общего склада и за что она досталась (ТЗ «Остатки» §3). Причина в базе
+    # лежит кодом, фраза собирается здесь: иначе в английском интерфейсе она осталась
+    # бы русской.
+    "stock.cov.col_share": {"ru": "Досталось, шт", "uk": "Дісталося, шт", "en": "Allocated, units"},
+    "stock.cov.col_share_help": {
+        "ru": "Сколько штук общего склада досталось этому рынку. Остаток склада общий на все рынки, и при нехватке он делится — целиком его получает только тот, с кем делить не с кем",
+        "uk": "Скільки штук спільного складу дісталося цьому ринку. Залишок складу спільний на всі ринки, і за нестачі він ділиться — цілком його отримує лише той, з ким ділити нема з ким",
+        "en": "How many units of the shared warehouse went to this marketplace. The stock is shared across markets and is split when short — only a market with no rivals gets all of it"},
+    "stock.cov.col_share_why": {"ru": "За что досталось", "uk": "За що дісталося", "en": "Why that much"},
+    "stock.cov.col_share_why_help": {
+        "ru": "Сначала каждому рынку откладывается гарантированный минимум, затем остаток раздаётся по приоритету склада; внутри одного приоритета — пропорционально спросу",
+        "uk": "Спершу кожному ринку відкладається гарантований мінімум, потім залишок роздається за пріоритетом складу; усередині одного пріоритету — пропорційно попиту",
+        "en": "Each market is first given a guaranteed minimum, then the rest goes by warehouse priority; within one priority level it is split in proportion to demand"},
+    "stock.cov.share_min": {"ru": "минимум {n} нед.", "uk": "мінімум {n} тиж.", "en": "minimum {n} wk"},
+    "stock.cov.share_priority": {"ru": "по приоритету", "uk": "за пріоритетом", "en": "by priority"},
+    "stock.cov.share_shared": {"ru": "приоритет не задан", "uk": "пріоритет не задано",
+                               "en": "no priority set"},
+    "stock.cov.share_sole": {"ru": "делить не с кем", "uk": "ділити нема з ким",
+                             "en": "no rivals"},
+    "stock.cov.share_no_offers": {"ru": "товар не купить", "uk": "товар не купити",
+                                  "en": "not buyable"},
+    "stock.cov.share_none": {"ru": "—", "uk": "—", "en": "—"},
+    "stock.cov.share_hint": {
+        "ru": "У {n} строк общий запас делится пропорционально спросу: приоритет рынков у склада не задан. Задаётся в «Справочники → Склады», в карточке склада отгрузки.",
+        "uk": "У {n} рядків спільний запас ділиться пропорційно попиту: пріоритет ринків у складу не задано. Задається у «Довідники → Склади», у картці складу відвантаження.",
+        "en": "For {n} rows the shared stock is split in proportion to demand: the warehouse has no marketplace priorities set. They are set in Dictionaries → Warehouses, on the shipping warehouse card."},
     "stock.cov.col_madrid": {"ru": "Остаток локального склада, шт",
                              "uk": "Залишок локального складу, шт",
                              "en": "Local warehouse stock, units"},
