@@ -154,6 +154,10 @@ PAGES = {
         Source("peid", "product_entities", "updated_at", "Kabinet - Product Entities Loader", 48, ("peid",)),
         Source("admissions", "assortment_admissions", "updated_at", "Kabinet - Assortment Matrix Loader", 48,
                ("matrix",)),
+        # Перевод ERP: им подписаны категории в английском интерфейсе. Следим, потому что
+        # реплику наполняет загрузчик — встанет он, и английские названия тихо отстанут.
+        Source("translation", "raw_erp_translation_en", "loaded_at", "Kabinet - SKU Master Loader", 48,
+               ("categories",)),
         Source("warehouses", "warehouses", "created_at", "—", 720, ("wh",), watch=False),
         Source("chains", "supply_chains", "updated_at", "—", 720, ("chains",), watch=False),
         Source("marketplaces", "marketplaces_new", "created_at", "—", 720, ("mp",), watch=False),

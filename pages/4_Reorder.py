@@ -153,6 +153,11 @@ df = load_reorder(HAS_ORDER_STATUS, HAS_PIPELINE)
 # дефекты/возвраты (amzn.gr.) не заказываем — убираем из рекомендаций
 df = df[~df["sku"].apply(is_defect_sku)].copy()
 
+# Название из ERP там, где расчёт его не подтянул: имя в `reorder_recommendations`
+# приезжает с витрины, а товар, который на маркетплейсе не выставлен, витрины не имеет —
+# и в таблице стояла пустая ячейка. В английском интерфейсе берётся перевод ERP.
+df["product_name"] = catalog.fill_names(df["product_name"], df["sku"])
+
 
 # SKU, у которых есть активная переброска (чтобы не заказать лишнее)
 @st.cache_data(ttl=120)
@@ -324,8 +329,10 @@ if not active_tr.empty:
 
     tr = active_tr.copy()
     tr["sku_display"] = tr["sku"].apply(clean_sku)
-    # фолбэк если пайплайн не подтянул имя
+    # фолбэк если пайплайн не подтянул имя: сначала ERP (в английском интерфейсе —
+    # перевод ERP, нет перевода — оригинал), и только потом артикул вместо названия
     tr["product_name"] = tr["product_name"].fillna("").astype(str).replace("None", "")
+    tr["product_name"] = catalog.fill_names(tr["product_name"], tr["sku"])
     tr.loc[tr["product_name"] == "", "product_name"] = "— " + tr["sku_display"]
     tr.insert(0, "✓", True)
 
