@@ -136,9 +136,9 @@ def idle_threshold() -> int:
 
 people = load_people()
 
-tab_people, tab_matrix, tab_idle, tab_logins, tab_actions = st.tabs(
-    [t("auth.admin.people"), t("auth.admin.matrix"), t("auth.admin.idle"),
-     t("auth.admin.logins"), t("auth.admin.actions")])
+tab_people, tab_matrix, tab_qa, tab_idle, tab_logins, tab_actions = st.tabs(
+    [t("auth.admin.people"), t("auth.admin.matrix"), t("auth.admin.qa"),
+     t("auth.admin.idle"), t("auth.admin.logins"), t("auth.admin.actions")])
 
 # ─────────────────────────────── Люди ───────────────────────────────
 with tab_people:
@@ -310,6 +310,103 @@ with tab_matrix:
                         auth._matrix.clear()
                         st.success(t("auth.admin.saved", n=len(правки)))
                         st.rerun()
+
+
+# ──────────────────────── тестовый вход QA ──────────────────────────
+with tab_qa:
+    st.caption(t("auth.qa.caption"))
+    _вкл = False
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT value FROM kabinet_data.reorder_params
+                            WHERE key = 'qa_access_enabled'""")
+            _r = cur.fetchone()
+            _вкл = bool(_r) and int(_r[0]) == 1
+            cur.execute("""SELECT value FROM kabinet_data.reorder_params
+                            WHERE key = 'qa_token_days'""")
+            _r2 = cur.fetchone()
+            _дней = int(_r2[0]) if _r2 else 7
+        токены = pd.read_sql("""
+            SELECT id, COALESCE(label, '') AS label, created_at, created_by,
+                   expires_at, revoked_at, last_used_at, uses
+              FROM kabinet_data.qa_tokens ORDER BY id DESC LIMIT 50
+        """, conn)
+    finally:
+        conn.close()
+
+    # Состояние выключателя — первым и словом: «ссылка не работает» и «токен просрочен»
+    # это разные причины, и человек должен видеть, которая из них
+    (st.success if _вкл else st.warning)(
+        t("auth.qa.on") if _вкл else t("auth.qa.off"))
+    if not auth.qa_pepper_set():
+        # Молча работать без «перца» нельзя: защита ослаблена, и об этом надо сказать
+        st.info(t("auth.qa.no_pepper"))
+
+    живых = 0
+    if not токены.empty:
+        живых = int(sum(1 for r in токены.itertuples()
+                        if pd.isna(r.revoked_at) and pd.Timestamp(r.expires_at) > pd.Timestamp.now(tz="UTC")))
+    c1, c2 = st.columns([1, 2])
+    if c1.button(t("auth.qa.new"), type="primary", key="qa_new"):
+        if auth.require("admin", object_type="qa", object_id="token"):
+            import secrets as _secrets
+            новый = _secrets.token_urlsafe(32)
+            conn = get_connection()
+            try:
+                with conn.cursor() as cur:
+                    # прежние гасим: два живых токена — это две утечки вместо одной
+                    cur.execute("""UPDATE kabinet_data.qa_tokens SET revoked_at = now()
+                                    WHERE revoked_at IS NULL""")
+                    cur.execute("""INSERT INTO kabinet_data.qa_tokens
+                                       (token_hash, label, created_by, expires_at)
+                                   VALUES (%s, %s, %s, now() + make_interval(days => %s))""",
+                                (auth.qa_hash(новый), "QA", auth.actor(), _дней))
+                conn.commit()
+            finally:
+                conn.close()
+            auth.log_action("qa.new_token", True, "qa", "token", f"срок {_дней} дн.")
+            # Показываем ОДИН раз: открытый токен не хранится даже у нас
+            st.session_state["qa_fresh"] = новый
+            st.rerun()
+    c2.caption(t("auth.qa.live", n=живых))
+
+    _свежий = st.session_state.pop("qa_fresh", None)
+    if _свежий:
+        st.success(t("auth.qa.once"))
+        st.code(f"?qa={_свежий}", language="text")
+
+    if токены.empty:
+        st.caption(t("auth.qa.none"))
+    else:
+        показ = pd.DataFrame({
+            "выдан": [fmt_dt(v) for v in токены["created_at"]],
+            "кем": [as_text(v, "—") for v in токены["created_by"]],
+            "до": [fmt_dt(v) for v in токены["expires_at"]],
+            "состояние": [
+                t("auth.qa.st_revoked") if not pd.isna(r.revoked_at)
+                else (t("auth.qa.st_expired")
+                      if pd.Timestamp(r.expires_at) <= pd.Timestamp.now(tz="UTC")
+                      else t("auth.qa.st_live"))
+                for r in токены.itertuples()],
+            "заходов": [str(int(v)) for v in токены["uses"]],
+            "последний": [fmt_dt(v) for v in токены["last_used_at"]],
+        })
+        st.dataframe(показ, width="stretch", hide_index=True)
+        if живых and st.button(t("auth.qa.revoke"), key="qa_revoke"):
+            if auth.require("admin", object_type="qa", object_id="revoke"):
+                conn = get_connection()
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute("""UPDATE kabinet_data.qa_tokens SET revoked_at = now()
+                                        WHERE revoked_at IS NULL""")
+                    conn.commit()
+                finally:
+                    conn.close()
+                auth.log_action("qa.revoke", True, "qa", "token", "все живые токены погашены")
+                st.success(t("auth.qa.revoked"))
+                st.rerun()
+    st.caption(t("auth.qa.note"))
 
 # ───────────────────────── Давно не заходил ─────────────────────────
 with tab_idle:

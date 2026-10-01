@@ -4145,6 +4145,56 @@ TRANSLATIONS = {
     "cat.life.seasonal_pause": {"ru": "Сезонная пауза", "uk": "Сезонна пауза", "en": "Seasonal pause"},
     "cat.life.discontinued": {"ru": "Снят", "uk": "Знятий", "en": "Discontinued"},
 
+    # --- тестовый вход QA ---
+    "auth.qa_badge": {
+        "ru": "**QA-агент** · только просмотр, действия недоступны",
+        "uk": "**QA-агент** · лише перегляд, дії недоступні",
+        "en": "**QA agent** · view only, no actions",
+    },
+    "auth.admin.qa": {"ru": "Тестовый вход", "uk": "Тестовий вхід", "en": "QA access"},
+    "auth.qa.caption": {
+        "ru": "Ссылка для проверяющих роботов: ?qa=токен. Только просмотр, все действия запрещены жёстко — независимо от матрицы прав.",
+        "uk": "Посилання для перевіряльних роботів: ?qa=токен. Лише перегляд, усі дії заборонені жорстко — незалежно від матриці прав.",
+        "en": "A link for checking robots: ?qa=token. View only; all actions are hard-blocked regardless of the permissions matrix.",
+    },
+    "auth.qa.on": {
+        "ru": "Тестовый вход ВКЛЮЧЁН. Ссылка с живым токеном работает.",
+        "uk": "Тестовий вхід УВІМКНЕНО. Посилання з живим токеном працює.",
+        "en": "QA access is ON. A link with a live token works.",
+    },
+    "auth.qa.off": {
+        "ru": "Тестовый вход выключен — ссылка не работает, даже если токен жив. Включается настройкой qa_access_enabled.",
+        "uk": "Тестовий вхід вимкнено — посилання не працює, навіть якщо токен живий. Вмикається налаштуванням qa_access_enabled.",
+        "en": "QA access is off — the link does not work even with a live token. Enabled by the qa_access_enabled setting.",
+    },
+    "auth.qa.no_pepper": {
+        "ru": "В секретах нет [qa] pepper. Вход работает, но защита слабее: без «перца» украденный дамп базы позволяет подобрать токен.",
+        "uk": "У секретах немає [qa] pepper. Вхід працює, але захист слабший: без «перцю» викрадений дамп бази дозволяє підібрати токен.",
+        "en": "No [qa] pepper in secrets. Access works, but protection is weaker: without it a stolen database dump allows guessing the token.",
+    },
+    "auth.qa.new": {"ru": "Сменить токен", "uk": "Змінити токен", "en": "Rotate token"},
+    "auth.qa.live": {
+        "ru": "Живых токенов: {n}. Новый гасит прежние — двух живых не бывает.",
+        "uk": "Живих токенів: {n}. Новий гасить попередні — двох живих не буває.",
+        "en": "Live tokens: {n}. A new one revokes the previous — there is never more than one.",
+    },
+    "auth.qa.once": {
+        "ru": "Токен показан ОДИН раз — у нас он хранится только хешем. Скопируйте ссылку сейчас; потеряли — выпустите новый.",
+        "uk": "Токен показано ОДИН раз — у нас він зберігається лише хешем. Скопіюйте посилання зараз; загубили — випустіть новий.",
+        "en": "The token is shown ONCE — we store only its hash. Copy the link now; if lost, issue a new one.",
+    },
+    "auth.qa.none": {"ru": "Токенов ещё не выдавали.", "uk": "Токенів ще не видавали.", "en": "No tokens issued yet."},
+    "auth.qa.revoke": {"ru": "Погасить все токены", "uk": "Погасити всі токени", "en": "Revoke all tokens"},
+    "auth.qa.revoked": {"ru": "Погашено. Ссылка больше не работает.", "uk": "Погашено. Посилання більше не працює.", "en": "Revoked. The link no longer works."},
+    "auth.qa.st_live": {"ru": "живой", "uk": "живий", "en": "live"},
+    "auth.qa.st_expired": {"ru": "просрочен", "uk": "прострочений", "en": "expired"},
+    "auth.qa.st_revoked": {"ru": "погашен", "uk": "погашений", "en": "revoked"},
+    "auth.qa.note": {
+        "ru": "Заходы по тестовой ссылке видны в журнале входов как «qa-агент» — мы их не прячем. Срок жизни токена — настройка qa_token_days.",
+        "uk": "Заходи тестовим посиланням видно в журналі входів як «qa-агент» — ми їх не ховаємо. Термін життя токена — налаштування qa_token_days.",
+        "en": "Sign-ins via the QA link appear in the log as “qa-агент” — we do not hide them. Token lifetime is the qa_token_days setting.",
+    },
+
     "auth.denied": {
         "ru": "Недостаточно прав для этого действия. Ничего не изменено.",
         "uk": "Недостатньо прав для цієї дії. Нічого не змінено.",
