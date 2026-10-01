@@ -131,7 +131,7 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
                 SELECT e.sales_date, e.marketplace, e.norm_sku, e.units_ordered, e.units_refunded,
                        e.net_product_sales, e.ordered_product_sales, e.net_proceeds_total, e.cogs,
                        COALESCE(a.ads, 0) AS ads, COALESCE(l.packing_cost + l.shipping_cost, 0) AS logistics
-                FROM kabinet_data.economics_summary e
+                FROM kabinet_data.v_economics_summary_eur e
                 LEFT JOIN (SELECT date, marketplace, norm_sku, SUM(total_spend) AS ads FROM kabinet_data.ads_spend
                            WHERE date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days' GROUP BY 1, 2, 3) a
                        ON a.date = e.sales_date AND a.marketplace = e.marketplace AND a.norm_sku = e.norm_sku
@@ -194,7 +194,7 @@ def load_ordered_sales(days: int = 30, _v: str = "") -> pd.DataFrame:
         return pd.read_sql(f"""
             SELECT snapshot_date AS sales_date, marketplace,
                    ordered_sales, units_ordered
-            FROM kabinet_data.sales_traffic_daily
+            FROM kabinet_data.v_sales_traffic_daily_eur
             WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
         """, conn)
     except Exception:

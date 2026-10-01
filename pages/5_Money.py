@@ -54,10 +54,10 @@ def load_marketplaces() -> list:
     conn = get_connection()
     try:
         r = pd.read_sql("""
-            SELECT DISTINCT marketplace FROM kabinet_data.economics_summary
+            SELECT DISTINCT marketplace FROM kabinet_data.v_economics_summary_eur
             WHERE marketplace IS NOT NULL
             UNION
-            SELECT DISTINCT marketplace FROM kabinet_data.sales_traffic_daily
+            SELECT DISTINCT marketplace FROM kabinet_data.v_sales_traffic_daily_eur
             WHERE marketplace IS NOT NULL
         """, conn)
         return sorted(r["marketplace"].dropna().astype(str).str.strip().unique())
@@ -113,7 +113,7 @@ def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = "
     else:
         # строго больше: окно из {days} дней, как на Обзоре (>= давало на день больше — QA 21.09.2026)
         where = f"""e.sales_date > (SELECT MAX(sales_date) - INTERVAL '{days} days'
-                               FROM kabinet_data.economics_summary)"""
+                               FROM kabinet_data.v_economics_summary_eur)"""
     mk_sql, mk_params = _mk_clause(markets, "e.marketplace")
     df = pd.read_sql(f"""
         SELECT e.norm_sku, e.product_name, e.marketplace, e.sales_date,
@@ -132,7 +132,7 @@ def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = "
                -- потому что economics_summary принадлежит владельцу и от приложения не расширяется
                COALESCE(l.packing_cost, 0) + COALESCE(l.shipping_cost, 0) AS logistics,
                s.asin
-        FROM kabinet_data.economics_summary e
+        FROM kabinet_data.v_economics_summary_eur e
         LEFT JOIN kabinet_data.economics_logistics l
           ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace AND l.norm_sku = e.norm_sku
         LEFT JOIN (
@@ -207,15 +207,15 @@ def load_ordered_sales(days: int, d_from=None, d_to=None, markets: tuple = (), _
         where = f"snapshot_date BETWEEN '{d_from}' AND '{d_to}'"
     else:
         # якорь — экономика, не витрина: у витрины история с 01.2025 и свежее на день, окна должны совпадать
-        where = (f"snapshot_date > (SELECT MAX(sales_date) - INTERVAL '{days} days' FROM kabinet_data.economics_summary) "
-                 f"AND snapshot_date <= (SELECT MAX(sales_date) FROM kabinet_data.economics_summary)")
+        where = (f"snapshot_date > (SELECT MAX(sales_date) - INTERVAL '{days} days' FROM kabinet_data.v_economics_summary_eur) "
+                 f"AND snapshot_date <= (SELECT MAX(sales_date) FROM kabinet_data.v_economics_summary_eur)")
     mk_sql, mk_params = _mk_clause(markets)
     conn = get_connection()
     try:
         r = pd.read_sql(f"""
             SELECT COALESCE(SUM(ordered_sales), 0) AS ordered_sales,
                    COALESCE(SUM(units_ordered), 0) AS units
-            FROM kabinet_data.sales_traffic_daily
+            FROM kabinet_data.v_sales_traffic_daily_eur
             WHERE {where}{mk_sql}
         """, conn, params=mk_params or None)
         return float(r["ordered_sales"].iloc[0])
@@ -266,7 +266,7 @@ def load_period_bounds(days: int, d_from=None, d_to=None) -> tuple:
         r = pd.read_sql(f"""
             SELECT MAX(sales_date) - INTERVAL '{days - 1} days' AS d0,   -- ровно {days} дней, как на Обзоре
                    MAX(sales_date)                              AS d1
-            FROM kabinet_data.economics_summary
+            FROM kabinet_data.v_economics_summary_eur
         """, conn)
         d0, d1 = r["d0"].iloc[0], r["d1"].iloc[0]
         if pd.isna(d0) or pd.isna(d1):
@@ -301,7 +301,7 @@ def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = (), _
         where = f"sales_date BETWEEN '{d_from}' AND '{d_to}'"
     else:
         where = (f"sales_date > (SELECT MAX(sales_date) - INTERVAL '{days} days' "
-                 f"FROM kabinet_data.economics_summary)")
+                 f"FROM kabinet_data.v_economics_summary_eur)")
     mk_sql, mk_params = _mk_clause(markets)
     conn = get_connection()
     try:
@@ -309,7 +309,7 @@ def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = (), _
             SELECT COALESCE(SUM(net_product_sales), 0) AS revenue,
                    COALESCE(SUM(units_ordered), 0)     AS units,
                    COUNT(*)                            AS rows
-            FROM kabinet_data.economics_summary
+            FROM kabinet_data.v_economics_summary_eur
             WHERE {where}{mk_sql}
         """, conn, params=mk_params or None)
         return r.iloc[0].to_dict()

@@ -123,7 +123,7 @@ def load_pool() -> pd.DataFrame:
             SELECT o.sales_channel,
                    DATE_PART('day', NOW() - o.purchase_date)::int AS age_days,
                    COUNT(DISTINCT o.order_id)                     AS orders
-            FROM kabinet_data.orders_history o
+            FROM kabinet_data.v_orders_history_eur o
             WHERE o.order_status = 'Shipped'
               AND o.sales_channel LIKE 'Amazon.%%'
               AND o.purchase_date BETWEEN NOW() - INTERVAL '{AGE_MAX} days'
@@ -164,7 +164,7 @@ def load_coverage(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
                 SELECT purchase_date::date AS day,
                        sales_channel,
                        COUNT(DISTINCT order_id) AS orders
-                FROM kabinet_data.orders_history
+                FROM kabinet_data.v_orders_history_eur
                 WHERE order_status = 'Shipped'
                   AND sales_channel LIKE 'Amazon.%%'
                   AND {_win('purchase_date', days, d_from, d_to)}
@@ -182,7 +182,7 @@ def load_coverage(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
                        COUNT(DISTINCT l.amazon_order_id)
                            FILTER (WHERE l.status = 'failed')          AS errors
                 FROM kabinet_data.review_request_log l
-                JOIN kabinet_data.orders_history o
+                JOIN kabinet_data.v_orders_history_eur o
                   ON o.order_id = l.amazon_order_id
                 WHERE {_win('o.purchase_date', days, d_from, d_to)}
                 GROUP BY 1, 2
@@ -293,7 +293,7 @@ def load_by_asin(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
                        COUNT(DISTINCT l.amazon_order_id)
                            FILTER (WHERE l.status='no_action') AS no_action
                 FROM kabinet_data.review_request_log l
-                JOIN kabinet_data.orders_history o
+                JOIN kabinet_data.v_orders_history_eur o
                   ON o.order_id = l.amazon_order_id
                 WHERE {_win('COALESCE(l.sent_at, l.checked_at)', days, d_from, d_to)}
                   AND o.asin IS NOT NULL
@@ -347,7 +347,7 @@ def load_names_by_market() -> pd.DataFrame:
         return pd.read_sql("""
             SELECT DISTINCT ON (s.asin, e.marketplace)
                    s.asin, e.marketplace, e.product_name
-            FROM kabinet_data.economics_summary e
+            FROM kabinet_data.v_economics_summary_eur e
             JOIN (
                 SELECT sku_group, MAX(asin) AS asin
                 FROM kabinet_data.sku_asin_map

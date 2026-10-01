@@ -351,7 +351,7 @@ def load_sales_by_asin(days: int = 30) -> pd.DataFrame:
                 SELECT s.asin           AS asin,
                        e.marketplace    AS mp,
                        SUM(e.units_ordered) AS units
-                FROM kabinet_data.economics_summary e
+                FROM kabinet_data.v_economics_summary_eur e
                 JOIN (
                     SELECT sku_group, MAX(asin) AS asin
                     FROM kabinet_data.sku_asin_map

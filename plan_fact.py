@@ -62,7 +62,7 @@ SQL = """
     -- как план в листе), поэтому евро остаются в одной системе координат с планом.
     lines AS (   -- цена и количество по заказу × артикулу: делим на количество, умножаем на отгруженное
         SELECT order_id, sku, SUM(quantity)::numeric AS q, SUM(item_price) AS p
-        FROM kabinet_data.orders_history WHERE order_status <> 'Canceled' GROUP BY 1, 2
+        FROM kabinet_data.v_orders_history_eur WHERE order_status <> 'Canceled' GROUP BY 1, 2
     ),
     daily AS (   -- только Amazon: у Mirakl плана нет, и в блоке их не считаем
         SELECT s.marketplace, s.shipped_date AS d, s.qty AS units,
@@ -186,7 +186,7 @@ SQL_MONTH = """
     -- Цена — из строки заказа (сумма строки с НДС), чтобы евро совпадали по смыслу с планом листа.
     lines AS (
         SELECT order_id, sku, SUM(quantity)::numeric AS q, SUM(item_price) AS p
-        FROM kabinet_data.orders_history WHERE order_status <> 'Canceled' GROUP BY 1, 2
+        FROM kabinet_data.v_orders_history_eur WHERE order_status <> 'Canceled' GROUP BY 1, 2
     ),
     fact AS (
         SELECT s.marketplace AS econ_code, SUM(s.qty)::int AS fact_units,
