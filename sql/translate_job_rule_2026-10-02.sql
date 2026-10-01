@@ -23,3 +23,16 @@ ON CONFLICT (job_id) DO UPDATE
 
 SELECT job_id, job_name, expected_interval_hours, schedule_description, is_active
   FROM kabinet_data.job_health_rules WHERE job_name = 'Translate new SKUs';
+
+-- ── Подписи взамен единственного числа в категориях (02.10.2026) ───────────────
+-- Глоссарий задан в единственном числе (он нужен и для названий товаров, где это
+-- верно), и у части КАТЕГОРИЙ модель следует ему вместо правила «категории во
+-- множественном». Правило приоритета в промпте помогло не везде: «Перфоратори» стали
+-- «Rotary hammers», а «Лобзики» остались «Jigsaw». Гоняться за этим переводами дорого
+-- и ненадёжно — для таких случаев и заведён словарь отображения.
+INSERT INTO kabinet_data.category_names (category_key, name_en, updated_by)
+SELECT category_key, 'Jigsaws 20V', 'fix:plural:2026-10-02'
+  FROM kabinet_data.sku_category_tree WHERE title = 'Лобзики 20В'
+ON CONFLICT (category_key) DO UPDATE
+   SET name_en = EXCLUDED.name_en, updated_by = EXCLUDED.updated_by, updated_at = now()
+ WHERE kabinet_data.category_names.name_en IS NULL;
