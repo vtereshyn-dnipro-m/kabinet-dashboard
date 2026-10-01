@@ -39,6 +39,7 @@ TR = {
         "tab_assort": "🧭 Ассортимент",
         "tab_alerts": "🔔 Алерты",
         "tab_sku": "🧱 SKU",
+        "tab_cat": "🗂 Категории",
         "tab_peid": "🏷 PeID",
         "tab_vg": "🧬 Вариации",
         "tab_matrix": "🗂 Матрица",
@@ -428,6 +429,7 @@ TR = {
         "tab_assort": "🧭 Асортимент",
         "tab_alerts": "🔔 Алерти",
         "tab_sku": "🧱 SKU",
+        "tab_cat": "🗂 Категорії",
         "tab_peid": "🏷 PeID",
         "tab_vg": "🧬 Варіації",
         "tab_matrix": "🗂 Матриця",
@@ -816,6 +818,7 @@ TR = {
         "tab_assort": "🧭 Assortment",
         "tab_alerts": "🔔 Alerts",
         "tab_sku": "🧱 SKU",
+        "tab_cat": "🗂 Categories",
         "tab_peid": "🏷 PeID",
         "tab_vg": "🧬 Variations",
         "tab_matrix": "🗂 Matrix",
@@ -1461,7 +1464,7 @@ st.caption(_tr("sub"))
 # Разделы — не st.tabs. Вкладки Streamlit исполняются все разом при каждом прогоне: на любое действие
 # страница делала 44 запроса и отправляла в браузер десять таблиц (PeID — 4 076 строк, матрица — 2 204),
 # после каждого сохранения — заново. Здесь исполняется только выбранный раздел (замер 21.09.2026).
-_SECTIONS = ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "peid", "vg", "matrix"]
+_SECTIONS = ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "cat", "peid", "vg", "matrix"]
 _sec = st.segmented_control(_tr("title"), _SECTIONS, format_func=lambda k: _tr(f"tab_{k}"), default="wh",
                             key="dict_section", label_visibility="collapsed")
 if _sec is None:
@@ -1472,6 +1475,266 @@ if _sec is None:
     st.session_state["dict_section"] = _sec
     st.rerun()
 st.session_state["dict_section_last"] = _sec
+
+def fmt_d(v) -> str:
+    """Дата текстом. Пустая ячейка в сетке Streamlit рисуется словом «None» при ЛЮБОМ
+    типе — это рендер, а не тип данных, поэтому даты показываем строкой."""
+    return "—" if (v is None or pd.isna(v)) else pd.Timestamp(v).strftime("%d.%m.%Y")
+
+
+# ------------------------------------------------------------- категории ---
+def _section_cat():
+    """Дерево категорий из ERP, связь SKU с ним и ручной жизненный цикл.
+
+    Три части разом, потому что это один вопрос: к какой категории относится товар и в
+    каком он состоянии. Разносить их по разным разделам значило бы гонять человека
+    туда-сюда ради одной строки.
+    """
+    st.caption(i18n_t("cat.hint"))
+
+    дерево = q("""
+        SELECT t.category_key, t.parent_key, t.depth, t.level1, t.level2, t.level3, t.title,
+               n.name_ru, n.name_uk, n.name_en,
+               (SELECT count(*) FROM kabinet_data.sku_category_links l
+                 WHERE l.category_key = t.category_key)::int AS own_skus
+          FROM kabinet_data.sku_category_tree t
+          LEFT JOIN kabinet_data.category_names n ON n.category_key = t.category_key
+         -- Порядок дерева: сначала сам узел первого уровня, затем КАЖДАЯ его ветка
+         -- целиком — второй уровень и сразу его третий. Сортировка по глубине раньше
+         -- ветки ставила все вторые уровни подряд, а третьи — скопом после них, и
+         -- «дерево» переставало быть деревом: потомок стоял не под своим родителем.
+         ORDER BY t.level1, COALESCE(t.level2, ''), t.depth, COALESCE(t.level3, '')
+    """)
+    связи = q("""
+        SELECT m.sku, COALESCE(m.name, '') AS name,
+               l.category_key, COALESCE(l.key_source, '') AS key_source,
+               COALESCE(t.level1, '') AS level1, COALESCE(t.level2, '') AS level2,
+               COALESCE(t.level3, '') AS level3
+          FROM kabinet_data.sku_master m
+          LEFT JOIN kabinet_data.sku_category_links l ON l.sku = m.sku
+          LEFT JOIN kabinet_data.sku_category_tree t ON t.category_key = l.category_key
+         ORDER BY m.sku
+    """)
+    if дерево.empty:
+        st.info(i18n_t("cat.empty"))
+        return
+
+    _без = int(связи["category_key"].isna().sum())
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric(i18n_t("cat.k_nodes"), len(дерево))
+    k2.metric(i18n_t("cat.k_linked"), len(связи) - _без)
+    k3.metric(i18n_t("cat.k_nocat"), _без)
+    k4.metric(i18n_t("cat.k_manual"), int((связи["key_source"] == "manual").sum()))
+
+    # Откуда у связи категория: унаследованная не должна выглядеть заявленной
+    _ист = связи[связи["category_key"].notna()]["key_source"].value_counts().to_dict()
+    if _ист:
+        st.caption(" · ".join(f"{i18n_t('cat.src.' + k)}: {v}" for k, v in sorted(_ист.items())))
+
+    tab_tree, tab_links, tab_life = st.tabs(
+        [i18n_t("cat.tab_tree"), i18n_t("cat.tab_links"), i18n_t("cat.tab_life")])
+
+    # ─────────────────────────── дерево ───────────────────────────
+    with tab_tree:
+        # Считаем SKU с учётом потомков: у узла первого уровня своих связей почти нет —
+        # они висят на третьем, — и «0» рядом с «Садовой техникой» читался бы как пустая
+        # категория, хотя под ней сотня товаров
+        _родитель = dict(zip(дерево["category_key"], дерево["parent_key"]))
+        _итого = {k: 0 for k in дерево["category_key"]}
+        for ключ, своих in zip(дерево["category_key"], дерево["own_skus"]):
+            узел = ключ
+            while узел:
+                _итого[узел] = _итого.get(узел, 0) + int(своих)
+                узел = _родитель.get(узел)
+
+        показ = pd.DataFrame({
+            "название": ["— " * (int(d) - 1) + as_text(t)
+                         for d, t in zip(дерево["depth"], дерево["title"])],
+            "свои": [num_text(v) for v in дерево["own_skus"]],
+            "всего": [num_text(_итого.get(k, 0)) for k in дерево["category_key"]],
+            "ru": [as_text(v) for v in дерево["name_ru"]],
+            "uk": [as_text(v) for v in дерево["name_uk"]],
+            "en": [as_text(v) for v in дерево["name_en"]],
+        })
+        st.caption(i18n_t("cat.tree_hint"))
+        edited = st.data_editor(
+            показ, width="stretch", hide_index=True, key="cat_tree_editor",
+            column_config={
+                "название": st.column_config.TextColumn(i18n_t("cat.col_title"),
+                                                        disabled=True, width="large"),
+                "свои": st.column_config.TextColumn(i18n_t("cat.col_own"),
+                                                    disabled=True, width="small"),
+                "всего": st.column_config.TextColumn(i18n_t("cat.col_total"),
+                                                     disabled=True, width="small"),
+                "ru": st.column_config.TextColumn("RU"),
+                "uk": st.column_config.TextColumn("UK"),
+                "en": st.column_config.TextColumn("EN"),
+            })
+        if st.button(i18n_t("cat.save_names"), type="primary", key="cat_save_names"):
+            правки = []
+            for i in range(len(показ)):
+                было = (показ.at[i, "ru"], показ.at[i, "uk"], показ.at[i, "en"])
+                стало = (as_text(edited.at[i, "ru"]), as_text(edited.at[i, "uk"]),
+                         as_text(edited.at[i, "en"]))
+                if было != стало:
+                    правки.append((дерево.iloc[i]["category_key"],) + стало)
+            if not правки:
+                st.info(i18n_t("cat.nochange"))
+            else:
+                try:
+                    exec_sql([("""INSERT INTO kabinet_data.category_names
+                                      (category_key, name_ru, name_uk, name_en, updated_by, updated_at)
+                                  VALUES (%s, NULLIF(%s,''), NULLIF(%s,''), NULLIF(%s,''), %s, now())
+                                  ON CONFLICT (category_key) DO UPDATE
+                                     SET name_ru = EXCLUDED.name_ru, name_uk = EXCLUDED.name_uk,
+                                         name_en = EXCLUDED.name_en,
+                                         updated_by = EXCLUDED.updated_by, updated_at = now()""",
+                               (k, ru, uk, en, _actor())) for k, ru, uk, en in правки])
+                    st.cache_data.clear()
+                    st.success(i18n_t("cat.saved", n=len(правки)))
+                    st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+
+    # ──────────────────────── связь SKU с деревом ────────────────────────
+    with tab_links:
+        f1, f2, f3 = st.columns([1.4, 1.4, 1.2])
+        поиск = f1.text_input(i18n_t("cat.f_search"), key="cat_f_search")
+        # Пустой выбор означает «все», а не «ничего»: человек снимает галочки, чтобы
+        # перестать фильтровать, а не чтобы получить пустую таблицу
+        ур1 = f2.multiselect(i18n_t("cat.f_level1"),
+                             sorted({as_text(v) for v in связи["level1"] if as_text(v)}),
+                             default=[], placeholder=i18n_t("cat.f_all"), key="cat_f_l1")
+        только_без = f3.checkbox(i18n_t("cat.f_nocat"), key="cat_f_nocat")
+
+        сито = связи
+        if поиск:
+            _p = поиск.strip().lower()
+            сито = сито[[_p in as_text(a).lower() or _p in as_text(b).lower()
+                         for a, b in zip(сито["sku"], сито["name"])]]
+        if ур1:
+            сито = сито[сито["level1"].isin(ур1)]
+        if только_без:
+            сито = сито[сито["category_key"].isna()]
+        st.caption(i18n_t("cat.shown", n=len(сито), all=len(связи)))
+
+        показ2 = pd.DataFrame({
+            "sku": сито["sku"],
+            "name": [as_text(v)[:70] for v in сито["name"]],
+            "категория": [" / ".join(x for x in (as_text(a), as_text(b), as_text(c)) if x) or "—"
+                          for a, b, c in zip(сито["level1"], сито["level2"], сито["level3"])],
+            "источник": [i18n_t("cat.src." + as_text(v)) if as_text(v) else "—"
+                         for v in сито["key_source"]],
+        })
+        if показ2.empty:
+            st.caption(i18n_t("cat.filtered_empty"))
+        else:
+            st.dataframe(показ2, width="stretch", hide_index=True, column_config={
+                "sku": st.column_config.TextColumn("SKU", width="small"),
+                "name": st.column_config.TextColumn(i18n_t("cat.col_name"), width="large"),
+                "категория": st.column_config.TextColumn(i18n_t("cat.col_category"), width="large"),
+                "источник": st.column_config.TextColumn(i18n_t("cat.col_source"), width="small"),
+            })
+
+        # Ручная связь — формой, а не правкой в сетке: категорий больше шестисот, и
+        # выпадающий список в каждой строке и медленный, и промахнуться в нём легко
+        with st.form("cat_link_form", clear_on_submit=True):
+            st.markdown("**" + i18n_t("cat.manual_title") + "**")
+            c1, c2, c3 = st.columns([1.2, 2.4, 1])
+            _sku = c1.selectbox(i18n_t("cat.manual_sku"), list(связи["sku"]), key="cat_m_sku")
+            _пути = {r["category_key"]: " / ".join(
+                        x for x in (as_text(r["level1"]), as_text(r["level2"]),
+                                    as_text(r["level3"])) if x)
+                     for _, r in дерево.iterrows()}
+            _ключ = c2.selectbox(i18n_t("cat.manual_cat"), list(_пути),
+                                 format_func=lambda k: _пути.get(k, k), key="cat_m_key")
+            if c3.form_submit_button(i18n_t("cat.manual_btn")):
+                try:
+                    exec_sql([("""INSERT INTO kabinet_data.sku_category_links
+                                      (sku, category_key, key_source, updated_by, updated_at)
+                                  VALUES (%s, %s, 'manual', %s, now())
+                                  ON CONFLICT (sku) DO UPDATE
+                                     SET category_key = EXCLUDED.category_key, key_source = 'manual',
+                                         updated_by = EXCLUDED.updated_by, updated_at = now()""",
+                               (_sku, _ключ, _actor()))])
+                    st.cache_data.clear()
+                    st.success(i18n_t("cat.manual_ok", sku=_sku))
+                    st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+        st.caption(i18n_t("cat.manual_hint"))
+
+    # ───────────────────────── жизненный цикл ─────────────────────────
+    with tab_life:
+        цикл = q("""
+            SELECT sku, marketplace, status, is_manual, effective_from,
+                   COALESCE(updated_by, '') AS updated_by
+              FROM kabinet_data.v_sku_lifecycle_current
+             ORDER BY is_manual DESC, sku, marketplace
+        """)
+        будущие = q("""
+            SELECT sku, marketplace, status, effective_from, COALESCE(reason, '') AS reason
+              FROM kabinet_data.sku_lifecycle_manual
+             WHERE effective_from > current_date
+             ORDER BY effective_from, sku
+        """)
+        st.caption(i18n_t("cat.life_hint"))
+        if not будущие.empty:
+            # Отложенное решение показываем отдельно: иначе человек поставил «с 01.11» и
+            # не понимает, почему в таблице по-прежнему «активен»
+            st.info(i18n_t("cat.life_future", n=len(будущие)))
+            st.dataframe(pd.DataFrame({
+                "sku": будущие["sku"], "mp": будущие["marketplace"],
+                "статус": [i18n_t("cat.life." + as_text(v)) for v in будущие["status"]],
+                "с": [fmt_d(v) for v in будущие["effective_from"]],
+                "причина": [as_text(v) for v in будущие["reason"]],
+            }), width="stretch", hide_index=True)
+
+        if цикл.empty:
+            st.info(_tr("no_data"))
+        else:
+            св = pd.DataFrame({
+                "sku": цикл["sku"], "mp": цикл["marketplace"],
+                "статус": [i18n_t("cat.life." + as_text(v)) for v in цикл["status"]],
+                "решение": [i18n_t("cat.life_manual") if bool(v) else i18n_t("cat.life_calc")
+                            for v in цикл["is_manual"]],
+                "с": [fmt_d(v) for v in цикл["effective_from"]],
+                "автор": [as_text(v, "—") for v in цикл["updated_by"]],
+            })
+            st.dataframe(св.head(400), width="stretch", hide_index=True)
+            if len(св) > 400:
+                st.caption(i18n_t("cat.life_cut", n=len(св)))
+
+        СТАТУСЫ = ["active", "not_launched", "phasing_out", "seasonal_pause", "discontinued"]
+        with st.form("cat_life_form", clear_on_submit=True):
+            st.markdown("**" + i18n_t("cat.life_set") + "**")
+            c1, c2, c3, c4 = st.columns([1.2, 1, 1.2, 1])
+            l_sku = c1.selectbox("SKU", list(связи["sku"]), key="cat_l_sku")
+            _mp = sorted({as_text(v) for v in цикл["marketplace"]}) if not цикл.empty else []
+            l_mp = c2.selectbox(i18n_t("cat.life_mp"), _mp or ["ES"], key="cat_l_mp")
+            # Статус в базе английским кодом — его читают расчёты; на экране слово.
+            # При сохранении подпись переводится обратно (тот же приём, что у ролей).
+            l_st = c3.selectbox(i18n_t("cat.life_status"), СТАТУСЫ,
+                                format_func=lambda s: i18n_t("cat.life." + s), key="cat_l_st")
+            l_from = c4.date_input(i18n_t("cat.life_from"), value=date.today(), key="cat_l_from")
+            l_why = st.text_input(i18n_t("cat.life_reason"), key="cat_l_why")
+            if st.form_submit_button(i18n_t("cat.life_btn")):
+                try:
+                    exec_sql([("""INSERT INTO kabinet_data.sku_lifecycle_manual
+                                      (sku, marketplace, status, effective_from, reason,
+                                       updated_by, updated_at)
+                                  VALUES (%s, %s, %s, %s, NULLIF(%s,''), %s, now())
+                                  ON CONFLICT (sku, marketplace, effective_from) DO UPDATE
+                                     SET status = EXCLUDED.status, reason = EXCLUDED.reason,
+                                         updated_by = EXCLUDED.updated_by, updated_at = now()""",
+                               (l_sku, l_mp, l_st, l_from, l_why, _actor()))])
+                    st.cache_data.clear()
+                    st.success(i18n_t("cat.life_ok", sku=l_sku, d=l_from.strftime("%d.%m.%Y")))
+                    st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+        st.caption(i18n_t("cat.life_note"))
+
 
 # ---------------------------------------------------------------- склады ---
 def _section_wh():
@@ -4228,6 +4491,6 @@ def _section_matrix():
                             st.error(_trf("err", e=e))
 
 
-{"wh": _section_wh, "ch": _section_ch, "ctry": _section_ctry, "plat": _section_plat, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sku": _section_sku, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
+{"wh": _section_wh, "ch": _section_ch, "ctry": _section_ctry, "plat": _section_plat, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sku": _section_sku, "cat": _section_cat, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
 
 passport.footer("dictionaries")
