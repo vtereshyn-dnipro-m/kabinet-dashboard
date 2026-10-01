@@ -110,49 +110,56 @@ auth.guard()
 language_toggle()
 auth.header()
 
-pages = st.navigation({
-    t("nav.section"): [
-        st.Page("home.py", title=t("nav.home"), icon=":material/home:", default=True),
-        st.Page("pages/1_Stock.py", title=t("nav.stock"), icon=":material/inventory_2:"),
-        st.Page("pages/2_Incidents.py", title=t("nav.incidents"), icon=":material/warning:"),
-        st.Page("pages/4_Reorder.py", title=t("nav.reorder"), icon=":material/shopping_cart:"),
-        st.Page("pages/5_Money.py", title=t("nav.money"), icon=":material/payments:"),
-        # Отдельной страницей, а не вкладкой в «Деньгах»: там считают
-        # прибыль, здесь ведут ставки — разные читатели и разные вопросы
-        st.Page("pages/9_Ads.py", title=t("nav.ads"), icon=":material/campaign:"),
-        st.Page("pages/3_Forecast.py", title=t("nav.forecast"), icon=":material/show_chart:"),
-        st.Page("pages/7_Reviews.py", title=t("nav.reviews"),
-                icon=":material/rate_review:"),
-        st.Page("pages/8_CM_Dashboard.py", title=t("nav.cm"),
-                icon=":material/dashboard:"),
-        st.Page("pages/6_Dictionaries.py", title=t("nav.dictionaries"),
-                icon=":material/library_books:"),
-    ],
-})
+# ---------- навигация по правам ----------
+# Список страниц объявлен в auth.PAGES: видимость страницы — такое же право, как любое
+# другое, и держать два списка (страниц и прав) значило бы однажды их разойтись.
+#
+# Страница, которую роли видеть нельзя, НЕ исчезает из навигации — она становится
+# скрытой заглушкой с тем же адресом. Разница существенная: просто убрать её из списка
+# значило бы, что по прямой ссылке Streamlit покажет своё «Page not found» и молча
+# перебросит на главную, а человек должен получить ОТКАЗ и понять, что страница есть,
+# но ему закрыта.
+def _адрес(файл: str) -> str:
+    """Адрес страницы в ссылке — тот же, что Streamlit выводит из имени файла:
+    отбрасывает путь, числовой префикс и расширение. `pages/1_Stock.py` → `Stock`.
+    Нужен затем, чтобы заглушка отвечала по ТОМУ ЖЕ адресу, что и сама страница."""
+    import re as _re
+    имя = файл.rsplit("/", 1)[-1]
+    if имя.endswith(".py"):
+        имя = имя[:-3]
+    return _re.sub(r"^\d+_", "", имя)
 
-# Админка — отдельной страницей и только администраторам. Скрытый пункт меню сам по
-# себе не защита, поэтому на самой странице стоит своя проверка: сюда можно прийти по
-# прямой ссылке, и решает именно она, а не отсутствие ссылки в сайдбаре.
+
+def _отказ():
+    st.title(t("auth.page_closed_title"))
+    st.error(t("auth.page_closed"))
+    st.caption(t("auth.page_closed_hint"))
+
+
+_видимые = [(к, ф, п, з) for к, ф, п, з in auth.PAGES if auth.can("page." + к)]
+_закрытые = [(к, ф, п, з) for к, ф, п, з in auth.PAGES if not auth.can("page." + к)]
+
+if not _видимые and not auth.can("admin"):
+    # Ни одной открытой страницы — показываем отказ целиком, а не пустое меню
+    _отказ()
+    st.stop()
+
+_список = []
+for _i, (_к, _ф, _п, _з) in enumerate(_видимые):
+    _список.append(st.Page(_ф, title=t(_п), icon=_з, default=(_i == 0)))
+for _к, _ф, _п, _з in _закрытые:
+    # visibility="hidden": из меню убрана, но адрес живёт и отвечает отказом
+    _список.append(st.Page(_отказ, title=t(_п), icon=_з,
+                           url_path=_адрес(_ф), visibility="hidden"))
+
+# Админка — только администраторам. Скрытый пункт меню сам по себе не защита, поэтому
+# на самой странице стоит своя проверка: туда можно прийти по прямой ссылке, и решает
+# именно она, а не отсутствие ссылки в сайдбаре.
 if auth.can("admin"):
-    pages = st.navigation({
-        t("nav.section"): [
-            st.Page("home.py", title=t("nav.home"), icon=":material/home:", default=True),
-            st.Page("pages/1_Stock.py", title=t("nav.stock"), icon=":material/inventory_2:"),
-            st.Page("pages/2_Incidents.py", title=t("nav.incidents"), icon=":material/warning:"),
-            st.Page("pages/4_Reorder.py", title=t("nav.reorder"), icon=":material/shopping_cart:"),
-            st.Page("pages/5_Money.py", title=t("nav.money"), icon=":material/payments:"),
-            st.Page("pages/9_Ads.py", title=t("nav.ads"), icon=":material/campaign:"),
-            st.Page("pages/3_Forecast.py", title=t("nav.forecast"), icon=":material/show_chart:"),
-            st.Page("pages/7_Reviews.py", title=t("nav.reviews"),
-                    icon=":material/rate_review:"),
-            st.Page("pages/8_CM_Dashboard.py", title=t("nav.cm"),
-                    icon=":material/dashboard:"),
-            st.Page("pages/6_Dictionaries.py", title=t("nav.dictionaries"),
-                    icon=":material/library_books:"),
-            st.Page("pages/10_Access.py", title=t("auth.admin.title"),
-                    icon=":material/lock:"),
-        ],
-    })
+    _список.append(st.Page("pages/10_Access.py", title=t("auth.admin.title"),
+                           icon=":material/lock:"))
+
+pages = st.navigation({t("nav.section"): _список})
 
 
 # ---------- бейджи-счётчики в сайдбаре ----------
