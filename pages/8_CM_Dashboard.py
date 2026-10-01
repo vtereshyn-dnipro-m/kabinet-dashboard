@@ -134,7 +134,7 @@ def load_marketplaces() -> list:
     try:
         df = pd.read_sql("""
             SELECT DISTINCT marketplace
-            FROM kabinet_data.economics_summary
+            FROM kabinet_data.v_economics_summary_eur
             WHERE marketplace IS NOT NULL
             ORDER BY 1
         """, conn)
@@ -160,7 +160,7 @@ def load_sales(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
                    SUM(net_proceeds_total)              AS net_proceeds,
                    SUM(total_fees)                      AS fees,
                    SUM(COALESCE(cogs, 0) * units_ordered) AS cogs_total
-            FROM kabinet_data.economics_summary
+            FROM kabinet_data.v_economics_summary_eur
             WHERE {where}
               AND SUBSTRING(norm_sku FROM '([0-9]{{5,}})') IS NOT NULL
             GROUP BY 1, 2
@@ -311,7 +311,7 @@ def load_refunded(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
         return pd.read_sql(f"""
             SELECT marketplace,
                    SUM(ordered_product_sales - net_product_sales)::float AS refunded_eur
-            FROM kabinet_data.economics_summary
+            FROM kabinet_data.v_economics_summary_eur
             WHERE {where}
             GROUP BY 1
         """, conn)

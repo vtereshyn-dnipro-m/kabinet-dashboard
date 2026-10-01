@@ -88,9 +88,13 @@ summary = (f"строк {итог['n']}, дней {итог['days']} ({итог[
            f"последняя публикация ЕЦБ {итог['last_rate']}, валют {len(ВАЛЮТЫ)}")
 print("💱 " + summary)
 
-# ── SYSTEM PULSE: безусловно, последним ──
-# Метка — внешняя точка контроля: если прогон встанет, об этом скажет сторож.
+# ── РЕПЛИКА В LAKEBASE ───────────────────────────────────────────────────────
+# Первоисточник остаётся в `dnipro_m` — он нужен не только Кабинету. Но страницы
+# читают Lakebase и кросс-проектных запросов не делают, а пересчёт в евро нужен в
+# SQL страницы. Поэтому рядом лежит реплика; расхождения прав у неё нет — пишет её
+# тот же прогон тем же набором строк.
 import psycopg2
+import psycopg2.extras
 from databricks.sdk import WorkspaceClient
 
 _w = WorkspaceClient()
@@ -102,6 +106,36 @@ _c = psycopg2.connect(
     port=5432, dbname="databricks_postgres", user=_me, password=_cred.token,
     sslmode="require")
 _cur = _c.cursor()
+_cur.execute("""
+    CREATE TABLE IF NOT EXISTS kabinet_data.raw_ecb_fx_rates (
+        date          date             NOT NULL,
+        currency      text             NOT NULL,
+        units_per_eur double precision NOT NULL,
+        eur_per_unit  double precision NOT NULL,
+        rate_date     date             NOT NULL,
+        source        text,
+        loaded_at     timestamptz      NOT NULL DEFAULT now(),
+        PRIMARY KEY (date, currency)
+    )""")
+_пакет = [(r["date"], r["currency"], r["units_per_eur"], r["eur_per_unit"],
+           r["rate_date"], r["source"]) for r in строки]
+psycopg2.extras.execute_values(_cur, """
+    INSERT INTO kabinet_data.raw_ecb_fx_rates
+        (date, currency, units_per_eur, eur_per_unit, rate_date, source, loaded_at)
+    VALUES %s
+    ON CONFLICT (date, currency) DO UPDATE
+       SET units_per_eur = EXCLUDED.units_per_eur, eur_per_unit = EXCLUDED.eur_per_unit,
+           rate_date = EXCLUDED.rate_date, loaded_at = now()
+""", [(d, c_, u, e, rd, src, datetime.datetime.now(datetime.timezone.utc))
+      for d, c_, u, e, rd, src in _пакет], page_size=500)
+_c.commit()
+_cur.execute("SELECT count(*), max(date) FROM kabinet_data.raw_ecb_fx_rates")
+_n, _d = _cur.fetchone()
+print(f"🔁 реплика в Lakebase: строк {_n}, по {_d}")
+summary += f"; реплика {_n}"
+
+# ── SYSTEM PULSE: безусловно, последним ──
+# Метка — внешняя точка контроля: если прогон встанет, об этом скажет сторож.
 _cur.execute("""INSERT INTO kabinet_data.system_pulse (job_name, last_success_at, note)
                 VALUES (%s, now(), %s)
                 ON CONFLICT (job_name) DO UPDATE

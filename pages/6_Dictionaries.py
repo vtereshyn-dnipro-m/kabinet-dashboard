@@ -4171,7 +4171,7 @@ def _section_matrix():
                               sum(e.net_proceeds_total - e.cogs * e.net_units_sold
                                   - coalesce(l.packing_cost, 0) - coalesce(l.shipping_cost, 0))
                                 / nullif(sum(e.net_product_sales), 0) * 100 AS margin_pct
-                       FROM kabinet_data.economics_summary e
+                       FROM kabinet_data.v_economics_summary_eur e
                        LEFT JOIN kabinet_data.economics_logistics l
                               ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace
                              AND l.norm_sku = e.norm_sku
