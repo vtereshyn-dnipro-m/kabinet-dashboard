@@ -456,7 +456,12 @@ def load_coverage() -> pd.DataFrame:
             df["product_name"] = None
         df["product_name"] = (df["product_name"]
                               .fillna(df.get("fallback_name"))
-                              .fillna("—").replace({"None": "—", "": "—"}))
+                              .fillna("").replace({"None": ""}))
+        # Последний рубеж — название из ERP: у товара без листинга витрины нет вовсе, и
+        # прочерк в этой колонке читался как «товара нет», хотя он есть и лежит на складе.
+        # В английском интерфейсе берётся перевод ERP, нет перевода — оригинал.
+        df["product_name"] = catalog.fill_names(df["product_name"], df["sku"])
+        df["product_name"] = df["product_name"].replace({"": "—"})
         return df.drop(columns=["fallback_name"], errors="ignore")
     except Exception as e:
         # текст ошибки нужен на экране: без него «пусто» и «сломалось»

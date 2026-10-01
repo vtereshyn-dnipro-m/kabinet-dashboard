@@ -1492,24 +1492,39 @@ def _section_cat():
     """
     st.caption(i18n_t("cat.hint"))
 
+    # Читаем вью, а не таблицу: правило «что человек видит на своём языке» живёт одним
+    # написанием в базе, иначе страницы разойдутся с загрузчиком и между собой.
     дерево = q("""
         SELECT t.category_key, t.parent_key, t.depth, t.level1, t.level2, t.level3, t.title,
-               n.name_ru, n.name_uk, n.name_en,
+               t.title_en, t.en_ambiguous, t.label_ru, t.label_uk, t.label_en, t.label_en_source,
+               t.name_ru, t.name_uk, t.name_en,
                (SELECT count(*) FROM kabinet_data.sku_category_links l
                  WHERE l.category_key = t.category_key)::int AS own_skus
-          FROM kabinet_data.sku_category_tree t
-          LEFT JOIN kabinet_data.category_names n ON n.category_key = t.category_key
+          FROM kabinet_data.v_sku_category_tree t
          -- Порядок дерева: сначала сам узел первого уровня, затем КАЖДАЯ его ветка
          -- целиком — второй уровень и сразу его третий. Сортировка по глубине раньше
          -- ветки ставила все вторые уровни подряд, а третьи — скопом после них, и
          -- «дерево» переставало быть деревом: потомок стоял не под своим родителем.
          ORDER BY t.level1, COALESCE(t.level2, ''), t.depth, COALESCE(t.level3, '')
     """)
+    # Путь категории и название товара — на языке интерфейса. Английские названия
+    # приезжают из ERP (`dim_translation_en`); где перевода ещё нет, остаётся оригинал —
+    # подставлять вместо него украинский текст, выдавая за перевод, нельзя.
+    #
+    # Выражения колонок собираются строками, а не f-строкой с кавычками внутри: на
+    # Python 3.9 обратный слеш в подстановке f-строки — синтаксическая ошибка, и такая
+    # страница не компилируется вовсе.
+    _имя_кол = "m.name"
+    _ур_кол = ["t.level1", "t.level2", "t.level3"]
+    if get_lang() == "en":
+        _имя_кол = "NULLIF(m.name_en, ''), m.name"
+        _ур_кол = ["t.level1_en, t.level1", "t.level2_en, t.level2", "t.level3_en, t.level3"]
     связи = q("""
-        SELECT m.sku, COALESCE(m.name, '') AS name,
+        SELECT m.sku, COALESCE(""" + _имя_кол + """, '') AS name,
                l.category_key, COALESCE(l.key_source, '') AS key_source,
-               COALESCE(t.level1, '') AS level1, COALESCE(t.level2, '') AS level2,
-               COALESCE(t.level3, '') AS level3
+               COALESCE(""" + _ур_кол[0] + """, '') AS level1,
+               COALESCE(""" + _ур_кол[1] + """, '') AS level2,
+               COALESCE(""" + _ур_кол[2] + """, '') AS level3
           FROM kabinet_data.sku_master m
           LEFT JOIN kabinet_data.sku_category_links l ON l.sku = m.sku
           LEFT JOIN kabinet_data.sku_category_tree t ON t.category_key = l.category_key
@@ -1547,16 +1562,36 @@ def _section_cat():
                 _итого[узел] = _итого.get(узел, 0) + int(своих)
                 узел = _родитель.get(узел)
 
+        # Подпись узла — на языке интерфейса, из вью. Оригинал ERP стоит рядом
+        # отдельной колонкой: без него непонятно, что именно перевели, а при споре о
+        # названии сверяться надо с источником, а не с подписью.
+        _поле = {"ru": "label_ru", "uk": "label_uk"}.get(get_lang(), "label_en")
         показ = pd.DataFrame({
             "название": ["— " * (int(d) - 1) + as_text(t)
-                         for d, t in zip(дерево["depth"], дерево["title"])],
+                         for d, t in zip(дерево["depth"], дерево[_поле])],
+            "erp": [as_text(v) for v in дерево["title"]],
             "свои": [num_text(v) for v in дерево["own_skus"]],
             "всего": [num_text(_итого.get(k, 0)) for k in дерево["category_key"]],
             "ru": [as_text(v) for v in дерево["name_ru"]],
             "uk": [as_text(v) for v in дерево["name_uk"]],
             "en": [as_text(v) for v in дерево["name_en"]],
+            "en_erp": [as_text(v) for v in дерево["title_en"]],
         })
         st.caption(i18n_t("cat.tree_hint"))
+        # Сколько узлов перевод ERP уже закрывает и где он спорный. Спорный перевод —
+        # это два разных узла с одним английским названием: на экране они были бы
+        # неразличимы, поэтому у таких подпись откатывается к оригиналу.
+        #
+        # Спорные считаем по ИТОГУ (`label_en_source`), а не по флагу загрузчика: стоит
+        # завести своё название одному из двух одинаково переведённых узлов, и второй
+        # спорным быть перестаёт. Флаг загрузчика этого не знает — он выставлен до того,
+        # как подпись завели, — и подпись «спорных 4» расходилась бы с экраном, где их нет.
+        _пер = int(дерево["title_en"].notna().sum())
+        _спор = int((дерево["label_en_source"] == "ambiguous").sum())
+        _руч = int((дерево["label_en_source"] == "manual").sum())
+        st.caption(i18n_t("cat.en_stats", n=_пер, all=len(дерево), man=_руч))
+        if _спор:
+            st.caption(i18n_t("cat.en_amb", amb=_спор))
         edited = st.data_editor(
             показ, width="stretch", hide_index=True, key="cat_tree_editor",
             column_config={
@@ -1566,9 +1601,13 @@ def _section_cat():
                                                     disabled=True, width="small"),
                 "всего": st.column_config.TextColumn(i18n_t("cat.col_total"),
                                                      disabled=True, width="small"),
+                "erp": st.column_config.TextColumn(i18n_t("cat.col_erp"),
+                                                   disabled=True, width="medium"),
                 "ru": st.column_config.TextColumn("RU"),
                 "uk": st.column_config.TextColumn("UK"),
                 "en": st.column_config.TextColumn("EN"),
+                "en_erp": st.column_config.TextColumn(i18n_t("cat.col_en_erp"),
+                                                      disabled=True, width="medium"),
             })
         if st.button(i18n_t("cat.save_names"), type="primary", key="cat_save_names"):
             правки = []

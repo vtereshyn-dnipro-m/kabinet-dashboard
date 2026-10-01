@@ -108,6 +108,61 @@ def _mk(v) -> str:
 
 
 @st.cache_data(ttl=600)
+@st.cache_data(ttl=600)
+def erp_name_by_sku(lang: str) -> dict:
+    """Название товара из ERP по артикулу — на языке интерфейса.
+
+    Нужно там, где листинга нет: имя в `stock_local` и
+    `reorder_recommendations` приезжает с витрины, а у товара, который на
+    маркетплейсе не выставлен, витрины нет вовсе — и в таблице до сих
+    пор стоял прочерк или «— 41324000».
+
+    Английское название берём из перевода ERP (`sku_master.name_en`,
+    словарь `dim_translation_en`); нет перевода — оригинал. Подставлять
+    украинский текст в английскую колонку, выдавая его за перевод,
+    нельзя: это читается как «так в источнике и написано».
+
+    Ключ — числовая часть артикула, как во всём Кабинете: в справочнике
+    лежит «41324000», а на страницах встречается «41324000-FBA»."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("""
+            SELECT sku, name, name_en FROM kabinet_data.sku_master
+        """, conn)
+    except Exception:
+        return {}
+    finally:
+        conn.close()
+    если_англ = str(lang or "").lower().startswith("en")
+    итог = {}
+    for sku, имя, имя_en in zip(df["sku"], df["name"], df.get("name_en", df["name"])):
+        текст = as_text(имя_en) if если_англ else ""
+        текст = текст or as_text(имя)
+        if not текст:
+            continue
+        ключ = base_sku(sku)
+        if ключ:
+            итог.setdefault(ключ, текст)
+    return итог
+
+
+def fill_names(имена, артикулы, lang=None) -> list:
+    """Заполнить пустые названия товаров именем из ERP.
+
+    Отдельной функцией, а не строчкой на каждой странице: иначе одна
+    страница подставляет ERP, другая рисует «— 41324000», и человек
+    решает, что у второй товара нет."""
+    from i18n import get_lang
+    словарь = erp_name_by_sku(lang or get_lang())
+    готово = []
+    for имя, sku in zip(имена, артикулы):
+        текст = as_text(имя)
+        if not текст or текст == "—":
+            текст = словарь.get(base_sku(sku), "")
+        готово.append(текст)
+    return готово
+
+
 def listing_cards() -> pd.DataFrame:
     """Карточки листингов: заголовок и главное фото по рынку.
 
