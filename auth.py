@@ -40,6 +40,33 @@ COUNTRY_MANAGER = "country_manager"
 DEMAND_PLANNER = "demand_planner"
 ADMIN = "admin"
 
+# Страницы Кабинета одним списком: ключ, файл, подпись, значок и адрес в ссылке.
+# Объявление живёт ЗДЕСЬ, а не в app.py, потому что видимость страницы — такое же
+# право, как любое другое, и список страниц обязан совпадать со списком прав. Раньше
+# навигация была выписана в app.py ДВАЖДЫ — для админа и для остальных, — и любая
+# новая страница требовала правки в двух местах; одно из них рано или поздно забыли бы.
+#
+# «Доступа» в этом списке нет намеренно: его видимость — это существующее право
+# «Доступ: управление» (`admin`), и заводить вторую галочку про то же самое значило бы
+# завести два правила, которые когда-нибудь разойдутся.
+PAGES = [
+    ("home",         "home.py",                  "nav.home",         ":material/home:"),
+    ("stock",        "pages/1_Stock.py",         "nav.stock",        ":material/inventory_2:"),
+    ("incidents",    "pages/2_Incidents.py",     "nav.incidents",    ":material/warning:"),
+    ("reorder",      "pages/4_Reorder.py",       "nav.reorder",      ":material/shopping_cart:"),
+    ("money",        "pages/5_Money.py",         "nav.money",        ":material/payments:"),
+    # Реклама отдельной страницей, а не вкладкой в «Деньгах»: там считают прибыль,
+    # здесь ведут ставки — разные читатели и разные вопросы
+    ("ads",          "pages/9_Ads.py",           "nav.ads",          ":material/campaign:"),
+    ("forecast",     "pages/3_Forecast.py",      "nav.forecast",     ":material/show_chart:"),
+    ("reviews",      "pages/7_Reviews.py",       "nav.reviews",      ":material/rate_review:"),
+    ("cm",           "pages/8_CM_Dashboard.py",  "nav.cm",           ":material/dashboard:"),
+    ("dictionaries", "pages/6_Dictionaries.py",  "nav.dictionaries", ":material/library_books:"),
+]
+
+PAGE_ACTIONS = ["page." + ключ for ключ, *_ in PAGES]
+
+
 # Матрица прав. Значение — роли, которым действие разрешено; `COUNTRY_SCOPED` говорит,
 # что у странового менеджера оно ограничено его странами, а у остальных ролей — нет.
 #
@@ -64,6 +91,11 @@ _MATRIX = {
     "admin":             {ADMIN},
 }
 
+# Видимость страниц — такое же право, и по умолчанию открыта всем: включение матрицы
+# не должно ничего отнять у людей, которые вчера это видели.
+for _ключ, *_ in PAGES:
+    _MATRIX["page." + _ключ] = {VIEWER, COUNTRY_MANAGER, DEMAND_PLANNER, ADMIN}
+
 # Действия, где у странового менеджера считаются его страны. У ролей выше страна не
 # проверяется вовсе — у них все.
 #
@@ -77,7 +109,6 @@ _COUNTRY_SCOPED = {"forecast.edit", "forecast.approve", "forecast.upload"}
 LOCKED = ("admin", ADMIN)
 
 ANON = "kabinet-app"
-
 
 class User:
     """Кто сейчас на экране. Без входа — аноним с ролью по режиму."""
@@ -404,7 +435,11 @@ def can(action: str, countries=None) -> bool:
         # Жёстко и раньше всех прочих правил, включая режим раскатки: QA-агент смотрит,
         # и только. Иначе включённая на время проверки раскатка открыла бы роботу
         # кнопки, тратящие деньги.
-        return False
+        #
+        # ВИДИМОСТЬ СТРАНИЦ — исключение, и без него вся затея теряет смысл: робот
+        # должен видеть весь Кабинет, иначе проверять ему нечего. Поэтому «смотреть»
+        # ему можно всё, а «делать» — ничего.
+        return action in PAGE_ACTIONS
     if m == MODE_ROLLOUT:
         return True
     if m == MODE_OFF:
