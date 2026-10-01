@@ -134,6 +134,58 @@ def idle_threshold() -> int:
         conn.close()
 
 
+# Действия, которые журнал пишет сам о себе: открытие экрана, уведомления, досылы.
+# Они не рассказывают, что человек СДЕЛАЛ, и по умолчанию прячутся — иначе настоящие
+# решения тонут в шуме. Прячутся, а не выбрасываются: переключатель рядом.
+СЛУЖЕБНЫЕ = {"admin.open", "notify_new_user", "notify_new_user_wd", "auth_mode_notify"}
+
+
+def имя_объекта(тип, ид) -> str:
+    """«С чем» — человеческим именем, а не кодом.
+
+    У каждого вида объекта своё представление: право — это пара «действие и роль», а
+    не строка `forecast.post/admin`; режим входа — слово, а не цифра. Там, где имя
+    вывести неоткуда, оставляем как есть: выдумывать красивое имя хуже, чем показать
+    то, что записано."""
+    тип, ид = as_text(тип), as_text(ид)
+    if not тип and not ид:
+        return "—"
+    if тип == "permission" and "/" in ид:
+        действие, роль = ид.split("/", 1)
+        return f'{t("auth.action." + действие)} — {ROLE_LABEL.get(роль, роль)}'
+    if тип == "mode":
+        return t(f"auth.admin.mode_{ид}") if ид in ("0", "1", "2") else ид
+    if тип == "user":
+        return ид or t("auth.admin.col_email")
+    if тип == "page":
+        return t("auth.admin.title") if ид == "access" else ид
+    if тип == "qa":
+        return t("auth.admin.qa")
+    if тип == "log":
+        return t("auth.admin.actions")
+    return ид or тип
+
+
+# Технические имена писателей — словами. «kabinet-app» в колонке «Кто» не говорит
+# ничего тому, кто читает журнал, а «система» рядом с пометкой «запись кода» — это
+# ещё и масло масляное.
+СИСТЕМНЫЕ = {"система", "kabinet-app", "watchdog", "qa-агент"}
+
+
+def кто_словом(почта, откуда) -> str:
+    почта = as_text(почта, "—")
+    if почта in СИСТЕМНЫЕ:
+        # у этих имя само и есть объяснение: пометку не добавляем
+        return t(f"auth.log.who.{почта}")
+    if откуда == "db":
+        return f'{почта} · {t("auth.log.via_db")}'
+    return почта
+
+
+def итог_словом(разрешено) -> str:
+    return "✓" if bool(разрешено) else t("auth.log.denied")
+
+
 people = load_people()
 
 tab_people, tab_matrix, tab_qa, tab_idle, tab_logins, tab_actions = st.tabs(
@@ -467,9 +519,9 @@ with tab_actions:
     conn = get_connection()
     try:
         acts = pd.read_sql("""
-            SELECT ts, email, role, action,
-                   COALESCE(object_type, '') || COALESCE(' ' || object_id, '') AS object,
-                   allowed, COALESCE(details, '') AS details
+            SELECT ts, email, role, action, COALESCE(object_type, '') AS object_type,
+                   COALESCE(object_id, '') AS object_id,
+                   allowed, COALESCE(details, '') AS details, COALESCE(via, 'ui') AS via
               FROM kabinet_data.app_action_log ORDER BY ts DESC, id DESC LIMIT 5000
         """, conn)
     finally:
@@ -495,7 +547,10 @@ with tab_actions:
         период = f4.date_input(t("auth.admin.f_period"),
                                value=(acts["ts"].min().date(), acts["ts"].max().date()),
                                key="acts_period")
-        сито = acts
+        служебных = int(acts["action"].isin(СЛУЖЕБНЫЕ).sum())
+        показать_служебные = st.checkbox(
+            t("auth.log.show_service", n=служебных), value=False, key="acts_service")
+        сито = acts if показать_служебные else acts[~acts["action"].isin(СЛУЖЕБНЫЕ)]
         if люди:
             сито = сито[сито["email"].isin(люди)]
         if разделы:
@@ -508,24 +563,29 @@ with tab_actions:
         st.caption(t("auth.admin.shown", n=len(сито), all=len(acts)))
         show = pd.DataFrame({
             "ts": [fmt_dt(v) for v in сито["ts"]],
-            "email": [as_text(e, "—") for e in сито["email"]],
-            "role": [ROLE_LABEL.get(as_text(r), as_text(r, "—")) for r in сито["role"]],
+            # «Кто» — почта. Прямая правка в базе помечается рядом: через экран и
+            # мимо экрана — разные уровни доверия к записи
+            "email": [кто_словом(e, v) for e, v in zip(сито["email"], сито["via"])],
             "section": [t(f"auth.admin.sec.{s}") for s in сито["section"]],
-            "action": [t(f"auth.action.{a}") for a in сито["action"]],
-            "object": [as_text(o, "—") for o in сито["object"]],
-            "allowed": [bool(v) for v in сито["allowed"]],
+            "action": [t(f"auth.log.act.{a}") for a in сито["action"]],
+            "object": [имя_объекта(тип, ид)
+                       for тип, ид in zip(сито["object_type"], сито["object_id"])],
+            "result": [итог_словом(v) for v in сито["allowed"]],
             "details": [as_text(d) for d in сито["details"]],
         })
         if show.empty:
             st.caption(t("auth.admin.filtered_empty"))
         else:
             st.dataframe(show, width="stretch", hide_index=True, column_config={
-                "ts": st.column_config.TextColumn(t("auth.admin.col_ts")),
-                "email": st.column_config.TextColumn(t("auth.admin.col_email")),
-                "role": st.column_config.TextColumn(t("auth.admin.col_role")),
-                "section": st.column_config.TextColumn(t("auth.admin.col_section")),
-                "action": st.column_config.TextColumn(t("auth.admin.col_action")),
-                "object": st.column_config.TextColumn(t("auth.admin.col_object")),
-                "allowed": st.column_config.CheckboxColumn(t("auth.admin.col_allowed")),
-                "details": st.column_config.TextColumn(t("auth.admin.col_details"), width="large"),
+                "ts": st.column_config.TextColumn(t("auth.admin.col_ts"), width="small"),
+                # широкая намеренно: рядом с почтой стоит пометка «напрямую в базе»,
+                # и обрезанная до «напр…» она не значит ничего
+                "email": st.column_config.TextColumn(t("auth.log.col_who"), width="large"),
+                "section": st.column_config.TextColumn(t("auth.admin.col_section"), width="small"),
+                "action": st.column_config.TextColumn(t("auth.log.col_what"), width="large"),
+                "object": st.column_config.TextColumn(t("auth.log.col_with"), width="large"),
+                # «✓» и «отказано» словом, а не галочкой: галочка в колонке «итог»
+                # читается как «отметить», а не как «получилось»
+                "result": st.column_config.TextColumn(t("auth.log.col_result"), width="small"),
+                "details": st.column_config.TextColumn(t("auth.admin.col_details"), width="medium"),
             })
