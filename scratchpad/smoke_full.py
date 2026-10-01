@@ -55,10 +55,10 @@ for f in ("home.py", "pages/1_Stock.py", "pages/2_Incidents.py", "pages/3_Foreca
     _, плохо = прогнать(f)
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
-for sec in ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "peid", "vg", "matrix"]:
+for sec in ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "cat", "peid", "vg", "matrix"]:
     _, плохо = прогнать("pages/6_Dictionaries.py",
                         {"dict_section": sec, "dict_section_last": sec})
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f"Справочники → {sec}"
           + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
-print(f"\nс бедой: {беда} из 22")
+print(f"\nс бедой: {беда} из 23")
