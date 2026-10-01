@@ -12,6 +12,7 @@ import data_passport as passport
 from i18n import init_lang, t
 import catalog
 import period as period_mod
+from util import as_text
 
 init_lang()
 
@@ -408,6 +409,24 @@ def load_zero_since() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
+@st.cache_data(ttl=600)
+def load_abc() -> pd.DataFrame:
+    """ABC по выручке без НДС. Считает вью, а не загрузчик: источник уже в Lakebase,
+    и заводить ради этого джобу значило бы добавить ещё одно место, где всё встанет.
+
+    scope — код рынка или `__ALL__`. У покрытия рынок записан кодом страны, и для
+    Amazon это одно и то же; каналов Mirakl в покрытии нет вовсе."""
+    if not table_exists("v_sku_abc"):
+        return pd.DataFrame(columns=["scope", "sku", "revenue", "abc"])
+    conn = get_connection()
+    try:
+        return pd.read_sql("SELECT scope, sku, revenue, abc FROM kabinet_data.v_sku_abc", conn)
+    except Exception:
+        return pd.DataFrame(columns=["scope", "sku", "revenue", "abc"])
+    finally:
+        conn.close()
+
+
 def load_coverage() -> pd.DataFrame:
     """Свод покрытия на последнюю дату расчёта.
 
@@ -838,6 +857,11 @@ with tab_cov:
         with cf5:
             cov_sku_q = st.text_input(t("stock.cov.filter_sku"), key="cov_sku_q",
                                       placeholder=t("stock.cov.filter_sku_ph")).strip()
+            # Пустой выбор означает «все», а не «ничего»
+            cov_abc = st.multiselect(
+                t("stock.cov.filter_abc"), ["A", "B", "C", "no_sales"], default=[],
+                format_func=lambda a: t("stock.cov.abc_" + a), key="cov_abc",
+                placeholder=t("stock.cov.filter_all"), help=t("stock.cov.filter_abc_help"))
         with cf6:
             # ТЗ §10.2: основные горизонты 13 и 26 недель, можно другой, но не больше 52.
             # Горизонт режет не расчёт (он всегда на 52 недели), а то, что считается дефицитом:
@@ -848,6 +872,17 @@ with tab_cov:
                                help=t("stock.cov.horizon_help"))
 
         cv = cov.copy()
+        # ABC берём ПО СВОЕМУ РЫНКУ, а не общий: товар бывает A в Испании и C в Германии,
+        # и общий класс в строке рынка вводил бы в заблуждение
+        _abc = load_abc()
+        if not _abc.empty:
+            _по_рынку = {(str(r.scope), str(r.sku)): str(r.abc) for r in _abc.itertuples()}
+            cv["abc"] = [_по_рынку.get((str(m), str(k)), "no_sales")
+                         for m, k in zip(cv["marketplace"], cv["sku"])]
+        else:
+            cv["abc"] = "no_sales"
+        if cov_abc:
+            cv = cv[cv["abc"].isin(cov_abc)]
         if cov_mp:
             cv = cv[cv["marketplace"].isin(cov_mp)]
         if cov_country:
@@ -1049,6 +1084,11 @@ with tab_cov:
                 _cov_cols.append("odoo_incoming_stores_qty")
             _cov_cols += (["status_label"] if _bare else ["overstock_qty", "status_label"])
             _cov_cols += ["norm_text", "norm_label"]
+            if "abc" in cview.columns:
+                # подпись, а не код: «нет продаж» читается, «no_sales» — нет
+                cview["abc_label"] = [t("stock.cov.abc_" + as_text(v, "no_sales"))
+                                      for v in cview["abc"]]
+                _cov_cols.insert(_cov_cols.index("sku") + 1, "abc_label")
             _cov_cols = [c for c in _cov_cols if c in cview.columns]
             st.dataframe(
                 cview[_cov_cols],
@@ -1056,6 +1096,9 @@ with tab_cov:
                 column_config={
                     "photo": catalog.image_column(),
                     "sku": st.column_config.TextColumn("SKU", width="small"),
+                    "abc_label": st.column_config.TextColumn(
+                        t("stock.cov.col_abc"), width="small",
+                        help=t("stock.cov.col_abc_help")),
                     "asin_url": catalog.asin_column(),
                     "product_name": st.column_config.TextColumn(
                         t("stock.ctr.col_product"), width="medium"),

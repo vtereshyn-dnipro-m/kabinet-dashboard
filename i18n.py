@@ -4038,6 +4038,25 @@ TRANSLATIONS = {
         "en": "Directories are read-only: editing is available to demand planners and administrators.",
     },
     # --- Справочники → Категории (ТЗ «Остатки», пункт 1) ---
+    # --- ABC на «Остатках» ---
+    "stock.cov.filter_abc": {"ru": "ABC", "uk": "ABC", "en": "ABC"},
+    "stock.cov.filter_all": {"ru": "все", "uk": "усі", "en": "all"},
+    "stock.cov.filter_abc_help": {
+        "ru": "Класс считается по выручке без НДС за окно из настроек, по каждому рынку отдельно: товар бывает A в Испании и C в Германии.",
+        "uk": "Клас рахується за виручкою без ПДВ за вікно з налаштувань, по кожному ринку окремо: товар буває A в Іспанії та C у Німеччині.",
+        "en": "The class is computed from net-of-VAT revenue over the configured window, per marketplace: an item can be A in Spain and C in Germany.",
+    },
+    "stock.cov.col_abc": {"ru": "ABC", "uk": "ABC", "en": "ABC"},
+    "stock.cov.col_abc_help": {
+        "ru": "A — первые 80 % выручки, B — следующие 15 %, C — остальные. «Нет продаж» — отдельная группа, а не C.",
+        "uk": "A — перші 80 % виручки, B — наступні 15 %, C — решта. «Немає продажів» — окрема група, а не C.",
+        "en": "A — the first 80 % of revenue, B — the next 15 %, C — the rest. “No sales” is a separate group, not C.",
+    },
+    "stock.cov.abc_A": {"ru": "A", "uk": "A", "en": "A"},
+    "stock.cov.abc_B": {"ru": "B", "uk": "B", "en": "B"},
+    "stock.cov.abc_C": {"ru": "C", "uk": "C", "en": "C"},
+    "stock.cov.abc_no_sales": {"ru": "нет продаж", "uk": "немає продажів", "en": "no sales"},
+
     "cat.hint": {
         "ru": "Дерево категорий приходит из ERP. Связь SKU с категорией ставит загрузчик; поставленную вручную он не трогает.",
         "uk": "Дерево категорій надходить з ERP. Звʼязок SKU з категорією ставить завантажувач; поставлений вручну він не чіпає.",
