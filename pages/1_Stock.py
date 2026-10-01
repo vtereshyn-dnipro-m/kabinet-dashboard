@@ -427,6 +427,25 @@ def load_abc() -> pd.DataFrame:
         conn.close()
 
 
+@st.cache_data(ttl=600)
+def reserve_weeks() -> float:
+    """Гарантированный минимум недель из справочника порогов.
+
+    Число нужно НЕ расчёту (он считает в загрузчике), а подписи на экране: «минимум
+    1 неделя» обязана говорить ту же цифру, по которой запас и раздали. Зашить её
+    константой значило бы завести второе место, где живёт одно правило, — а они
+    расходятся молча."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("SELECT value FROM kabinet_data.reorder_params "
+                         "WHERE key = 'coverage_reserve_min_weeks'", conn)
+        return float(df.iloc[0]["value"]) if not df.empty else 1.0
+    except Exception:
+        return 1.0
+    finally:
+        conn.close()
+
+
 def load_coverage() -> pd.DataFrame:
     """Свод покрытия на последнюю дату расчёта.
 
@@ -804,6 +823,11 @@ with tab_cov:
                         "plan_competing_marketplaces": "competing_marketplaces",
                         "plan_pool_weekly_demand": "pool_total_weekly_demand",
                         "plan_pool_exhaustion_weeks": "pool_exhaustion_weeks",
+                        # доля мадридского запаса у плана своя: спрос другой, значит и
+                        # раздача другая — подставлять сюда долю, посчитанную по темпу,
+                        # значило бы показать чужое число рядом с плановым покрытием
+                        "plan_madrid_share_qty": "madrid_share_qty",
+                        "plan_madrid_share_reason": "madrid_share_reason",
                         # статус относительно норматива считается от покрытия, а покрытие у
                         # основания «по плану» другое — значит и статус свой
                         "plan_norm_status": "norm_status"}
@@ -1009,6 +1033,15 @@ with tab_cov:
                 if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
                     return t("stock.cov.shared_few")
                 return t("stock.cov.shared_many")
+            # За что рынку досталась его доля общего мадридского запаса (ТЗ §3).
+            # В базе код, на экране фраза: иначе язык жил бы вне словаря, и в английском
+            # интерфейсе причина осталась бы русской — как было с деталями алертов рекламы.
+            if "madrid_share_reason" in cview.columns:
+                _rw = reserve_weeks()
+                _rw_text = str(int(_rw)) if float(_rw).is_integer() else str(_rw)
+                cview["share_why"] = [
+                    t("stock.cov.share_" + as_text(v, "none"), n=_rw_text)
+                    for v in cview["madrid_share_reason"]]
             cview["shared_note"] = np.where(
                 (cview["pool_exhaustion_weeks"] < cview["total_coverage_weeks"])
                 & (cview["competing_marketplaces"] > 1),
@@ -1079,7 +1112,8 @@ with tab_cov:
                          "country", "marketplace", "warehouse",
                          "available_now"] + _ref + [
                          "weeks_until_first_gap", "coverage_weeks",
-                         "fbm_fallback_qty", "total_coverage_weeks",
+                         "fbm_fallback_qty", "madrid_share_qty", "share_why",
+                         "total_coverage_weeks",
                          "shared_note", "realistic_coverage_weeks", "cover_months",
                          "first_deficit_week", "next_gap", "gaps_count", "gaps_total_qty",
                          "odoo_incoming_qty"]
@@ -1137,6 +1171,14 @@ with tab_cov:
                     "fbm_fallback_qty": st.column_config.NumberColumn(
                         t("stock.cov.col_madrid"), width="small",
                         help=t("stock.cov.col_madrid_help")),
+                    "madrid_share_qty": st.column_config.NumberColumn(
+                        t("stock.cov.col_share"), width="small", format="%.0f",
+                        help=t("stock.cov.col_share_help")),
+                    "share_why": st.column_config.TextColumn(
+                        # не "small": «приоритет не задан» в узкой колонке обрезается до
+                        # «приоритет н…», а подпись, которую нельзя дочитать, бесполезна
+                        t("stock.cov.col_share_why"), width="medium",
+                        help=t("stock.cov.col_share_why_help")),
                     "total_coverage_weeks": st.column_config.NumberColumn(
                         t("stock.cov.col_weeks_total"), width="small",
                         help=t("stock.cov.col_weeks_total_help")),
@@ -1185,6 +1227,14 @@ with tab_cov:
                 _nn = int((cview["norm_status"].fillna("no_norm") == "no_norm").sum())
                 if _nn:
                     st.caption(t("stock.cov.norm_missing", n=_nn, total=len(cview)))
+            # Пока приоритеты склада не заданы, общий запас делится пропорционально
+            # спросу — в колонке это написано у каждой строки, но что с этим делать,
+            # из строки не видно. Подпись говорит, где приоритет заводится, и она
+            # пропадает сама, как только его задали.
+            if "madrid_share_reason" in cview.columns:
+                _ns = int((cview["madrid_share_reason"] == "shared").sum())
+                if _ns:
+                    st.caption(t("stock.cov.share_hint", n=_ns))
 
             # ---- проекция по неделям для выбранного товара ----
             st.divider()
