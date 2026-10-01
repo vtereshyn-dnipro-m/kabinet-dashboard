@@ -1033,6 +1033,15 @@ with tab_cov:
                 if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
                     return t("stock.cov.shared_few")
                 return t("stock.cov.shared_many")
+            # Резерв к отгрузке (ТЗ «Остатки», 02.10.2026). Две цифры в одной колонке,
+            # потому что по отдельности ни одна не объясняет остаток: зарезервированное
+            # УЖЕ вычтено из остатка, а из «к отгрузке» расчёт снимает только ту часть,
+            # которой ещё нет в резерве, — иначе резерв вычелся бы дважды.
+            if "reserved_qty" in cview.columns:
+                cview["reserve_note"] = [
+                    "—" if not (int(r or 0) or int(o or 0)) else f"{int(r or 0)} / {int(o or 0)}"
+                    for r, o in zip(cview["reserved_qty"].fillna(0), cview["outgoing_qty"].fillna(0))]
+
             # За что рынку досталась его доля общего мадридского запаса (ТЗ §3).
             # В базе код, на экране фраза: иначе язык жил бы вне словаря, и в английском
             # интерфейсе причина осталась бы русской — как было с деталями алертов рекламы.
@@ -1112,7 +1121,7 @@ with tab_cov:
                          "country", "marketplace", "warehouse",
                          "available_now"] + _ref + [
                          "weeks_until_first_gap", "coverage_weeks",
-                         "fbm_fallback_qty", "madrid_share_qty", "share_why",
+                         "fbm_fallback_qty", "reserve_note", "madrid_share_qty", "share_why",
                          "total_coverage_weeks",
                          "shared_note", "realistic_coverage_weeks", "cover_months",
                          "first_deficit_week", "next_gap", "gaps_count", "gaps_total_qty",
@@ -1171,6 +1180,9 @@ with tab_cov:
                     "fbm_fallback_qty": st.column_config.NumberColumn(
                         t("stock.cov.col_madrid"), width="small",
                         help=t("stock.cov.col_madrid_help")),
+                    "reserve_note": st.column_config.TextColumn(
+                        t("stock.cov.col_reserve"), width="small",
+                        help=t("stock.cov.col_reserve_help")),
                     "madrid_share_qty": st.column_config.NumberColumn(
                         t("stock.cov.col_share"), width="small", format="%.0f",
                         help=t("stock.cov.col_share_help")),
