@@ -243,10 +243,13 @@ def log_action(action, allowed, object_type=None, object_id=None, details=""):
         with conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO kabinet_data.app_action_log
-                    (email, role, action, object_type, object_id, allowed, details)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    (email, role, action, object_type, object_id, allowed, details, via)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (u.actor, u.role, action, object_type,
-                  None if object_id is None else str(object_id), allowed, details or None))
+                  None if object_id is None else str(object_id), allowed, details or None,
+                  # «через экран» или «запись кода»: у анонима и робота человека за
+                  # действием нет, и выдавать их за людей в журнале незачем
+                  "system" if (not u.email or u.email == ANON) else "ui"))
         conn.commit()
     except Exception:
         pass
@@ -702,8 +705,8 @@ def _note_mode(m: int):
             # подписываемся приложением: смену заметил не человек, а код, и приписывать
             # её кому-то из людей значило бы сказать, что он её и сделал
             cur.execute("""INSERT INTO kabinet_data.app_action_log
-                               (email, role, action, allowed, details)
-                           VALUES ('kabinet-app', NULL, 'auth_mode', true, %s)""",
+                               (email, role, action, allowed, details, via)
+                           VALUES ('kabinet-app', NULL, 'auth_mode', true, %s, 'system')""",
                         (f"режим {m}" + (f", было {last}" if last is not None else ", первая запись"),))
         conn.commit()
     except Exception:
