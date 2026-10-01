@@ -83,13 +83,17 @@ class User:
     """Кто сейчас на экране. Без входа — аноним с ролью по режиму."""
 
     def __init__(self, email="", name="", role=VIEWER, countries=(), logged_in=False,
-                 known=False):
+                 known=False, is_qa=False):
         self.email = email
         self.name = name or email
         self.role = role
         self.countries = set(countries)
         self.logged_in = logged_in
         self.known = known  # есть строка в app_users
+        # QA-агент: вошёл по тестовой ссылке, а не через Google. Отдельный признак, а не
+        # «просто роль Просмотр», потому что ему запрещено ВСЁ жёстко, в обход матрицы:
+        # матрицу правят галочками, и случайная галочка не должна дать роботу права
+        self.is_qa = is_qa
 
     @property
     def actor(self) -> str:
@@ -246,6 +250,16 @@ def current() -> User:
     """Текущий человек. Считается один раз за прогон и кладётся в session_state."""
     if "_auth_user" in st.session_state:
         return st.session_state["_auth_user"]
+    # Тестовый вход проверяем ПЕРВЫМ, до режима: он работает и когда вход выключен
+    # (режим 2 и 0), иначе проверять Кабинет было бы нечем ровно в те дни, когда это
+    # нужнее всего. Но прав он не даёт никаких — см. `can()`.
+    _qa = _qa_user_from_url()
+    if _qa is not None:
+        if not st.session_state.get("_qa_logged"):
+            _log_login(QA_ACTOR, "ok", "тестовый вход по ссылке")
+            st.session_state["_qa_logged"] = True
+        st.session_state["_auth_user"] = _qa
+        return _qa
     m = mode()
     if m == MODE_ROLLOUT:
         # как было: входа нет, права не ограничиваем. Роль администратора здесь —
@@ -284,6 +298,82 @@ def _from_login() -> User:
                 logged_in=True, known=True)
 
 
+QA_ACTOR = "qa-агент"
+
+
+def _qa_enabled() -> bool:
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT value FROM kabinet_data.reorder_params
+                            WHERE key = 'qa_access_enabled'""")
+            row = cur.fetchone()
+        return bool(row) and int(row[0]) == 1
+    except Exception:
+        # не прочиталось — считаем выключенным: тестовый вход не та вещь, которая
+        # должна открываться сама при неполадке
+        return False
+    finally:
+        conn.close()
+
+
+def qa_hash(token: str) -> str:
+    """Хеш токена с «перцем» из секретов.
+
+    Перец нужен затем, что открытый токен не хранится нигде: в базе лежит только хеш, и
+    без перца укравший дамп мог бы подобрать токен перебором. С ним дамп сам по себе
+    бесполезен. Перца нет — работаем без него, но говорим об этом на экране: молча
+    ослаблять защиту хуже, чем сказать."""
+    import hashlib
+    перец = ""
+    try:
+        перец = str(st.secrets["qa"]["pepper"])
+    except Exception:
+        перец = ""
+    return hashlib.sha256((перец + "|" + token.strip()).encode()).hexdigest()
+
+
+def qa_pepper_set() -> bool:
+    try:
+        return bool(str(st.secrets["qa"]["pepper"]).strip())
+    except Exception:
+        return False
+
+
+def _qa_user_from_url():
+    """Пользователь по ссылке `?qa=токен`, если вход включён и токен жив.
+
+    Сверка хешей идёт через `compare_digest`: обычное сравнение строк выходит из цикла
+    на первом несовпавшем знаке, и по времени ответа токен подбирается посимвольно."""
+    import hmac
+    try:
+        токен = st.query_params.get("qa", "")
+    except Exception:
+        токен = ""
+    if not токен or not _qa_enabled():
+        return None
+    цель = qa_hash(токен)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT id, token_hash FROM kabinet_data.qa_tokens
+                            WHERE revoked_at IS NULL AND expires_at > now()""")
+            живые = cur.fetchall()
+            нашли = next((i for i, h in живые if hmac.compare_digest(h, цель)), None)
+            if нашли is None:
+                return None
+            cur.execute("""UPDATE kabinet_data.qa_tokens
+                              SET last_used_at = now(), uses = uses + 1 WHERE id = %s""",
+                        (нашли,))
+        conn.commit()
+    except Exception:
+        return None
+    finally:
+        conn.close()
+    return User(email=QA_ACTOR, name=QA_ACTOR, role=VIEWER, logged_in=True,
+                known=False, is_qa=True)
+
+
 def _allowed_to_enter(email: str, row) -> bool:
     """Пускаем по домену ИЛИ по строке-исключению. Отключённая строка не пускает
     даже своего: `is_active = false` — это «доступ снят», а не «нет записи».
@@ -310,6 +400,11 @@ def can(action: str, countries=None) -> bool:
     справочнике (решение владельца 30.09.2026)."""
     u = current()
     m = mode()
+    if u.is_qa:
+        # Жёстко и раньше всех прочих правил, включая режим раскатки: QA-агент смотрит,
+        # и только. Иначе включённая на время проверки раскатка открыла бы роботу
+        # кнопки, тратящие деньги.
+        return False
     if m == MODE_ROLLOUT:
         return True
     if m == MODE_OFF:
@@ -465,6 +560,8 @@ def guard():
     # замечаем смену режима в ЛЮБОМ режиме, до всякого ветвления: переход в аварийный
     # ноль надо увидеть ровно так же, как включение входа
     _note_mode(m)
+    if current().is_qa:
+        return   # вошёл по тестовой ссылке — экран входа ему не показываем
     if m != MODE_ON:
         return
     logged = _logged_in()
@@ -597,6 +694,14 @@ def header():
 
     В режимах 2 и 0 показываем не человека, а сам режим: иначе на раскатке в шапке
     стояло бы «Администратор», и это читалось бы как выданное право."""
+    # Проверка «это робот?» идёт ПЕРВОЙ: в режиме раскатки и в аварии ветки ниже
+    # возвращаются раньше, и QA-агент увидел бы в шапке «вход не включён» вместо
+    # собственной пометки — то есть именно то, что мы обещали не прятать
+    u = current()
+    if u.is_qa:
+        # Не прячем: в шапке и в журналах видно, что это робот, а не человек
+        st.sidebar.caption(t("auth.qa_badge"))
+        return
     m = mode()
     if m == MODE_ROLLOUT:
         st.sidebar.caption(t("auth.mode_rollout"))
@@ -604,7 +709,6 @@ def header():
     if m == MODE_OFF:
         st.sidebar.caption(t("auth.mode_off"))
         return
-    u = current()
     if not u.logged_in:
         return
     bits = [t(f"auth.role.{u.role}")]
