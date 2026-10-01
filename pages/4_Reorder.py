@@ -66,6 +66,7 @@ def load_reorder(has_status: bool, has_pipeline: bool):
                      "NULL::int AS lead_time_days, NULL::text AS lead_source, " + split_cols)
     df = pd.read_sql(f"""
         SELECT sku, product_name, current_stock, daily_velocity,
+               reserved_qty, outgoing_qty,
                days_of_cover, reorder_point, suggested_qty, urgency,
                {status_col}, {pipeline_cols}
         FROM kabinet_data.reorder_recommendations
@@ -157,6 +158,13 @@ df = df[~df["sku"].apply(is_defect_sku)].copy()
 # приезжает с витрины, а товар, который на маркетплейсе не выставлен, витрины не имеет —
 # и в таблице стояла пустая ячейка. В английском интерфейсе берётся перевод ERP.
 df["product_name"] = catalog.fill_names(df["product_name"], df["sku"])
+
+# Резерв к отгрузке на мадридском складе: зарезервированное уже вычтено из остатка, а из
+# «к отгрузке» расчёт снял только нерезервную часть. Показываем обе цифры одной колонкой —
+# по отдельности каждая вводит в заблуждение.
+if "reserved_qty" in df.columns:
+    df["reserve_note"] = ["—" if not (int(r or 0) or int(o or 0)) else f"{int(r or 0)} / {int(o or 0)}"
+                          for r, o in zip(df["reserved_qty"].fillna(0), df["outgoing_qty"].fillna(0))]
 
 
 # SKU, у которых есть активная переброска (чтобы не заказать лишнее)
@@ -446,7 +454,8 @@ fdf = fdf.sort_values(["urg_rank", "days_of_cover"])
 edit = fdf[["sku_display", "product_name", "current_stock", "daily_velocity",
             "days_of_cover", "suggested_qty", "urgency", "has_transfer",
             "in_transit_qty", "quarantine_qty", "planned_qty",
-            "lead_time_days", "lead_source", "fba_stock", "madrid_stock", "is_kit", "component_velocity"]].copy()
+            "lead_time_days", "lead_source", "fba_stock", "madrid_stock", "is_kit", "component_velocity"]
+           + (["reserve_note"] if "reserve_note" in fdf.columns else [])].copy()
 edit.insert(0, "✓", edit["urgency"] == "critical")
 edit["Срочность"] = edit["urgency"].map(lambda u: f"{URG_ICON[u]} {urg_label(u)}")
 edit["daily_velocity"] = edit["daily_velocity"].round(1)
@@ -483,9 +492,10 @@ edit["lead"] = edit.apply(
     lambda r: (f"{int(r['lead_time_days'])} · {_lead_label(r['lead_source'])}"
                if pd.notna(r["lead_time_days"]) else ""), axis=1)
 edited = st.data_editor(
-    edit[["✓", "Срочность", "sku_display", "product_name", "current_stock", "fba_stock", "madrid_stock",
-          "in_transit_qty", "quarantine_qty", "planned_qty",
-          "daily_velocity", "kit", "days_of_cover", "lead", "suggested_qty", "Переброска"]],
+    edit[["✓", "Срочность", "sku_display", "product_name", "current_stock", "fba_stock", "madrid_stock"]
+         + (["reserve_note"] if "reserve_note" in edit.columns else [])
+         + ["in_transit_qty", "quarantine_qty", "planned_qty",
+            "daily_velocity", "kit", "days_of_cover", "lead", "suggested_qty", "Переброска"]],
     use_container_width=True, height=440, hide_index=True,
     column_config={
         "✓": st.column_config.CheckboxColumn(t("ro.order.col_do"), width="small"),
@@ -495,6 +505,8 @@ edited = st.data_editor(
         "current_stock": st.column_config.NumberColumn(t("ro.order.col_stock"), width="small", disabled=True,
                                                        help=t("ro.order.col_stock_help")),
         "fba_stock": st.column_config.NumberColumn("FBA", width="small", disabled=True, format="%d"),
+        "reserve_note": st.column_config.TextColumn(t("ro.order.col_reserve"), width="small", disabled=True,
+                                                    help=t("ro.order.col_reserve_help")),
         "madrid_stock": st.column_config.NumberColumn(t("ro.order.col_madrid"), width="small", disabled=True, format="%d",
                                                       help=t("ro.order.col_madrid_help")),
         "kit": st.column_config.TextColumn(t("ro.order.col_kit"), width="small", disabled=True,

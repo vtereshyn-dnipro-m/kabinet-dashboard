@@ -581,6 +581,19 @@ TRANSLATIONS = {
     # Доля общего склада и за что она досталась (ТЗ «Остатки» §3). Причина в базе
     # лежит кодом, фраза собирается здесь: иначе в английском интерфейсе она осталась
     # бы русской.
+    # Резерв к отгрузке: две цифры в одной колонке, «резерв / к отгрузке».
+    "stock.cov.col_reserve": {"ru": "Резерв / к отгрузке", "uk": "Резерв / до відвантаження",
+                              "en": "Reserved / outbound"},
+    "stock.cov.col_reserve_help": {
+        "ru": "Слева — сколько уже зарезервировано под заказы, справа — сколько всего запланировано к отгрузке со склада. Зарезервированное из остатка уже вычтено; из «к отгрузке» расчёт снимает только ту часть, которой ещё нет в резерве, иначе резерв вычелся бы дважды",
+        "uk": "Ліворуч — скільки вже зарезервовано під замовлення, праворуч — скільки всього заплановано до відвантаження зі складу. Зарезервоване з залишку вже відняте; з «до відвантаження» розрахунок знімає лише ту частину, якої ще немає в резерві, інакше резерв відняли б двічі",
+        "en": "Left: already reserved for orders. Right: total planned to leave the warehouse. The reserved part is already excluded from stock; from the outbound total the calculation only subtracts what is not yet reserved, otherwise the reserve would be subtracted twice"},
+    "ro.order.col_reserve": {"ru": "Резерв / к отгрузке", "uk": "Резерв / до відвантаження",
+                             "en": "Reserved / outbound"},
+    "ro.order.col_reserve_help": {
+        "ru": "По мадридскому складу: слева зарезервировано под заказы, справа всего запланировано к отгрузке. Зарезервированное из остатка уже вычтено",
+        "uk": "По мадридському складу: ліворуч зарезервовано під замовлення, праворуч усього заплановано до відвантаження. Зарезервоване з залишку вже відняте",
+        "en": "For the Madrid warehouse: left is reserved for orders, right is the total planned to ship. The reserved part is already excluded from stock"},
     "stock.cov.col_share": {"ru": "Досталось, шт", "uk": "Дісталося, шт", "en": "Allocated, units"},
     "stock.cov.col_share_help": {
         "ru": "Сколько штук общего склада досталось этому рынку. Остаток склада общий на все рынки, и при нехватке он делится — целиком его получает только тот, с кем делить не с кем",
@@ -3984,6 +3997,8 @@ TRANSLATIONS = {
     "passport.feeds.categories": {"ru": "категории товаров", "uk": "категорії товарів",
                                   "en": "product categories"},
     "passport.feeds.wh": {"ru": "склады", "uk": "склади", "en": "warehouses"},
+    "passport.feeds.reserve": {"ru": "резерв к отгрузке", "uk": "резерв до відвантаження",
+                               "en": "reserved for shipping"},
     "passport.feeds.chains": {"ru": "маршруты и сроки поставки", "uk": "маршрути і строки постачання",
                               "en": "supply routes and lead times"},
     "passport.feeds.mp": {"ru": "маркетплейсы", "uk": "маркетплейси", "en": "marketplaces"},

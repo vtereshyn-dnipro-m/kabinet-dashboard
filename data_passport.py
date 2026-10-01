@@ -93,6 +93,10 @@ PAGES = {
         Source("projection", "coverage_projection", "calc_date", "Kabinet - Coverage Projection", 38,
                ("deficit_soon",)),
         Source("ledger", "fba_ledger_detail", "event_date", "FBA Ledger Detail Loader", 72, ("moves",)),
+        # Резерв к отгрузке приезжает из Odoo своим путём — через остатки своих складов,
+        # а не из отчётов Amazon, поэтому у него отдельная строка паспорта: если встанет
+        # именно эта выгрузка, колонка «Резерв / к отгрузке» молча застынет.
+        Source("reserve", "warehouse_stock", "snapshot_date", "Kabinet - Stock Loader", 38, ("reserve",)),
     ),
     # ── Деньги ───────────────────────────────────────────────────────────
     "money": (
@@ -128,6 +132,7 @@ PAGES = {
         Source("fba_stock", "stock_local", "snapshot_date", "Kabinet - Stock Loader", 72, ("stock",),
                where="source = 'ledger-summary'", param_key="stock_fba_max_age_hours"),
         Source("reorder", "reorder_recommendations", "calc_date", "Kabinet - Stock Loader", 38, ("reorder",)),
+        Source("reserve", "warehouse_stock", "snapshot_date", "Kabinet - Stock Loader", 38, ("reserve",)),
     ),
     # ── Отзывы ───────────────────────────────────────────────────────────
     "reviews": (
