@@ -4321,10 +4321,12 @@ TRANSLATIONS = {
 
     # --- админка доступа ---
     "auth.admin.title": {"ru": "Доступ", "uk": "Доступ", "en": "Access"},
+    # Подпись общая на два продукта: экран один, и на странице Listing Suite
+    # «кто входит в Кабинет» читалось бы как чужой текст (поправка владельца 02.10.2026)
     "auth.admin.caption": {
-        "ru": "Кто входит в Кабинет, с какой ролью и по каким странам.",
-        "uk": "Хто входить до Кабінету, з якою роллю та за якими країнами.",
-        "en": "Who signs in, with which role and for which countries.",
+        "ru": "Кто входит в Кабинет и Listing Suite, с какими ролями.",
+        "uk": "Хто входить до Кабінету та Listing Suite, з якими ролями.",
+        "en": "Who signs in to Kabinet and Listing Suite, with which roles.",
     },
     "auth.admin.people": {"ru": "Люди", "uk": "Люди", "en": "People"},
     "auth.admin.logins": {"ru": "Журнал входов", "uk": "Журнал входів", "en": "Sign-in log"},
