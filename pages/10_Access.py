@@ -39,15 +39,33 @@ ROLES = [auth.VIEWER, auth.COUNTRY_MANAGER, auth.DEMAND_PLANNER, auth.ADMIN]
 ROLE_LABEL = {r: t(f"auth.role.{r}") for r in ROLES}
 LABEL_ROLE = {v: k for k, v in ROLE_LABEL.items()}
 
+# Роли Listing Suite — свой набор: продукт другой, и «Утверждающий» в Кабинете
+# ничего не значит. Подписи берутся из тех же ключей `auth.role.*`, что и кабинетные:
+# «Просмотр» и «Администратор» в обоих продуктах — это одно и то же слово.
+LS_ROLES = auth.LS_ROLES
+LS_ROLE_LABEL = {r: t(f"auth.role.{r}") for r in LS_ROLES}
+LS_LABEL_ROLE = {v: k for k, v in LS_ROLE_LABEL.items()}
+# «Роли нет» — это НЕ «Просмотр»: пустая ls_role означает, что доступа в Listing
+# Suite нет вовсе. В выпадающем списке пустую строку от «не выбрано» не отличить,
+# поэтому нужен настоящий сентинел.
+LS_NONE = t("auth.admin.ls_none")
+
 # Раздел действия — по префиксу его кода. Отдельной колонки «страница» в журнале нет
 # и заводить её незачем: префикс и есть раздел, а два источника одной истины
 # разошлись бы в первый же день, когда кто-то добавит действие и забудет про колонку.
 SECTION_OF = {"forecast": "forecast", "dict": "dictionaries", "ads": "ads",
               "reorder": "reorder", "incident": "incidents", "admin": "access"}
+# У Listing Suite первый токен всегда `ls` — он называет продукт, а не раздел,
+# поэтому раздел берётся вторым: `ls.amazon.push` → «Amazon».
+LS_SECTION_OF = {"content": "ls_content", "amazon": "ls_amazon",
+                 "method": "ls_method", "settings": "ls_settings", "page": "ls_page"}
 
 
 def section_of(action: str) -> str:
-    return SECTION_OF.get(as_text(action).split(".")[0], "other")
+    токены = as_text(action).split(".")
+    if токены and токены[0] == "ls":
+        return LS_SECTION_OF.get(токены[1] if len(токены) > 1 else "", "other")
+    return SECTION_OF.get(токены[0] if токены else "", "other")
 
 
 def fmt_dt(v) -> str:
@@ -81,13 +99,14 @@ def load_people():
     conn = get_connection()
     try:
         return pd.read_sql("""
-            SELECT u.email, u.role, u.is_active, COALESCE(u.note, '') AS note,
+            SELECT u.email, u.role, COALESCE(u.ls_role, '') AS ls_role,
+                   u.is_active, COALESCE(u.note, '') AS note,
                    u.access_until, u.first_login_at, u.last_login_at,
                    (u.access_until IS NOT NULL AND u.access_until < current_date) AS expired,
                    COALESCE(string_agg(c.country, ', ' ORDER BY c.country), '') AS countries
               FROM kabinet_data.app_users u
               LEFT JOIN kabinet_data.app_user_countries c ON c.email = u.email
-             GROUP BY u.email, u.role, u.is_active, u.note, u.access_until,
+             GROUP BY u.email, u.role, u.ls_role, u.is_active, u.note, u.access_until,
                       u.first_login_at, u.last_login_at
              ORDER BY u.email
         """, conn)
@@ -111,6 +130,9 @@ def known_countries() -> set:
 
 @st.cache_data(ttl=60)
 def load_matrix() -> pd.DataFrame:
+    """Вся матрица одним запросом: строки Кабинета и строки Listing Suite лежат в
+    одной таблице и различаются префиксом действия. Два запроса здесь означали бы
+    два кеша, которые расходятся на время своего TTL."""
     conn = get_connection()
     try:
         return pd.read_sql("""
@@ -118,6 +140,13 @@ def load_matrix() -> pd.DataFrame:
         """, conn)
     finally:
         conn.close()
+
+
+def только(mx: pd.DataFrame, продукт: str) -> pd.DataFrame:
+    """Строки одного продукта. `ls` — те, что начинаются на `ls.`, Кабинет — все
+    остальные: префикс и есть признак, второй колонки для этого не нужно."""
+    если_ls = mx["action"].astype(str).str.startswith("ls.")
+    return mx[если_ls if продукт == "ls" else ~если_ls].reset_index(drop=True)
 
 
 @st.cache_data(ttl=60)
@@ -137,7 +166,8 @@ def idle_threshold() -> int:
 # Действия, которые журнал пишет сам о себе: открытие экрана, уведомления, досылы.
 # Они не рассказывают, что человек СДЕЛАЛ, и по умолчанию прячутся — иначе настоящие
 # решения тонут в шуме. Прячутся, а не выбрасываются: переключатель рядом.
-СЛУЖЕБНЫЕ = {"admin.open", "notify_new_user", "notify_new_user_wd", "auth_mode_notify"}
+СЛУЖЕБНЫЕ = {"admin.open", "notify_new_user", "notify_new_user_wd", "auth_mode_notify",
+             "notify_unknown"}
 
 
 def имя_объекта(тип, ид) -> str:
@@ -188,15 +218,25 @@ def итог_словом(разрешено) -> str:
 
 people = load_people()
 
-tab_people, tab_matrix, tab_qa, tab_idle, tab_logins, tab_actions = st.tabs(
-    [t("auth.admin.people"), t("auth.admin.matrix"), t("auth.admin.qa"),
-     t("auth.admin.idle"), t("auth.admin.logins"), t("auth.admin.actions")])
+# Матрица и журнал Listing Suite — ОТДЕЛЬНЫМИ вкладками, а не фильтром внутри
+# кабинетных: роли у продуктов разные, и одна таблица с восемью колонками ролей
+# читалась бы как одна матрица на двоих, чем она не является.
+(tab_people, tab_matrix, tab_ls_matrix, tab_qa, tab_idle, tab_logins, tab_actions,
+ tab_ls_actions) = st.tabs(
+    [t("auth.admin.people"), t("auth.admin.matrix"), t("auth.admin.ls_matrix"),
+     t("auth.admin.qa"), t("auth.admin.idle"), t("auth.admin.logins"),
+     t("auth.admin.actions"), t("auth.admin.ls_actions")])
 
 # ─────────────────────────────── Люди ───────────────────────────────
 with tab_people:
     view = pd.DataFrame({
         "email": people["email"],
         "role": [ROLE_LABEL.get(r, r) for r in people["role"]],
+        # Пустая роль в Listing Suite — это «доступа нет», а не «Просмотр», поэтому
+        # у неё свой пункт списка, а не пустая ячейка: пустую от «не выбрано» в
+        # st.data_editor не отличить.
+        "ls_role": [LS_ROLE_LABEL.get(as_text(r), LS_NONE) if as_text(r) else LS_NONE
+                    for r in people["ls_role"]],
         "countries": [as_text(c) for c in people["countries"]],
         "is_active": [bool(v) for v in people["is_active"]],
         "access_until": [fmt_date(v) for v in people["access_until"]],
@@ -213,6 +253,10 @@ with tab_people:
             "email": st.column_config.TextColumn(t("auth.admin.col_email"), disabled=True),
             "role": st.column_config.SelectboxColumn(
                 t("auth.admin.col_role"), options=list(LABEL_ROLE.keys()), required=True),
+            "ls_role": st.column_config.SelectboxColumn(
+                t("auth.admin.col_ls_role"),
+                options=[LS_NONE] + list(LS_LABEL_ROLE.keys()), required=True,
+                help=t("auth.admin.ls_role_help")),
             "countries": st.column_config.TextColumn(
                 t("auth.admin.col_countries"), help=t("auth.admin.countries_help")),
             "is_active": st.column_config.CheckboxColumn(t("auth.admin.col_active")),
@@ -230,23 +274,27 @@ with tab_people:
             errors, changes = [], []
             for i in range(len(view)):
                 email = view.at[i, "email"]
-                was = tuple(view.loc[i, ["role", "countries", "is_active", "access_until", "note"]])
-                now = (edited.at[i, "role"], as_text(edited.at[i, "countries"]),
+                was = tuple(view.loc[i, ["role", "ls_role", "countries", "is_active",
+                                         "access_until", "note"]])
+                now = (edited.at[i, "role"], edited.at[i, "ls_role"],
+                       as_text(edited.at[i, "countries"]),
                        bool(edited.at[i, "is_active"]), as_text(edited.at[i, "access_until"]),
                        as_text(edited.at[i, "note"]))
                 if tuple(was) == now:
                     continue
                 role = LABEL_ROLE.get(now[0], auth.VIEWER)
-                codes = [c.strip().upper() for c in now[1].split(",") if c.strip()]
+                # «—» значит «доступа в Listing Suite нет»: в базу уезжает NULL
+                ls_role = LS_LABEL_ROLE.get(now[1])
+                codes = [c.strip().upper() for c in now[2].split(",") if c.strip()]
                 for c in codes:
                     if good and c not in good:
                         errors.append(t("auth.admin.bad_country", v=c, email=email))
                 if role == auth.COUNTRY_MANAGER and not codes:
                     errors.append(t("auth.admin.cm_no_countries", email=email))
-                until, bad = parse_date(now[3])
+                until, bad = parse_date(now[4])
                 if bad:
                     errors.append(t("auth.admin.bad_date", v=bad, email=email))
-                changes.append((email, role, codes, now[2], until, now[4]))
+                changes.append((email, role, ls_role, codes, now[3], until, now[5]))
             if errors:
                 # одна плохая строка отменяет всё сохранение: половина применённых
                 # правок доступа хуже, чем ни одной, — потом не понять, что уже в силе
@@ -258,13 +306,13 @@ with tab_people:
                 conn = get_connection()
                 try:
                     with conn.cursor() as cur:
-                        for email, role, codes, active, until, note in changes:
+                        for email, role, ls_role, codes, active, until, note in changes:
                             cur.execute("""
                                 UPDATE kabinet_data.app_users
-                                   SET role = %s, is_active = %s, access_until = %s,
-                                       note = NULLIF(%s, '')
+                                   SET role = %s, ls_role = %s, is_active = %s,
+                                       access_until = %s, note = NULLIF(%s, '')
                                  WHERE email = %s
-                            """, (role, active, until, note, email))
+                            """, (role, ls_role, active, until, note, email))
                             cur.execute("DELETE FROM kabinet_data.app_user_countries WHERE email = %s",
                                         (email,))
                             for c in codes:
@@ -275,9 +323,10 @@ with tab_people:
                     conn.commit()
                 finally:
                     conn.close()
-                for email, role, codes, active, until, note in changes:
+                for email, role, ls_role, codes, active, until, note in changes:
                     auth.log_action("admin.set_access", True, "user", email,
-                                    f"роль {role}, страны {','.join(codes) or '—'}, "
+                                    f"роль {role}, Listing Suite {ls_role or '—'}, "
+                                    f"страны {','.join(codes) or '—'}, "
                                     f"доступ {'есть' if active else 'снят'}, "
                                     f"срок {until or 'без срока'}")
                 load_people.clear()
@@ -286,11 +335,13 @@ with tab_people:
                 st.rerun()
 
 # ────────────────────────────── Матрица ─────────────────────────────
-with tab_matrix:
-    st.caption(t("auth.admin.matrix_caption"))
-    mx = load_matrix()
+# Один рисовальщик на два продукта: галочки, проверки и сохранение написаны один раз.
+# Второй экземпляр этого кода разошёлся бы с первым в первый же день — ровно так уже
+# было с навигацией, выписанной в app.py дважды.
+def рисовать_матрицу(продукт: str, роли: list, подписи: dict, в_коде_продукта) -> None:
+    mx = только(load_matrix(), продукт)
     в_базе = sorted(set(mx["action"])) if not mx.empty else []
-    в_коде = sorted(auth._MATRIX)
+    в_коде = sorted(в_коде_продукта)
     # Действие, которого в таблице нет, запрещено всем: новая кнопка не должна начать
     # работать раньше, чем кто-то решил, кому она доступна. Молчать об этом нельзя —
     # иначе оно выглядит сломанным, а не незаполненным.
@@ -305,23 +356,23 @@ with tab_matrix:
     if mx.empty:
         st.warning(t("auth.admin.matrix_empty"))
     else:
-        wide = mx.pivot(index="action", columns="role", values="allowed").reindex(columns=ROLES)
+        wide = mx.pivot(index="action", columns="role", values="allowed").reindex(columns=роли)
         wide = wide.fillna(False).astype(bool).reset_index()
         grid = pd.DataFrame({"action": [t(f"auth.action.{a}") for a in wide["action"]]})
-        for r in ROLES:
+        for r in роли:
             grid[r] = [bool(v) for v in wide[r]]
         edited_mx = st.data_editor(
-            grid, width="stretch", hide_index=True, key="matrix_editor",
+            grid, width="stretch", hide_index=True, key=f"matrix_editor_{продукт}",
             column_config=dict(
                 {"action": st.column_config.TextColumn(t("auth.admin.col_action"), disabled=True)},
-                **{r: st.column_config.CheckboxColumn(ROLE_LABEL[r]) for r in ROLES}))
+                **{r: st.column_config.CheckboxColumn(подписи[r]) for r in роли}))
         st.caption(t("auth.admin.matrix_locked"))
 
-        if st.button(t("auth.admin.save"), type="primary", key="save_matrix"):
-            if auth.require("admin", object_type="page", object_id="matrix"):
+        if st.button(t("auth.admin.save"), type="primary", key=f"save_matrix_{продукт}"):
+            if auth.require("admin", object_type="page", object_id=f"matrix:{продукт}"):
                 правки, отказ = [], []
                 for i, действие in enumerate(wide["action"]):
-                    for r in ROLES:
+                    for r in роли:
                         было, стало = bool(wide.at[i, r]), bool(edited_mx.at[i, r])
                         if было == стало:
                             continue
@@ -364,6 +415,20 @@ with tab_matrix:
                         st.rerun()
 
 
+
+with tab_matrix:
+    st.caption(t("auth.admin.matrix_caption"))
+    рисовать_матрицу("kabinet", ROLES, ROLE_LABEL, auth._MATRIX)
+
+with tab_ls_matrix:
+    st.caption(t("auth.admin.ls_matrix_caption"))
+    # Список действий Listing Suite берётся ИЗ БАЗЫ, а не из кода Кабинета: его
+    # засеял SQL-файл, и копия этого списка здесь разошлась бы с кодом другого
+    # репозитория. Сверку «код Listing Suite против базы» делает его собственная
+    # проверка — она видит обе стороны, а этот экран видит только базу.
+    _ls_в_базе = sorted(set(только(load_matrix(), "ls")["action"]))
+    рисовать_матрицу("ls", LS_ROLES, LS_ROLE_LABEL, _ls_в_базе)
+
 # ──────────────────────── тестовый вход QA ──────────────────────────
 with tab_qa:
     st.caption(t("auth.qa.caption"))
@@ -381,7 +446,8 @@ with tab_qa:
             _дней = int(_r2[0]) if _r2 else 7
         токены = pd.read_sql("""
             SELECT id, COALESCE(label, '') AS label, created_at, created_by,
-                   expires_at, revoked_at, last_used_at, uses
+                   expires_at, revoked_at, last_used_at, uses,
+                   COALESCE(product, 'kabinet') AS product
               FROM kabinet_data.qa_tokens ORDER BY id DESC LIMIT 50
         """, conn)
     finally:
@@ -399,7 +465,12 @@ with tab_qa:
     if not токены.empty:
         живых = int(sum(1 for r in токены.itertuples()
                         if pd.isna(r.revoked_at) and pd.Timestamp(r.expires_at) > pd.Timestamp.now(tz="UTC")))
-    c1, c2 = st.columns([1, 2])
+    # Токен принадлежит ПРОДУКТУ: ссылка в Кабинет не должна открывать Listing Suite,
+    # и отозвать её надо уметь по одному продукту, а не по обоим сразу.
+    c0, c1, c2 = st.columns([1.2, 1, 2])
+    _продукты = {"kabinet": t("auth.qa.product_kabinet"), "ls": t("auth.qa.product_ls")}
+    _продукт = c0.selectbox(t("auth.qa.product"), list(_продукты),
+                            format_func=lambda k: _продукты[k], key="qa_product")
     if c1.button(t("auth.qa.new"), type="primary", key="qa_new"):
         if auth.require("admin", object_type="qa", object_id="token"):
             import secrets as _secrets
@@ -407,17 +478,20 @@ with tab_qa:
             conn = get_connection()
             try:
                 with conn.cursor() as cur:
-                    # прежние гасим: два живых токена — это две утечки вместо одной
+                    # прежние гасим — но только по ЭТОМУ продукту: гасить чужую
+                    # ссылку заодно значило бы прервать чужую проверку
                     cur.execute("""UPDATE kabinet_data.qa_tokens SET revoked_at = now()
-                                    WHERE revoked_at IS NULL""")
+                                    WHERE revoked_at IS NULL AND product = %s""",
+                                (_продукт,))
                     cur.execute("""INSERT INTO kabinet_data.qa_tokens
-                                       (token_hash, label, created_by, expires_at)
-                                   VALUES (%s, %s, %s, now() + make_interval(days => %s))""",
-                                (auth.qa_hash(новый), "QA", auth.actor(), _дней))
+                                       (token_hash, label, created_by, expires_at, product)
+                                   VALUES (%s, %s, %s, now() + make_interval(days => %s), %s)""",
+                                (auth.qa_hash(новый), "QA", auth.actor(), _дней, _продукт))
                 conn.commit()
             finally:
                 conn.close()
-            auth.log_action("qa.new_token", True, "qa", "token", f"срок {_дней} дн.")
+            auth.log_action("qa.new_token", True, "qa", "token",
+                            f"срок {_дней} дн., продукт {_продукты[_продукт]}")
             # Показываем ОДИН раз: открытый токен не хранится даже у нас
             st.session_state["qa_fresh"] = новый
             st.rerun()
@@ -432,6 +506,7 @@ with tab_qa:
         st.caption(t("auth.qa.none"))
     else:
         показ = pd.DataFrame({
+            "продукт": [_продукты.get(as_text(v), as_text(v)) for v in токены["product"]],
             "выдан": [fmt_dt(v) for v in токены["created_at"]],
             "кем": [as_text(v, "—") for v in токены["created_by"]],
             "до": [fmt_dt(v) for v in токены["expires_at"]],
@@ -450,6 +525,8 @@ with tab_qa:
                 conn = get_connection()
                 try:
                     with conn.cursor() as cur:
+                        # гасим все живые по обоим продуктам: кнопка называется
+                        # «погасить все», и выборочность тут была бы ловушкой
                         cur.execute("""UPDATE kabinet_data.qa_tokens SET revoked_at = now()
                                         WHERE revoked_at IS NULL""")
                     conn.commit()
@@ -515,7 +592,10 @@ with tab_logins:
         })
 
 # ────────────────────────── Журнал действий ─────────────────────────
-with tab_actions:
+# Один журнал на два продукта: фильтры, подписи и правило «кто» написаны один раз, а
+# различает записи колонка `product`. Две таблицы означали бы два набора фильтров,
+# которые однажды разойдутся.
+def рисовать_журнал(продукт: str) -> None:
     conn = get_connection()
     try:
         acts = pd.read_sql("""
@@ -534,22 +614,28 @@ with tab_actions:
         f1, f2, f3, f4 = st.columns([1.4, 1.2, 1.4, 1.6])
         # Пустой выбор означает «все», а не «ничего»: человек снимает галочки, чтобы
         # перестать фильтровать, а не чтобы получить пустую таблицу.
+        # Ключи обязательны: тот же журнал рисуется ДВА раза, по продукту на вкладку,
+        # а Streamlit выводит id виджета из типа и параметров — без ключа второй
+        # набор фильтров оказался бы тем же самым, и страница упала бы целиком.
         люди = f1.multiselect(t("auth.admin.f_who"),
                               sorted({as_text(e) for e in acts["email"] if as_text(e)}),
-                              default=[], placeholder=t("auth.admin.f_all"))
+                              default=[], placeholder=t("auth.admin.f_all"),
+                              key=f"acts_who_{продукт}")
         разделы = f2.multiselect(t("auth.admin.f_section"),
                                  sorted(set(acts["section"])), default=[],
                                  format_func=lambda s: t(f"auth.admin.sec.{s}"),
-                                 placeholder=t("auth.admin.f_all"))
+                                 placeholder=t("auth.admin.f_all"),
+                                 key=f"acts_section_{продукт}")
         действия = f3.multiselect(t("auth.admin.f_action"), sorted(set(acts["action"])),
                                   default=[], format_func=lambda a: t(f"auth.action.{a}"),
-                                  placeholder=t("auth.admin.f_all"))
+                                  placeholder=t("auth.admin.f_all"),
+                                  key=f"acts_action_{продукт}")
         период = f4.date_input(t("auth.admin.f_period"),
                                value=(acts["ts"].min().date(), acts["ts"].max().date()),
-                               key="acts_period")
+                               key=f"acts_period_{продукт}")
         служебных = int(acts["action"].isin(СЛУЖЕБНЫЕ).sum())
         показать_служебные = st.checkbox(
-            t("auth.log.show_service", n=служебных), value=False, key="acts_service")
+            t("auth.log.show_service", n=служебных), value=False, key=f"acts_service_{продукт}")
         сито = acts if показать_служебные else acts[~acts["action"].isin(СЛУЖЕБНЫЕ)]
         if люди:
             сито = сито[сито["email"].isin(люди)]
@@ -589,3 +675,11 @@ with tab_actions:
                 "result": st.column_config.TextColumn(t("auth.log.col_result"), width="small"),
                 "details": st.column_config.TextColumn(t("auth.admin.col_details"), width="medium"),
             })
+
+
+with tab_actions:
+    рисовать_журнал("kabinet")
+
+with tab_ls_actions:
+    st.caption(t("auth.admin.ls_actions_caption"))
+    рисовать_журнал("ls")
