@@ -144,6 +144,40 @@ for таблица, право in (("app_users", "SELECT"), ("app_users", "UPDAT
                 (ПРИНЦИПАЛ, f"kabinet_data.{таблица}", право))
     ждём(f"принципалу можно {право} по {таблица}", bool(cur.fetchone()[0]))
 
+# ── общий экран «Доступ»: одна версия на два репозитория ─────────────────────
+# Копия обязана совпадать с источником байт в байт. Это и есть всё «общий код»: две
+# версии одной админки разошлись бы молча, а таблицы у них общие.
+_источник = pathlib.Path(__file__).resolve().parent.parent / "access_screen.py"
+_копия = КОРЕНЬ_LS / "access_screen.py"
+ждём("экран «Доступ» есть у источника", _источник.exists())
+ждём("и выложен в Listing Suite", _копия.exists())
+if _источник.exists() and _копия.exists():
+    ждём("копия совпадает с источником побайтно",
+         _источник.read_bytes() == _копия.read_bytes())
+_обёртка = КОРЕНЬ_LS / "pages" / "access.py"
+ждём("страница Listing Suite зовёт общий модуль",
+     _обёртка.exists() and "access_screen.render(" in _обёртка.read_text(encoding="utf-8"))
+
+# ── право на админку второго продукта и защита от самоблокировки ─────────────
+cur.execute("""SELECT role, allowed FROM kabinet_data.app_permissions
+                WHERE action = 'ls.admin' ORDER BY role""")
+_админка = dict(cur.fetchall())
+ждём("право ls.admin заведено на все роли", len(_админка) == 4)
+ждём("и разрешено только администратору",
+     _админка.get("admin") is True
+     and not any(v for r, v in _админка.items() if r != "admin"))
+for _пара in (("admin", "admin"), ("ls.admin", "admin")):
+    cur.execute("SAVEPOINT s")
+    try:
+        cur.execute("""UPDATE kabinet_data.app_permissions SET allowed = false
+                        WHERE action = %s AND role = %s""", _пара)
+        _отказ = False
+    except Exception:
+        _отказ = True
+    cur.execute("ROLLBACK TO SAVEPOINT s")
+    ждём(f"пару «{_пара[1]} × {_пара[0]}» снять нельзя", _отказ)
+c.rollback()
+
 print()
 print("ИТОГ:", "всё сошлось" if not беда else f"{len(беда)} провалов")
 sys.exit(1 if беда else 0)

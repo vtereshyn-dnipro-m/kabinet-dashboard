@@ -49,6 +49,18 @@ def прогнать(f, ss=None):
         errs.append("прогон пустой: ни одного элемента на экране")
     return at, exc + errs
 беда = 0
+
+# ── общий экран «Доступ»: копия обязана совпадать с источником ────────────────
+# Стоит ПЕРВЫМ и считается провалом наравне со сломанной страницей: «Доступ» в двух
+# приложениях — один файл, и расхождение означает две версии одной админки над общими
+# таблицами. Предупреждением тут не отделаться — его прочитают после деплоя.
+sys.path.insert(0, f"{R}/scratchpad")
+import sync_access_screen as _синк
+_копия_плохо = _синк.проверить()
+print(("  ПРОВАЛ " if _копия_плохо else "    ок  ") + "выкладка access_screen.py"
+      + ("".join("\n          " + x for x in _копия_плохо)))
+беда += bool(_копия_плохо)
+
 for f in ("home.py", "pages/1_Stock.py", "pages/2_Incidents.py", "pages/3_Forecast.py",
           "pages/4_Reorder.py", "pages/5_Money.py", "pages/7_Reviews.py",
           "pages/8_CM_Dashboard.py", "pages/9_Ads.py", "pages/10_Access.py"):
@@ -61,4 +73,4 @@ for sec in ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f"Справочники → {sec}"
           + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
-print(f"\nс бедой: {беда} из 23")
+print(f"\nс бедой: {беда} из 24")

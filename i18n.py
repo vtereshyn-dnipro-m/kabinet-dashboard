@@ -4568,9 +4568,9 @@ TRANSLATIONS = {
     "auth.action.auth_mode_notify": {"ru": "Уведомление о смене режима", "uk": "Сповіщення про зміну режиму", "en": "Mode change notification"},
 
     "auth.admin.mode_where": {
-        "ru": "Меняется в базе: reorder_params.auth_enabled. Каждое переключение уходит в Telegram.",
-        "uk": "Змінюється в базі: reorder_params.auth_enabled. Кожне перемикання йде в Telegram.",
-        "en": "Changed in the database: reorder_params.auth_enabled. Every switch is sent to Telegram.",
+        "ru": "Меняется в базе: reorder_params.{param}. Каждое переключение уходит в Telegram.",
+        "uk": "Змінюється в базі: reorder_params.{param}. Кожне перемикання йде в Telegram.",
+        "en": "Changed in the database: reorder_params.{param}. Every switch is sent to Telegram.",
     },
     # --- Listing Suite: второй продукт в том же списке людей и той же матрице ---
     "auth.admin.ls_matrix": {"ru": "Матрица Listing Suite", "uk": "Матриця Listing Suite", "en": "Listing Suite permissions"},
