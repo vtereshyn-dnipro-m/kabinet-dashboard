@@ -108,6 +108,22 @@ _COUNTRY_SCOPED = {"forecast.edit", "forecast.approve", "forecast.upload"}
 # ни запросом (в базе стоит триггер). Здесь — чтобы интерфейс знал, что заблокировать.
 LOCKED = ("admin", ADMIN)
 
+# ── Listing Suite ─────────────────────────────────────────────────────────────
+# Второй продукт живёт в своём репозитории, а список людей и матрица прав — общие.
+# Здесь объявлено ровно то, что нужно экрану «Доступ»: роли (их набор другой) и
+# действия (их код начинается с `ls.`).
+#
+# Список ДЕЙСТВИЙ экран берёт из базы, а не отсюда: авторитетный список — тот, что
+# засеян `sql/ls_login_2026-10-02.sql`, и держать его копию в двух репозиториях
+# значило бы однажды её разойтись. Сверку «код Listing Suite против базы» делает
+# `scratchpad/smoke_ls_auth.py` — она видит обе стороны, а экран видит только базу.
+LS_VIEWER = "viewer"
+LS_CONTENT_MANAGER = "content_manager"
+LS_APPROVER = "approver"
+LS_ADMIN = "admin"
+LS_ROLES = [LS_VIEWER, LS_CONTENT_MANAGER, LS_APPROVER, LS_ADMIN]
+LS_PRODUCT = "ls"
+
 ANON = "kabinet-app"
 
 class User:
