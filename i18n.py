@@ -1165,14 +1165,14 @@ TRANSLATIONS = {
     "home.kpi.margin": {"ru": "Маржа и её доля", "uk": "Маржа та її частка", "en": "Margin and its share"},
     "home.kpi.margin_help": {
         "ru": "Выплата площадки (после комиссий, возвратов и удержаний Amazon, в том числе Sponsored Products) минус "
-              "себестоимость, упаковка и доставка покупателю, реклама SB и SD. Себестоимость годных FBA-возвратов "
-              "возвращается в маржу. Логистика внутренних перемещений сюда не входит — разбивка на странице «Деньги»",
+              "себестоимость, упаковка и доставка покупателю, реклама SB и SD. Себестоимость годных возвратов "
+              "(FBA — по оценке Amazon, Мадрид — по приёмке в годный запас Odoo) возвращается в маржу. Логистика внутренних перемещений сюда не входит — разбивка на странице «Деньги»",
         "uk": "Виплата майданчика (після комісій, повернень і утримань Amazon, зокрема Sponsored Products) мінус "
-              "собівартість, пакування й доставка покупцеві, реклама SB і SD. Собівартість придатних FBA-повернень "
-              "повертається в маржу. Логістика внутрішніх переміщень сюди не входить — розбивка на сторінці «Гроші»",
+              "собівартість, пакування й доставка покупцеві, реклама SB і SD. Собівартість придатних повернень "
+              "(FBA — за оцінкою Amazon, Мадрид — за прийманням у придатний запас Odoo) повертається в маржу. Логістика внутрішніх переміщень сюди не входить — розбивка на сторінці «Гроші»",
         "en": "Channel payout (after fees, refunds and Amazon deductions, including Sponsored Products) minus COGS, "
-              "packing & shipping to the customer, and SB and SD ads. COGS of sellable FBA returns goes back into the "
-              "margin. Internal logistics is not included — see the Money page for the breakdown",
+              "packing & shipping to the customer, and SB and SD ads. COGS of sellable returns (FBA — per Amazon's "
+              "grading, Madrid — per receipt into sellable stock in Odoo) goes back into the margin. Internal logistics is not included — see the Money page for the breakdown",
     },
     "home.kpi.acos_help": {
         "ru": "Расход на всю рекламу (SP, SB, SD и ManoMano) / продажи с рекламы, атрибуция 14 дней. Формула Power BI Дарины. Окно — то же, что у выручки и маржи, все каналы",
@@ -2066,9 +2066,9 @@ TRANSLATIONS = {
         "en": "Cost of goods sold",
     },
     "money.kpi.cogs_returns": {
-        "ru": "За вычетом себестоимости годных к продаже FBA-возвратов: {eur} € ({n} шт).",
-        "uk": "За вирахуванням собівартості придатних до продажу FBA-повернень: {eur} € ({n} шт).",
-        "en": "Net of COGS of sellable FBA returns: {eur} € ({n} pcs).",
+        "ru": "За вычетом себестоимости годных к продаже возвратов (FBA и принятых в годный запас Мадрида): {eur} € ({n} шт).",
+        "uk": "За вирахуванням собівартості придатних до продажу повернень (FBA і прийнятих у придатний запас Мадрида): {eur} € ({n} шт).",
+        "en": "Net of COGS of sellable returns (FBA and those received into sellable stock in Madrid): {eur} € ({n} pcs).",
     },
     "money.kpi.ads": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
     "money.kpi.ads_help": {
@@ -2135,18 +2135,18 @@ TRANSLATIONS = {
     "money.kpi.cm_help": {
         "ru": "Contribution Margin = «Чистыми» (выручка после возвратов, комиссий и удержаний Amazon, в том числе "
               "Sponsored Products) − себестоимость − упаковка и доставка − реклама SB и SD. Себестоимость годных к продаже "
-              "FBA-возвратов возвращается в маржу; негодных, а также возвратов в Мадрид и на Mirakl, где состояние товара "
-              "неизвестно, остаётся расходом. Считается только по SKU с загруженной себестоимостью, "
+              "возвратов возвращается в маржу: FBA — по оценке Amazon, Мадрид (Amazon MFN и Mirakl) — по приёмке в "
+              "годный запас Odoo; принятое в брак («Defecto») или в ремонт остаётся расходом. Считается только по SKU с загруженной себестоимостью, "
               "доля выручки указана под карточками.",
         "uk": "Contribution Margin = «Чистими» (виручка після повернень, комісій і утримань Amazon, зокрема "
               "Sponsored Products) − собівартість − пакування й доставка − реклама SB і SD. Собівартість придатних до продажу "
-              "FBA-повернень повертається в маржу; непридатних, а також повернень у Мадрид і на Mirakl, де стан товару "
-              "невідомий, лишається витратою. Рахується лише за SKU із завантаженою собівартістю, "
+              "повернень повертається в маржу: FBA — за оцінкою Amazon, Мадрид (Amazon MFN і Mirakl) — за прийманням у "
+              "придатний запас Odoo; прийняте в брак («Defecto») чи в ремонт лишається витратою. Рахується лише за SKU із завантаженою собівартістю, "
               "частка виручки вказана під картками.",
         "en": "Contribution Margin = “Net” (revenue after refunds, fees and Amazon deductions, including "
-              "Sponsored Products) − COGS − packing & shipping − SB and SD ads. COGS of sellable FBA returns goes back "
-              "into the margin; unsellable returns, and returns to Madrid and on Mirakl where the item condition is "
-              "unknown, stay a cost. Computed only over SKUs that have COGS loaded; "
+              "Sponsored Products) − COGS − packing & shipping − SB and SD ads. COGS of sellable returns goes back "
+              "into the margin: FBA per Amazon's grading, Madrid (Amazon MFN and Mirakl) per receipt into sellable stock in "
+              "Odoo; items received as defective («Defecto») or for repair stay a cost. Computed only over SKUs that have COGS loaded; "
               "the share of revenue covered is shown under the cards.",
     },
     "money.kpi.cogs_missing": {
