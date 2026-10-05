@@ -190,7 +190,9 @@ def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = "
                -- потому что economics_summary принадлежит владельцу и от приложения не расширяется
                COALESCE(l.packing_cost, 0) + COALESCE(l.shipping_cost, 0) AS logistics,
                s.asin
-        FROM kabinet_data.v_economics_summary_eur e
+        -- строки экономики плюс «рекламные дни» — SKU × день с рекламой, но без строки экономики (05.10.2026):
+        -- раньше такой расход не находил строки и в маржу не попадал вовсе
+        FROM kabinet_data.v_economics_with_ad_days e
         LEFT JOIN kabinet_data.economics_logistics l
           ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace AND l.norm_sku = e.norm_sku
         LEFT JOIN (
