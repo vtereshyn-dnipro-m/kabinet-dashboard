@@ -3892,14 +3892,15 @@ TRANSLATIONS = {
     },
 
     # --- паспорт данных (data_passport.py) ---
-    "passport.title": {"ru": "Откуда данные", "uk": "Звідки дані", "en": "Where the data comes from"},
+    "passport.title": {"ru": "Откуда данные (паспорт данных)", "uk": "Звідки дані (паспорт даних)",
+                       "en": "Where the data comes from (data passport)"},
     "passport.hint": {
-        "ru": "Каждая цифра на странице собрана из этих источников. «Данные по» — последняя дата, "
+        "ru": "Паспорт данных: каждая цифра на странице собрана из этих источников. «Данные по» — последняя дата, "
               "за которую в источнике есть содержимое, а не время работы загрузчика: важно, по какое "
               "число цифры, а не когда крутилась джоба.",
-        "uk": "Кожна цифра на сторінці зібрана з цих джерел. «Дані по» — остання дата, за яку в джерелі "
+        "uk": "Паспорт даних: кожна цифра на сторінці зібрана з цих джерел. «Дані по» — остання дата, за яку в джерелі "
               "є вміст, а не час роботи завантажувача: важливо, по яке число цифри, а не коли працювала джоба.",
-        "en": "Every number on this page comes from these sources. “Data through” is the last date the source "
+        "en": "Data passport: every number on this page comes from these sources. “Data through” is the last date the source "
               "actually has content for — not when the loader ran: what matters is how current the numbers are.",
     },
     "passport.col_src": {"ru": "Что даёт", "uk": "Що дає", "en": "What it feeds"},
