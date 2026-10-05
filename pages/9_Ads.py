@@ -24,6 +24,7 @@ from util import as_text
 import period as period_mod
 import catalog
 import ads_api
+import ad_ratios
 from links import MARKETPLACE_ID, amazon_url, market_name
 
 init_lang()
@@ -339,9 +340,21 @@ if A.empty:
 # ═══════════════════════════════════════════════════════════════════
 # КАРТОЧКИ
 # ═══════════════════════════════════════════════════════════════════
-_spend, _sales = A["spend"].sum(), A["sales_14d"].sum()
+# AMC-суммы остаются для стоимости нового покупателя (её знаменатель — покупки AMC) и для таблицы кампаний
+_spend = A["spend"].sum()
 _days = max((_to - _from).days + 1, 1)
-_acos = (_spend / _sales * 100) if _sales > 0 else np.inf
+
+# ACOS и TACOS в карточках — по формулам Дарины (Power BI, 05.10.2026): расход на ВСЮ рекламу (SP+SB+SD) к
+# продажам с рекламы (SP+SB+SD) и ко всем продажам с НДС. Тот же период и те же рынки, что у страницы;
+# порог окупаемости кампаний ниже — другое число, он считается от маржи и не меняется.
+_ar_mk = tuple(sorted({("GB" if c == "UK" else c) for c in
+                       (MARKETPLACE_ID.get(str(m).strip().upper()) for m in (_mk or _markets)) if c}))
+try:
+    _ar = ad_ratios.load(_from.date(), _to.date(), _ar_mk)
+except Exception:
+    _ar = {}
+_acos = _ar.get("acos")
+_acos = np.inf if (_acos is None and (_ar.get("spend") or 0) > 0) else _acos
 
 ntb = scope(load_amc("amc_ntb_by_asin")[0])
 _ntb_share, _ntb_buys = np.nan, np.nan
@@ -362,7 +375,7 @@ if not ntb.empty and {"total_purchases", "ntb_rate_pct"} <= set(ntb.columns):
 # а «сколько стоит привести человека». Если она выше маржи с первой
 # покупки, а повторных нет, разговор не про ставки вообще
 _cac = (_spend / _ntb_buys) if (_ntb_buys and _ntb_buys > 0) else np.nan
-c1, c2, c3, c4, c5 = st.columns(5)
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 # Порог теперь у каждой кампании свой, и одного числа для карточки нет.
 # Взвешиваем по продажам, а не по расходу: ACOS и есть расход, делённый
 # на продажи, поэтому вес должен быть знаменателем. Порогов не нашлось —
@@ -375,15 +388,19 @@ if pd.isna(_thr_avg):
     _base, _tone = t("ads.card.acos_no_threshold"), ""
 else:
     _base = t("ads.card.acos_base", n=f"{_thr_avg:.0f}")
-    _tone = "bad" if (np.isinf(_acos) or _acos > _thr_avg) else "good"
-card(c1, "ACOS", _base, "∞" if np.isinf(_acos) else f"{_acos:.0f} %", _tone)
-card(c2, t("ads.card.spend"), t("ads.card.spend_base", n=_days),
-     money(_spend))
-card(c3, t("ads.card.sales"), t("ads.card.sales_base"), money(_sales))
-card(c4, t("ads.card.ntb"), t("ads.card.ntb_base"),
+    _tone = "" if _acos is None else ("bad" if (np.isinf(_acos) or _acos > _thr_avg) else "good")
+card(c1, "ACOS", _base, "—" if _acos is None else ("∞" if np.isinf(_acos) else f"{_acos:.1f} %"), _tone)
+card(c2, "TACOS", t("ads.card.tacos_base"),
+     "—" if _ar.get("tacos") is None else f"{_ar['tacos']:.1f} %")
+card(c3, t("ads.card.spend"), t("ads.card.spend_base_all", n=_days),
+     "—" if _ar.get("spend") is None else money(_ar["spend"]))
+card(c4, t("ads.card.sales"), t("ads.card.sales_base_all"),
+     "—" if _ar.get("ad_sales") is None else money(_ar["ad_sales"]))
+card(c5, t("ads.card.ntb"), t("ads.card.ntb_base"),
      "—" if pd.isna(_ntb_share) else f"{_ntb_share:.0f} %")
-card(c5, t("ads.card.cac"), t("ads.card.cac_base"),
+card(c6, t("ads.card.cac"), t("ads.card.cac_base"),
      "—" if pd.isna(_cac) else money(_cac, 2))
+st.caption(t("ads.card.formula_note"))
 
 # ═══════════════════════════════════════════════════════════════════
 # КАМПАНИИ

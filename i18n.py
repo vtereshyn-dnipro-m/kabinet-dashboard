@@ -1174,6 +1174,14 @@ TRANSLATIONS = {
               "packing & shipping to the customer, and SB and SD ads. COGS of sellable FBA returns goes back into the "
               "margin. Internal logistics is not included — see the Money page for the breakdown",
     },
+    "home.kpi.acos_help": {
+        "ru": "Расход на всю рекламу (SP, SB, SD и ManoMano) / продажи с рекламы, атрибуция 14 дней. Формула Power BI Дарины. Окно — то же, что у выручки и маржи, все каналы",
+        "uk": "Витрати на всю рекламу (SP, SB, SD і ManoMano) / продажі з реклами, атрибуція 14 днів. Формула Power BI Дарини. Вікно — те саме, що у виручки й маржі, усі канали",
+        "en": "Spend on all ads (SP, SB, SD and ManoMano) / ad-attributed sales, 14-day attribution. Darina's Power BI formula. Same window as revenue and margin, all channels"},
+    "home.kpi.tacos_help": {
+        "ru": "Весь расход на рекламу / все продажи с НДС (Amazon — по заказам, Mirakl — строки заказов). Формула Power BI Дарины. Wallapop и сайта в Кабинете нет",
+        "uk": "Усі витрати на рекламу / усі продажі з ПДВ (Amazon — за замовленнями, Mirakl — рядки замовлень). Формула Power BI Дарини. Wallapop і сайту в Кабінеті немає",
+        "en": "Total ad spend / all sales incl. VAT (Amazon — ordered sales, Mirakl — order lines). Darina's Power BI formula. Wallapop and the website are not in Kabinet"},
     "home.kpi.margin_partial": {
         "ru": "Маржа — по SKU с загруженной себестоимостью ({known} % выручки); без себестоимости — {rev} € ({pct} %), они в маржу не входят",
         "uk": "Маржа — за SKU із завантаженою собівартістю ({known} % виручки); без собівартості — {rev} € ({pct} %), вони в маржу не входять",
@@ -3299,6 +3307,19 @@ TRANSLATIONS = {
     "ads.card.spend_base": {"ru": "за {n} дн.", "uk": "за {n} дн.", "en": "over {n} days"},
     "ads.card.sales": {"ru": "Продажи", "uk": "Продажі", "en": "Sales"},
     "ads.card.sales_base": {"ru": "атрибуция 14 дн.", "uk": "атрибуція 14 дн.", "en": "14-day attribution"},
+    "ads.card.tacos_base": {"ru": "реклама ко всем продажам с НДС", "uk": "реклама до всіх продажів з ПДВ", "en": "ads over all sales incl. VAT"},
+    "ads.card.spend_base_all": {"ru": "SP + SB + SD за {n} дн.", "uk": "SP + SB + SD за {n} дн.", "en": "SP + SB + SD over {n} days"},
+    "ads.card.sales_base_all": {"ru": "с рекламы SP + SB + SD, атрибуция 14 дн.", "uk": "з реклами SP + SB + SD, атрибуція 14 дн.", "en": "from SP + SB + SD ads, 14-day attribution"},
+    "ads.card.formula_note": {
+        "ru": "ACOS и TACOS — по формулам Power BI Дарины: ACOS = расход на всю рекламу (SP, SB, SD) / продажи с рекламы; "
+              "TACOS = весь расход на рекламу / все продажи с НДС. Порог в карточке ACOS и ACOS кампаний в таблице ниже — "
+              "по данным AMC и от маржи товаров, это другое число.",
+        "uk": "ACOS і TACOS — за формулами Power BI Дарини: ACOS = витрати на всю рекламу (SP, SB, SD) / продажі з реклами; "
+              "TACOS = усі витрати на рекламу / усі продажі з ПДВ. Поріг у картці ACOS і ACOS кампаній у таблиці нижче — "
+              "за даними AMC і від маржі товарів, це інше число.",
+        "en": "ACOS and TACOS follow Darina's Power BI formulas: ACOS = spend on all ads (SP, SB, SD) / ad-attributed sales; "
+              "TACOS = total ad spend / all sales incl. VAT. The target on the ACOS card and the campaign ACOS in the table "
+              "below come from AMC and product margin — a different number."},
     "ads.card.ntb": {"ru": "Новых", "uk": "Нових", "en": "New-to-brand"},
     "ads.card.ntb_base": {"ru": "от всех покупок", "uk": "від усіх покупок", "en": "of all purchases"},
     "ads.camp.title": {"ru": "Кампании", "uk": "Кампанії", "en": "Campaigns"},
@@ -4048,6 +4069,9 @@ TRANSLATIONS = {
     "passport.feeds.eligible": {"ru": "заказы, по которым можно просить отзыв",
                                 "uk": "замовлення, за якими можна просити відгук",
                                 "en": "orders eligible for a review request"},
+    "passport.feeds.acos": {"ru": "ACOS", "uk": "ACOS", "en": "ACOS"},
+    "passport.feeds.tacos": {"ru": "TACOS", "uk": "TACOS", "en": "TACOS"},
+    "passport.feeds.ad_sales": {"ru": "продажи с рекламы", "uk": "продажі з реклами", "en": "ad-attributed sales"},
     "passport.feeds.spend": {"ru": "расход на рекламу", "uk": "витрати на рекламу", "en": "ad spend"},
     "passport.feeds.alerts": {"ru": "алерты по рекламе", "uk": "алерти з реклами", "en": "ad alerts"},
     "passport.feeds.actions": {"ru": "журнал нажатий", "uk": "журнал натискань", "en": "action log"},
@@ -4102,6 +4126,7 @@ TRANSLATIONS = {
     "passport.src.logistics": {
         "ru": "Упаковка и доставка в марже", "uk": "Пакування і доставка в маржі",
         "en": "Packing and shipping inside margin"},
+    "passport.src.ads_market": {"ru": "Реклама по рынкам (ACOS, TACOS)", "uk": "Реклама за ринками (ACOS, TACOS)", "en": "Advertising by market (ACOS, TACOS)"},
     "passport.src.ads": {"ru": "Реклама в марже", "uk": "Реклама в маржі", "en": "Advertising inside margin"},
     "passport.src.traffic": {
         "ru": "Продажи по заказам и факт плана", "uk": "Продажі за замовленнями і факт плану",

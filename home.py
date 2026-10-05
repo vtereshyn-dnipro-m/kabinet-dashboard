@@ -14,6 +14,7 @@ from i18n import init_lang, t, incident_type_label
 from util import as_text, data_boundary, day_axis
 import period as period_mod
 import plan_fact
+import ad_ratios
 
 init_lang()
 
@@ -182,6 +183,16 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
         return pd.DataFrame()
     finally:
         conn.close()
+
+
+@st.cache_data(ttl=300)
+def load_ad_ratios(d_from, d_to, v: str = "") -> dict:
+    """ACOS и TACOS за окно маржи — по формулам Дарины (ad_ratios.py). Ошибка чтения не роняет Обзор:
+    карточки покажут прочерк, а не ноль."""
+    try:
+        return ad_ratios.load(d_from, d_to)
+    except Exception:
+        return {}
 
 
 @st.cache_data(ttl=300)
@@ -626,6 +637,15 @@ else:
         else:
             _as_of = _m_to if pd.notna(_m_to) else _o_to
             st.caption(t("home.kpi.as_of", d=_as_of.strftime("%d.%m")))
+    # ACOS и TACOS — по формулам Дарины (Power BI, 05.10.2026): весь расход на рекламу SP+SB+SD к продажам с
+    # рекламы и ко всем продажам с НДС. Окно — то же, что у выручки и маржи; каналы — все, как у неё
+    if pd.notna(_m_from) and pd.notna(_m_to):
+        _ar = load_ad_ratios(_m_from.date(), _m_to.date(), data_version("ads_market_daily", "updated_at"))
+        _a1, _a2, _ = st.columns([1, 1, 3])
+        _a1.metric("ACOS", f"{_ar['acos']:.1f} %" if _ar.get("acos") is not None else "—",
+                   help=passport.tip("home", "acos", t("home.kpi.acos_help")))
+        _a2.metric("TACOS", f"{_ar['tacos']:.1f} %" if _ar.get("tacos") is not None else "—",
+                   help=passport.tip("home", "tacos", t("home.kpi.tacos_help")))
     if rev_cur and _no_cogs_rev > 0.5:
         st.caption(t("home.kpi.margin_partial", rev=f"{_no_cogs_rev:,.0f}", pct=f"{_no_cogs_rev / rev_cur * 100:.0f}",
                      known=f"{_rev_known / rev_cur * 100:.0f}"))
