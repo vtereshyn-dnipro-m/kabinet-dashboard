@@ -3904,6 +3904,21 @@ TRANSLATIONS = {
               "actually has content for — not when the loader ran: what matters is how current the numbers are.",
     },
     "passport.col_src": {"ru": "Что даёт", "uk": "Що дає", "en": "What it feeds"},
+    "passport.col_darina": {"ru": "У Дарины", "uk": "У Дарини", "en": "In Darina’s view"},
+    "passport.col_darina_help": {
+        "ru": "Как тот же показатель считает витрина Дарины v_all_marketplaces_spiderweb_report — по её SQL-определению. "
+              "Итог: совпадает, точнее у нас, точнее у неё или разная методика, и почему. Прочерк — показателя в её витрине нет.",
+        "uk": "Як той самий показник рахує вітрина Дарини v_all_marketplaces_spiderweb_report — за її SQL-визначенням. "
+              "Підсумок: збігається, точніше в нас, точніше в неї або різна методика, і чому. Прочерк — показника в її вітрині немає.",
+        "en": "How Darina’s view v_all_marketplaces_spiderweb_report computes the same metric — from its SQL definition. "
+              "Verdict: same, ours is more precise, hers is more precise, or a different method — and why. A dash means "
+              "her view has no such metric.",
+    },
+    "passport.darina.same": {"ru": "совпадает", "uk": "збігається", "en": "same"},
+    "passport.darina.ours_better": {"ru": "точнее у нас", "uk": "точніше в нас", "en": "ours is more precise"},
+    "passport.darina.hers_better": {"ru": "точнее у неё", "uk": "точніше в неї", "en": "hers is more precise"},
+    "passport.darina.different": {"ru": "разная методика", "uk": "різна методика", "en": "different method"},
+    "passport.darina.how": {"ru": "Как у неё: {how}", "uk": "Як у неї: {how}", "en": "How she computes it: {how}"},
     "passport.col_table": {"ru": "Наша таблица", "uk": "Наша таблиця", "en": "Our table"},
     "passport.col_as_of": {"ru": "Данные по / возраст", "uk": "Дані по / вік", "en": "Data through / age"},
     "passport.col_age": {"ru": "Возраст", "uk": "Вік", "en": "Age"},
