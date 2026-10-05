@@ -54,8 +54,10 @@ PAGES = {
         Source("logistics", "economics_logistics", "sales_date", "Kabinet - Economics Loader", 96,
                ("margin",)),
         Source("ads", "ads_spend", "date", "Kabinet - Economics Loader", 96, ("margin",)),
+        # ACOS и TACOS по формулам Power BI Дарины: день × рынок, SB с продажами по купленным ASIN
+        Source("ads_market", "ads_market_daily", "date", "Kabinet - Economics Loader", 96, ("acos", "tacos")),
         Source("traffic", "sales_traffic_daily", "snapshot_date", "Kabinet - Sales & Traffic Replica", 72,
-               ("ordered", "plan")),
+               ("ordered", "plan", "tacos")),
         # план месяца неделями не меняется по делу, а инциденты молчат, когда всё хорошо:
         # у обоих дату показываем, но в «устарело» не записываем — иначе предупреждение
         # висело бы там, где ничего не случилось, и его перестали бы читать
@@ -145,8 +147,13 @@ PAGES = {
     # ── Реклама ──────────────────────────────────────────────────────────
     "ads": (
         Source("amc", "v_amc_attribution", "report_date", "AMC Collect", 72,
-               ("campaigns", "no_sales", "acos")),
-        Source("ads", "ads_spend", "date", "Kabinet - Economics Loader", 96, ("spend",)),
+               ("campaigns", "no_sales")),
+        # карточки ACOS, TACOS, расход и продажи с рекламы — по формулам Power BI Дарины (ad_ratios.py)
+        Source("ads_market", "ads_market_daily", "date", "Kabinet - Economics Loader", 96,
+               ("acos", "tacos", "spend", "ad_sales")),
+        Source("traffic", "sales_traffic_daily", "snapshot_date", "Kabinet - Sales & Traffic Replica", 72,
+               ("tacos",)),
+        # ads_spend страница «Реклама» не читает вовсе (строка = SKU, продаж SB в ней нет) — в паспорте её нет
         Source("ads_alerts", "ads_alerts", "calc_date", "Kabinet - Ads Alerts", 48, ("alerts",)),
         # журнал кнопок: пишется только когда человек нажал, «устарел» он по делу не бывает
         Source("ads_actions", "ads_actions", "created_at", "—", 720, ("actions",), watch=False),
