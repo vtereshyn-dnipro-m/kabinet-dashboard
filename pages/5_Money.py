@@ -131,6 +131,35 @@ def load_returns_credit(d_from: str, d_to: str, markets: tuple = ()) -> pd.DataF
 
 
 @st.cache_data(ttl=600)
+def load_sku_ad_ratios(d_from: str, d_to: str, markets: tuple = ()) -> pd.DataFrame:
+    """Расход на всю рекламу, продажи с рекламы и продажи с НДС по SKU за период — для TACOS и ACOS по формулам
+    Power BI Дарины (как на «Рекламе» и «Обзоре»). Отдельной выборкой, а не join'ом к строкам экономики:
+    расход в день без продаж SKU иначе потерялся бы из числителя.
+
+    Расход — SP + SB + SD (`total_spend`), продажи с рекламы — SP + SD по рекламируемому SKU и SB по купленному
+    ASIN; продажи с НДС — `v_sku_sales_vat_incl_daily` (Amazon — витрина Sales & Traffic по SKU, Mirakl — экономика,
+    приведённая к сумме с НДС того же дня). Реклама ManoMano по SKU не разнесена — в расход SKU она не входит."""
+    mk_sql, mk_params = _mk_clause(markets, "marketplace")
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT norm_sku, SUM(spend)::float AS ad_spend_all, SUM(ad_sales)::float AS ad_sales,
+                   SUM(sales_vat)::float AS sales_vat
+            FROM (SELECT norm_sku, marketplace, total_spend AS spend, ad_sales, 0::float AS sales_vat
+                  FROM kabinet_data.v_ads_spend_margin WHERE date BETWEEN %s AND %s
+                  UNION ALL
+                  SELECT norm_sku, marketplace, 0, 0, sales_vat_incl
+                  FROM kabinet_data.v_sku_sales_vat_incl_daily WHERE date BETWEEN %s AND %s) u
+            WHERE TRUE {mk_sql}
+            GROUP BY 1
+        """, conn, params=(d_from, d_to, d_from, d_to, *mk_params))
+    except Exception:
+        return pd.DataFrame(columns=["norm_sku", "ad_spend_all", "ad_sales", "sales_vat"])
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
 def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
     conn = get_connection()
     if d_from and d_to:
@@ -484,6 +513,8 @@ credit = (load_returns_credit(str(pd.Timestamp(_p0).date()), str(pd.Timestamp(_p
           if pd.notna(_p0) and pd.notna(_p1) else pd.DataFrame(columns=["marketplace", "norm_sku", "cogs_credit", "units"]))
 if search and not credit.empty:
     credit = credit[credit["norm_sku"].apply(clean_sku).str.contains(search, case=False, na=False)]
+sku_ads = (load_sku_ad_ratios(str(pd.Timestamp(_p0).date()), str(pd.Timestamp(_p1).date()), MK)
+           if pd.notna(_p0) and pd.notna(_p1) else pd.DataFrame(columns=["norm_sku", "ad_spend_all", "ad_sales", "sales_vat"]))
 credit_total = float(credit["cogs_credit"].sum()) if not credit.empty else 0.0
 credit_units = int(credit["units"].sum()) if not credit.empty else 0
 sp_in_net = float(f["ads_total"].sum() - f["ads"].sum())    # SP, уже удержанный Amazon внутри «Чистыми»
@@ -666,8 +697,16 @@ with tab_pnl:
     # и ноль в рекламе по LM — правда, а не пропуск данных
     by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"] - by_sku["logistics"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
-    # ACOS — от ВСЕГО расхода, включая SP: это доля рекламы в выручке, а не слагаемое маржи
-    by_sku["acos_pct"] = np.round(safe_div(by_sku["ads_total"], by_sku["revenue"]) * 100, 1)
+    # TACOS и ACOS — формулы Power BI Дарины, те же, что на «Рекламе» и «Обзоре» (05.10.2026):
+    # TACOS = весь расход на рекламу / продажи с НДС; ACOS = весь расход / продажи с рекламы SP + SB + SD.
+    # До этого колонка «ACOS» здесь была рекламой к выручке без НДС — по смыслу TACOS, а называлась иначе.
+    # ACOS показываем только там, где продажи с рекламы есть: при нуле это «рекламу не купили», а не процент
+    _sa = sku_ads.set_index("norm_sku") if not sku_ads.empty else pd.DataFrame(columns=["ad_spend_all", "ad_sales", "sales_vat"])
+    by_sku["ad_spend_all"] = by_sku["norm_sku"].map(_sa["ad_spend_all"]).fillna(0.0)
+    _ad_sales = by_sku["norm_sku"].map(_sa["ad_sales"])
+    _vat = by_sku["norm_sku"].map(_sa["sales_vat"])
+    by_sku["tacos_pct"] = np.where(_vat > 0, np.round(by_sku["ad_spend_all"] / _vat * 100, 1), np.nan)
+    by_sku["acos_pct"] = np.where(_ad_sales > 0, np.round(by_sku["ad_spend_all"] / _ad_sales * 100, 1), np.nan)
     # settlement по SKU: промо и сборы с заказа — точно по ключу; хранение,
     # removal, Vine, подписка приходят без SKU и делятся по доле выручки.
     # Как с рекламой: распределённую часть не выдаём за точную
@@ -829,7 +868,7 @@ with tab_pnl:
         by_sku[["photo", "flag_col", "ann_col", "sku_display", "product_name",
                 "markets_label", "units", "revenue",
                 "net_proceeds", "cogs", "commission", "ads", "cm", "cm_pct",
-                "settle_adj", "cm_settle", "acos_pct",
+                "settle_adj", "cm_settle", "ad_spend_all", "tacos_pct", "acos_pct",
                 "rank_now", "rank_delta", "amazon_url"]],
         use_container_width=True, height=480, hide_index=True,
         column_config={
@@ -852,7 +891,8 @@ with tab_pnl:
             "commission": st.column_config.NumberColumn(
                 t("money.col.commission"), format="%.0f €",
                 help=t("money.col.commission_help")),
-            "ads": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €"),
+            "ads": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €",
+                help=t("money.col.ads_help")),
             "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €",
                 help=t("money.col.cm_help")),
             "cm_pct": st.column_config.NumberColumn(t("money.col.cm_pct"), format="%.1f%%"),
@@ -860,6 +900,10 @@ with tab_pnl:
                 help=t("money.col.settle_adj_help")),
             "cm_settle": st.column_config.NumberColumn(t("money.col.cm_settle"), format="%.0f €",
                 help=t("money.kpi.cm_settle_help")),
+            "ad_spend_all": st.column_config.NumberColumn(t("money.col.ad_spend_all"), format="%.0f €",
+                help=t("money.col.ad_spend_all_help")),
+            "tacos_pct": st.column_config.NumberColumn("TACOS", format="%.1f%%",
+                help=t("money.col.tacos_help")),
             "acos_pct": st.column_config.NumberColumn("ACOS", format="%.1f%%",
                 help=t("money.col.acos_help")),
             "rank_now": st.column_config.NumberColumn(
@@ -949,7 +993,8 @@ with tab_country:
             "commission": st.column_config.NumberColumn(
                 t("money.col.commission"), format="%.0f €",
                 help=t("money.col.commission_help")),
-            "ads": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €"),
+            "ads": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €",
+                help=t("money.col.ads_help")),
             "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €"),
             "cm_pct": st.column_config.NumberColumn(t("money.col.cm_pct"), format="%.1f%%"),
         },
@@ -1165,7 +1210,9 @@ with tab_alerts:
                 "marketplace": st.column_config.TextColumn(
                     t("money.col.marketplace"), width="small"),
                 "units": st.column_config.NumberColumn(t("money.col.units"), width="small"),
-                "ads_spend": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €"),
+                # в предупреждениях — ВЕСЬ расход (SP+SB+SD), а не реклама в марже: подпись та же, что в таблице SKU
+                "ads_spend": st.column_config.NumberColumn(t("money.col.ad_spend_all"), format="%.0f €",
+                    help=t("money.col.ad_spend_all_help")),
                 "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €"),
                 "details": st.column_config.TextColumn(t("money.alerts.col_details"), width="large"),
             },
