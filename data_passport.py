@@ -217,7 +217,8 @@ def _state(page: str) -> pd.DataFrame:
         origins = pd.read_sql(
             """SELECT replace(table_name, 'kabinet_data.', '') AS tbl,
                       platform_source, platform_refresh, our_refresh, verdict, note,
-                      reconcile_with, reconciled_at, reconcile_result
+                      reconcile_with, reconciled_at, reconcile_result,
+                      darina_method, darina_verdict, darina_reason
                FROM kabinet_data.data_source_origins""", conn)
     except Exception as e:                      # паспорт не имеет права ронять страницу
         return pd.DataFrame({"key": [s.key for s in srcs], "error": str(e)[:200]})
@@ -244,6 +245,9 @@ def _state(page: str) -> pd.DataFrame:
             "reconcile_with": (o.reconcile_with if o else None),
             "reconciled_at": (o.reconciled_at if o else None),
             "reconcile_result": (o.reconcile_result if o else None),
+            "darina_method": (o.darina_method if o else None),
+            "darina_verdict": (o.darina_verdict if o else None),
+            "darina_reason": (o.darina_reason if o else None),
             "as_of": (r["as_of"].iloc[0] if len(r) and r["as_of"].iloc[0] else None),
             "age_h": (float(r["age_h"].iloc[0]) if len(r) and pd.notna(r["age_h"].iloc[0]) else None),
             "limit_h": limit or s.default_max_age_h,
@@ -362,6 +366,21 @@ def footer(page: str) -> None:
                 return t("passport.rec_planned", with_=with_)
             return t("passport.rec_done", with_=with_, date=when, result=res or t("passport.rec_no_result"))
 
+        def _darina(r) -> str:
+            """Как тот же показатель считает витрина Дарины: итог одним словом, почему — одной фразой,
+            и как у неё — из SQL-определения её витрины. Пусто = показателя в её витрине нет."""
+            v = as_text(getattr(r, "darina_verdict", None))
+            if not v:
+                return "—"
+            out = t(f"passport.darina.{v}")
+            why = as_text(getattr(r, "darina_reason", None))
+            how = as_text(getattr(r, "darina_method", None))
+            if why:
+                out += " — " + why
+            if how:
+                out += ". " + t("passport.darina.how", how=how)
+            return out
+
         view = pd.DataFrame({
             t("passport.col_shows"): [_feeds(r.key) for r in st_.itertuples()],
             t("passport.col_origin"): [as_text(r.platform_source, "—") for r in st_.itertuples()],
@@ -375,6 +394,7 @@ def footer(page: str) -> None:
                 {"we_pull_more": "⚠️", "we_pull_less": "⏳", "ok": "✓"}.get(as_text(r.verdict), "—")
                 for r in st_.itertuples()],
             t("passport.col_reconcile"): [_reconcile(r) for r in st_.itertuples()],
+            t("passport.col_darina"): [_darina(r) for r in st_.itertuples()],
             t("passport.col_state"): [
                 ("🔴 " + t("passport.state_absent")) if r.absent
                 else ("🔴 " + t("passport.state_stale")) if r.stale
@@ -402,6 +422,9 @@ def footer(page: str) -> None:
                          t("passport.col_reconcile"): st.column_config.TextColumn(
                              t("passport.col_reconcile"), width="medium",
                              help=t("passport.col_reconcile_help")),
+                         t("passport.col_darina"): st.column_config.TextColumn(
+                             t("passport.col_darina"), width="large",
+                             help=t("passport.col_darina_help")),
                      })
         st.caption(t("passport.verdict_hint"))
         # Пороги ушли из таблицы: строка «96 из справочника» занимала колонку и читалась как
