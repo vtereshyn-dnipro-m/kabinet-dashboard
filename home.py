@@ -132,13 +132,17 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
                        e.net_product_sales, e.ordered_product_sales, e.net_proceeds_total, e.cogs,
                        COALESCE(a.ads, 0) AS ads, COALESCE(l.packing_cost + l.shipping_cost, 0) AS logistics
                 FROM kabinet_data.v_economics_summary_eur e
-                LEFT JOIN (SELECT date, marketplace, norm_sku, SUM(total_spend) AS ads FROM kabinet_data.ads_spend
-                           WHERE date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days' GROUP BY 1, 2, 3) a
+                -- в маржу идёт только SB + SD: Sponsored Products Amazon уже удержал внутри net_proceeds_total
+                -- (сверка сентября 05.10.2026 — до цента на уровне SKU × день); вычитая total_spend, мы
+                -- считали SP дважды, −5 973 € за сентябрь
+                LEFT JOIN (SELECT date, marketplace, norm_sku, margin_ads AS ads FROM kabinet_data.v_ads_spend_margin
+                           WHERE date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days') a
                        ON a.date = e.sales_date AND a.marketplace = e.marketplace AND a.norm_sku = e.norm_sku
                 LEFT JOIN kabinet_data.economics_logistics l
                        ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace AND l.norm_sku = e.norm_sku
                 WHERE e.sales_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
             )
+            , base AS (
             SELECT sales_date, marketplace,
                    SUM(units_ordered)                                        AS units,
                    SUM(units_refunded)                                       AS units_refunded,
@@ -155,6 +159,24 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
                    COUNT(DISTINCT norm_sku) FILTER (WHERE cogs IS NULL AND units_ordered > 0) AS skus_no_cogs
             FROM sku
             GROUP BY 1, 2
+            ),
+            -- себестоимость годных возвратов (FBA, SELLABLE) возвращается в маржу на дату возврата. Не join'ом к
+            -- строкам SKU — в день возврата продажи этого SKU может не быть, — а к дневной сумме рынка; и не
+            -- позже последнего дня экономики, иначе возврат «из завтра» сдвинул бы окно периода
+            credit AS (
+                SELECT return_date AS sales_date, marketplace, SUM(cogs_credit)::float AS cogs_credit
+                FROM kabinet_data.v_returns_cogs_credit
+                WHERE return_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
+                  AND return_date <= (SELECT MAX(sales_date) FROM sku)
+                GROUP BY 1, 2
+            )
+            SELECT COALESCE(b.sales_date, c.sales_date) AS sales_date,
+                   COALESCE(b.marketplace, c.marketplace) AS marketplace,
+                   b.units, b.units_refunded, b.revenue, b.gross_revenue, b.net, b.ads, b.logistics, b.cogs,
+                   b.revenue_known, b.net_known, b.ads_known, b.logistics_known, b.skus_no_cogs,
+                   COALESCE(c.cogs_credit, 0) AS cogs_credit
+            FROM base b
+            FULL JOIN credit c ON c.sales_date = b.sales_date AND c.marketplace = b.marketplace
         """, conn)
     except Exception:
         return pd.DataFrame()
@@ -531,7 +553,7 @@ else:
     # тот же периметр, что в «Деньгах»: только строки с себестоимостью; доля выручки без COGS — в подписи
     def _s(col):
         return float(pd.to_numeric(cur.get(col, pd.Series(dtype=float)), errors="coerce").fillna(0).sum())
-    cm_cur = _s("net_known") - _s("cogs") - _s("ads_known") - _s("logistics_known")
+    cm_cur = _s("net_known") - _s("cogs") + _s("cogs_credit") - _s("ads_known") - _s("logistics_known")
     cm_pct = round(cm_cur / rev_cur * 100, 1) if rev_cur else 0.0
     _rev_known = _s("revenue_known")
     _no_cogs_rev = rev_cur - _rev_known
@@ -590,7 +612,7 @@ else:
               delta=(f"−{_ref} {t('home.kpi.refunded')}" if _ref else None),
               delta_color="inverse" if _ref else "off",
               help=passport.tip("home", "units", t("home.kpi.units_help")))
-    s4.metric(t("home.kpi.markets"), f"{cur['marketplace'].nunique()}",
+    s4.metric(t("home.kpi.markets"), f"{cur.loc[cur['revenue'].notna(), 'marketplace'].nunique()}",   # строка одного возврата — не площадка с продажами
           help=passport.tip("home", "channels"))
     # «По какое число» — подписью, а не только в подсказке ⓘ. Еженедельная сверка с внешним
     # отчётом расходилась ровно на один день (28.09.2026: отчёт за 1–26.09 против наших 1–27.09,
