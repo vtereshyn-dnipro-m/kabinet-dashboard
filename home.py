@@ -132,10 +132,12 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
                 SELECT e.sales_date, e.marketplace, e.norm_sku, e.units_ordered, e.units_refunded,
                        e.net_product_sales, e.ordered_product_sales, e.net_proceeds_total, e.cogs,
                        COALESCE(a.ads, 0) AS ads, COALESCE(l.packing_cost + l.shipping_cost, 0) AS logistics
-                FROM kabinet_data.v_economics_summary_eur e
-                -- в маржу идёт только SB + SD: Sponsored Products Amazon уже удержал внутри net_proceeds_total
-                -- (сверка сентября 05.10.2026 — до цента на уровне SKU × день); вычитая total_spend, мы
-                -- считали SP дважды, −5 973 € за сентябрь
+                -- строки экономики плюс «рекламные дни» (SKU × день с рекламой без строки экономики, деньги
+                -- нулевые): иначе расход в день без продажи не находил строки и в маржу не попадал (05.10.2026)
+                FROM kabinet_data.v_economics_with_ad_days e
+                -- в маржу идёт SB + SD + ManoMano, а SP — только там, где строки выплаты нет: в остальных
+                -- Sponsored Products Amazon уже удержал внутри net_proceeds_total (сверка сентября 05.10.2026 —
+                -- до цента на уровне SKU × день); вычитая total_spend, мы считали SP дважды, −5 973 € за сентябрь
                 LEFT JOIN (SELECT date, marketplace, norm_sku, margin_ads AS ads FROM kabinet_data.v_ads_spend_margin
                            WHERE date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days') a
                        ON a.date = e.sales_date AND a.marketplace = e.marketplace AND a.norm_sku = e.norm_sku
@@ -623,7 +625,8 @@ else:
               delta=(f"−{_ref} {t('home.kpi.refunded')}" if _ref else None),
               delta_color="inverse" if _ref else "off",
               help=passport.tip("home", "units", t("home.kpi.units_help")))
-    s4.metric(t("home.kpi.markets"), f"{cur.loc[cur['revenue'].notna(), 'marketplace'].nunique()}",   # строка одного возврата — не площадка с продажами
+    # площадка с продажами — где были штуки: строка одного возврата и «рекламный день» без продаж (05.10.2026) не в счёт
+    s4.metric(t("home.kpi.markets"), f"{cur.loc[pd.to_numeric(cur['units'], errors='coerce').fillna(0) > 0, 'marketplace'].nunique()}",
           help=passport.tip("home", "channels"))
     # «По какое число» — подписью, а не только в подсказке ⓘ. Еженедельная сверка с внешним
     # отчётом расходилась ровно на один день (28.09.2026: отчёт за 1–26.09 против наших 1–27.09,

@@ -1165,13 +1165,13 @@ TRANSLATIONS = {
     "home.kpi.margin": {"ru": "Маржа и её доля", "uk": "Маржа та її частка", "en": "Margin and its share"},
     "home.kpi.margin_help": {
         "ru": "Выплата площадки (после комиссий, возвратов и удержаний Amazon, в том числе Sponsored Products) минус "
-              "себестоимость, упаковка и доставка покупателю, реклама SB и SD. Себестоимость годных возвратов "
+              "себестоимость, упаковка и доставка покупателю, реклама SB, SD и ManoMano (и SP в дни без выплаты Amazon). Себестоимость годных возвратов "
               "(FBA — по оценке Amazon, Мадрид — по приёмке в годный запас Odoo) возвращается в маржу. Логистика внутренних перемещений сюда не входит — разбивка на странице «Деньги»",
         "uk": "Виплата майданчика (після комісій, повернень і утримань Amazon, зокрема Sponsored Products) мінус "
-              "собівартість, пакування й доставка покупцеві, реклама SB і SD. Собівартість придатних повернень "
+              "собівартість, пакування й доставка покупцеві, реклама SB, SD і ManoMano (і SP у дні без виплати Amazon). Собівартість придатних повернень "
               "(FBA — за оцінкою Amazon, Мадрид — за прийманням у придатний запас Odoo) повертається в маржу. Логістика внутрішніх переміщень сюди не входить — розбивка на сторінці «Гроші»",
         "en": "Channel payout (after fees, refunds and Amazon deductions, including Sponsored Products) minus COGS, "
-              "packing & shipping to the customer, and SB and SD ads. COGS of sellable returns (FBA — per Amazon's "
+              "packing & shipping to the customer, and SB, SD and ManoMano ads (plus SP on days without an Amazon payout). COGS of sellable returns (FBA — per Amazon's "
               "grading, Madrid — per receipt into sellable stock in Odoo) goes back into the margin. Internal logistics is not included — see the Money page for the breakdown",
     },
     "home.kpi.acos_help": {
@@ -2072,12 +2072,12 @@ TRANSLATIONS = {
     },
     "money.kpi.ads": {"ru": "Реклама в марже", "uk": "Реклама в маржі", "en": "Ads in margin"},
     "money.kpi.ads_help": {
-        "ru": "Реклама, которая вычитается из маржи: Sponsored Brands и Sponsored Display. Sponsored Products "
-              "({sp} €) Amazon уже удержал внутри «Чистыми», второй раз не вычитаем. Весь расход на рекламу — {total} €",
-        "uk": "Реклама, що віднімається з маржі: Sponsored Brands і Sponsored Display. Sponsored Products "
-              "({sp} €) Amazon уже утримав усередині «Чистими», вдруге не віднімаємо. Уся витрата на рекламу — {total} €",
-        "en": "Ads deducted from the margin: Sponsored Brands and Sponsored Display. Sponsored Products "
-              "({sp} €) are already withheld by Amazon inside “Net”, so they are not deducted twice. Total ad spend — {total} €",
+        "ru": "Реклама, которая вычитается из маржи: Sponsored Brands, Sponsored Display и ManoMano, а Sponsored Products — "
+              "в дни без выплаты Amazon. Остальной SP ({sp} €) Amazon уже удержал внутри «Чистыми», второй раз не вычитаем. Весь расход на рекламу — {total} €",
+        "uk": "Реклама, що віднімається з маржі: Sponsored Brands, Sponsored Display і ManoMano, а Sponsored Products — "
+              "у дні без виплати Amazon. Решту SP ({sp} €) Amazon уже утримав усередині «Чистими», вдруге не віднімаємо. Уся витрата на рекламу — {total} €",
+        "en": "Ads deducted from the margin: Sponsored Brands, Sponsored Display and ManoMano, plus Sponsored Products on "
+              "days without an Amazon payout. The rest of SP ({sp} €) is already withheld by Amazon inside “Net”, so it is not deducted twice. Total ad spend — {total} €",
     },
     "money.kpi.cm_dk": {"ru": "Маржа по Data Kiosk", "uk": "Маржа за Data Kiosk", "en": "Margin per Data Kiosk"},
     "money.kpi.cm_settle": {"ru": "С учётом settlement", "uk": "З урахуванням settlement", "en": "Incl. settlement"},
@@ -2209,9 +2209,9 @@ TRANSLATIONS = {
     "money.worst_cm": {"ru": "Худшие по прибыли (€)", "uk": "Найгірші за прибутком (€)", "en": "Worst by profit (€)"},
     "money.pnl_table": {"ru": "Полный P&L по товарам", "uk": "Повний P&L за товарами", "en": "Full P&L by product"},
     "money.col.ads": {"ru": "Реклама в марже", "uk": "Реклама в маржі", "en": "Ads in margin"},
-    "money.col.ads_help": {"ru": "Реклама, которая вычитается из маржи: Sponsored Brands и Sponsored Display. Sponsored Products Amazon уже удержал внутри «Чистыми». Весь расход — колонка «Расход на рекламу»",
-                           "uk": "Реклама, що віднімається з маржі: Sponsored Brands і Sponsored Display. Sponsored Products Amazon уже утримав у «Чистими». Усі витрати — колонка «Витрати на рекламу»",
-                           "en": "Ads deducted from margin: Sponsored Brands and Sponsored Display. Amazon already deducted Sponsored Products inside “Net”. All spend — the “Ad spend” column"},
+    "money.col.ads_help": {"ru": "Реклама, которая вычитается из маржи: Sponsored Brands, Sponsored Display и ManoMano, а Sponsored Products — только в дни без выплаты Amazon (в остальные он уже удержан внутри «Чистыми»). Весь расход — колонка «Расход на рекламу»",
+                           "uk": "Реклама, що віднімається з маржі: Sponsored Brands, Sponsored Display і ManoMano, а Sponsored Products — лише в дні без виплати Amazon (в інші він уже утриманий у «Чистими»). Усі витрати — колонка «Витрати на рекламу»",
+                           "en": "Ads deducted from margin: Sponsored Brands, Sponsored Display and ManoMano, plus Sponsored Products on days without an Amazon payout (otherwise Amazon already deducted it inside “Net”). All spend — the “Ad spend” column"},
     "money.col.cm": {"ru": "Прибыль", "uk": "Прибуток", "en": "Profit"},
     "money.col.cm_pct": {"ru": "Маржа", "uk": "Маржа", "en": "Margin"},
     "money.col.cm_pct_help": {"ru": "Прибыль ÷ выручка, %", "uk": "Прибуток ÷ виторг, %", "en": "Profit ÷ revenue, %"},
@@ -2229,9 +2229,9 @@ TRANSLATIONS = {
     "money.col.acos_help": {"ru": "Весь расход на рекламу (SP, SB, SD) / продажи с рекламы (SP, SB, SD), атрибуция 14 дней — формула Power BI Дарины, как на «Рекламе» и «Обзоре». Пусто — продаж с рекламы у SKU за период нет",
                             "uk": "Усі витрати на рекламу (SP, SB, SD) / продажі з реклами (SP, SB, SD), атрибуція 14 днів — формула Power BI Дарини, як на «Рекламі» й «Огляді». Порожньо — продажів з реклами в SKU за період немає",
                             "en": "Total ad spend (SP, SB, SD) / ad-attributed sales (SP, SB, SD), 14-day attribution — Darina's Power BI formula, same as on Ads and Overview. Empty — the SKU had no ad-attributed sales in the period"},
-    "money.col.tacos_help": {"ru": "Весь расход на рекламу (SP, SB, SD) / продажи SKU с НДС — формула Power BI Дарины, как на «Рекламе» и «Обзоре». Реклама ManoMano по SKU не разнесена и сюда не входит",
-                             "uk": "Усі витрати на рекламу (SP, SB, SD) / продажі SKU з ПДВ — формула Power BI Дарини, як на «Рекламі» й «Огляді». Реклама ManoMano за SKU не рознесена й сюди не входить",
-                             "en": "Total ad spend (SP, SB, SD) / SKU sales incl. VAT — Darina's Power BI formula, same as on Ads and Overview. ManoMano ads are not allocated to SKUs and are not included"},
+    "money.col.tacos_help": {"ru": "Весь расход на рекламу (SP, SB, SD, ManoMano) / продажи SKU с НДС — формула Power BI Дарины, как на «Рекламе» и «Обзоре»",
+                             "uk": "Усі витрати на рекламу (SP, SB, SD, ManoMano) / продажі SKU з ПДВ — формула Power BI Дарини, як на «Рекламі» й «Огляді»",
+                             "en": "Total ad spend (SP, SB, SD, ManoMano) / SKU sales incl. VAT — Darina's Power BI formula, same as on Ads and Overview"},
     "money.col.ad_spend_all": {"ru": "Расход на рекламу", "uk": "Витрати на рекламу", "en": "Ad spend"},
     "money.col.ad_spend_all_help": {"ru": "Весь расход на рекламу SKU: SP, SB, SD — тот же, что в TACOS и ACOS. В маржу из него идут только SB и SD (колонка «Реклама в марже»)",
                                     "uk": "Усі витрати на рекламу SKU: SP, SB, SD — ті самі, що в TACOS і ACOS. У маржу з них ідуть лише SB і SD (колонка «Реклама в маржі»)",
