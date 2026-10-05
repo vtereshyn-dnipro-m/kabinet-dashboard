@@ -56,6 +56,10 @@ PAGES = {
         Source("ads", "ads_spend", "date", "Kabinet - Economics Loader", 96, ("margin",)),
         # ACOS и TACOS по формулам Power BI Дарины: день × рынок, SB с продажами по купленным ASIN
         Source("ads_market", "ads_market_daily", "date", "Kabinet - Economics Loader", 96, ("acos", "tacos")),
+        # возвраты, вернувшие себестоимость в маржу: FBA — по оценке Amazon, Мадрид — по приёмке Odoo в годный запас.
+        # Годные возвраты редки, и дни без них — норма, поэтому «устарело» по этой дате не считаем
+        Source("returns", "v_returns_cogs_credit", "return_date", "Kabinet - Returns Loader", 96, ("margin",),
+               watch=False),
         Source("traffic", "sales_traffic_daily", "snapshot_date", "Kabinet - Sales & Traffic Replica", 72,
                ("ordered", "plan", "tacos")),
         # план месяца неделями не меняется по делу, а инциденты молчат, когда всё хорошо:

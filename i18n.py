@@ -3321,6 +3321,10 @@ TRANSLATIONS = {
     "ads.card.tacos_base": {"ru": "реклама ко всем продажам с НДС", "uk": "реклама до всіх продажів з ПДВ", "en": "ads over all sales incl. VAT"},
     "ads.card.spend_base_all": {"ru": "SP + SB + SD за {n} дн.", "uk": "SP + SB + SD за {n} дн.", "en": "SP + SB + SD over {n} days"},
     "ads.card.sales_base_all": {"ru": "с рекламы SP + SB + SD, атрибуция 14 дн.", "uk": "з реклами SP + SB + SD, атрибуція 14 дн.", "en": "from SP + SB + SD ads, 14-day attribution"},
+    "ads.scope.label": {"ru": "ACOS, TACOS, расход и продажи с рекламы", "uk": "ACOS, TACOS, витрати й продажі з реклами", "en": "ACOS, TACOS, spend and ad sales"},
+    "ads.scope.page": {"ru": "рынок страницы: {m}", "uk": "ринок сторінки: {m}", "en": "page market: {m}"},
+    "ads.scope.all": {"ru": "все рынки и каналы — как Power BI Дарины", "uk": "усі ринки й канали — як Power BI Дарини", "en": "all markets and channels — as in Darina's Power BI"},
+    "ads.card.acos_all_base": {"ru": "все рынки Amazon и ManoMano", "uk": "усі ринки Amazon і ManoMano", "en": "all Amazon markets and ManoMano"},
     "ads.card.formula_note": {
         "ru": "ACOS и TACOS — по формулам Power BI Дарины: ACOS = расход на всю рекламу (SP, SB, SD) / продажи с рекламы; "
               "TACOS = весь расход на рекламу / все продажи с НДС. Порог в карточке ACOS и ACOS кампаний в таблице ниже — "
@@ -4137,6 +4141,7 @@ TRANSLATIONS = {
     "passport.src.logistics": {
         "ru": "Упаковка и доставка в марже", "uk": "Пакування і доставка в маржі",
         "en": "Packing and shipping inside margin"},
+    "passport.src.returns": {"ru": "Возвраты", "uk": "Повернення", "en": "Returns"},
     "passport.src.ads_market": {"ru": "Реклама по рынкам (ACOS, TACOS)", "uk": "Реклама за ринками (ACOS, TACOS)", "en": "Advertising by market (ACOS, TACOS)"},
     "passport.src.ads": {"ru": "Реклама в марже", "uk": "Реклама в маржі", "en": "Advertising inside margin"},
     "passport.src.traffic": {

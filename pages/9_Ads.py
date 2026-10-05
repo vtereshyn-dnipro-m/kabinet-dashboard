@@ -347,7 +347,15 @@ _days = max((_to - _from).days + 1, 1)
 # ACOS и TACOS в карточках — по формулам Дарины (Power BI, 05.10.2026): расход на ВСЮ рекламу (SP+SB+SD) к
 # продажам с рекламы (SP+SB+SD) и ко всем продажам с НДС. Тот же период и те же рынки, что у страницы;
 # порог окупаемости кампаний ниже — другое число, он считается от маржи и не меняется.
-_ar_mk = tuple(sorted({("GB" if c == "UK" else c) for c in
+# Охват карточек выбирается отдельно от остальной страницы: AMC есть только по Испании, а ACOS и TACOS считаются из
+# отчётов Ads API по всем рынкам. «Все рынки» — Amazon всех стран плюс реклама ManoMano, ровно периметр Power BI
+# Дарины (сентябрь 2026: 28,0 %), иначе сверить с ней страницу было нечем (05.10.2026)
+_scope_opts = ["page", "all"]
+_scope = st.radio(t("ads.scope.label"), _scope_opts, horizontal=True, key="ads_ratio_scope",
+                  format_func=lambda o: t("ads.scope.page", m=", ".join(market_name(m) for m in (_mk or _markets)) or "—")
+                  if o == "page" else t("ads.scope.all"))
+_all_markets = _scope == "all"
+_ar_mk = () if _all_markets else tuple(sorted({("GB" if c == "UK" else c) for c in
                        (MARKETPLACE_ID.get(str(m).strip().upper()) for m in (_mk or _markets)) if c}))
 try:
     _ar = ad_ratios.load(_from.date(), _to.date(), _ar_mk)
@@ -384,7 +392,10 @@ _thr_col = pd.to_numeric(A.get("acos_threshold"), errors="coerce") \
     if "acos_threshold" in A.columns else pd.Series(dtype=float)
 _w = A["sales_14d"].where(_thr_col.notna())
 _thr_avg = ((_thr_col * _w).sum() / _w.sum()) if _w.sum() > 0 else np.nan
-if pd.isna(_thr_avg):
+if _all_markets:
+    # порог окупаемости считается по кампаниям AMC (только Испания) — с ACOS всех рынков его не сравниваем
+    _base, _tone = t("ads.card.acos_all_base"), ""
+elif pd.isna(_thr_avg):
     _base, _tone = t("ads.card.acos_no_threshold"), ""
 else:
     _base = t("ads.card.acos_base", n=f"{_thr_avg:.0f}")
