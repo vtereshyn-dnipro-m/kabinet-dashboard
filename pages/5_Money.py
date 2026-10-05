@@ -106,6 +106,31 @@ def load_adjustments(d_from: str, d_to: str, markets: tuple = ()) -> pd.DataFram
 
 
 @st.cache_data(ttl=600)
+def load_returns_credit(d_from: str, d_to: str, markets: tuple = ()) -> pd.DataFrame:
+    """Себестоимость, вернувшаяся с годными возвратами (FBA, SELLABLE), за период — по рынку и SKU.
+
+    Возврат, годный к продаже, возвращает себестоимость в маржу; негодный остаётся расходом
+    (решение владельца 05.10.2026). У возвратов в Мадрид (MFN) и у Mirakl состояния товара в данных
+    нет, поэтому по ним ничего не возвращается. Дата — дата возврата, как у возврата денег в
+    Data Kiosk; отдельной выборкой, а не join'ом к строкам продаж: в день возврата продажи этого
+    SKU может не быть."""
+    mk_sql, mk_params = _mk_clause(markets, "marketplace")
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT marketplace, norm_sku, SUM(cogs_credit)::float AS cogs_credit,
+                   SUM(sellable_units)::int AS units
+            FROM kabinet_data.v_returns_cogs_credit
+            WHERE return_date BETWEEN %s AND %s {mk_sql}
+            GROUP BY 1, 2
+        """, conn, params=(d_from, d_to, *mk_params))
+    except Exception:
+        return pd.DataFrame(columns=["marketplace", "norm_sku", "cogs_credit", "units"])
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
 def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
     conn = get_connection()
     if d_from and d_to:
@@ -127,7 +152,11 @@ def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = "
                -- прибыль, равную выручке — по этим SKU показываем прочерк
                e.cogs               AS cogs_unit,
                e.commission_fee     AS commission,
-               COALESCE(a.total_spend, 0) AS ads,
+               -- ads — реклама, которая вычитается из маржи: SB + SD. Sponsored Products Amazon уже удержал
+               -- внутри net_proceeds_total (сверка сентября 05.10.2026, до цента по SKU × день), и вычитать
+               -- total_spend значило считать SP дважды. Полный расход — ads_total: для ACOS и для подсказки
+               COALESCE(a.margin_ads, 0)  AS ads,
+               COALESCE(a.total_spend, 0) AS ads_total,
                -- упаковка и доставка (правила витрины Дарины, 21.09.2026): отдельная таблица с тем же ключом,
                -- потому что economics_summary принадлежит владельцу и от приложения не расширяется
                COALESCE(l.packing_cost, 0) + COALESCE(l.shipping_cost, 0) AS logistics,
@@ -139,10 +168,8 @@ def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = "
             -- схлопываем рекламу до одной строки на ключ: иначе несколько
             -- кампаний по одному SKU размножат строку экономики,
             -- и выручка посчитается дважды
-            SELECT date, marketplace, norm_sku,
-                   SUM(total_spend) AS total_spend
-            FROM kabinet_data.ads_spend
-            GROUP BY 1, 2, 3
+            SELECT date, marketplace, norm_sku, total_spend, margin_ads
+            FROM kabinet_data.v_ads_spend_margin
         ) a
           ON a.date = e.sales_date
          AND a.marketplace = e.marketplace
@@ -421,7 +448,7 @@ if _ctrl and _ctrl.get("rows"):
 df["sku_display"] = df["norm_sku"].apply(clean_sku)
 # ключ для стыковки с settlement: там SKU с суффиксами (-FBA, -A_), у нас базовый код
 df["base_sku"] = df["norm_sku"].astype(str).str.extract(r"([0-9]{5,})", expand=False)
-for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "ads", "logistics"]:
+for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "ads", "ads_total", "logistics"]:
     df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0) if c in df.columns else 0.0
 # себестоимость и комиссию НЕ заполняем нулём: пустое значение означает
 # «не загружено», и ноль на его месте даёт фейковую прибыль
@@ -451,8 +478,20 @@ tot_comm = f["commission"].sum(min_count=1)
 # и total_fees — одно и то же поле, а не два разных, и «Чистыми» её уже
 # не содержит. Вычесть ещё раз означало бы посчитать комиссию дважды
 known = f[pd.notna(f["cogs_total"])]
-cm = (known["net_proceeds"].sum() - known["cogs_total"].sum()
+# себестоимость годных возвратов за тот же период и с тем же отбором SKU
+_p0, _p1 = f["sales_date"].min(), f["sales_date"].max()
+credit = (load_returns_credit(str(pd.Timestamp(_p0).date()), str(pd.Timestamp(_p1).date()), MK)
+          if pd.notna(_p0) and pd.notna(_p1) else pd.DataFrame(columns=["marketplace", "norm_sku", "cogs_credit", "units"]))
+if search and not credit.empty:
+    credit = credit[credit["norm_sku"].apply(clean_sku).str.contains(search, case=False, na=False)]
+credit_total = float(credit["cogs_credit"].sum()) if not credit.empty else 0.0
+credit_units = int(credit["units"].sum()) if not credit.empty else 0
+sp_in_net = float(f["ads_total"].sum() - f["ads"].sum())    # SP, уже удержанный Amazon внутри «Чистыми»
+cm = (known["net_proceeds"].sum() - known["cogs_total"].sum() + credit_total
       - known["ads"].sum() - known["logistics"].sum())
+# в карточке себестоимости — за вычетом вернувшейся: иначе карточки сверху не складываются в маржу
+if pd.notna(tot_cogs):
+    tot_cogs = tot_cogs - credit_total
 cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
 
 # ---------- вторая строка маржи: с учётом settlement ----------
@@ -460,7 +499,6 @@ cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
 # по Испании за июль–август 2026 это 5,5 тыс. € на 69 тыс. выручки —
 # восемь пунктов маржи. Берём их из расчётных отчётов и показываем
 # второй строкой, не подменяя первую: источники разные по датам и по SKU
-_p0, _p1 = f["sales_date"].min(), f["sales_date"].max()
 adj = (load_adjustments(str(pd.Timestamp(_p0).date()), str(pd.Timestamp(_p1).date()), MK)
        if pd.notna(_p0) and pd.notna(_p1) else pd.DataFrame(
            columns=["marketplace", "base_sku", "bucket", "attributable", "amount"]))
@@ -533,9 +571,11 @@ k2.metric(t("money.kpi.net"), f"{tot_net:,.0f} €", help=t("money.kpi.net_help"
 k3.metric(t("money.kpi.cogs"),
           "—" if pd.isna(tot_cogs) else f"−{tot_cogs:,.0f} €",
           help=(t("money.kpi.cogs_missing") if pd.isna(tot_cogs)
-                else t("money.kpi.cogs_help")))
+                else t("money.kpi.cogs_help") + (" " + t("money.kpi.cogs_returns", eur=f"{credit_total:,.0f}",
+                                                            n=credit_units) if credit_total else "")))
 k3b.metric(t("money.kpi.logistics"), f"−{tot_log:,.0f} €", help=t("money.kpi.logistics_help"))
-k4.metric(t("money.kpi.ads"), f"−{tot_ads:,.0f} €", help=t("money.kpi.ads_help"))
+k4.metric(t("money.kpi.ads"), f"−{tot_ads:,.0f} €",
+          help=t("money.kpi.ads_help", sp=f"{sp_in_net:,.0f}", total=f"{f['ads_total'].sum():,.0f}"))
 # Период уезжает вместе с переходом: он общий для Кабинета и лежит в
 # session_state, отдельно передавать нечего
 with k4:
@@ -610,7 +650,11 @@ with tab_pnl:
                      fees=("fees", "sum"), net_proceeds=("net_proceeds", "sum"),
                      cogs=("cogs_total", lambda x: x.sum(min_count=1)),
                      commission=("commission", lambda x: x.sum(min_count=1)),
-                     ads=("ads", "sum"), logistics=("logistics", "sum")))
+                     ads=("ads", "sum"), ads_total=("ads_total", "sum"), logistics=("logistics", "sum")))
+    # годные возвраты: себестоимость SKU за период — за вычетом вернувшейся
+    if not credit.empty:
+        _cr = credit.groupby("norm_sku")["cogs_credit"].sum()
+        by_sku["cogs"] = by_sku["cogs"] - by_sku["norm_sku"].map(_cr).fillna(0.0)
 
     # где товар продаётся: одна страна — её код, несколько — сколько их
     _mk = (f.groupby("sku_display")["marketplace"]
@@ -622,7 +666,8 @@ with tab_pnl:
     # и ноль в рекламе по LM — правда, а не пропуск данных
     by_sku["cm"] = by_sku["net_proceeds"] - by_sku["cogs"] - by_sku["ads"] - by_sku["logistics"]
     by_sku["cm_pct"] = np.round(safe_div(by_sku["cm"], by_sku["revenue"]) * 100, 1)
-    by_sku["acos_pct"] = np.round(safe_div(by_sku["ads"], by_sku["revenue"]) * 100, 1)
+    # ACOS — от ВСЕГО расхода, включая SP: это доля рекламы в выручке, а не слагаемое маржи
+    by_sku["acos_pct"] = np.round(safe_div(by_sku["ads_total"], by_sku["revenue"]) * 100, 1)
     # settlement по SKU: промо и сборы с заказа — точно по ключу; хранение,
     # removal, Vine, подписка приходят без SKU и делятся по доле выручки.
     # Как с рекламой: распределённую часть не выдаём за точную
@@ -848,6 +893,8 @@ with tab_country:
                    cogs=("cogs_total", lambda x: x.sum(min_count=1)),
                    commission=("commission", lambda x: x.sum(min_count=1)),
                    ads=("ads", "sum"), logistics=("logistics", "sum")))
+    if not credit.empty:
+        by_c["cogs"] = by_c["cogs"] - by_c["marketplace"].map(credit.groupby("marketplace")["cogs_credit"].sum()).fillna(0.0)
     by_c["cm"] = by_c["net_proceeds"] - by_c["cogs"] - by_c["ads"] - by_c["logistics"]
     by_c["cm_pct"] = np.round(safe_div(by_c["cm"], by_c["revenue"]) * 100, 1)
 
