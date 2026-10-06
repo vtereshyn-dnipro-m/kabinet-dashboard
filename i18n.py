@@ -4141,6 +4141,7 @@ TRANSLATIONS = {
     "passport.src.logistics": {
         "ru": "Упаковка и доставка в марже", "uk": "Пакування і доставка в маржі",
         "en": "Packing and shipping inside margin"},
+    "passport.src.translation": {"ru": "Категории и перевод ERP", "uk": "Категорії та переклад ERP", "en": "ERP categories and translation"},
     "passport.src.returns": {"ru": "Возвраты", "uk": "Повернення", "en": "Returns"},
     "passport.src.ads_market": {"ru": "Реклама по рынкам (ACOS, TACOS)", "uk": "Реклама за ринками (ACOS, TACOS)", "en": "Advertising by market (ACOS, TACOS)"},
     "passport.src.ads": {"ru": "Реклама в марже", "uk": "Реклама в маржі", "en": "Advertising inside margin"},
