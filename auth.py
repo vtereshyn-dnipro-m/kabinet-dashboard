@@ -528,8 +528,27 @@ def _screen(page_fn, title):
     Навигация из одной страницы с `position="hidden"` убирает список целиком:
     проверено на минимальном примере — имён страниц нет и в разметке, то есть это
     отсутствие, а не сокрытие стилями."""
-    st.navigation([st.Page(page_fn, title=title)], position="hidden").run()
+    # Тот же экран отвечает и по адресам всех страниц Кабинета: иначе прямая ссылка
+    # /Dictionaries у невошедшего (новая вкладка, ссылка из чата, тестовая сессия без
+    # `?qa=`) давала Streamlit'овское «Page not found» и только потом экран входа —
+    # выглядело как сломанная страница. Адреса уходят в служебное сообщение, а не в
+    # разметку: меню по-прежнему нет, `position="hidden"`.
+    страницы = [st.Page(page_fn, title=title, default=True)]
+    for _к, файл, _п, _з in PAGES:
+        страницы.append(st.Page(page_fn, title=title, url_path=page_path(файл), visibility="hidden"))
+    st.navigation(страницы, position="hidden").run()
     st.stop()
+
+
+def page_path(файл: str) -> str:
+    """Адрес страницы в ссылке — тот же, что Streamlit выводит из имени файла:
+    отбрасывает путь, числовой префикс и расширение. `pages/1_Stock.py` → `Stock`.
+    Один на приложение: по нему отвечают и заглушки закрытых страниц, и экран входа."""
+    import re as _re
+    имя = файл.rsplit("/", 1)[-1]
+    if имя.endswith(".py"):
+        имя = имя[:-3]
+    return _re.sub(r"^\d+_", "", имя)
 
 
 def _login_screen():
