@@ -25,6 +25,7 @@ import period as period_mod
 import catalog
 import ads_api
 import ad_ratios
+import money_notes as mn
 from links import MARKETPLACE_ID, amazon_url, market_name
 
 init_lang()
@@ -209,7 +210,7 @@ def money(v, dec=0) -> str:
     return "—" if pd.isna(v) else f"{v:,.{dec}f}".replace(",", " ") + " €"
 
 
-def card(col, label: str, base: str, value: str, tone: str = "") -> None:
+def card(col, label: str, base: str, value: str, tone: str = "", note: str = "") -> None:
     """Карточка с обязательной второй строкой.
 
     Без периода и базы сравнения цифра — загадка: «продажи 384 €» за
@@ -224,6 +225,9 @@ def card(col, label: str, base: str, value: str, tone: str = "") -> None:
         f'line-height:1.3;margin-bottom:6px">{base}</div>'
         f'<div style="font-size:1.6rem;font-weight:700">{value}</div></div>',
         unsafe_allow_html=True)
+    # НДС · рынки · дата — видимой подписью под карточкой, как на «Обзоре» и в «Деньгах» (money_notes)
+    if note:
+        col.caption(note)
 
 
 st.title(t("ads.title"))
@@ -400,23 +404,35 @@ elif pd.isna(_thr_avg):
 else:
     _base = t("ads.card.acos_base", n=f"{_thr_avg:.0f}")
     _tone = "" if _acos is None else ("bad" if (np.isinf(_acos) or _acos > _thr_avg) else "good")
-card(c1, "ACOS", _base, "—" if _acos is None else ("∞" if np.isinf(_acos) else f"{_acos:.1f} %"), _tone)
+# рынки карточек ACOS/TACOS/расход/продажи — охват переключателя выше; новые покупатели — только AMC Испании
+_ch_ar = "=" + (t("ads.card.acos_all_base") if _all_markets
+                else t("mn.ch.selected", m=", ".join(market_name(m) for m in (_mk or _markets)) or "—"))
+_ch_amc = "=" + t("mn.ch.amc_es")
+_per = f"{_from.strftime('%d.%m')}–{_to.strftime('%d.%m')}"
+card(c1, "ACOS", _base, "—" if _acos is None else ("∞" if np.isinf(_acos) else f"{_acos:.1f} %"), _tone,
+     note=mn.note(None, _ch_ar, "ad_day", t("mn.x.ratio_vat") + " · " + _per))
 card(c2, "TACOS", t("ads.card.tacos_base"),
-     "—" if _ar.get("tacos") is None else f"{_ar['tacos']:.1f} %")
+     "—" if _ar.get("tacos") is None else f"{_ar['tacos']:.1f} %",
+     note=mn.note(None, _ch_ar, "ad_day", t("mn.x.ratio_vat") + " · " + _per))
 card(c3, t("ads.card.spend"), t("ads.card.spend_base_all", n=_days),
-     "—" if _ar.get("spend") is None else money(_ar["spend"]))
+     "—" if _ar.get("spend") is None else money(_ar["spend"]),
+     note=mn.note(mn.VAT_EXCL, _ch_ar, "ad_day", _per))
 card(c4, t("ads.card.sales"), t("ads.card.sales_base_all"),
-     "—" if _ar.get("ad_sales") is None else money(_ar["ad_sales"]))
+     "—" if _ar.get("ad_sales") is None else money(_ar["ad_sales"]),
+     note=mn.note(mn.VAT_INCL, _ch_ar, "ad_day", _per))
 card(c5, t("ads.card.ntb"), t("ads.card.ntb_base"),
-     "—" if pd.isna(_ntb_share) else f"{_ntb_share:.0f} %")
+     "—" if pd.isna(_ntb_share) else f"{_ntb_share:.0f} %",
+     note=mn.note(None, _ch_amc, "ad_day", _per))
 card(c6, t("ads.card.cac"), t("ads.card.cac_base"),
-     "—" if pd.isna(_cac) else money(_cac, 2))
+     "—" if pd.isna(_cac) else money(_cac, 2),
+     note=mn.note(mn.VAT_EXCL, _ch_amc, "ad_day", _per))
 st.caption(t("ads.card.formula_note"))
 
 # ═══════════════════════════════════════════════════════════════════
 # КАМПАНИИ
 # ═══════════════════════════════════════════════════════════════════
 st.markdown(f"### {t('ads.camp.title')}")
+mn.chart_note(t("mn.what.amc_campaigns"), None, _ch_amc, "ad_day", _from, _to, extra=t("mn.x.amc_money"))
 
 # Скрытые строки отделяем ДО группировки. У них нет ни campaign_id, ни
 # названия — Amazon убирает и то и другое, оставляя суммы. В общей
@@ -903,6 +919,7 @@ if not _quiet.empty:
 # ТОВАРЫ
 # ═══════════════════════════════════════════════════════════════════
 st.markdown(f"### {t('ads.asin.title')}")
+mn.chart_note(t("mn.what.amc_products"), None, _ch_amc, "ad_day", _from, _to, extra=t("mn.x.amc_money"))
 if ntb.empty:
     st.info(t("ads.empty.period"))
 elif not contract_error(ntb, "amc_ntb_by_asin"):
@@ -952,6 +969,7 @@ st.divider()
 st.caption(t("ads.ref.note"))
 
 with st.expander(t("ads.ref.dayparting"), expanded=True):
+    mn.chart_note(t("mn.what.amc_hours"), None, _ch_amc, "ad_day", _from, _to, extra=t("mn.x.amc_money"))
     _d = scope(load_amc("amc_dayparting")[0]).drop(columns=list(SERVICE),
                                                    errors="ignore")
     if _d.empty:
@@ -983,6 +1001,7 @@ with st.expander(t("ads.ref.dayparting"), expanded=True):
                          use_container_width=True, hide_index=True)
 
 with st.expander(t("ads.ref.terms"), expanded=True):
+    mn.chart_note(t("mn.what.amc_terms"), None, _ch_amc, "ad_day", _from, _to, extra=t("mn.x.amc_money"))
     S = scope(load_amc("amc_search_terms")[0])
     if S.empty:
         st.info(t("ads.empty.period"))
@@ -1073,6 +1092,7 @@ with st.expander(t("ads.ref.terms"), expanded=True):
                 _terms_table(T[_is_asin], "amc_terms_asins")
 
 with st.expander(t("ads.ref.overlap"), expanded=True):
+    mn.chart_note(t("mn.what.amc_overlap"), None, _ch_amc, "ad_day", _from, _to, extra=t("mn.x.amc_money"))
     _o = scope(load_amc("amc_overlap")[0]).drop(columns=list(SERVICE),
                                                 errors="ignore")
     if _o.empty:
