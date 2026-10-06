@@ -349,18 +349,20 @@ def load_transfers() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
-def load_reviews(days: int = 30) -> dict:
-    """Отправленные запросы и прирост отзывов за период."""
+def load_reviews(d_from, d_to) -> dict:
+    """Отправленные запросы и прирост отзывов за ДАТЫ периода (06.10.2026). Раньше блок брал «последние N дней
+    от сегодня» и свой период не видел вовсе: при 01.10–06.10 запросы считались за 30.09–06.10, а подпись
+    говорила «за 6 дней» рядом с продажами за 5 — веб-агент записал это расхождением."""
     out = {}
     conn = get_connection()
     try:
         if table_exists("review_request_log"):
             df = pd.read_sql(f"""
                 SELECT COUNT(*) FILTER (WHERE status='sent'
-                        AND sent_at >= NOW() - INTERVAL '{days} days') AS sent7,
+                        AND (sent_at AT TIME ZONE 'Europe/Kyiv')::date BETWEEN %(f)s AND %(t)s) AS sent7,
                        MAX(sent_at) FILTER (WHERE status='sent')       AS last_sent
                 FROM kabinet_data.review_request_log
-            """, conn)
+            """, conn, params={"f": d_from, "t": d_to})
             if not df.empty:
                 out["sent7"] = int(df["sent7"].iloc[0] or 0)
                 out["last_sent"] = df["last_sent"].iloc[0]
@@ -372,7 +374,7 @@ def load_reviews(days: int = 30) -> dict:
                 WITH per_day AS (
                     SELECT snapshot_date, COUNT(*) AS n
                     FROM kabinet_data.asin_reviews_daily
-                    WHERE snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+                    WHERE snapshot_date BETWEEN %(f)s AND %(t)s
                       AND review_count IS NOT NULL
                     GROUP BY 1
                 ),
@@ -397,15 +399,18 @@ def load_reviews(days: int = 30) -> dict:
                 )
                 SELECT SUM(last_cnt - first_cnt) AS growth,
                        SUM(last_cnt)             AS total,
-                       COUNT(*)                  AS pairs
+                       COUNT(*)                  AS pairs,
+                       (SELECT d0 FROM bounds)   AS d0,
+                       (SELECT d1 FROM bounds)   AS d1
                 FROM pairs
                 WHERE first_cnt IS NOT NULL AND last_cnt IS NOT NULL
                   AND last_cnt >= first_cnt
-            """, conn)
+            """, conn, params={"f": d_from, "t": d_to})
             if not df.empty and pd.notna(df["growth"].iloc[0]):
                 out["reviews_growth"] = int(df["growth"].iloc[0])
                 out["reviews_total"] = int(df["total"].iloc[0] or 0)
                 out["reviews_pairs"] = int(df["pairs"].iloc[0] or 0)
+                out["d0"], out["d1"] = df["d0"].iloc[0], df["d1"].iloc[0]
     except Exception:
         pass
     finally:
@@ -485,7 +490,7 @@ try:
     cov = load_coverage()
     inc = load_incidents()
     transfers = load_transfers()
-    reviews = load_reviews(DAYS)
+    reviews = load_reviews(PERIOD.start.date(), PERIOD.end.date())
 except Exception as e:
     st.error(f"{t('home.db_error')}: {e}")
     st.stop()
@@ -632,7 +637,9 @@ else:
                          if _spans_differ else t("home.kpi.ordered_help"))))
     mn.money_metric(s1, t("home.kpi.revenue"), fmt_money(rev_cur), delta=_rev_delta,
                     vat=mn.VAT_EXCL, channels="all", basis="order", extra=t("mn.x.after_returns"),
-                    help=passport.tip("home", "revenue", t("home.kpi.revenue_help", d=_w.days)))
+                    help=passport.tip("home", "revenue", t("home.kpi.revenue_help_r",
+                        f=_w.cur_from.strftime("%d.%m"), to=_w.cur_to.strftime("%d.%m"),
+                        pf=_w.prev_from.strftime("%d.%m"), pt=_w.prev_to.strftime("%d.%m"))))
     mn.money_metric(s2, t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
                     vat=mn.VAT_EXCL, channels="all", basis="order", extra=t("mn.x.after_costs"),
                     help=passport.tip("home", "margin", t("home.kpi.margin_help")))
@@ -716,14 +723,16 @@ else:
 
         mn.chart_note(t("mn.what.revenue_by_day"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
                       extra=t("mn.x.after_returns"))
-        fig = px.area(daily, x="sales_date", y="revenue",
+        # линия с заливкой, а не px.area: у area пропуск складывается как НОЛЬ (stackgaps), и день, который
+        # ещё не приехал (06.10 при данных по 05.10), рисовался обвалом выручки до нуля
+        fig = px.line(daily, x="sales_date", y="revenue",
                       color_discrete_sequence=[BLUE])
         fig.update_layout(height=190, margin=dict(l=0, r=0, t=6, b=0),
                           xaxis_title=None, yaxis_title=None,
                           yaxis=dict(showgrid=False))
         fig.update_xaxes(type="date", tickformat="%d.%m",
                          range=[_ax_from, _ax_to])
-        fig.update_traces(line=dict(width=1.5),
+        fig.update_traces(line=dict(width=1.5), fill="tozeroy", connectgaps=False,
                           fillcolor="rgba(31,119,180,0.15)")
         st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
@@ -879,8 +888,11 @@ else:
         # Разницу считаем Amazon к Amazon, выручку Mirakl называем отдельно
         _rev_amz = float(_ecur["revenue"].sum()) if len(_ecur) else 0.0
         _rev_other = rev_cur - _rev_amz
-        st.caption(t("home.sales.two_numbers",
-            gap=ord_cur - _rev_amz, pct=(ord_cur - _rev_amz) / ord_cur * 100) + _lag
+        # с НДС и до возвратов витрина больше выручки всегда; обратное значит, что витрина Amazon за конец
+        # периода ещё не догружена, — говорим это, а не «разница −330 €»
+        _gap = ord_cur - _rev_amz
+        st.caption((t("home.sales.two_numbers", gap=_gap, pct=_gap / ord_cur * 100) if _gap > 0
+                    else t("home.sales.two_numbers_neg", gap=-_gap)) + _lag
             + (t("home.sales.two_numbers_other", m=_rev_other) if _rev_other > 0.5 else ""))
     # План текущего месяца из реестра прогноза (ТЗ 010) в трёх разрезах. От периода
     # страницы не зависит: человек менял период и думал, что план пересчитался
@@ -904,6 +916,9 @@ else:
 
         # итог — по всем объектам плана, одинаковый во всех разрезах
         _pace_total = total.get("pace_rev")   # темп итога — по строкам с планом; факт — по всем
+        # к чему темп — словами и датой: «−77 %» без опоры читалось как падение к прошлому периоду
+        _dt = total.get("data_through")
+        _dt_txt = _dt.strftime("%d.%m") if _dt else "—"
         tt1, tt2, tt3 = st.columns(3)
         mn.money_metric(tt1, t("home.plan.total_plan"), fmt_money(total["plan_rev"]),
                         vat=mn.VAT_INCL, channels="amazon", basis="month_plan", help=t("home.plan.total_help"))
@@ -911,7 +926,8 @@ else:
                         vat=mn.VAT_INCL, channels="amazon", basis="month_to_date",
                         help=t("home.plan.total_expected_help", k=total["covered"], n=total["days_in_month"]))
         mn.money_metric(tt3, t("home.plan.total_fact"), fmt_money(total["fact_rev"]),
-                        delta=(None if _pace_total is None else f"{_pace_total:+.0f}%"),
+                        delta=(None if _pace_total is None
+                               else t("mn.pace_vs", p=f"{_pace_total:+.0f}", d=_dt_txt)),
                         vat=mn.VAT_INCL, channels="amazon", basis="shipment", extra=t("mn.x.vs_expected"),
                         help=t("home.plan.total_fact_help"))
 
@@ -947,26 +963,27 @@ else:
         _cols = [c for c in (["group", "name", "unit", "plan", "expected", "fact", "done", "pace", "skus", "sub"] if _units
                              else ["group", "name", "plan", "expected", "fact", "done", "pace", "skus", "sub"]) if _has_mp or c != "name"]
         _grp_lbl = t("home.plan.col_platform") if _mode == "platform" else t("home.plan.col_country")
+        st.caption(t("home.plan.note", d=_dt_txt,
+                     k=total["covered"], n=total["days_in_month"], thr=f"{pace_thr:.0f}"))
+        # 1. НДС — в заголовке каждой денежной колонки, а не только в пояснении
+        _vat_hdr = "home.plan.hdr_units" if _units else "home.plan.hdr_eur"
         st.dataframe(_pt[_cols], hide_index=True, use_container_width=True,
                      height=min(600, 38 + 35 * len(_pt)),
                      column_config={
                          "group": st.column_config.TextColumn(_grp_lbl, width="small"),
                          "name": st.column_config.TextColumn(t("home.plan.col_name"), width="medium"),
                          "unit": st.column_config.TextColumn(t("home.plan.col_unit"), width="small"),
-                         "plan": st.column_config.NumberColumn(t("home.plan.col_plan"), format="%,.0f",
+                         "plan": st.column_config.NumberColumn(t(_vat_hdr, c=t("home.plan.col_plan")), format="%,.0f",
                                                                help=t("home.plan.col_plan_help")),
-                         "expected": st.column_config.NumberColumn(t("home.plan.col_expected"), format="%,.0f",
+                         "expected": st.column_config.NumberColumn(t(_vat_hdr, c=t("home.plan.col_expected")), format="%,.0f",
                                                                    help=t("home.plan.col_expected_help")),
-                         "fact": st.column_config.NumberColumn(t("home.plan.col_fact"), format="%,.0f"),
+                         "fact": st.column_config.NumberColumn(t(_vat_hdr, c=t("home.plan.col_fact")), format="%,.0f"),
                          "done": st.column_config.TextColumn(t("home.plan.col_done"), width="small"),
-                         "pace": st.column_config.TextColumn(t("home.plan.col_pace"),
+                         "pace": st.column_config.TextColumn(t("home.plan.col_pace_to", d=_dt_txt),
                                                              help=t("home.plan.col_pace_help")),
                          "skus": st.column_config.NumberColumn(t("home.plan.col_skus"), format="%d"),
                          "sub": st.column_config.TextColumn(t("home.plan.col_sub"), width="medium"),
                      })
-        _dt = total.get("data_through")
-        st.caption(t("home.plan.note", d=(_dt.strftime("%d.%m") if _dt else "—"),
-                     k=total["covered"], n=total["days_in_month"], thr=f"{pace_thr:.0f}"))
         # отгрузка без строки заказа: в штуках она есть, в евро её нет — и об этом надо
         # сказать словом, иначе «Факт, €» выглядит полным при неполной цене
         _unp = float(total.get("fact_unpriced_units") or 0)
@@ -1119,14 +1136,19 @@ with ir:
         st.caption(t("home.rev.no_data"))
     else:
         q1, q2 = st.columns(2)
-        q1.metric(t("home.kpi.requests", d=DAYS),
+        # даты — те же, что у периода страницы, и названы числами, а не «за N дней»
+        _rf, _rt = PERIOD.start.strftime("%d.%m"), PERIOD.end.strftime("%d.%m")
+        q1.metric(t("home.kpi.requests_r", f=_rf, to=_rt),
                   f"{reviews.get('sent7', 0):,}",
-                  help=passport.tip("home", "reviews", t("home.kpi.requests_help", d=DAYS)))
+                  help=passport.tip("home", "reviews", t("home.kpi.requests_help_r", f=_rf, to=_rt)))
         growth = reviews.get("reviews_growth")
+        _d0, _d1 = reviews.get("d0"), reviews.get("d1")
         q2.metric(t("home.kpi.new_reviews"),
                   f"+{growth:,}" if growth is not None else "—",
-                  help=passport.tip("home", "reviews", t("home.kpi.new_reviews_help",
-                      d=DAYS, n=reviews.get("reviews_pairs", 0))))
+                  help=passport.tip("home", "reviews", t("home.kpi.new_reviews_help_r",
+                      f=(pd.Timestamp(_d0).strftime("%d.%m") if _d0 is not None and pd.notna(_d0) else _rf),
+                      to=(pd.Timestamp(_d1).strftime("%d.%m") if _d1 is not None and pd.notna(_d1) else _rt),
+                      n=reviews.get("reviews_pairs", 0))))
         if reviews.get("last_sent") is not None:
             ls = pd.to_datetime(reviews["last_sent"])
             hours = (datetime.now(ls.tzinfo) - ls).total_seconds() / 3600
