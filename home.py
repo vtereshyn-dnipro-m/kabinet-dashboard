@@ -543,16 +543,10 @@ else:
     _title = t("home.sec.sales", d=DAYS)
 st.markdown(f"##### {_title}")
 
-# данные о продажах приходят с задержкой в несколько дней — говорим об этом
-# прямо, иначе «за 7 дней» читается как «включая вчера»
+# часть каналов ушла дальше границы полных дней — говорим об этом над карточками; где кончились данные
+# и каких дней ещё нет, говорит одна строка периода под карточками
 if not money.empty:
     _last = pd.to_datetime(money["sales_date"]).max()
-    _lag = (pd.Timestamp(datetime.now().date()) - _last).days
-    # Только для окон 7/30/90. Там ось графика кончается на последнем дне
-    # с данными, разрыва нет, и подпись под графиком не появляется — а
-    # сказать надо: окно «за 7 дней» заканчивается не сегодня.
-    # Для своего диапазона этой подписи здесь нет: разрыв виден на самом
-    # графике, и объясняет его подпись под ним, рядом с тем, что объясняет
     if len(_ahead_mk):
         # часть каналов ушла дальше границы — говорим об этом прямо,
         # иначе непонятно, почему период кончается раньше выбранного
@@ -560,11 +554,8 @@ if not money.empty:
             d=_last.strftime("%d.%m"),
             more=", ".join(sorted(_ahead_mk.index)),
             dmax=_ahead_mk.max().strftime("%d.%m")))
-    elif _lag >= 2 and date_from is None and not (pd.notna(_loaded_last) and _loaded_last > _full_last):
-        # если последний день Amazon ещё догружается, об этом скажет одна подпись под карточками (mn.cut)
-        _from = (_last - pd.Timedelta(days=DAYS - 1)).strftime("%d.%m")
-        st.caption(t("home.sales.lag", 
-            d=_last.strftime("%d.%m"), n=_lag, f=_from))
+    # где кончились данные и каких дней ещё нет — одной строкой периода под карточками (07.10.2026): отдельная
+    # подпись здесь говорила то же самое второй раз
 
 if money.empty:
     st.caption(t("home.sales.no_data"))
@@ -600,6 +591,7 @@ else:
 
     # витринная выручка за тот же период — то, что видно в Seller Central
     ord_cur = None
+    _ord_delta = None
     _o_to = _o_from = pd.NaT
     if not ordered.empty:
         ordered["sales_date"] = pd.to_datetime(ordered["sales_date"])
@@ -613,6 +605,11 @@ else:
         _o = ordered[(ordered["sales_date"] >= _lo) & (ordered["sales_date"] <= _w.cur_to)]
         _o_clipped = date_from is not None and pd.notna(_econ_first) and pd.Timestamp(date_from) < _econ_first
         ord_cur = float(_o["ordered_sales"].sum())
+        # прошлый период — те же даты, что у «Выручки»; если текущий урезан первым днём экономики, сравнивать
+        # не с чем: окна разной длины дали бы ложный рост
+        _op = ordered[(ordered["sales_date"] >= _w.prev_from) & (ordered["sales_date"] <= _w.prev_to)]
+        _ord_delta = (None if _o_clipped or (pd.notna(_econ_first) and _w.cur_from < _econ_first) else
+                      mn.delta_text(ord_cur, float(_op["ordered_sales"].sum()), _w, _op["sales_date"].nunique()))
         # у отчёта заказов лаг меньше, чем у финансовых отчётов, поэтому
         # его окно может заканчиваться позже. Числа рядом за разные дни —
         # повод объяснить, а не молча показать
@@ -628,7 +625,7 @@ else:
 
     s0, s1, s2, s3, s4 = st.columns(5)
     # под каждой денежной цифрой — видимая подпись: НДС · каналы · дата (money_notes, 06.10.2026)
-    mn.money_metric(s0, t("home.kpi.ordered"), fmt_money(ord_cur) if ord_cur else "—",
+    mn.money_metric(s0, t("home.kpi.ordered"), fmt_money(ord_cur) if ord_cur else "—", delta=_ord_delta,
                     vat=mn.VAT_INCL, channels="amazon", basis="order", extra=t("mn.x.before_cancel"),
                     help=passport.tip("home", "ordered",
                         (t("home.kpi.ordered_help_span",
@@ -640,6 +637,10 @@ else:
                     help=passport.tip("home", "revenue", t("home.kpi.revenue_help_r",
                         f=_w.cur_from.strftime("%d.%m"), to=_w.cur_to.strftime("%d.%m"),
                         pf=_w.prev_from.strftime("%d.%m"), pt=_w.prev_to.strftime("%d.%m"))))
+    # У маржи процента изменения нет намеренно (07.10.2026): себестоимость возврата, принятого на склад брака,
+    # возвращается в маржу датой возврата, но только когда склад его разберёт (в среднем 6–23 дня). Прошлый период
+    # всегда «богаче» текущего: неделя 07.09 получила так +626 €, недели 21.09 и 28.09 — пока ноль, при марже около
+    # 800 € в неделю. Процент показывал бы падение, которого нет
     mn.money_metric(s2, t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
                     vat=mn.VAT_EXCL, channels="all", basis="order", extra=t("mn.x.after_costs"),
                     help=passport.tip("home", "margin", t("home.kpi.margin_help")))
@@ -674,6 +675,15 @@ else:
         else:
             _as_of = _m_to if pd.notna(_m_to) else _o_to
             _period_txt = t("home.kpi.as_of", d=_as_of.strftime("%d.%m"))
+            # выбранный период длиннее данных (и пресет, и свой): какие дни ещё не пришли — здесь же, а не
+            # второй подписью под заголовком или графиком
+            _end = PERIOD.end
+            if _end > _as_of:
+                _nx = _as_of + pd.Timedelta(days=1)
+                _miss = (_nx.strftime("%d.%m") if _nx == _end
+                         else f"{_nx.strftime('%d.%m')}–{_end.strftime('%d.%m')}")
+                _period_txt = t("home.kpi.as_of_missing", f=_w.cur_from.strftime("%d.%m"),
+                                d=_as_of.strftime("%d.%m"), m=_miss)
     _prov = mn.provisional_text(_dstat, _w.cur_from, _w.cur_to)
     if _period_txt or _prov:
         st.caption(" ".join(x for x in (_period_txt, _prov) if x))
@@ -684,10 +694,10 @@ else:
         _a1, _a2, _ = st.columns([1, 1, 3])
         mn.money_metric(_a1, "ACOS", f"{_ar['acos']:.1f} %" if _ar.get("acos") is not None else "—",
                         vat=mn.VAT_NONE, channels="all", basis=None, extra=t("mn.x.acos"),
-                        help=passport.tip("home", "acos", t("home.kpi.acos_help")))
+                        help=passport.tip("home", "acos", mn.help_with_vat(mn.VAT_INCL, t("home.kpi.acos_help"))))
         mn.money_metric(_a2, "TACOS", f"{_ar['tacos']:.1f} %" if _ar.get("tacos") is not None else "—",
                         vat=mn.VAT_NONE, channels="all", basis="order", extra=t("mn.x.tacos"),
-                        help=passport.tip("home", "tacos", t("home.kpi.tacos_help")))
+                        help=passport.tip("home", "tacos", mn.help_with_vat(mn.VAT_INCL, t("home.kpi.tacos_help"))))
     if rev_cur and _no_cogs_rev > 0.5:
         st.caption(t("home.kpi.margin_partial", rev=f"{_no_cogs_rev:,.0f}", pct=f"{_no_cogs_rev / rev_cur * 100:.0f}",
                      known=f"{_rev_known / rev_cur * 100:.0f}"))
@@ -741,10 +751,7 @@ else:
         if daily["revenue"].isna().all():
             st.caption(t("home.chart.no_data_period"))
         else:
-            if pd.notna(_full_last) and _full_last < _ax_to and not (
-                    pd.notna(_loaded_last) and _loaded_last > _full_last):
-                st.caption(t("home.chart.data_through",
-                             d=_full_last.strftime("%d.%m")))
+            # где кончились данные — говорит строка периода под карточками; вторая подпись здесь дублировала её
             if len(_holes):
                 # на длинном периоде «21.09» без года читается как будущий день текущего
                 # месяца; и полсотни дат подряд — простыня, показываем первые пятнадцать
