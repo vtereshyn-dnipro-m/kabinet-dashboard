@@ -1064,6 +1064,34 @@ TRANSLATIONS = {
     "home.plan.col_unit": {"ru": "Ед.", "uk": "Од.", "en": "Unit"},
     "home.plan.col_expected": {"ru": "Ожидание", "uk": "Очікування", "en": "Expected"},
     "home.plan.col_fact": {"ru": "Факт", "uk": "Факт", "en": "Fact"},
+    # ── подписи к цифрам: НДС · каналы · дата (money_notes.py, 06.10.2026) ──
+    "mn.vat.incl": {"ru": "с НДС", "uk": "з ПДВ", "en": "incl. VAT"},
+    "mn.vat.excl": {"ru": "без НДС", "uk": "без ПДВ", "en": "excl. VAT"},
+    "mn.help_lead.incl": {"ru": "С НДС.", "uk": "З ПДВ.", "en": "Incl. VAT."},
+    "mn.help_lead.excl": {"ru": "Без НДС.", "uk": "Без ПДВ.", "en": "Excl. VAT."},
+    "mn.ch.amazon": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
+    "mn.ch.all": {"ru": "все каналы", "uk": "усі канали", "en": "all channels"},
+    "mn.ch.fba_madrid": {"ru": "запас FBA и Мадрида", "uk": "запас FBA і Мадрида", "en": "FBA and Madrid stock"},
+    "mn.basis.order": {"ru": "по дате заказа", "uk": "за датою замовлення", "en": "by order date"},
+    "mn.basis.shipment": {"ru": "по дате отгрузки", "uk": "за датою відвантаження", "en": "by shipment date"},
+    "mn.basis.month_plan": {"ru": "план текущего месяца", "uk": "план поточного місяця", "en": "current month plan"},
+    "mn.basis.month_to_date": {"ru": "план на прошедшие дни месяца", "uk": "план на дні місяця, що минули", "en": "plan for elapsed days"},
+    "mn.x.before_cancel": {"ru": "до отмен и возвратов", "uk": "до скасувань і повернень", "en": "before cancellations and returns"},
+    "mn.x.after_returns": {"ru": "после возвратов", "uk": "після повернень", "en": "after returns"},
+    "mn.x.after_costs": {"ru": "после возвратов, комиссий, рекламы и себестоимости", "uk": "після повернень, комісій, реклами й собівартості", "en": "after returns, fees, ads and cost of goods"},
+    "mn.x.acos": {"ru": "реклама SP+SB+SD+ManoMano к продажам с рекламы", "uk": "реклама SP+SB+SD+ManoMano до продажів з реклами", "en": "SP+SB+SD+ManoMano ad spend over ad sales"},
+    "mn.x.tacos": {"ru": "реклама ко всем продажам с НДС", "uk": "реклама до всіх продажів з ПДВ", "en": "ad spend over all sales incl. VAT"},
+    "mn.x.vs_expected": {"ru": "темп — к плану на прошедшие дни", "uk": "темп — до плану на дні, що минули", "en": "pace vs plan for elapsed days"},
+    "mn.x.calc_on": {"ru": "расчёт на {d}", "uk": "розрахунок на {d}", "en": "calculated on {d}"},
+    "mn.x.now_open": {"ru": "открытые сейчас, пять самых частых типов", "uk": "відкриті зараз, п'ять найчастіших типів", "en": "open now, five most frequent types"},
+    "mn.what.revenue_by_day": {"ru": "Выручка по дням", "uk": "Виручка по днях", "en": "Revenue by day"},
+    "mn.what.revenue_by_channel": {"ru": "Выручка по каналам и рынкам", "uk": "Виручка за каналами і ринками", "en": "Revenue by channel and market"},
+    "mn.what.cov_buckets": {"ru": "Пары SKU × рынок по запасу", "uk": "Пари SKU × ринок за запасом", "en": "SKU × market pairs by stock"},
+    "mn.what.inc_by_type": {"ru": "Инциденты по типам", "uk": "Інциденти за типами", "en": "Incidents by type"},
+    "mn.delta_vs": {"ru": "{p} % к {f}–{to}", "uk": "{p} % до {f}–{to}", "en": "{p} % vs {f}–{to}"},
+    "mn.cut": {"ru": "{d} ещё загружается — в цифры и сравнение не входит; период — по {last} включительно.", "uk": "{d} ще завантажується — у цифри й порівняння не входить; період — по {last} включно.", "en": "{d} is still loading — not counted in the figures or the comparison; the period runs through {last}."},
+    "mn.provisional": {"ru": "{days} предварительно, Amazon может уточнить до ~{gap} %.", "uk": "{days} попередньо, Amazon може уточнити до ~{gap} %.", "en": "{days} is provisional, Amazon may revise it by up to ~{gap} %."},
+    "mn.prov_yesterday": {"ru": "вчера ({d})", "uk": "вчора ({d})", "en": "yesterday ({d})"},
     "home.kpi.as_of": {"ru": "Данные по {d} включительно.",
                        "uk": "Дані по {d} включно.",
                        "en": "Data through {d} inclusive."},
@@ -1072,6 +1100,10 @@ TRANSLATIONS = {
                              "en": "Ordered sales through {o} inclusive, money and margin through {m}."},
     "home.plan.col_done": {"ru": "Выполнение", "uk": "Виконання", "en": "Done"},
     "home.plan.col_pace": {"ru": "Темп", "uk": "Темп", "en": "Pace"},
+    "home.plan.col_pace_to": {"ru": "Темп к ожиданию по {d}", "uk": "Темп до очікування по {d}", "en": "Pace vs expected through {d}"},
+    "home.plan.hdr_eur": {"ru": "{c}, € с НДС", "uk": "{c}, € з ПДВ", "en": "{c}, € incl. VAT"},
+    "home.plan.hdr_units": {"ru": "{c} (€ с НДС · шт)", "uk": "{c} (€ з ПДВ · шт)", "en": "{c} (€ incl. VAT · pcs)"},
+    "mn.pace_vs": {"ru": "{p} % к ожиданию по {d}", "uk": "{p} % до очікування по {d}", "en": "{p} % vs expected through {d}"},
     "home.plan.col_skus": {"ru": "SKU с планом", "uk": "SKU з планом", "en": "SKUs planned"},
     "home.plan.col_plan_help": {
         "ru": "Сумма действующего прогноза по SKU объекта на месяц: строка «€» — деньги с НДС (штуки × цена из листа), строка «шт» — штуки",
@@ -1137,17 +1169,36 @@ TRANSLATIONS = {
         "uk": " Четвертий доданок — лаг: економіка за {d} ще неповна, {e:,.0f} € проти {s:,.0f} € у вітрині, доїде з найближчим прогоном.",
         "en": " The fourth component is lag: economics for {d} is still incomplete, {e:,.0f} € vs {s:,.0f} € in the storefront report; it arrives with the next load."},
     "home.sales.two_numbers": {
-        "ru": "Разница между двумя числами — {gap:,.0f} € ({pct:.0f}%): НДС уходит "
-              "государству, часть заказов отменяют и возвращают. Первое число сходится "
-              "с кабинетом Amazon, второе — то, с чего считается маржа.",
-        "uk": "Різниця між двома числами — {gap:,.0f} € ({pct:.0f}%): ПДВ іде державі, "
-              "частину замовлень скасовують і повертають. Перше число збігається з "
-              "кабінетом Amazon, друге — те, з чого рахується маржа.",
-        "en": "The gap between the two figures is {gap:,.0f} € ({pct:.0f}%): VAT goes to "
-              "the state, some orders are cancelled or returned. The first matches Seller "
-              "Central, the second is what margin is calculated from.",
+        "ru": "«Продажи по заказам» Amazon (с НДС) больше выручки Amazon (без НДС, после возвратов) на "
+              "{gap:,.0f} € ({pct:.0f}%): НДС уходит государству, часть заказов отменяют и возвращают. "
+              "Первое число сходится с кабинетом Amazon, второе — то, с чего считается маржа.",
+        "uk": "«Продажі за замовленнями» Amazon (з ПДВ) більші за виручку Amazon (без ПДВ, після повернень) на "
+              "{gap:,.0f} € ({pct:.0f}%): ПДВ іде державі, частину замовлень скасовують і повертають. "
+              "Перше число збігається з кабінетом Amazon, друге — те, з чого рахується маржа.",
+        "en": "Amazon «Ordered sales» (incl. VAT) exceed Amazon revenue (excl. VAT, after returns) by "
+              "{gap:,.0f} € ({pct:.0f}%): VAT goes to the state, some orders are cancelled or returned. "
+              "The first matches Seller Central, the second is what margin is calculated from.",
+    },
+    "home.sales.two_numbers_neg": {
+        "ru": "Выручка Amazon без НДС оказалась больше «Продаж по заказам» с НДС на {gap:,.0f} € — так быть не должно: "
+              "витрина Amazon за конец периода ещё не догружена, разница уйдёт с её следующим прогоном.",
+        "uk": "Виручка Amazon без ПДВ виявилася більшою за «Продажі за замовленнями» з ПДВ на {gap:,.0f} € — так не має бути: "
+              "вітрина Amazon за кінець періоду ще не довантажена, різниця зникне з її наступним прогоном.",
+        "en": "Amazon revenue excl. VAT came out {gap:,.0f} € above «Ordered sales» incl. VAT — this should not happen: "
+              "the Amazon storefront report for the end of the period is not fully loaded yet; it resolves with its next run."},
+    "home.sales.two_numbers_other": {
+        "ru": " Обе цифры здесь — по Amazon; выручка Leroy Merlin, ManoMano и Carrefour ({m:,.0f} € без НДС) входит в «Выручку», но не в «Продажи по заказам».",
+        "uk": " Обидві цифри тут — по Amazon; виручка Leroy Merlin, ManoMano і Carrefour ({m:,.0f} € без ПДВ) входить у «Виручку», але не в «Продажі за замовленнями».",
+        "en": " Both figures here are Amazon only; Leroy Merlin, ManoMano and Carrefour revenue ({m:,.0f} € excl. VAT) is in «Revenue» but not in «Ordered sales».",
     },
     "home.kpi.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
+    "home.kpi.revenue_help_r": {
+        "ru": "Выручка за вычетом возвратов, без комиссий площадки. Период {f}–{to}, изменение — к {pf}–{pt}: "
+              "столько же полных дней встык перед ним",
+        "uk": "Виручка за вирахуванням повернень, без комісій майданчика. Період {f}–{to}, зміна — до {pf}–{pt}: "
+              "стільки ж повних днів упритул перед ним",
+        "en": "Revenue net of returns, before channel fees. Period {f}–{to}, change vs {pf}–{pt}: "
+              "the same number of complete days right before it"},
     "home.kpi.revenue_help": {
         "ru": "Выручка за вычетом возвратов, без комиссий площадки. За последние {d} дней, "
               "изменение — к предыдущим {d} дням",
@@ -1272,6 +1323,18 @@ TRANSLATIONS = {
         "en": "Automated review requests sent over {d} days",
     },
     "home.kpi.new_reviews": {"ru": "Новых отзывов", "uk": "Нових відгуків", "en": "New reviews"},
+    "home.kpi.requests_r": {"ru": "Запросов {f}–{to}", "uk": "Запитів {f}–{to}", "en": "Requests {f}–{to}"},
+    "home.kpi.requests_help_r": {
+        "ru": "Автоматических запросов на отзыв отправлено с {f} по {to} включительно (по киевскому времени)",
+        "uk": "Автоматичних запитів на відгук надіслано з {f} по {to} включно (за київським часом)",
+        "en": "Automated review requests sent {f}–{to} inclusive (Kyiv time)"},
+    "home.kpi.new_reviews_help_r": {
+        "ru": "Прирост отзывов между снимками {f} и {to} по {n} позициям, которые отслеживаются всё это время. "
+              "Товары, добавленные в наблюдение позже, в расчёт не идут",
+        "uk": "Приріст відгуків між знімками {f} і {to} по {n} позиціях, які відстежуються весь цей час. "
+              "Товари, додані у спостереження пізніше, у розрахунок не йдуть",
+        "en": "Review growth between the {f} and {to} snapshots across {n} items tracked for the whole period. "
+              "Items added to tracking later are excluded"},
     "home.kpi.new_reviews_help": {
         "ru": "Прирост за {d} дней по {n} позициям, которые отслеживаются всё это время. "
               "Товары, добавленные в наблюдение позже, в расчёт не идут",
