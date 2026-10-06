@@ -503,6 +503,19 @@ TR = {
         "ch_same": "Источник и получатель не могут совпадать",
         "ch_exists": "Такая связь уже есть",
         "mp_hint": "Маркетплейс — торговая среда одной площадки в одной стране. Код собирается сам из краткого названия площадки и кода страны, вручную не правится. Площадку и страну можно менять только пока по маркетплейсу нет записей матрицы и документов прогноза: для другой страны или площадки заводится отдельный маркетплейс.",
+        "mp_nodata_text": "Данные не загружаются — нужна настройка подключения. Обратитесь к администратору.",
+        "mp_nodata_banner": "Маркетплейсов без данных: {n} ({codes}).",
+        "mp_col_data": "Загрузка данных",
+        "mp_col_data_help": "Приходят ли по маркетплейсу данные: заказы, офферы, остатки, реклама, Sales & Traffic. «Не настроена» — нет технических настроек подключения; «Нет данных» — за последние дни не пришло ни одной строки. Сторож заводит по таким инцидент.",
+        "mp_data_ok": "идут",
+        "mp_data_no_config": "⚠ не настроена",
+        "mp_data_no_data": "⚠ нет данных",
+        "mp_nodata_cfg": "Не хватает технических настроек: {what}.",
+        "mp_nodata_never": "По этому маркетплейсу в Кабинет не пришло ни одной строки ни из одного источника.",
+        "mp_nodata_since": "Последние данные пришли {d} — больше {n} дней назад.",
+        "mp_cfg_legacy_code": "внутренний код",
+        "mp_cfg_amazon_id": "id рынка Amazon",
+        "mp_cfg_sync_economics": "загрузка экономики Amazon",
         "mp_adep_matrix": "действующих допусков в матрице: {n}",
         "mp_adep_fc": "строк действующего прогноза: {n}",
         "mp_about": "**Маркетплейсы** — где мы продаём: одна площадка в одной стране (Amazon Испания, ManoMano Франция). На них ссылаются матрица, прогнозы, пулы, PeID и покрытие.  \n**Как работать:** найдите маркетплейс поиском или фильтрами → нажмите на строку → ниже откроется карточка. Новый маркетплейс — формой «Добавить маркетплейс» внизу. Удаления нет: ненужный маркетплейс отправляется в архив, его история остаётся.",
@@ -1086,6 +1099,19 @@ TR = {
         "ch_same": "Джерело та отримувач не можуть збігатися",
         "ch_exists": "Такий звʼязок уже є",
         "mp_hint": "Маркетплейс — торгове середовище однієї площадки в одній країні. Код збирається сам із короткої назви майданчика і коду країни, вручну не правиться. Майданчик і країну можна змінювати лише поки за маркетплейсом немає записів матриці та документів прогнозу: для іншої країни чи майданчика створюється окремий маркетплейс.",
+        "mp_nodata_text": "Дані не завантажуються — потрібне налаштування підключення. Зверніться до адміністратора.",
+        "mp_nodata_banner": "Маркетплейсів без даних: {n} ({codes}).",
+        "mp_col_data": "Завантаження даних",
+        "mp_col_data_help": "Чи надходять по маркетплейсу дані: замовлення, офери, залишки, реклама, Sales & Traffic. «Не налаштоване» — немає технічних налаштувань підключення; «Немає даних» — за останні дні не надійшло жодного рядка. Сторож заводить по таких інцидент.",
+        "mp_data_ok": "надходять",
+        "mp_data_no_config": "⚠ не налаштоване",
+        "mp_data_no_data": "⚠ немає даних",
+        "mp_nodata_cfg": "Бракує технічних налаштувань: {what}.",
+        "mp_nodata_never": "По цьому маркетплейсу в Кабінет не надійшло жодного рядка з жодного джерела.",
+        "mp_nodata_since": "Останні дані надійшли {d} — понад {n} днів тому.",
+        "mp_cfg_legacy_code": "внутрішній код",
+        "mp_cfg_amazon_id": "id ринку Amazon",
+        "mp_cfg_sync_economics": "завантаження економіки Amazon",
         "mp_adep_matrix": "чинних допусків у матриці: {n}",
         "mp_adep_fc": "рядків чинного прогнозу: {n}",
         "mp_about": "**Маркетплейси** — де ми продаємо: один майданчик в одній країні (Amazon Іспанія, ManoMano Франція). На них посилаються матриця, прогнози, пули, PeID і покриття.  \n**Як працювати:** знайдіть маркетплейс пошуком або фільтрами → натисніть на рядок → нижче відкриється картка. Новий маркетплейс — формою «Додати маркетплейс» унизу. Видалення немає: непотрібний маркетплейс іде в архів, його історія лишається.",
@@ -1669,6 +1695,19 @@ TR = {
         "ch_same": "Source and receiver must differ",
         "ch_exists": "This link already exists",
         "mp_hint": "A marketplace is one platform's trading environment in one country. The code is derived from the platform short name and the country code and is never typed. The platform and country can change only while the marketplace has no matrix records and no forecast documents: for another country or platform, create a separate marketplace.",
+        "mp_nodata_text": "Data is not loading — the connection needs to be set up. Contact the administrator.",
+        "mp_nodata_banner": "Marketplaces without data: {n} ({codes}).",
+        "mp_col_data": "Data loading",
+        "mp_col_data_help": "Whether data arrives for the marketplace: orders, offers, stock, ads, Sales & Traffic. «Not set up» — technical connection settings are missing; «No data» — not a single row arrived in recent days. The watchdog opens an incident for these.",
+        "mp_data_ok": "loading",
+        "mp_data_no_config": "⚠ not set up",
+        "mp_data_no_data": "⚠ no data",
+        "mp_nodata_cfg": "Missing technical settings: {what}.",
+        "mp_nodata_never": "Not a single row from any source has ever arrived for this marketplace.",
+        "mp_nodata_since": "Last data arrived {d} — more than {n} days ago.",
+        "mp_cfg_legacy_code": "internal code",
+        "mp_cfg_amazon_id": "Amazon marketplace id",
+        "mp_cfg_sync_economics": "Amazon economics loading",
         "mp_adep_matrix": "current matrix admissions: {n}",
         "mp_adep_fc": "current forecast rows: {n}",
         "mp_about": "**Marketplaces** — where we sell: one platform in one country (Amazon Spain, ManoMano France). The matrix, forecasts, pools, PeIDs and coverage refer to them.  \n**How to use:** find a marketplace by search or filters → click its row → the card opens below. A new marketplace — the «Add marketplace» form at the bottom. There is no deletion: a marketplace you no longer need goes to the archive, its history stays.",
@@ -2971,6 +3010,7 @@ def _section_mp():
         LEFT JOIN kabinet_data.marketplace_attributes a ON a.marketplace_id = m.id
         ORDER BY m.code
     """)
+    mps = _mp_with_data_status(mps)
     plats = _plat_attrs()
     _lang_col = {"ru": "name_ru", "uk": "name_uk"}.get(get_lang(), "name_en")
     countries = q(f"""SELECT c.alpha2, COALESCE(n.{_lang_col}, n.name_en, c.name) AS name, c.is_active
@@ -2983,6 +3023,10 @@ def _section_mp():
         _mp_add_form(mps, plats, countries, curr)
         return
 
+    _bad = mps[mps["data_status"].isin(["no_config", "no_data"])]
+    if not _bad.empty:
+        st.warning(_trf("mp_nodata_banner", n=len(_bad), codes=", ".join(_bad["code"])) + " "
+                   + _tr("mp_nodata_text"))
     view, fsig = _mp_filters_view(mps, plats, countries)
     st.caption(_trf("mp_summary", shown=len(view), total=len(mps),
                     arch=int((~mps["is_active"].astype(bool)).sum())))
@@ -2995,6 +3039,8 @@ def _section_mp():
         "country": [f"{cnames.get(a, a)} ({a})" for a in view["country_alpha2"]],
         "currency": view["currency"],
         "state": [_tr("sku_state_active") if bool(a) else _tr("sku_state_archived") for a in view["is_active"]],
+        "data": [_tr("mp_data_" + st_) if st_ in ("no_config", "no_data", "ok") else ""
+                 for st_ in view["data_status"]],
         "used": [_mp_used_text(r) for _, r in view.iterrows()],
     })
     # ключ таблицы зависит от фильтров: выбор хранится номером строки, и после смены фильтра тот
@@ -3010,6 +3056,8 @@ def _section_mp():
                           "country": st.column_config.TextColumn(_tr("mp_country"), width="medium"),
                           "currency": st.column_config.TextColumn(_tr("mp_currency"), width=80),
                           "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
+                          "data": st.column_config.TextColumn(_tr("mp_col_data"), width="medium",
+                                                              help=_tr("mp_col_data_help")),
                           "used": st.column_config.TextColumn(_tr("mp_col_used"), width="large",
                                                               help=_tr("mp_col_used_help")),
                       })
@@ -3040,6 +3088,31 @@ def _section_mp():
     _mp_add_form(mps, plats, countries, curr)
 
 
+def _mp_with_data_status(mps: pd.DataFrame) -> pd.DataFrame:
+    """Статус загрузки данных из `v_marketplace_data_status` — того же вью, что читает сторож: правило
+    «данные не загружаются» живёт в одном месте (sql/marketplace_data_status_2026-10-06.sql). Вью нет или
+    оно не прочиталось — колонка пустая, а не «всё в порядке»."""
+    try:
+        ds = q("""SELECT marketplace_id AS id, status AS data_status, config_missing, last_data_at, window_days
+                  FROM kabinet_data.v_marketplace_data_status""")
+        return mps.merge(ds, on="id", how="left")
+    except Exception:
+        out = mps.copy()
+        out["data_status"], out["config_missing"], out["last_data_at"], out["window_days"] = None, None, None, None
+        return out
+
+
+def _mp_nodata_reason(row) -> str:
+    """Почему помечен: каких настроек нет, или когда пришли последние данные."""
+    if row["data_status"] == "no_config":
+        miss = row["config_missing"] if isinstance(row["config_missing"], (list, tuple)) else []
+        return _trf("mp_nodata_cfg", what=", ".join(_tr("mp_cfg_" + m) for m in miss) or "—")
+    last = row["last_data_at"]
+    if last is None or (not isinstance(last, (list, tuple)) and pd.isna(last)):
+        return _tr("mp_nodata_never")
+    return _trf("mp_nodata_since", d=pd.to_datetime(last).strftime("%d.%m.%Y"), n=int(row["window_days"] or 14))
+
+
 def _mp_used_text(r) -> str:
     """«Где используется» — действующие связи словами, чтобы по списку было видно, что маркетплейс живой."""
     parts = []
@@ -3063,6 +3136,8 @@ def _mp_card(row, sel: int, plats, countries, curr):
         st.markdown(f"**{row['code']} · {row['name']}**" + ("" if bool(row["is_active"])
                                                               else f"  \n{_tr('mp_is_archived')}"))
         st.caption(f"ID {sel}")
+        if row["data_status"] in ("no_config", "no_data"):
+            st.warning("**" + _tr("mp_nodata_text") + "**  \n" + _mp_nodata_reason(row))
         if blockers:
             st.caption(_tr("mp_deps_head") + " " + "; ".join(blockers))
         else:
