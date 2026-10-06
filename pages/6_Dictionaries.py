@@ -33,6 +33,13 @@ from util import as_text
 
 TR = {
     "ru": {
+        "wh_rm_q": "Сохранение удалит записей: {n}. Проверьте, что это намеренно:",
+        "wh_rm_yes": "Да, удалить и сохранить",
+        "wh_rm_no": "Отмена — ничего не сохранять",
+        "wh_rm_prio": "приоритет {p}: {t}",
+        "wh_rm_country": "страна обслуживания: {c}",
+        "wh_rm_sched": "график: заказ в {o} → отгрузка в {s}",
+        "wh_rm_ext": "внешний код: {s} · {c}{n}",
         "sku_about": "**Справочник SKU** — все товары компании, которые продаются или планируются: код, тип (обычный товар или набор), название, EAN, даты ввода и вывода, габариты и вес упаковки. Отсюда их берут матрица, прогноз, покрытие, автозаказ и расчёт доставки в марже.  \n**Как работать:** найдите товар поиском или фильтрами → нажмите на строку → ниже откроется карточка: там можно изменить поля, убрать товар в архив или удалить. Новый товар — формой «Добавить SKU», много сразу — загрузкой из Excel.",
         "sku_cat_f": "Категория",
         "sku_state_f": "Статус",
@@ -561,6 +568,13 @@ TR = {
         "col_max": "Макс, дн", "col_pool": "Пул", "col_from": "С", "col_to": "По",
     },
     "uk": {
+        "wh_rm_q": "Збереження видалить записів: {n}. Перевірте, що це навмисно:",
+        "wh_rm_yes": "Так, видалити й зберегти",
+        "wh_rm_no": "Скасувати — нічого не зберігати",
+        "wh_rm_prio": "пріоритет {p}: {t}",
+        "wh_rm_country": "країна обслуговування: {c}",
+        "wh_rm_sched": "графік: замовлення в {o} → відвантаження в {s}",
+        "wh_rm_ext": "зовнішній код: {s} · {c}{n}",
         "sku_about": "**Довідник SKU** — усі товари компанії, які продаються або плануються: код, тип (звичайний товар чи набір), назва, EAN, дати введення й виведення, габарити та вага пакування. Звідси їх беруть матриця, прогноз, покриття, автозамовлення та розрахунок доставки в маржі.  \n**Як працювати:** знайдіть товар пошуком або фільтрами → натисніть на рядок → нижче відкриється картка: там можна змінити поля, прибрати товар в архів або видалити. Новий товар — формою «Додати SKU», багато одразу — завантаженням з Excel.",
         "sku_cat_f": "Категорія",
         "sku_state_f": "Статус",
@@ -1088,6 +1102,13 @@ TR = {
         "col_max": "Макс, дн", "col_pool": "Пул", "col_from": "З", "col_to": "По",
     },
     "en": {
+        "wh_rm_q": "Saving will delete {n} record(s). Make sure this is intended:",
+        "wh_rm_yes": "Yes, delete and save",
+        "wh_rm_no": "Cancel — save nothing",
+        "wh_rm_prio": "priority {p}: {t}",
+        "wh_rm_country": "served country: {c}",
+        "wh_rm_sched": "schedule: order on {o} → ship on {s}",
+        "wh_rm_ext": "external code: {s} · {c}{n}",
         "sku_about": "**SKU directory** — every company product that is sold or planned: code, type (single product or kit), name, EAN, intro and exit dates, package dimensions and weight. The matrix, forecast, coverage, reorder and the shipping cost in margin take products from here.  \n**How to work with it:** find a product by search or filters → click its row → the card opens below: change fields, archive the product or delete it. A new product — the “Add SKU” form; many at once — upload from Excel.",
         "sku_cat_f": "Category",
         "sku_state_f": "Status",
@@ -2445,9 +2466,17 @@ def _section_wh():
                     return True
                 return False
 
-            if st.button(_tr("save"), key="save_wh_card", type="primary") and not dup_stop() and not prio_empty_stop():
-                stmts = []
+            # Сохранение в два шага, если правка что-то УДАЛЯЕТ (решение владельца 06.10.2026): строку внешнего
+            # кода убирают корзиной в сетке, приоритет — прочерком, день графика — «без ограничения», страну —
+            # крестиком, и раньше всё это стиралось первым же «Сохранить» без вопроса. Теперь удаляемое
+            # перечисляется словами, и запись идёт только после «Да, удалить и сохранить».
+            def _wh_build():
+                """Запросы на запись и список того, что они удалят (словами)."""
+                stmts, removed = [], []
                 if new_prio is not None and new_prio != prev_prio and not dup:
+                    for pr, k in sorted(prev_prio.items()):
+                        if k not in new_prio.values():
+                            removed.append(_trf("wh_rm_prio", p=pr, t=_tlabel(k)))
                     stmts.append((f"DELETE FROM {WP} WHERE warehouse_id = %s", (int(sel),)))
                     for pr, (tt, tid) in sorted(new_prio.items()):
                         stmts.append((f"INSERT INTO {WP} (warehouse_id, priority, target_type, target_id, updated_by) VALUES (%s, %s, %s, %s, 'kabinet')",
@@ -2466,6 +2495,8 @@ def _section_wh():
                 # страны обслуживания: сравниваем множества, пишем разницу
                 if set(served_new) != set(_served_now):
                     gone = set(_served_now) - set(served_new)
+                    for c in sorted(gone):
+                        removed.append(_trf("wh_rm_country", c=_c_lbl.get(c, c)))
                     if gone:
                         stmts.append(("DELETE FROM kabinet_data.warehouse_countries WHERE warehouse_id = %s AND country_alpha2 = ANY(%s)",
                                       (int(sel), list(gone))))
@@ -2488,6 +2519,8 @@ def _section_wh():
                 for i, r_ in enumerate(ed_sched.itertuples(), start=1):
                     if r_.ship and r_.ship != _none_lbl and r_.ship in _DOW:
                         new_sched[i] = _DOW.index(r_.ship) + 1
+                for od in sorted(set(sched_map) - set(new_sched)):
+                    removed.append(_trf("wh_rm_sched", o=_DOW[od - 1], s=_DOW[sched_map[od] - 1]))
                 if new_sched != sched_map:
                     stmts.append(("DELETE FROM kabinet_data.warehouse_shipping_schedule WHERE warehouse_id = %s", (int(sel),)))
                     for od, sd in sorted(new_sched.items()):
@@ -2510,19 +2543,46 @@ def _section_wh():
                     else:
                         stmts.append(("INSERT INTO kabinet_data.warehouse_external_ids (warehouse_id, system_name, external_code, external_name) "
                                       "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING", (int(sel), sys_, code_, name_)))
-                for rid_ in set(_ext_before) - _seen:
+                for rid_ in sorted(set(_ext_before) - _seen):
+                    _s, _c, _n = (as_text(x) for x in _ext_before[rid_])
+                    removed.append(_trf("wh_rm_ext", s=_s, c=_c, n=f" ({_n})" if _n else ""))
                     stmts.append(("DELETE FROM kabinet_data.warehouse_external_ids WHERE id = %s", (rid_,)))
+                return stmts, removed
 
+            def _wh_write(stmts):
+                try:
+                    exec_sql(stmts)
+                    st.cache_data.clear()
+                    st.session_state.pop(_pend, None)
+                    st.success(_trf("saved", n=len(stmts)))
+                    st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+
+            _pend = f"wh_pending_del_{sel}"
+            if st.button(_tr("save"), key="save_wh_card", type="primary") and not dup_stop() and not prio_empty_stop():
+                stmts, removed = _wh_build()
                 if not stmts:
                     st.info(_tr("nochange"))
+                elif removed:
+                    st.session_state[_pend] = True    # спросим ниже; ничего не записано
                 else:
-                    try:
-                        exec_sql(stmts)
-                        st.cache_data.clear()
-                        st.success(_trf("saved", n=len(stmts)))
+                    _wh_write(stmts)
+            if st.session_state.get(_pend):
+                # список собирается заново на каждом прогоне: если человек вернул строку в сетку,
+                # она исчезает из вопроса, а если вернул всё — вопрос снимается сам
+                stmts, removed = _wh_build()
+                if not removed:
+                    st.session_state.pop(_pend, None)
+                else:
+                    st.warning(_trf("wh_rm_q", n=len(removed)) + "\n\n" + "\n".join(f"- {x}" for x in removed))
+                    c1, c2 = st.columns(2)
+                    if c1.button(_tr("wh_rm_yes"), key=f"wh_rm_yes_{sel}", type="primary"):
+                        if not dup_stop() and not prio_empty_stop():
+                            _wh_write(stmts)
+                    if c2.button(_tr("wh_rm_no"), key=f"wh_rm_no_{sel}"):
+                        st.session_state.pop(_pend, None)
                         st.rerun()
-                    except Exception as e:
-                        st.error(_trf("err", e=e))
 
             # ── сводка: название, тип, активен, приоритет 1..10 (доработка 17.09, «Отображение в таблице») ──
             st.markdown("##### " + _tr("wh_sum_h"))
