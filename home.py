@@ -189,14 +189,14 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
-def load_settled_last(amz_codes: tuple, _v: str = ""):
-    """Последний полный день экономики Amazon (money_notes.settled_last): вчерашний день приходит утром
-    неполным и дозаполняется следующими прогонами — в цифры и сравнение его не берём."""
+def load_day_status(_v: str = ""):
+    """Граница полных дней и предварительные дни (money_notes.day_status) — по последней загрузке каждого
+    канала: день, по которому не прошли все загрузчики, в цифры и сравнение не берём."""
     conn = get_connection()
     try:
-        return mn.settled_last(conn)
+        return mn.day_status(conn)
     except Exception:
-        return pd.NaT
+        return mn.DayStatus(pd.NaT, pd.NaT, 0.0)
     finally:
         conn.close()
 
@@ -504,6 +504,7 @@ except Exception as e:
 # протух бы с первой же новой площадкой, как уже протухал «LM»
 _full_last = pd.NaT
 _loaded_last = pd.NaT
+_dstat = mn.DayStatus(pd.NaT, pd.NaT, 0.0)
 _ahead_mk = pd.Series(dtype="datetime64[ns]")
 if not money.empty:
     money["sales_date"] = pd.to_datetime(money["sales_date"])
@@ -516,7 +517,8 @@ if not money.empty:
     # день, который Amazon ещё догружает, в цифры и сравнение не входит (06.10.2026): экономика за вчера
     # приходит неполной, и неполный день в периоде давал «обвал», которого нет
     _loaded_last = _full_last
-    _settled = load_settled_last(tuple(sorted(_amz_codes)), data_version("economics_summary", "updated_at"))
+    _dstat = load_day_status(data_version("economics_summary", "updated_at"))
+    _settled = _dstat.settled
     if pd.notna(_settled) and pd.notna(_full_last) and _settled < _full_last:
         _full_last = _settled
     money = money[money["sales_date"] <= _full_last]
@@ -651,17 +653,23 @@ else:
     # возвращается каждую неделю. Источников у ряда два, и даты у них разные, поэтому когда они
     # расходятся — называем обе: карточка «Продажи по заказам» живёт на витрине S&T,
     # выручка и маржа — на экономике, и экономика обычно отстаёт на день.
+    # Одна строка про период: по какое число, что отрезано как недогруженное и что ещё предварительно
+    # (решение владельца 06.10.2026 — без отдельной плашки, в той же строке).
+    _period_txt = ""
     if pd.notna(_loaded_last) and pd.notna(_full_last) and _loaded_last > _full_last:
         _cut_from = _full_last + pd.Timedelta(days=1)
         _cut_txt = (_cut_from.strftime("%d.%m") if _cut_from == _loaded_last
                     else f"{_cut_from.strftime('%d.%m')}–{_loaded_last.strftime('%d.%m')}")
-        st.caption(t("mn.cut", d=_cut_txt, last=_full_last.strftime("%d.%m")))
-    if (pd.notna(_o_to) or pd.notna(_m_to)) and not (pd.notna(_loaded_last) and _loaded_last > _full_last):
+        _period_txt = t("mn.cut", d=_cut_txt, last=_full_last.strftime("%d.%m"))
+    elif pd.notna(_o_to) or pd.notna(_m_to):
         if _spans_differ:
-            st.caption(t("home.kpi.as_of_split", o=_o_to.strftime("%d.%m"), m=_m_to.strftime("%d.%m")))
+            _period_txt = t("home.kpi.as_of_split", o=_o_to.strftime("%d.%m"), m=_m_to.strftime("%d.%m"))
         else:
             _as_of = _m_to if pd.notna(_m_to) else _o_to
-            st.caption(t("home.kpi.as_of", d=_as_of.strftime("%d.%m")))
+            _period_txt = t("home.kpi.as_of", d=_as_of.strftime("%d.%m"))
+    _prov = mn.provisional_text(_dstat, _w.cur_from, _w.cur_to)
+    if _period_txt or _prov:
+        st.caption(" ".join(x for x in (_period_txt, _prov) if x))
     # ACOS и TACOS — по формулам Дарины (Power BI, 05.10.2026): весь расход на рекламу SP+SB+SD к продажам с
     # рекламы и ко всем продажам с НДС. Окно — то же, что у выручки и маржи; каналы — все, как у неё
     if pd.notna(_m_from) and pd.notna(_m_to):

@@ -80,44 +80,99 @@ def chart_note(what: str, vat: str | None, channels: str, basis: str | None, d_f
 
 # ── полные дни и сравнение ────────────────────────────────────────────────────
 
-def settled_last(conn, _unused=None) -> pd.Timestamp:
-    """Последний день, который полон по ВСЕМ каналам, где за него есть строки.
+@dataclass
+class DayStatus:
+    settled: pd.Timestamp       # последний день, полный по всем действующим каналам
+    provisional: pd.Timestamp   # первый день, который площадка ещё может уточнить (NaT — таких нет)
+    gap_pct: float              # на сколько, по замеру, предварительный день может сдвинуться
+    today: pd.Timestamp = pd.NaT   # сегодня по Киеву — по базе, а не по часам сервера (он живёт в UTC)
 
-    Задержка у каналов разная (замер 06.10.2026 по истории версий сырья за 7 дней — больше Delta не
-    хранит): у Amazon день дозаполняется, пока загрузчик перечитывает последние три дня (на D+1 —
-    98,7 % окончательной суммы, худший день 96 %, окончательно на D+3); у Leroy Merlin, ManoMano и
-    Carrefour день полон с первой загрузки (100 % на D+1). Поэтому настройка — по площадке:
-    `reorder_params.kpi_day_settle_days_<площадка>` (amz, lm, mm, cf), запасная — `kpi_day_settle_days`.
 
-    День D неполон, если у какого-то канала есть строки за D, загруженные раньше D + задержка этого
-    канала. Граница — день перед самым ранним неполным. Канал, у которого за D строк нет (тихий день,
-    ManoMano FR), границу не двигает: его молчание — не «не догрузилось», а «не продавал»."""
+_DAY_STATUS_SQL = """
+    WITH mk AS (
+        SELECT DISTINCT upper(v.marketplace_code) AS code, lower(p.short_name) AS plat
+        FROM kabinet_data.v_marketplaces v
+        JOIN kabinet_data.platforms p ON p.full_name = v.channel),
+    runs AS (
+        SELECT mk.plat, max(e.updated_at) AS last_run, max(e.sales_date) AS last_day
+        FROM kabinet_data.economics_summary e
+        JOIN mk ON mk.code = upper(e.marketplace)
+        WHERE e.sales_date >= CURRENT_DATE - 30
+        GROUP BY 1),
+    p AS (SELECT key, value FROM kabinet_data.reorder_params WHERE key LIKE 'kpi_%%')
+    SELECT r.plat,
+           -- updated_at — UTC без зоны: сначала назвать зону, потом перевести в Киев
+           (r.last_run AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Kyiv')::date AS run_day,
+           r.last_day,
+           COALESCE((SELECT value::int FROM p WHERE key = 'kpi_day_settle_days_' || r.plat),
+                    (SELECT value::int FROM p WHERE key = 'kpi_day_settle_days'), 2) AS settle,
+           COALESCE((SELECT value::int FROM p WHERE key = 'kpi_day_final_days_' || r.plat),
+                    (SELECT value::int FROM p WHERE key = 'kpi_day_settle_days_' || r.plat),
+                    (SELECT value::int FROM p WHERE key = 'kpi_day_settle_days'), 2) AS final,
+           COALESCE((SELECT value::numeric FROM p WHERE key = 'kpi_day_provisional_gap_pct_' || r.plat), 0) AS gap,
+           COALESCE((SELECT value::int FROM p WHERE key = 'kpi_channel_active_days'), 3) AS active_days,
+           (now() AT TIME ZONE 'Europe/Kyiv')::date AS today
+    FROM runs r
+"""
+
+
+def day_status(conn) -> DayStatus:
+    """Граница полных дней и «предварительные» дни — по времени ПОСЛЕДНЕЙ загрузки каждого канала.
+
+    Задержка у каналов разная (замер 06.10.2026 по истории версий сырья — Delta хранит 7 дней): у Amazon
+    загрузчик перечитывает последние три дня, на D+1 у дня 98,7 % окончательной суммы (худший 96 %),
+    окончательно — после загрузки D+3; у Leroy Merlin, ManoMano и Carrefour — 100 % с первой загрузки.
+    Настройки по площадке в `reorder_params`: `kpi_day_settle_days_<amz|lm|mm|cf>` — через сколько суток
+    после дня он идёт в цифры (Amazon 1, решение владельца 06.10.2026), `kpi_day_final_days_<…>` — когда
+    перестаёт уточняться (Amazon 3), `kpi_day_provisional_gap_pct_<…>` — на сколько может уточниться (1 %).
+
+    Почему по ЗАПУСКУ, а не по строкам дня: строк за день может не быть по двум разным причинам — канал не
+    продавал или его загрузчик ещё не прошёл. Утром до 12:30 строк Amazon и Leroy Merlin за вчера нет, а
+    ManoMano и Carrefour (09:00 и 09:30) уже есть; правило «по строкам» объявило бы вчера полным, и период
+    сравнил бы неполный день с полным. По запуску день D полон, только когда КАЖДЫЙ действующий канал
+    загружался не раньше D + своя задержка. Канал, не загружавшийся дольше `kpi_channel_active_days` (3),
+    границу не держит: мёртвый загрузчик ловят сторож и паспорт, а страница не должна застыть вместе с ним."""
     cur = conn.cursor()
-    cur.execute("""
-        WITH mk AS (
-            SELECT DISTINCT upper(v.marketplace_code) AS code, lower(p.short_name) AS plat
-            FROM kabinet_data.v_marketplaces v
-            JOIN kabinet_data.platforms p ON p.full_name = v.channel),
-        per AS (
-            SELECT mk.plat, e.sales_date, max(e.updated_at) AS loaded
-            FROM kabinet_data.economics_summary e
-            JOIN mk ON mk.code = upper(e.marketplace)
-            WHERE e.sales_date >= CURRENT_DATE - 30
-            GROUP BY 1, 2),
-        lag AS (
-            SELECT per.*, COALESCE(
-                (SELECT value::int FROM kabinet_data.reorder_params WHERE key = 'kpi_day_settle_days_' || per.plat),
-                (SELECT value::int FROM kabinet_data.reorder_params WHERE key = 'kpi_day_settle_days'),
-                2) AS settle
-            FROM per)
-        SELECT min(sales_date) FILTER (WHERE loaded::date < sales_date + settle), max(sales_date) FROM lag
-    """)
-    first_open, last_any = cur.fetchone()
-    if last_any is None:
-        return pd.NaT
-    if first_open is None:
-        return pd.Timestamp(last_any)
-    return pd.Timestamp(first_open) - pd.Timedelta(days=1)
+    cur.execute(_DAY_STATUS_SQL)
+    rows = cur.fetchall()
+    if not rows:
+        return DayStatus(pd.NaT, pd.NaT, 0.0)
+    today = rows[0][-1]
+    settled, prov, gap = None, None, 0.0
+    for plat, run_day, last_day, settle, final, g, active_days, _today in rows:
+        if (today - run_day).days > active_days:
+            continue
+        s_ = run_day - timedelta(days=int(settle))
+        settled = s_ if settled is None else min(settled, s_)
+        if int(final) > int(settle):
+            p_ = run_day - timedelta(days=int(final) - 1)   # перечитан на загрузке D+final — уже окончателен
+            prov = p_ if prov is None else min(prov, p_)
+            gap = max(gap, float(g or 0))
+    return DayStatus(pd.Timestamp(settled) if settled else pd.NaT,
+                     pd.Timestamp(prov) if prov else pd.NaT, gap, pd.Timestamp(today))
+
+
+def settled_last(conn, _unused=None) -> pd.Timestamp:
+    """Последний полный день — см. `day_status`."""
+    return day_status(conn).settled
+
+
+def provisional_text(st_: DayStatus, cur_from, cur_to) -> str:
+    """«вчера (05.10) предварительно, Amazon может уточнить до ~1 %» — для дней периода, которые площадка ещё
+    перечитывает. Пусто, если таких дней в периоде нет."""
+    if pd.isna(st_.provisional) or cur_to is None or pd.isna(cur_to):
+        return ""
+    f = max(pd.Timestamp(st_.provisional), pd.Timestamp(cur_from))
+    to = pd.Timestamp(cur_to)
+    if f > to:
+        return ""
+    yesterday = (st_.today if pd.notna(st_.today) else pd.Timestamp(date.today())) - pd.Timedelta(days=1)
+    if f == to:
+        days = t("mn.prov_yesterday", d=to.strftime("%d.%m")) if to == yesterday else to.strftime("%d.%m")
+    else:
+        days = f"{f.strftime('%d.%m')}–{to.strftime('%d.%m')}"
+    txt = t("mn.provisional", days=days, gap=f"{st_.gap_pct:g}")
+    return txt[:1].upper() + txt[1:]   # идёт второй фразой в строке про период
 
 
 @dataclass
