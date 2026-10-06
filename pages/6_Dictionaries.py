@@ -397,7 +397,7 @@ TR = {
         "tab_plat": "Площадки",
         "plat_hint": "Площадка — оператор или платформа: Amazon, Leroy Merlin, ManoMano. Внутри площадки живут маркетплейсы по странам. "
                      "Обозначения ассортиментной структуры задаются здесь и используются всеми её маркетплейсами — отдельных копий нет.",
-        "plat_list": "Площадки", "plat_new": "Новая площадка", "plat_create": "Создать",
+        "plat_create": "Создать",
         "plat_short": "Краткое название", "plat_short_help": "От 2 до 10 знаков: только заглавные латинские буквы и цифры. Входит в код маркетплейса: AMZ → AMZ-ES.",
         "plat_short_bad": "Краткое название: от 2 до 10 знаков, только заглавные латинские буквы и цифры.",
         "plat_short_dup": "Такое краткое название уже есть у другой площадки.",
@@ -410,12 +410,34 @@ TR = {
         "plat_var": "Вариация", "plat_var_ph": "например Child ASIN",
         "plat_peid": "Товарная сущность (PeID)", "plat_peid_ph": "например ASIN",
         "plat_peid_fmt": "Правило формата PeID", "plat_peid_fmt_ph": "например 10 знаков, начинается с B0",
-        "plat_active": "Активна",
-        "plat_off_deps": "Перед выключением: что у площадки есть сейчас",
         "plat_off_mps": "маркетплейсов: {n}, из них активных {a}",
         "plat_off_note": "Выключенная площадка недоступна для новых маркетплейсов, допусков и прогнозов. История сохраняется, запись не удаляется.",
-        "plat_created": "Площадка создана.", "plat_saved": "Сохранено.",
+        "plat_saved": "Сохранено.",
         "plat_mps": "Маркетплейсы площадки",
+        "plat_about": "**Площадки** — операторы, через которых мы продаём: Amazon, Leroy Merlin, ManoMano. Внутри площадки живут маркетплейсы по странам, и все они берут с площадки обозначения ассортиментной структуры (Parent ASIN, Child ASIN, ASIN).  \n**Как работать:** найдите площадку → нажмите на строку → ниже откроется карточка. Новая площадка — формой «Добавить площадку» внизу. Удаления нет: ненужная площадка отправляется в архив.",
+        "plat_search": "Краткое название или название",
+        "plat_col_mps": "Активные маркетплейсы",
+        "plat_col_mps_help": "Коды действующих маркетплейсов этой площадки. Пусто — у площадки пока нет маркетплейсов.",
+        "plat_col_labels": "Группа / вариация / PeID",
+        "plat_col_labels_help": "Как на площадке называются группа вариаций, вариация и товарная сущность. Пусто — площадка такие сущности не использует.",
+        "plat_list_empty": "По этим фильтрам площадок нет — снимите часть фильтров.",
+        "plat_list_hint": "Список только для просмотра. Чтобы изменить площадку, нажмите на её строку — карточка откроется ниже.",
+        "plat_card_h": "Карточка площадки",
+        "plat_pick": "Площадка",
+        "plat_is_archived": "В архиве: недоступна для новых маркетплейсов, допусков и прогнозов.",
+        "plat_name_help": "Основное название площадки на экранах, например «Amazon» или «Leroy Merlin».",
+        "plat_comment_help": "Необязательно. Любое пояснение для коллег: особенности площадки, контакт, договор.",
+        "plat_vg_help": "Как на площадке называется группа вариаций (семейство товаров), например Parent ASIN на Amazon. Пусто — площадка групп не использует.",
+        "plat_var_help": "Как называется конкретная вариация внутри группы, например Child ASIN на Amazon.",
+        "plat_peid_help": "Как называется идентификатор товара на площадке, например ASIN у Amazon или id_me у ManoMano. Сами значения хранятся в справочнике PeID.",
+        "plat_peid_fmt_help": "Подсказка для тех, кто вводит PeID: как он выглядит. Например «10 знаков, начинается с B0».",
+        "plat_adep_mps": "активных маркетплейсов: {n}",
+        "plat_restore_note": "Площадка в архиве. Вернуть можно в любой момент — маркетплейсы и история на месте.",
+        "plat_off_deps_tail": "Архив площадки не трогает её маркетплейсы и их данные: он закрывает площадку для новых маркетплейсов, допусков и прогнозов. Маркетплейсы при необходимости архивируются отдельно.",
+        "plat_add_h": "Добавить площадку",
+        "plat_add_note": "Новая площадка сразу активна. Обозначения ассортиментной структуры можно заполнить сейчас или позже в карточке.",
+        "plat_ro_add": "Добавлять площадки может планировщик или администратор — у вас доступ только на просмотр.",
+        "plat_created_ok": "Площадка {code} создана. Карточка открыта ниже — теперь на неё можно заводить маркетплейсы.",
         # маркетплейс
         "mp_pick": "Маркетплейс", "mp_code_ro": "Код (собирается сам)",
         "mp_code_hint": "Код — производный: краткое название площадки и код страны. Вручную не правится и пересчитывается, если разрешена смена площадки или страны.",
@@ -994,7 +1016,7 @@ TR = {
         "tab_plat": "Майданчики",
         "plat_hint": "Майданчик — оператор або платформа: Amazon, Leroy Merlin, ManoMano. Усередині майданчика живуть маркетплейси по країнах. "
                      "Позначення асортиментної структури задаються тут і використовуються всіма його маркетплейсами — окремих копій немає.",
-        "plat_list": "Майданчики", "plat_new": "Новий майданчик", "plat_create": "Створити",
+        "plat_create": "Створити",
         "plat_short": "Коротка назва", "plat_short_help": "Від 2 до 10 знаків: лише великі латинські літери й цифри. Входить у код маркетплейсу: AMZ → AMZ-ES.",
         "plat_short_bad": "Коротка назва: від 2 до 10 знаків, лише великі латинські літери й цифри.",
         "plat_short_dup": "Така коротка назва вже є в іншого майданчика.",
@@ -1007,12 +1029,34 @@ TR = {
         "plat_var": "Варіація", "plat_var_ph": "наприклад Child ASIN",
         "plat_peid": "Товарна сутність (PeID)", "plat_peid_ph": "наприклад ASIN",
         "plat_peid_fmt": "Правило формату PeID", "plat_peid_fmt_ph": "наприклад 10 знаків, починається з B0",
-        "plat_active": "Активний",
-        "plat_off_deps": "Перед вимкненням: що в майданчика є зараз",
         "plat_off_mps": "маркетплейсів: {n}, з них активних {a}",
         "plat_off_note": "Вимкнений майданчик недоступний для нових маркетплейсів, допусків і прогнозів. Історія зберігається, запис не видаляється.",
-        "plat_created": "Майданчик створено.", "plat_saved": "Збережено.",
+        "plat_saved": "Збережено.",
         "plat_mps": "Маркетплейси майданчика",
+        "plat_about": "**Майданчики** — оператори, через яких ми продаємо: Amazon, Leroy Merlin, ManoMano. Усередині майданчика живуть маркетплейси за країнами, і всі вони беруть із майданчика позначення асортиментної структури (Parent ASIN, Child ASIN, ASIN).  \n**Як працювати:** знайдіть майданчик → натисніть на рядок → нижче відкриється картка. Новий майданчик — формою «Додати майданчик» унизу. Видалення немає: непотрібний майданчик іде в архів.",
+        "plat_search": "Коротка назва або назва",
+        "plat_col_mps": "Активні маркетплейси",
+        "plat_col_mps_help": "Коди чинних маркетплейсів цього майданчика. Порожньо — у майданчика поки немає маркетплейсів.",
+        "plat_col_labels": "Група / варіація / PeID",
+        "plat_col_labels_help": "Як на майданчику називаються група варіацій, варіація і товарна сутність. Порожньо — майданчик таких сутностей не використовує.",
+        "plat_list_empty": "За цими фільтрами майданчиків немає — зніміть частину фільтрів.",
+        "plat_list_hint": "Список лише для перегляду. Щоб змінити майданчик, натисніть на його рядок — картка відкриється нижче.",
+        "plat_card_h": "Картка майданчика",
+        "plat_pick": "Майданчик",
+        "plat_is_archived": "В архіві: недоступний для нових маркетплейсів, допусків і прогнозів.",
+        "plat_name_help": "Основна назва майданчика на екранах, наприклад «Amazon» або «Leroy Merlin».",
+        "plat_comment_help": "Необов'язково. Будь-яке пояснення для колег: особливості майданчика, контакт, договір.",
+        "plat_vg_help": "Як на майданчику називається група варіацій (родина товарів), наприклад Parent ASIN на Amazon. Порожньо — майданчик груп не використовує.",
+        "plat_var_help": "Як називається конкретна варіація всередині групи, наприклад Child ASIN на Amazon.",
+        "plat_peid_help": "Як називається ідентифікатор товару на майданчику, наприклад ASIN в Amazon або id_me в ManoMano. Самі значення зберігаються в довіднику PeID.",
+        "plat_peid_fmt_help": "Підказка для тих, хто вводить PeID: як він виглядає. Наприклад «10 знаків, починається з B0».",
+        "plat_adep_mps": "активних маркетплейсів: {n}",
+        "plat_restore_note": "Майданчик в архіві. Повернути можна будь-коли — маркетплейси та історія на місці.",
+        "plat_off_deps_tail": "Архів майданчика не чіпає його маркетплейси та їхні дані: він закриває майданчик для нових маркетплейсів, допусків і прогнозів. Маркетплейси за потреби архівуються окремо.",
+        "plat_add_h": "Додати майданчик",
+        "plat_add_note": "Новий майданчик одразу активний. Позначення асортиментної структури можна заповнити зараз або пізніше в картці.",
+        "plat_ro_add": "Додавати майданчики може планувальник або адміністратор — у вас доступ лише на перегляд.",
+        "plat_created_ok": "Майданчик {code} створено. Картка відкрита нижче — тепер на нього можна заводити маркетплейси.",
         "mp_pick": "Маркетплейс", "mp_code_ro": "Код (збирається сам)",
         "mp_code_hint": "Код — похідний: коротка назва майданчика і код країни. Вручну не правиться і перераховується, якщо дозволена зміна майданчика або країни.",
         "mp_platform": "Майданчик", "mp_country": "Країна покриття", "mp_currency": "Валюта",
@@ -1590,7 +1634,7 @@ TR = {
         "tab_plat": "Platforms",
         "plat_hint": "A platform is the operator: Amazon, Leroy Merlin, ManoMano. Marketplaces live inside a platform, one per country. "
                      "Assortment-structure labels are set here and used by every marketplace of the platform — no separate copies.",
-        "plat_list": "Platforms", "plat_new": "New platform", "plat_create": "Create",
+        "plat_create": "Create",
         "plat_short": "Short name", "plat_short_help": "2 to 10 characters: capital Latin letters and digits only. It forms the marketplace code: AMZ → AMZ-ES.",
         "plat_short_bad": "Short name: 2 to 10 characters, capital Latin letters and digits only.",
         "plat_short_dup": "Another platform already uses this short name.",
@@ -1603,12 +1647,34 @@ TR = {
         "plat_var": "Variation", "plat_var_ph": "e.g. Child ASIN",
         "plat_peid": "Product entity (PeID)", "plat_peid_ph": "e.g. ASIN",
         "plat_peid_fmt": "PeID format rule", "plat_peid_fmt_ph": "e.g. 10 characters, starts with B0",
-        "plat_active": "Active",
-        "plat_off_deps": "Before switching off: what this platform has now",
         "plat_off_mps": "marketplaces: {n}, active: {a}",
         "plat_off_note": "An inactive platform is unavailable for new marketplaces, admissions and forecasts. History is kept, the record is not deleted.",
-        "plat_created": "Platform created.", "plat_saved": "Saved.",
+        "plat_saved": "Saved.",
         "plat_mps": "Marketplaces of this platform",
+        "plat_about": "**Platforms** — the operators we sell through: Amazon, Leroy Merlin, ManoMano. A platform holds marketplaces by country, and all of them take the assortment-structure labels (Parent ASIN, Child ASIN, ASIN) from the platform.  \n**How to use:** find a platform → click its row → the card opens below. A new platform — the «Add platform» form at the bottom. There is no deletion: a platform you no longer need goes to the archive.",
+        "plat_search": "Short name or name",
+        "plat_col_mps": "Active marketplaces",
+        "plat_col_mps_help": "Codes of this platform's active marketplaces. Empty — the platform has no marketplaces yet.",
+        "plat_col_labels": "Group / variation / PeID",
+        "plat_col_labels_help": "What the platform calls a variation group, a variation and a product entity. Empty — the platform does not use them.",
+        "plat_list_empty": "No platforms match these filters — clear some of them.",
+        "plat_list_hint": "The list is read-only. To change a platform, click its row — the card opens below.",
+        "plat_card_h": "Platform card",
+        "plat_pick": "Platform",
+        "plat_is_archived": "Archived: not available for new marketplaces, admissions or forecasts.",
+        "plat_name_help": "The platform's main name on screens, e.g. «Amazon» or «Leroy Merlin».",
+        "plat_comment_help": "Optional. Any note for colleagues: platform specifics, contact, contract.",
+        "plat_vg_help": "What the platform calls a variation group (product family), e.g. Parent ASIN on Amazon. Empty — the platform has no groups.",
+        "plat_var_help": "What a single variation inside a group is called, e.g. Child ASIN on Amazon.",
+        "plat_peid_help": "What the product identifier is called on the platform, e.g. ASIN on Amazon or id_me on ManoMano. The values themselves live in the PeID directory.",
+        "plat_peid_fmt_help": "A hint for whoever enters PeIDs: what it looks like. E.g. «10 characters, starts with B0».",
+        "plat_adep_mps": "active marketplaces: {n}",
+        "plat_restore_note": "The platform is archived. You can restore it at any time — marketplaces and history are intact.",
+        "plat_off_deps_tail": "Archiving a platform does not touch its marketplaces or their data: it closes the platform for new marketplaces, admissions and forecasts. Archive marketplaces separately if needed.",
+        "plat_add_h": "Add platform",
+        "plat_add_note": "A new platform is active right away. Assortment-structure labels can be filled in now or later in the card.",
+        "plat_ro_add": "Planners and admins can add platforms — you have read-only access.",
+        "plat_created_ok": "Platform {code} created. Its card is open below — you can now add marketplaces to it.",
         "mp_pick": "Marketplace", "mp_code_ro": "Code (derived)",
         "mp_code_hint": "The code is derived from the platform short name and the country code. It is never typed and is recalculated when a platform or country change is allowed.",
         "mp_platform": "Platform", "mp_country": "Country", "mp_currency": "Currency",
@@ -3719,57 +3785,99 @@ def _mp_active_deps(mp_id: int) -> list:
 
 
 def _section_plat():
-    st.caption(_tr("plat_hint"))
+    """Площадки по общему приёму справочников (06.10.2026): инструкция → список с поиском и фильтром →
+    карточка выбранной строки → форма создания. Правила — ТЗ 003 §3, §6, §7 без изменений: краткое
+    название 2–10 заглавных латинских букв и цифр, уникально; три обозначения ассортиментной структуры
+    живут на площадке и используются всеми её маркетплейсами; физического удаления нет — только архив и
+    возврат (решение владельца 06.10.2026)."""
+    dict_kit.instruction(_tr("plat_about"), _tr("plat_hint"))
+    if "plat_card_pick_next" in st.session_state:
+        st.session_state["plat_card_pick"] = st.session_state.pop("plat_card_pick_next")
+    _created = st.session_state.pop("plat_created_code", None)
+    if _created:
+        st.success(_trf("plat_created_ok", code=_created))
     plats = _plat_attrs()
     mp_cnt = q("""
-        SELECT platform_short, count(*) AS total, count(*) FILTER (WHERE is_active) AS active
+        SELECT platform_short, count(*) AS total, count(*) FILTER (WHERE is_active) AS active,
+               string_agg(code, ', ' ORDER BY code) FILTER (WHERE is_active) AS codes
         FROM kabinet_data.marketplaces_new GROUP BY 1
     """).set_index("platform_short")
 
-    left, right = st.columns([1, 2])
-    with left:
-        st.markdown(f"**{_tr('plat_list')}**")
-        labels = {int(r.id): f"{r.short_name} — {r.full_name}" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
-                  for _, r in plats.iterrows()}
-        sel = st.radio(" ", list(labels), format_func=lambda i: labels[i], key="plat_pick",
-                       label_visibility="collapsed") if labels else None
-        with st.form("new_plat", clear_on_submit=True):
-            st.markdown(f"**{_tr('plat_new')}**")
-            n_short = st.text_input(_tr("plat_short"), help=_tr("plat_short_help"))
-            n_name = st.text_input(_tr("plat_name"))
-            if st.form_submit_button(_tr("plat_create")):
-                short = (n_short or "").strip().upper()
-                if not SHORT_RE.match(short):
-                    st.error(_tr("plat_short_bad"))
-                elif not (n_name or "").strip():
-                    st.error(_tr("plat_name_empty"))
-                elif short in set(plats["short_name"]):
-                    st.error(_tr("plat_short_dup"))
-                else:
-                    try:
-                        exec_sql([
-                            ("INSERT INTO kabinet_data.platforms (short_name, full_name) VALUES (%s, %s)",
-                             (short, n_name.strip())),
-                            ("INSERT INTO kabinet_data.platform_attributes (platform_id, is_active, updated_by) "
-                             "SELECT id, true, 'kabinet' FROM kabinet_data.platforms WHERE short_name = %s "
-                             "ON CONFLICT (platform_id) DO NOTHING", (short,)),
-                            (MPLOG, ("platform", 0, "created", None, short)),
-                        ])
-                        st.cache_data.clear(); st.success(_tr("plat_created")); st.rerun()
-                    except Exception as e:
-                        st.error(_trf("err", e=e))
+    f1, f2 = st.columns([2, 1])
+    search = f1.text_input(_tr("plat_search"), key="plat_search", placeholder="AMZ, Amazon…").strip()
+    state_sel = f2.selectbox(_tr("sku_state_f"), ["active", "archived", "all"], key="plat_state_f",
+                             format_func=lambda x: _tr(f"sku_state_{x}"))
+    view = plats.copy()
+    if search:
+        view = view[view["short_name"].str.contains(search, case=False, na=False, regex=False)
+                    | view["full_name"].fillna("").str.contains(search, case=False, na=False, regex=False)]
+    if state_sel != "all":
+        view = view[view["is_active"].astype(bool) == (state_sel == "active")]
+    st.caption(_trf("mp_summary", shown=len(view), total=len(plats),
+                    arch=int((~plats["is_active"].astype(bool)).sum())))
 
-    with right:
-        if sel is None:
-            return
-        row = plats.set_index("id").loc[sel]
-        total = int(mp_cnt["total"].get(row["short_name"], 0))
-        active = int(mp_cnt["active"].get(row["short_name"], 0))
-        st.markdown(f"#### {row['full_name']}")
-        st.caption(f"ID {int(sel)} · " + _trf("plat_off_mps", n=total, a=active))
+    def _labels(r):
+        parts = [as_text(r[k]) for k in ("variation_group_label", "variation_label", "product_entity_label")]
+        return " / ".join(p or "—" for p in parts) if any(parts) else ""
+
+    lst = pd.DataFrame({
+        "short": view["short_name"],
+        "name": view["full_name"].fillna(""),
+        "mps": [as_text(mp_cnt["codes"].get(sh)) if sh in mp_cnt.index else "" for sh in view["short_name"]],
+        "labels": [_labels(r) for _, r in view.iterrows()],
+        "state": [_tr("sku_state_active") if bool(a) else _tr("sku_state_archived") for a in view["is_active"]],
+        "comment": [as_text(c) for c in view["comment"]],
+    })
+    _fkey = abs(hash((search, state_sel))) % 10 ** 8
+    ev = st.dataframe(lst, key=f"plat_list_{_fkey}", use_container_width=True, hide_index=True,
+                      height=min(420, 38 + 35 * max(len(lst), 1)),
+                      on_select="rerun", selection_mode=["single-row", "single-cell"],
+                      column_config={
+                          "short": st.column_config.TextColumn(_tr("plat_short"), width=140),
+                          "name": st.column_config.TextColumn(_tr("plat_name"), width="medium"),
+                          "mps": st.column_config.TextColumn(_tr("plat_col_mps"), width="large",
+                                                             help=_tr("plat_col_mps_help")),
+                          "labels": st.column_config.TextColumn(_tr("plat_col_labels"), width="medium",
+                                                                help=_tr("plat_col_labels_help")),
+                          "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
+                          "comment": st.column_config.TextColumn(_tr("plat_comment"), width="medium"),
+                      })
+    st.caption(_tr("plat_list_empty") if lst.empty else _tr("plat_list_hint"))
+
+    options = [int(i) for i in view["id"]]
+    if options:
+        _sel = ev.selection if ev is not None and hasattr(ev, "selection") else {}
+        rows = list(_sel.get("rows", []) or [])
+        cells = list(_sel.get("cells", []) or [])
+        _pos = rows[0] if rows else (int(cells[0][0]) if cells else None)
+        _picked = options[_pos] if _pos is not None and _pos < len(options) else None
+        _sig = (_fkey, tuple(rows), tuple(tuple(c) for c in cells))
+        if _picked and _sig != st.session_state.get("plat_list_sig"):
+            st.session_state["plat_card_pick"] = _picked
+        st.session_state["plat_list_sig"] = _sig
+        if st.session_state.get("plat_card_pick") not in options:
+            st.session_state["plat_card_pick"] = options[0]
+        labels = {int(r.id): f"{r.short_name} — {r.full_name}" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
+                  for _, r in view.iterrows()}
+        st.markdown("#### " + _tr("plat_card_h"))
+        sel = st.selectbox(_tr("plat_pick"), options, format_func=lambda i: labels[i], key="plat_card_pick")
+        _plat_card(plats.set_index("id").loc[sel], int(sel), plats, mp_cnt)
+
+    _plat_add_form(plats)
+
+
+def _plat_card(row, sel: int, plats, mp_cnt):
+    can_edit = auth.can("dict.edit")
+    total = int(mp_cnt["total"].get(row["short_name"], 0)) if row["short_name"] in mp_cnt.index else 0
+    active = int(mp_cnt["active"].get(row["short_name"], 0)) if row["short_name"] in mp_cnt.index else 0
+    box = st.container(border=True)
+    with box:
+        st.markdown(f"**{row['short_name']} · {row['full_name']}**"
+                    + ("" if bool(row["is_active"]) else f"  \n{_tr('plat_is_archived')}"))
+        st.caption(f"ID {sel} · " + _trf("plat_off_mps", n=total, a=active))
 
         c1, c2 = st.columns([1, 2])
-        # краткое название входит в код каждого маркетплейса и в внешний ключ: пока на площадку
+        # краткое название входит в код каждого маркетплейса и во внешний ключ: пока на площадку
         # ссылаются маркетплейсы, переименование не даст база, и честнее сказать это сразу
         if total:
             c1.text_input(_tr("plat_short"), value=row["short_name"], disabled=True,
@@ -3778,25 +3886,26 @@ def _section_plat():
         else:
             new_short = c1.text_input(_tr("plat_short"), value=row["short_name"], key=f"ps_{sel}",
                                       help=_tr("plat_short_help"))
-        new_name = c2.text_input(_tr("plat_name"), value=row["full_name"] or "", key=f"pn_{sel}")
-        new_cmt = st.text_input(_tr("plat_comment"), value=row["comment"] or "", key=f"pc2_{sel}")
+        new_name = c2.text_input(_tr("plat_name"), value=row["full_name"] or "", key=f"pn_{sel}",
+                                 help=_tr("plat_name_help"))
+        new_cmt = st.text_input(_tr("plat_comment"), value=row["comment"] or "", key=f"pc2_{sel}",
+                                help=_tr("plat_comment_help"))
 
         st.markdown("##### " + _tr("plat_labels"))
         st.caption(_tr("plat_labels_hint"))
         l1, l2, l3 = st.columns(3)
         new_vg = l1.text_input(_tr("plat_vg"), value=row["variation_group_label"] or "",
-                               placeholder=_tr("plat_vg_ph"), key=f"pvg_{sel}")
+                               placeholder=_tr("plat_vg_ph"), key=f"pvg_{sel}", help=_tr("plat_vg_help"))
         new_var = l2.text_input(_tr("plat_var"), value=row["variation_label"] or "",
-                                placeholder=_tr("plat_var_ph"), key=f"pvar_{sel}")
+                                placeholder=_tr("plat_var_ph"), key=f"pvar_{sel}", help=_tr("plat_var_help"))
         new_pe = l3.text_input(_tr("plat_peid"), value=row["product_entity_label"] or "",
-                               placeholder=_tr("plat_peid_ph"), key=f"ppe_{sel}")
+                               placeholder=_tr("plat_peid_ph"), key=f"ppe_{sel}", help=_tr("plat_peid_help"))
         new_fmt = st.text_input(_tr("plat_peid_fmt"), value=row["peid_format_hint"] or "",
-                                placeholder=_tr("plat_peid_fmt_ph"), key=f"pfmt_{sel}")
-        new_act = st.checkbox(_tr("plat_active"), value=bool(row["is_active"]), key=f"pa_{sel}")
-        if bool(row["is_active"]) and not new_act:
-            st.warning(_tr("plat_off_note"))
+                                placeholder=_tr("plat_peid_fmt_ph"), key=f"pfmt_{sel}",
+                                help=_tr("plat_peid_fmt_help"))
 
-        if st.button(_tr("save"), key=f"plat_save_{sel}", type="primary"):
+        if st.button(_tr("save"), key=f"plat_save_{sel}", type="primary", disabled=not can_edit,
+                     help=None if can_edit else _tr("sku_ro_help")):
             short = (new_short or "").strip().upper()
             errs = []
             if not SHORT_RE.match(short):
@@ -3811,40 +3920,197 @@ def _section_plat():
             else:
                 stmts, log = [], []
                 if short != row["short_name"]:
-                    stmts.append(("UPDATE kabinet_data.platforms SET short_name = %s WHERE id = %s", (short, int(sel))))
+                    stmts.append(("UPDATE kabinet_data.platforms SET short_name = %s WHERE id = %s", (short, sel)))
                     log.append(("short_name", row["short_name"], short))
                 if (new_name or "").strip() != (row["full_name"] or ""):
                     stmts.append(("UPDATE kabinet_data.platforms SET full_name = %s WHERE id = %s",
-                                  (new_name.strip(), int(sel))))
+                                  (new_name.strip(), sel)))
                     log.append(("full_name", row["full_name"], new_name.strip()))
                 fields = {"comment": new_cmt or None, "variation_group_label": new_vg or None,
                           "variation_label": new_var or None, "product_entity_label": new_pe or None,
-                          "peid_format_hint": new_fmt or None, "is_active": new_act}
+                          "peid_format_hint": new_fmt or None}
                 changed = {k: v for k, v in fields.items() if not _same(row[k], v)}
                 if changed:
                     sets = ", ".join(f"{k} = %s" for k in changed)
-                    stmts.append((f"INSERT INTO kabinet_data.platform_attributes (platform_id) VALUES (%s) "
-                                  f"ON CONFLICT (platform_id) DO NOTHING", (int(sel),)))
+                    stmts.append(("INSERT INTO kabinet_data.platform_attributes (platform_id) VALUES (%s) "
+                                  "ON CONFLICT (platform_id) DO NOTHING", (sel,)))
                     stmts.append((f"UPDATE kabinet_data.platform_attributes SET {sets}, updated_at = now(), "
                                   f"updated_by = 'kabinet' WHERE platform_id = %s",
-                                  tuple(changed.values()) + (int(sel),)))
+                                  tuple(changed.values()) + (sel,)))
                     log += [(k, row[k], v) for k, v in changed.items()]
                 if not stmts:
                     st.info(_tr("nochange"))
                 else:
-                    stmts += [(MPLOG, ("platform", int(sel), f, None if pd.isna(o) else str(o),
+                    stmts += [(MPLOG, ("platform", sel, f, None if pd.isna(o) else str(o),
                                        None if v is None else str(v))) for f, o, v in log]
                     try:
                         exec_sql(stmts); st.cache_data.clear(); st.success(_tr("plat_saved")); st.rerun()
                     except Exception as e:
                         st.error(_trf("err", e=e))
 
-        if total:
-            st.markdown("##### " + _tr("plat_mps"))
-            st.dataframe(q(f"""SELECT code, name, country_alpha2 AS country, currency, is_active
-                               FROM kabinet_data.marketplaces_new
-                               WHERE platform_short = '{row["short_name"]}' ORDER BY code"""),
-                         hide_index=True, use_container_width=True)
+    if can_edit:
+        _plat_archive(row, sel)
+
+    if total:
+        st.markdown("##### " + _tr("plat_mps"))
+        st.dataframe(q1("""SELECT code, name, country_alpha2 AS country, currency, is_active
+                           FROM kabinet_data.marketplaces_new WHERE platform_short = %s ORDER BY code""",
+                        (row["short_name"],)),
+                     hide_index=True, use_container_width=True)
+
+    with st.expander(_tr("mp_log")):
+        lg = q1("""SELECT changed_at, field, old_value, new_value, actor
+                   FROM kabinet_data.marketplace_change_log
+                   WHERE object_type = 'platform' AND object_id = %s
+                   ORDER BY changed_at DESC LIMIT 200""", (sel,))
+        if lg.empty:
+            st.caption(_tr("mp_log_empty"))
+        else:
+            lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"),
+                          _tr("mp_log_new"), _tr("mp_log_who")]
+            st.dataframe(lg, hide_index=True, use_container_width=True,
+                         height=min(320, 38 + 35 * len(lg)))
+
+
+def _plat_active_deps(short: str) -> list:
+    """Что показать перед архивом площадки (ТЗ 003 §7): действующие связи площадки и всех её маркетплейсов."""
+    r = q_now("""
+        WITH m AS (SELECT id, code FROM kabinet_data.marketplaces_new WHERE platform_short = %s)
+        SELECT (SELECT count(*) FROM kabinet_data.marketplaces_new WHERE platform_short = %s AND is_active) AS mps,
+               (SELECT count(*) FROM kabinet_data.assortment_admissions a
+                 WHERE a.removed_on IS NULL
+                   AND ((a.level = 'platform' AND a.platform = %s)
+                        OR (a.level = 'marketplace' AND a.marketplace_id IN (SELECT id FROM m)))) AS adm,
+               (SELECT count(*) FROM kabinet_data.pool_members
+                 WHERE marketplace_id IN (SELECT id FROM m)
+                   AND (valid_to IS NULL OR valid_to > CURRENT_DATE)) AS pools,
+               (SELECT count(*) FROM kabinet_data.forecast_register
+                 WHERE object_type = 'marketplace' AND object_id IN (SELECT id FROM m) AND is_current) AS fc,
+               (SELECT count(*) FROM kabinet_data.product_entities
+                 WHERE marketplace_id IN (SELECT id FROM m) AND is_active IS NOT FALSE) AS peid,
+               (SELECT count(*) FROM kabinet_data.incidents i
+                 WHERE i.status IN ('open', 'acknowledged')
+                   AND EXISTS (SELECT 1 FROM m WHERE i.message LIKE '%%:' || m.code || '/%%')) AS alerts
+    """, (short, short, short))
+    out = []
+    for col, key in (("mps", "plat_adep_mps"), ("adm", "mp_adep_matrix"), ("pools", "mp_dep_pool"),
+                     ("fc", "mp_adep_fc"), ("peid", "mp_dep_peid"), ("alerts", "mp_dep_alerts")):
+        n = int(r[col].iloc[0])
+        if n:
+            out.append(_trf(key, n=n))
+    return out
+
+
+def _plat_archive(row, sel: int):
+    """В архив / вернуть из архива (ТЗ 003 §6–§7). Удаления нет. Архив площадки не трогает её
+    маркетплейсы и их данные: он закрывает площадку для НОВЫХ операций (выбор в формах идёт через
+    `v_marketplaces_selectable`), а всё существующее остаётся как есть."""
+    box = st.container(border=True)
+    box.markdown("**" + _tr("mp_act_h") + "**")
+    flag = f"plat_arch_ask_{sel}"
+    if not bool(row["is_active"]):
+        box.caption(_tr("plat_restore_note"))
+        if box.button(_tr("mp_act_restore"), key=f"plat_rest_{sel}"):
+            _plat_set_active(row, sel, True)
+        return
+    if not st.session_state.get(flag):
+        box.caption(_tr("plat_off_note"))
+        if box.button(_tr("mp_act_archive"), key=f"plat_arch_{sel}"):
+            st.session_state[flag] = True
+            st.rerun()
+        return
+    deps = _plat_active_deps(row["short_name"])
+    if deps:
+        box.warning(_tr("mp_off_deps") + ":\n\n" + "\n".join(f"- {d}" for d in deps)
+                    + "\n\n" + _tr("plat_off_deps_tail"))
+    else:
+        box.info(_tr("mp_off_nodeps"))
+    c1, c2 = box.columns(2)
+    if c1.button(_tr("mp_act_archive_yes"), key=f"plat_arch_yes_{sel}", type="primary"):
+        st.session_state.pop(flag, None)
+        _plat_set_active(row, sel, False)
+    if c2.button(_tr("del_confirm_no"), key=f"plat_arch_no_{sel}"):
+        st.session_state.pop(flag, None)
+        st.rerun()
+
+
+def _plat_set_active(row, sel: int, active: bool):
+    try:
+        exec_sql([("INSERT INTO kabinet_data.platform_attributes (platform_id) VALUES (%s) "
+                   "ON CONFLICT (platform_id) DO NOTHING", (sel,)),
+                  ("UPDATE kabinet_data.platform_attributes SET is_active = %s, updated_at = now(), "
+                   "updated_by = 'kabinet' WHERE platform_id = %s", (active, sel)),
+                  (MPLOG, ("platform", sel, "is_active", str(bool(row["is_active"])), str(active)))])
+        st.cache_data.clear()
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
+
+
+def _plat_add_form(plats):
+    """Создание площадки (ТЗ 003 §3): краткое название и название обязательны, обозначения ассортиментной
+    структуры — по необходимости, сразу активна. Запись журнала привязана к id новой площадки — раньше
+    создание писалось с id 0 и ни к какой площадке не относилось."""
+    st.markdown("#### " + _tr("plat_add_h"))
+    if not auth.can("dict.edit"):
+        st.caption(_tr("plat_ro_add"))
+        return
+    st.caption(_tr("plat_add_note"))
+    with st.form("plat_add_form", clear_on_submit=False):
+        a1, a2 = st.columns([1, 2])
+        n_short = a1.text_input(_tr("plat_short") + " *", help=_tr("plat_short_help"), key="plat_add_short",
+                                placeholder="AMZ")
+        n_name = a2.text_input(_tr("plat_name") + " *", help=_tr("plat_name_help"), key="plat_add_name",
+                               placeholder="Amazon")
+        n_cmt = st.text_input(_tr("plat_comment"), help=_tr("plat_comment_help"), key="plat_add_cmt")
+        st.caption(_tr("plat_labels_hint"))
+        l1, l2, l3 = st.columns(3)
+        n_vg = l1.text_input(_tr("plat_vg"), placeholder=_tr("plat_vg_ph"), help=_tr("plat_vg_help"),
+                             key="plat_add_vg")
+        n_var = l2.text_input(_tr("plat_var"), placeholder=_tr("plat_var_ph"), help=_tr("plat_var_help"),
+                              key="plat_add_var")
+        n_pe = l3.text_input(_tr("plat_peid"), placeholder=_tr("plat_peid_ph"), help=_tr("plat_peid_help"),
+                             key="plat_add_pe")
+        n_fmt = st.text_input(_tr("plat_peid_fmt"), placeholder=_tr("plat_peid_fmt_ph"),
+                              help=_tr("plat_peid_fmt_help"), key="plat_add_fmt")
+        go = st.form_submit_button(_tr("plat_create"), type="primary")
+    if not go:
+        return
+    short = (n_short or "").strip().upper()
+    errs = []
+    if not SHORT_RE.match(short):
+        errs.append(_tr("plat_short_bad"))
+    if not (n_name or "").strip():
+        errs.append(_tr("plat_name_empty"))
+    if short and not q_now("SELECT 1 FROM kabinet_data.platforms WHERE short_name = %s", (short,)).empty:
+        errs.append(_tr("plat_short_dup"))
+    if errs:
+        for e in errs:
+            st.error(e)
+        return
+    v = lambda x: (x or "").strip() or None
+    try:
+        # одна команда: площадка, её реквизиты и запись журнала с её настоящим id
+        exec_sql([("""
+            WITH p AS (INSERT INTO kabinet_data.platforms (short_name, full_name) VALUES (%s, %s) RETURNING id),
+                 a AS (INSERT INTO kabinet_data.platform_attributes
+                           (platform_id, is_active, comment, variation_group_label, variation_label,
+                            product_entity_label, peid_format_hint, updated_by)
+                       SELECT id, true, %s, %s, %s, %s, %s, %s FROM p)
+            INSERT INTO kabinet_data.marketplace_change_log (object_type, object_id, field, old_value, new_value, actor)
+            SELECT 'platform', id, 'created', NULL, %s, %s FROM p
+        """, (short, n_name.strip(), v(n_cmt), v(n_vg), v(n_var), v(n_pe), v(n_fmt), _actor(),
+              f"{short} · {n_name.strip()}", _actor()))])
+        st.cache_data.clear()
+        new_id = q_now("SELECT id FROM kabinet_data.platforms WHERE short_name = %s", (short,))
+        if not new_id.empty:
+            st.session_state["plat_card_pick_next"] = int(new_id["id"].iloc[0])
+        st.session_state["plat_created_code"] = short
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
+
 
 # ------------------------------------------------------------------ пулы ---
 def _section_pool():
