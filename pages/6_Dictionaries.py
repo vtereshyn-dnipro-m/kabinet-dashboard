@@ -21,6 +21,7 @@ import streamlit as st
 
 from i18n import init_lang, get_lang, t as i18n_t
 import data_passport as passport
+import dict_kit
 import auth
 from db.connection import get_connection
 from util import as_text
@@ -32,18 +33,101 @@ from util import as_text
 
 TR = {
     "ru": {
+        "sku_about": "**Справочник SKU** — все товары компании, которые продаются или планируются: код, тип (обычный товар или набор), название, EAN, даты ввода и вывода, габариты и вес упаковки. Отсюда их берут матрица, прогноз, покрытие, автозаказ и расчёт доставки в марже.  \n**Как работать:** найдите товар поиском или фильтрами → нажмите на строку → ниже откроется карточка: там можно изменить поля, убрать товар в архив или удалить. Новый товар — формой «Добавить SKU», много сразу — загрузкой из Excel.",
+        "sku_cat_f": "Категория",
+        "sku_state_f": "Статус",
+        "sku_state_active": "в работе",
+        "sku_state_archived": "в архиве",
+        "sku_state_all": "все",
+        "sku_life_f": "Жизненный цикл",
+        "sku_mx_f": "В матрице",
+        "sku_mx_any": "неважно",
+        "sku_mx_yes": "есть",
+        "sku_mx_no": "нет",
+        "sku_summary2": "Показано {shown} из {total} · в архиве {arch} · с ошибками проверок {err}",
+        "sku_col_cat": "Категория",
+        "sku_col_state": "Статус",
+        "sku_col_matrix": "В матрице",
+        "sku_col_matrix_help": "✓ — товар допущен к продаже хотя бы на одной площадке (действующий допуск в матрице)",
+        "sku_col_life": "Жизненный цикл",
+        "sku_col_life_help": "по рынкам, где товар есть; расчётный или поставленный вручную на «Категориях»",
+        "sku_act_h": "Действия с SKU",
+        "sku_act_archive": "🗄 В архив",
+        "sku_act_restore": "↩ Вернуть из архива",
+        "sku_is_archived": "SKU в архиве: в новых операциях его не предлагают, история сохранена.",
+        "sku_ref_matrix": "допуски в матрице",
+        "sku_ref_forecast": "строки прогноза",
+        "sku_ref_sales": "строки продаж",
+        "sku_ref_comp": "связи состава набора",
+        "sku_ref_norms": "нормативы покрытия",
+        "sku_ref_listings": "листинги площадок",
+        "sku_ref_src": "код есть в Odoo или на площадках ({where}) — загрузчик вернул бы его утром",
+        "sku_del_blocked": "Удалить нельзя — SKU используется:",
+        "sku_del_use_archive": "Уберите его в архив: история сохранится.",
+        "sku_del_what": "SKU {sku}",
+        "sku_deleted": "SKU {sku} удалён",
+        "sku_err_code_empty": "код SKU не указан",
+        "sku_err_code_fmt": "код не похож на SKU: нужны 5–8 цифр, вариант через дефис (-A, -B, -1), у набора префикс S2_",
+        "sku_err_code_dup": "такой SKU уже есть (возможно, в архиве) — найдите его в списке",
+        "sku_err_name_empty": "нужно название",
+        "sku_err_kit_phys": "у набора габариты и вес не вводятся — они считаются из состава",
+        "sku_note_manual": "заведён вручную в Кабинете",
+        "sku_add_h": "Добавить SKU",
+        "sku_add_note": "Обычно SKU появляются сами — из Odoo, листингов и продаж. Вручную заводите только товар, которого ещё нет в Odoo: например, новинку до первой поставки. Поля со * обязательны; подсказка — у значка ⓘ рядом с полем.",
+        "sku_add_btn": "➕ Добавить SKU",
+        "sku_added": "SKU {sku} добавлен",
+        "sku_fh_sku": "Код товара из Odoo: 8 цифр (08455000). Вариант — через дефис (99601000-B). Набор — с префиксом S2_, S3_ (S2_41473000). Где взять: карточка товара в Odoo, поле «Внутренний код».",
+        "sku_fh_type": "«базовый» — один товар; «составной» — набор из нескольких товаров. Где взять: в Odoo набор имеет тип «Kit».",
+        "sku_fh_name": "Название товара, как в Odoo. У товаров из Odoo название приходит само и здесь не меняется.",
+        "sku_fh_ean": "Штрихкод с упаковки: 8 или 13 цифр (4823102359007). Где взять: упаковка, карточка в Odoo или в Seller Central.",
+        "sku_fh_supplier": "Код этого товара у поставщика — если он нужен для заказа. Где взять: прайс или счёт поставщика.",
+        "sku_fh_intro": "Дата, с которой товар в продаже. Где взять: дата первой поставки или открытия листинга. Пусто — посчитаем сами (оценка).",
+        "sku_fh_exit": "Дата вывода из ассортимента. Пусто — товар не выводится.",
+        "sku_fh_dims": "Размер УПАКОВКИ в миллиметрах, целым числом. Где взять: замер на складе или карточка в Seller Central (размеры упаковки).",
+        "sku_fh_weight": "Вес брутто (с упаковкой) в кг, дробная часть через запятую или точку. Где взять: ERP, замер на складе, Seller Central.",
+        "sku_xl_h": "Массовая загрузка из Excel",
+        "sku_xl_note": "1) Скачайте шаблон — пустой или с текущими данными (по фильтрам выше). 2) Заполните: одна строка — один SKU; на листе «Как заполнять» сказано, что вводить в каждую колонку. Пустая ячейка ничего не меняет. 3) Загрузите файл — Кабинет проверит каждую строку и покажет, что изменится. Сохранение — только если ошибок нет.",
+        "sku_xl_tpl_empty": "⬇ Пустой шаблон",
+        "sku_xl_tpl_cur": "⬇ Текущие данные ({n} SKU)",
+        "sku_xl_upload": "Загрузите заполненный файл (.xlsx или .csv)",
+        "sku_err_dup_in_file": "SKU встречается в файле второй раз",
+        "sku_err_name_src": "название приходит из Odoo — меняйте его там",
+        "sku_xl_save": "💾 Сохранить ({n} SKU)",
+        "sku_xl_saved": "Сохранено: новых {new}, изменённых {upd}",
+        "kit_new": "Новых",
+        "kit_upd": "Изменится",
+        "kit_same": "Без изменений",
+        "kit_err": "Ошибок",
+        "kit_err_block": "В файле есть ошибки — ничего не сохранено. Исправьте строки ниже и загрузите файл снова.",
+        "kit_c_row": "Строка",
+        "kit_c_key": "Код",
+        "kit_c_field": "Поле",
+        "kit_c_value": "В файле",
+        "kit_c_why": "Что не так",
+        "kit_c_old": "Было",
+        "kit_c_new": "Станет",
+        "kit_nothing": "В файле нет изменений.",
+        "kit_howto_sheet": "Как заполнять",
+        "kit_hc_field": "Колонка",
+        "kit_hc_req": "Обязательно",
+        "kit_hc_what": "Что вводить и откуда брать",
+        "kit_hc_ex": "Пример / варианты",
+        "kit_unknown_cols": "Колонки не узнаны и пропущены: {cols}",
+        "kit_missing_cols": "В файле нет обязательных колонок: {cols}",
+        "kit_created": "новый",
+        "kit_why_num": "не число",
+        "kit_why_neg": "отрицательное число",
+        "kit_why_date": "не дата (нужно ДД.ММ.ГГГГ)",
+        "kit_why_ean": "EAN — 8 или 12–14 цифр",
+        "kit_why_choice": "нет такого варианта",
         "sku_card_no_name": "Названия нет ни в Odoo, ни в ERP: заведите карточку товара в Odoo — название приедет само.",
         "sku_hint2": "Откуда приходят данные: тип и название — из Odoo, вес брутто — из ERP, габариты упаковки и EAN — из Amazon, дата ввода — оценка по первому остатку, листингу или продаже. Всё, что вы поправили здесь, помечается «вручную», и загрузчики это поле больше не перезаписывают.",
-        "sku_howto": "**Как заполнять справочник**  \n1. Найдите товар: поиск по коду или названию, или фильтр «Что заполнить» — например «нет габаритов».  \n2. Нажмите на строку в списке — ниже откроется карточка этого SKU.  \n3. В карточке впишите недостающее и нажмите «Сохранить». Под каждым полем написано, откуда сейчас взято значение.",
         "sku_check_f2": "Что заполнить",
         "sku_col_todo": "Что заполнить",
         "sku_col_todo_help": "Проверки справочника: чего не хватает у SKU. Пусто — всё заполнено.",
         "sku_intro_help": "«≈» — оценка по первому остатку, листингу или продаже; подтвердите в карточке",
         "sku_col_dims": "Габариты, мм",
         "sku_list_hint": "Список только для просмотра. Чтобы поправить SKU, нажмите на его строку — карточка откроется ниже.",
-        "sku_bulk": "Массовая правка таблицей",
-        "sku_bulk_help": "Для тех, кто вносит десятки значений подряд: правка прямо в ячейках. Даты здесь не правятся — только в карточке.",
-        "sku_bulk_note": "Правьте прямо в ячейках, затем «Сохранить». Даты ввода и вывода правятся в карточке (выключите массовую правку).",
         "sku_card_h": "Карточка SKU",
         "sku_card_pick": "SKU",
         "sku_card_name_src": "Название приходит из {src} и здесь не правится.",
@@ -197,7 +281,7 @@ TR = {
                     "габариты упаковки и EAN — из Amazon, дата ввода — оценка по первому остатку/листингу/продаже. "
                     "Поле, поправленное здесь, помечается «manual» и загрузчиком больше не трогается.",
         "sku_search": "Код или название", "sku_type_f": "Тип", "sku_check_f": "Проблема",
-        "sku_only_issues": "Только с проблемами",
+        "sku_only_issues": "С проблемами",
         "sku_t_base": "базовый", "sku_t_composite": "составной", "sku_t_none": "не определён",
         "sku_summary": "SKU: {total} (базовых {base}, составных {comp}, без типа {none}) · с ошибками контроля {err}",
         "sku_col_sku": "SKU", "sku_col_type": "Тип", "sku_col_name": "Название", "sku_col_ean": "EAN",
@@ -477,18 +561,101 @@ TR = {
         "col_max": "Макс, дн", "col_pool": "Пул", "col_from": "С", "col_to": "По",
     },
     "uk": {
+        "sku_about": "**Довідник SKU** — усі товари компанії, які продаються або плануються: код, тип (звичайний товар чи набір), назва, EAN, дати введення й виведення, габарити та вага пакування. Звідси їх беруть матриця, прогноз, покриття, автозамовлення та розрахунок доставки в маржі.  \n**Як працювати:** знайдіть товар пошуком або фільтрами → натисніть на рядок → нижче відкриється картка: там можна змінити поля, прибрати товар в архів або видалити. Новий товар — формою «Додати SKU», багато одразу — завантаженням з Excel.",
+        "sku_cat_f": "Категорія",
+        "sku_state_f": "Статус",
+        "sku_state_active": "у роботі",
+        "sku_state_archived": "в архіві",
+        "sku_state_all": "усі",
+        "sku_life_f": "Життєвий цикл",
+        "sku_mx_f": "У матриці",
+        "sku_mx_any": "неважливо",
+        "sku_mx_yes": "є",
+        "sku_mx_no": "немає",
+        "sku_summary2": "Показано {shown} з {total} · в архіві {arch} · з помилками перевірок {err}",
+        "sku_col_cat": "Категорія",
+        "sku_col_state": "Статус",
+        "sku_col_matrix": "У матриці",
+        "sku_col_matrix_help": "✓ — товар допущений до продажу хоча б на одному майданчику (чинний допуск у матриці)",
+        "sku_col_life": "Життєвий цикл",
+        "sku_col_life_help": "за ринками, де товар є; розрахунковий або поставлений вручну на «Категоріях»",
+        "sku_act_h": "Дії з SKU",
+        "sku_act_archive": "🗄 В архів",
+        "sku_act_restore": "↩ Повернути з архіву",
+        "sku_is_archived": "SKU в архіві: у нових операціях його не пропонують, історія збережена.",
+        "sku_ref_matrix": "допуски в матриці",
+        "sku_ref_forecast": "рядки прогнозу",
+        "sku_ref_sales": "рядки продажів",
+        "sku_ref_comp": "звʼязки складу набору",
+        "sku_ref_norms": "нормативи покриття",
+        "sku_ref_listings": "лістинги майданчиків",
+        "sku_ref_src": "код є в Odoo або на майданчиках ({where}) — завантажувач повернув би його вранці",
+        "sku_del_blocked": "Видалити не можна — SKU використовується:",
+        "sku_del_use_archive": "Приберіть його в архів: історія збережеться.",
+        "sku_del_what": "SKU {sku}",
+        "sku_deleted": "SKU {sku} видалено",
+        "sku_err_code_empty": "код SKU не вказано",
+        "sku_err_code_fmt": "код не схожий на SKU: потрібні 5–8 цифр, варіант через дефіс (-A, -B, -1), у набору префікс S2_",
+        "sku_err_code_dup": "такий SKU вже є (можливо, в архіві) — знайдіть його у списку",
+        "sku_err_name_empty": "потрібна назва",
+        "sku_err_kit_phys": "у набору габарити й вага не вводяться — вони рахуються зі складу",
+        "sku_note_manual": "заведений вручну в Кабінеті",
+        "sku_add_h": "Додати SKU",
+        "sku_add_note": "Зазвичай SKU зʼявляються самі — з Odoo, лістингів і продажів. Вручну заводьте лише товар, якого ще немає в Odoo: наприклад, новинку до першої поставки. Поля з * обовʼязкові; підказка — біля значка ⓘ поруч із полем.",
+        "sku_add_btn": "➕ Додати SKU",
+        "sku_added": "SKU {sku} додано",
+        "sku_fh_sku": "Код товару з Odoo: 8 цифр (08455000). Варіант — через дефіс (99601000-B). Набір — з префіксом S2_, S3_ (S2_41473000). Де взяти: картка товару в Odoo, поле «Внутрішній код».",
+        "sku_fh_type": "«базовий» — один товар; «складений» — набір із кількох товарів. Де взяти: в Odoo набір має тип «Kit».",
+        "sku_fh_name": "Назва товару, як в Odoo. У товарів з Odoo назва надходить сама й тут не змінюється.",
+        "sku_fh_ean": "Штрихкод з пакування: 8 або 13 цифр (4823102359007). Де взяти: пакування, картка в Odoo або в Seller Central.",
+        "sku_fh_supplier": "Код цього товару в постачальника — якщо він потрібен для замовлення. Де взяти: прайс або рахунок постачальника.",
+        "sku_fh_intro": "Дата, з якої товар у продажу. Де взяти: дата першої поставки або відкриття лістингу. Порожньо — порахуємо самі (оцінка).",
+        "sku_fh_exit": "Дата виведення з асортименту. Порожньо — товар не виводиться.",
+        "sku_fh_dims": "Розмір ПАКУВАННЯ в міліметрах, цілим числом. Де взяти: замір на складі або картка в Seller Central (розміри пакування).",
+        "sku_fh_weight": "Вага брутто (з пакуванням) у кг, дробова частина через кому або крапку. Де взяти: ERP, замір на складі, Seller Central.",
+        "sku_xl_h": "Масове завантаження з Excel",
+        "sku_xl_note": "1) Завантажте шаблон — порожній або з поточними даними (за фільтрами вище). 2) Заповніть: один рядок — один SKU; на аркуші «Як заповнювати» сказано, що вводити в кожну колонку. Порожня клітинка нічого не змінює. 3) Завантажте файл — Кабінет перевірить кожен рядок і покаже, що зміниться. Збереження — лише якщо помилок немає.",
+        "sku_xl_tpl_empty": "⬇ Порожній шаблон",
+        "sku_xl_tpl_cur": "⬇ Поточні дані ({n} SKU)",
+        "sku_xl_upload": "Завантажте заповнений файл (.xlsx або .csv)",
+        "sku_err_dup_in_file": "SKU трапляється у файлі вдруге",
+        "sku_err_name_src": "назва надходить з Odoo — змінюйте її там",
+        "sku_xl_save": "💾 Зберегти ({n} SKU)",
+        "sku_xl_saved": "Збережено: нових {new}, змінених {upd}",
+        "kit_new": "Нових",
+        "kit_upd": "Зміниться",
+        "kit_same": "Без змін",
+        "kit_err": "Помилок",
+        "kit_err_block": "У файлі є помилки — нічого не збережено. Виправте рядки нижче й завантажте файл знову.",
+        "kit_c_row": "Рядок",
+        "kit_c_key": "Код",
+        "kit_c_field": "Поле",
+        "kit_c_value": "У файлі",
+        "kit_c_why": "Що не так",
+        "kit_c_old": "Було",
+        "kit_c_new": "Стане",
+        "kit_nothing": "У файлі немає змін.",
+        "kit_howto_sheet": "Як заповнювати",
+        "kit_hc_field": "Колонка",
+        "kit_hc_req": "Обовʼязково",
+        "kit_hc_what": "Що вводити й звідки брати",
+        "kit_hc_ex": "Приклад / варіанти",
+        "kit_unknown_cols": "Колонки не розпізнано й пропущено: {cols}",
+        "kit_missing_cols": "У файлі немає обовʼязкових колонок: {cols}",
+        "kit_created": "новий",
+        "kit_why_num": "не число",
+        "kit_why_neg": "відʼємне число",
+        "kit_why_date": "не дата (потрібно ДД.ММ.РРРР)",
+        "kit_why_ean": "EAN — 8 або 12–14 цифр",
+        "kit_why_choice": "немає такого варіанта",
         "sku_card_no_name": "Назви немає ні в Odoo, ні в ERP: заведіть картку товару в Odoo — назва приїде сама.",
         "sku_hint2": "Звідки дані: тип і назва — з Odoo, вага брутто — з ERP, габарити пакування та EAN — з Amazon, дата введення — оцінка за першим залишком, лістингом чи продажем. Усе, що ви виправили тут, позначається «вручну», і завантажувачі це поле більше не перезаписують.",
-        "sku_howto": "**Як заповнювати довідник**  \n1. Знайдіть товар: пошук за кодом чи назвою або фільтр «Що заповнити» — наприклад «немає габаритів».  \n2. Натисніть на рядок у списку — нижче відкриється картка цього SKU.  \n3. У картці впишіть відсутнє й натисніть «Зберегти». Під кожним полем написано, звідки зараз узято значення.",
         "sku_check_f2": "Що заповнити",
         "sku_col_todo": "Що заповнити",
         "sku_col_todo_help": "Перевірки довідника: чого бракує в SKU. Порожньо — усе заповнено.",
         "sku_intro_help": "«≈» — оцінка за першим залишком, лістингом чи продажем; підтвердіть у картці",
         "sku_col_dims": "Габарити, мм",
         "sku_list_hint": "Список лише для перегляду. Щоб виправити SKU, натисніть на його рядок — картка відкриється нижче.",
-        "sku_bulk": "Масове редагування таблицею",
-        "sku_bulk_help": "Для тих, хто вносить десятки значень поспіль: правка просто в клітинках. Дати тут не правляться — лише в картці.",
-        "sku_bulk_note": "Правте просто в клітинках, потім «Зберегти». Дати введення й виведення правляться в картці (вимкніть масове редагування).",
         "sku_card_h": "Картка SKU",
         "sku_card_pick": "SKU",
         "sku_card_name_src": "Назва надходить із {src} і тут не правиться.",
@@ -642,7 +809,7 @@ TR = {
                     "габарити упаковки та EAN — з Amazon, дата введення — оцінка за першим залишком/лістингом/продажем. "
                     "Поле, виправлене тут, позначається «manual» і завантажувачем більше не чіпається.",
         "sku_search": "Код або назва", "sku_type_f": "Тип", "sku_check_f": "Проблема",
-        "sku_only_issues": "Лише з проблемами",
+        "sku_only_issues": "З проблемами",
         "sku_t_base": "базовий", "sku_t_composite": "складений", "sku_t_none": "не визначено",
         "sku_summary": "SKU: {total} (базових {base}, складених {comp}, без типу {none}) · з помилками контролю {err}",
         "sku_col_sku": "SKU", "sku_col_type": "Тип", "sku_col_name": "Назва", "sku_col_ean": "EAN",
@@ -921,18 +1088,101 @@ TR = {
         "col_max": "Макс, дн", "col_pool": "Пул", "col_from": "З", "col_to": "По",
     },
     "en": {
+        "sku_about": "**SKU directory** — every company product that is sold or planned: code, type (single product or kit), name, EAN, intro and exit dates, package dimensions and weight. The matrix, forecast, coverage, reorder and the shipping cost in margin take products from here.  \n**How to work with it:** find a product by search or filters → click its row → the card opens below: change fields, archive the product or delete it. A new product — the “Add SKU” form; many at once — upload from Excel.",
+        "sku_cat_f": "Category",
+        "sku_state_f": "Status",
+        "sku_state_active": "in use",
+        "sku_state_archived": "archived",
+        "sku_state_all": "all",
+        "sku_life_f": "Life cycle",
+        "sku_mx_f": "In the matrix",
+        "sku_mx_any": "any",
+        "sku_mx_yes": "yes",
+        "sku_mx_no": "no",
+        "sku_summary2": "Shown {shown} of {total} · archived {arch} · with check errors {err}",
+        "sku_col_cat": "Category",
+        "sku_col_state": "Status",
+        "sku_col_matrix": "In matrix",
+        "sku_col_matrix_help": "✓ — the product is admitted for sale on at least one marketplace (active matrix admission)",
+        "sku_col_life": "Life cycle",
+        "sku_col_life_help": "per market where the product is; computed or set manually on “Categories”",
+        "sku_act_h": "SKU actions",
+        "sku_act_archive": "🗄 Archive",
+        "sku_act_restore": "↩ Restore from archive",
+        "sku_is_archived": "The SKU is archived: it is not offered in new operations, history is kept.",
+        "sku_ref_matrix": "matrix admissions",
+        "sku_ref_forecast": "forecast rows",
+        "sku_ref_sales": "sales rows",
+        "sku_ref_comp": "kit composition links",
+        "sku_ref_norms": "coverage norms",
+        "sku_ref_listings": "marketplace listings",
+        "sku_ref_src": "the code exists in Odoo or on marketplaces ({where}) — the loader would bring it back in the morning",
+        "sku_del_blocked": "Cannot delete — the SKU is in use:",
+        "sku_del_use_archive": "Archive it instead: history is kept.",
+        "sku_del_what": "SKU {sku}",
+        "sku_deleted": "SKU {sku} deleted",
+        "sku_err_code_empty": "SKU code is empty",
+        "sku_err_code_fmt": "this does not look like a SKU: 5–8 digits, a variant after a dash (-A, -B, -1), kits prefixed S2_",
+        "sku_err_code_dup": "this SKU already exists (maybe archived) — find it in the list",
+        "sku_err_name_empty": "a name is required",
+        "sku_err_kit_phys": "a kit's dimensions and weight are not entered — they are computed from its components",
+        "sku_note_manual": "created manually in Kabinet",
+        "sku_add_h": "Add SKU",
+        "sku_add_note": "SKUs usually appear by themselves — from Odoo, listings and sales. Create one manually only for a product not yet in Odoo, e.g. a new product before its first delivery. Fields with * are required; hints are behind the ⓘ next to each field.",
+        "sku_add_btn": "➕ Add SKU",
+        "sku_added": "SKU {sku} added",
+        "sku_fh_sku": "Product code from Odoo: 8 digits (08455000). A variant after a dash (99601000-B). A kit with prefix S2_, S3_ (S2_41473000). Where: the product card in Odoo, “Internal reference”.",
+        "sku_fh_type": "“base” — a single product; “composite” — a kit of several products. Where: in Odoo a kit has type “Kit”.",
+        "sku_fh_name": "Product name as in Odoo. For products from Odoo the name arrives by itself and is not changed here.",
+        "sku_fh_ean": "Barcode from the package: 8 or 13 digits (4823102359007). Where: the package, the card in Odoo or in Seller Central.",
+        "sku_fh_supplier": "The supplier's code for this product, if needed for ordering. Where: the supplier's price list or invoice.",
+        "sku_fh_intro": "Date the product goes on sale. Where: first delivery or listing opening. Empty — we estimate it.",
+        "sku_fh_exit": "Date the product leaves the range. Empty — not discontinued.",
+        "sku_fh_dims": "PACKAGE size in millimetres, whole number. Where: measured at the warehouse or the Seller Central card (package dimensions).",
+        "sku_fh_weight": "Gross weight (with package) in kg, decimal comma or dot. Where: ERP, measured at the warehouse, Seller Central.",
+        "sku_xl_h": "Bulk upload from Excel",
+        "sku_xl_note": "1) Download the template — empty or with current data (per the filters above). 2) Fill it in: one row per SKU; the “How to fill in” sheet says what goes into each column. An empty cell changes nothing. 3) Upload the file — Kabinet checks every row and shows what will change. Saving only if there are no errors.",
+        "sku_xl_tpl_empty": "⬇ Empty template",
+        "sku_xl_tpl_cur": "⬇ Current data ({n} SKUs)",
+        "sku_xl_upload": "Upload the filled file (.xlsx or .csv)",
+        "sku_err_dup_in_file": "the SKU appears in the file a second time",
+        "sku_err_name_src": "the name comes from Odoo — change it there",
+        "sku_xl_save": "💾 Save ({n} SKUs)",
+        "sku_xl_saved": "Saved: new {new}, changed {upd}",
+        "kit_new": "New",
+        "kit_upd": "Will change",
+        "kit_same": "Unchanged",
+        "kit_err": "Errors",
+        "kit_err_block": "The file has errors — nothing was saved. Fix the rows below and upload the file again.",
+        "kit_c_row": "Row",
+        "kit_c_key": "Code",
+        "kit_c_field": "Field",
+        "kit_c_value": "In the file",
+        "kit_c_why": "What's wrong",
+        "kit_c_old": "Was",
+        "kit_c_new": "Will be",
+        "kit_nothing": "The file has no changes.",
+        "kit_howto_sheet": "How to fill in",
+        "kit_hc_field": "Column",
+        "kit_hc_req": "Required",
+        "kit_hc_what": "What to enter and where to get it",
+        "kit_hc_ex": "Example / options",
+        "kit_unknown_cols": "Columns not recognised and skipped: {cols}",
+        "kit_missing_cols": "Required columns missing in the file: {cols}",
+        "kit_created": "new",
+        "kit_why_num": "not a number",
+        "kit_why_neg": "negative number",
+        "kit_why_date": "not a date (use DD.MM.YYYY)",
+        "kit_why_ean": "EAN is 8 or 12–14 digits",
+        "kit_why_choice": "no such option",
         "sku_card_no_name": "No name in Odoo or ERP: create the product card in Odoo — the name will arrive by itself.",
         "sku_hint2": "Where data comes from: type and name from Odoo, gross weight from ERP, package dimensions and EAN from Amazon, intro date is an estimate from the first stock, listing or sale. Anything you correct here is marked “manual”, and loaders no longer overwrite that field.",
-        "sku_howto": "**How to fill in the directory**  \n1. Find the product: search by code or name, or use the “What to fill in” filter — e.g. “no dimensions”.  \n2. Click its row in the list — the SKU card opens below.  \n3. Fill in what is missing in the card and press “Save”. Under each field it says where the current value came from.",
         "sku_check_f2": "What to fill in",
         "sku_col_todo": "What to fill in",
         "sku_col_todo_help": "Directory checks: what the SKU is missing. Empty — all filled in.",
         "sku_intro_help": "“≈” — estimated from the first stock, listing or sale; confirm it in the card",
         "sku_col_dims": "Dimensions, mm",
         "sku_list_hint": "The list is read-only. To correct a SKU, click its row — the card opens below.",
-        "sku_bulk": "Bulk edit in a table",
-        "sku_bulk_help": "For entering dozens of values in a row: edit right in the cells. Dates are not edited here — only in the card.",
-        "sku_bulk_note": "Edit right in the cells, then “Save”. Intro and exit dates are edited in the card (turn bulk edit off).",
         "sku_card_h": "SKU card",
         "sku_card_pick": "SKU",
         "sku_card_name_src": "The name comes from {src} and is not edited here.",
@@ -1086,7 +1336,7 @@ TR = {
                     "package dimensions and EAN from Amazon, intro date estimated from first stock/listing/sale. "
                     "A field edited here is marked «manual» and the loader never overwrites it again.",
         "sku_search": "Code or name", "sku_type_f": "Type", "sku_check_f": "Issue",
-        "sku_only_issues": "Only with issues",
+        "sku_only_issues": "With issues",
         "sku_t_base": "base", "sku_t_composite": "composite", "sku_t_none": "undefined",
         "sku_summary": "SKUs: {total} (base {base}, composite {comp}, untyped {none}) · with control errors {err}",
         "sku_col_sku": "SKU", "sku_col_type": "Type", "sku_col_name": "Name", "sku_col_ean": "EAN",
@@ -3733,74 +3983,139 @@ def _sku_restr(v) -> list:
     return [x.strip().upper() for x in str(v or "").split(",") if x.strip()]
 
 
+def _sku_fields(_types) -> list:
+    """Поля справочника SKU — одно описание на форму добавления, шаблон Excel и проверку загрузки."""
+    F = dict_kit.Field
+    return [
+        F("sku", _tr("sku_col_sku"), _tr("sku_fh_sku"), "text", True, example="41324000, 99601000-B, S2_41473000"),
+        F("sku_type", _tr("sku_col_type"), _tr("sku_fh_type"), "choice", False, choices=_types),
+        F("name", _tr("sku_col_name"), _tr("sku_fh_name"), "text", example="Dnipro-M CSD-36X"),
+        F("ean", _tr("sku_col_ean"), _tr("sku_fh_ean"), "ean", example="4823102359007"),
+        F("supplier_code", _tr("sku_col_supplier"), _tr("sku_fh_supplier"), "text"),
+        F("intro_date", _tr("sku_col_intro"), _tr("sku_fh_intro"), "date", example="15.10.2026"),
+        F("exit_date", _tr("sku_col_exit"), _tr("sku_fh_exit"), "date", example="31.12.2026"),
+        F("height_mm", _tr("sku_col_h"), _tr("sku_fh_dims"), "int", example="120"),
+        F("width_mm", _tr("sku_col_w"), _tr("sku_fh_dims"), "int", example="300"),
+        F("length_mm", _tr("sku_col_l"), _tr("sku_fh_dims"), "int", example="450"),
+        F("gross_weight_kg", _tr("sku_col_weight"), _tr("sku_fh_weight"), "float", example="2,35"),
+        F("restrictions", _tr("sku_col_restr"), _tr("sku_restr_help"), "text", example="AMZ-GB, PL"),
+        F("passport_ref", _tr("sku_col_passport"), _tr("sku_passport_help"), "text"),
+    ]
+
+
+_SKU_CODE_RE = re.compile(r"^(S\d*_)?\d{5,8}(-[A-Z0-9]{1,2})?$")
+
+
+def _sku_refs(sku: str) -> list:
+    """Где SKU используется. Непустой список — удалять нельзя, только в архив: удалённый код оставил бы
+    допуски, прогнозы и продажи без товара, а загрузчик к тому же вернул бы его утром, если код есть в Odoo."""
+    refs = []
+    for key, sql in (
+        ("sku_ref_matrix", "SELECT count(*) FROM kabinet_data.assortment_admissions WHERE sku = %s"),
+        ("sku_ref_forecast", "SELECT count(*) FROM kabinet_data.forecast_register WHERE sku = %s"),
+        ("sku_ref_sales", "SELECT count(*) FROM kabinet_data.economics_summary WHERE norm_sku = %s"),
+        ("sku_ref_comp", "SELECT count(*) FROM kabinet_data.sku_composition WHERE composite_sku = %s OR base_sku = %s"),
+        ("sku_ref_norms", "SELECT count(*) FROM kabinet_data.coverage_norm_rules WHERE sku = %s"),
+        ("sku_ref_listings", "SELECT count(*) FROM kabinet_data.product_entity_listings WHERE sku = %s"),
+    ):
+        try:
+            n = int(q_now(sql, (sku,) * sql.count("%s")).iloc[0, 0])
+        except Exception:
+            n = 0
+        if n:
+            refs.append((_tr(key), n))
+    return refs
+
+
 def _section_sku():
     SM = "kabinet_data.sku_master"
+    dict_kit.instruction(_tr("sku_about"), _tr("sku_hint2"))
     if not has_table(SM):
-        st.caption(_tr("sku_hint2"))
         st.info(_tr("no_data"))
         return
-    # как этим пользоваться — тремя шагами, а не абзацем про ТЗ: экран открывают, чтобы заполнить недостающее
-    with st.container(border=True):
-        st.markdown(_tr("sku_howto"))
-        st.caption(_tr("sku_hint2"))
+    _lab = {"ru": "label_ru", "uk": "label_uk"}.get(get_lang(), "label_en")
     sm = q(f"""
         SELECT m.sku, m.sku_type, m.type_source, m.name, m.name_source, m.ean, m.ean_source, m.supplier_code,
                m.intro_date, m.intro_source, m.exit_date, m.exit_source,
                m.height_mm, m.width_mm, m.length_mm, m.volume_m3, m.dims_source, m.gross_weight_kg, m.weight_source,
                array_to_string(ARRAY(SELECT jsonb_array_elements_text(m.restrictions)), ', ') AS restrictions,
-               m.passport_ref, array_to_string(m.in_scope, ', ') AS in_scope,
-               c.codes, c.n_err
+               m.passport_ref, array_to_string(m.in_scope, ', ') AS in_scope, m.is_active,
+               c.codes, c.n_err,
+               t1.{_lab} AS cat1, t.{_lab} AS cat,
+               EXISTS (SELECT 1 FROM kabinet_data.assortment_admissions a
+                       WHERE a.sku = m.sku AND a.removed_on IS NULL) AS in_matrix,
+               (SELECT string_agg(DISTINCT l.status, ',') FROM kabinet_data.v_sku_lifecycle_current l
+                 WHERE l.sku = m.sku) AS life
         FROM {SM} m
         LEFT JOIN (SELECT sku, string_agg(check_code, ',' ORDER BY severity, check_code) AS codes,
                           count(*) FILTER (WHERE severity = 'error') AS n_err
                    FROM kabinet_data.sku_checks GROUP BY sku) c USING (sku)
+        LEFT JOIN kabinet_data.sku_category_links k ON k.sku = m.sku
+        LEFT JOIN kabinet_data.v_sku_category_tree t ON t.category_key = k.category_key
+        LEFT JOIN kabinet_data.v_sku_category_tree t1 ON t1.depth = 1 AND t1.level1 = t.level1
         ORDER BY (c.n_err IS NULL), c.n_err DESC, m.sku
     """)
     _types = {"base": _tr("sku_t_base"), "composite": _tr("sku_t_composite")}
     sm["codes"] = sm["codes"].fillna("")
+    sm["life"] = sm["life"].fillna("")
     sm["todo"] = [", ".join(_tr(f"sku_chk_{c}") for c in dict.fromkeys(v.split(",")) if c) for v in sm["codes"]]
+    _life_codes = ["active", "not_launched", "phasing_out", "seasonal_pause", "discontinued"]
 
+    # ── фильтры ──
     f1, f2, f3, f4 = st.columns([1.6, 1, 1.4, 1])
     search = f1.text_input(_tr("sku_search"), key="sku_search").strip()
     type_sel = f2.multiselect(_tr("sku_type_f"), ["base", "composite", "none"], placeholder=_tr("ph_any"),
                               format_func=lambda x: _types.get(x, _tr("sku_t_none")), key="sku_type_f")
-    check_sel = f3.multiselect(_tr("sku_check_f2"), list(_SKU_CHECKS), key="sku_check_f2", placeholder=_tr("ph_any"),
+    cat_sel = f3.multiselect(_tr("sku_cat_f"), sorted(sm["cat1"].dropna().unique()), placeholder=_tr("ph_any"),
+                             key="sku_cat_f")
+    state_sel = f4.selectbox(_tr("sku_state_f"), ["active", "archived", "all"], key="sku_state_f",
+                             format_func=lambda x: _tr(f"sku_state_{x}"))
+    g1, g2, g3, g4 = st.columns([1.6, 1, 1.4, 1])
+    life_sel = g1.multiselect(_tr("sku_life_f"), _life_codes, placeholder=_tr("ph_any"), key="sku_life_f",
+                              format_func=lambda x: i18n_t(f"cat.life.{x}"))
+    mx_sel = g2.selectbox(_tr("sku_mx_f"), ["any", "yes", "no"], key="sku_mx_f",
+                          format_func=lambda x: _tr(f"sku_mx_{x}"))
+    check_sel = g3.multiselect(_tr("sku_check_f2"), list(_SKU_CHECKS), key="sku_check_f2", placeholder=_tr("ph_any"),
                                format_func=lambda c: _tr(f"sku_chk_{c}"))
-    only_issues = f4.toggle(_tr("sku_only_issues"), value=False, key="sku_only_issues")
+    only_issues = g4.toggle(_tr("sku_only_issues"), value=False, key="sku_only_issues")
+
     view = sm.copy()
     if search:
         view = view[view["sku"].str.contains(search, case=False, na=False, regex=False)
                     | view["name"].fillna("").str.contains(search, case=False, na=False, regex=False)]
     if type_sel:
         view = view[view["sku_type"].fillna("none").isin(type_sel)]
+    if cat_sel:
+        view = view[view["cat1"].isin(cat_sel)]
+    if state_sel != "all":
+        view = view[view["is_active"].fillna(True).astype(bool) == (state_sel == "active")]
+    if life_sel:
+        view = view[view["life"].apply(lambda v: any(x in v.split(",") for x in life_sel))]
+    if mx_sel != "any":
+        view = view[view["in_matrix"].astype(bool) == (mx_sel == "yes")]
     if check_sel:
         view = view[view["codes"].apply(lambda v: any(c in v.split(",") for c in check_sel))]
     if only_issues:
         view = view[view["codes"] != ""]
-    st.caption(_trf("sku_summary", total=len(sm), base=int((sm["sku_type"] == "base").sum()),
-                    comp=int((sm["sku_type"] == "composite").sum()), none=int(sm["sku_type"].isna().sum()),
+    st.caption(_trf("sku_summary2", shown=len(view), total=len(sm),
+                    arch=int((~sm["is_active"].fillna(True).astype(bool)).sum()),
                     err=int((sm["n_err"].fillna(0) > 0).sum())))
 
-    bulk = st.toggle(_tr("sku_bulk"), value=False, key="sku_bulk", help=_tr("sku_bulk_help"))
-    if bulk:
-        _sku_bulk(view, _types)
-        _sku_kits(sm)
-        return
-
-    # список только для чтения: правка — в карточке ниже. Пустые даты и числа — пустые, а не «None»
+    # ── таблица (только просмотр; правка — в карточке под ней) ──
     lst = pd.DataFrame({
         "sku": view["sku"],
         "type": view["sku_type"].map(_types).fillna(_tr("sku_t_none")),
         "name": view["name"].fillna(""),
+        "cat": view["cat"].fillna(""),
+        "state": [_tr("sku_state_active") if bool(a) else _tr("sku_state_archived")
+                  for a in view["is_active"].fillna(True)],
+        "matrix": ["✓" if bool(x) else "" for x in view["in_matrix"]],
+        "life": [", ".join(i18n_t(f"cat.life.{x}") for x in v.split(",") if x) for v in view["life"]],
         "todo": view["todo"],
         "ean": view["ean"].fillna(""),
-        "intro": [(_sku_fmt_date(d) + (" ≈" if str(s_ or "").startswith("estimate") and _sku_fmt_date(d) else ""))
-                  for d, s_ in zip(view["intro_date"], view["intro_source"])],
-        "exit": [_sku_fmt_date(d) for d in view["exit_date"]],
         "dims": ["×".join(num_text(x) for x in (h, w, l_)) if any(num_text(x) for x in (h, w, l_)) else ""
                  for h, w, l_ in zip(view["height_mm"], view["width_mm"], view["length_mm"])],
         "weight": [num_text(v, 3) for v in view["gross_weight_kg"]],
-        "scope": view["in_scope"].fillna(""),
     })
     ev = st.dataframe(lst, key="sku_list", use_container_width=True, height=420, hide_index=True,
                       on_select="rerun", selection_mode="single-row",
@@ -3808,37 +4123,311 @@ def _section_sku():
                           "sku": st.column_config.TextColumn(_tr("sku_col_sku"), width="small"),
                           "type": st.column_config.TextColumn(_tr("sku_col_type"), width="small"),
                           "name": st.column_config.TextColumn(_tr("sku_col_name"), width="large"),
+                          "cat": st.column_config.TextColumn(_tr("sku_col_cat"), width="medium"),
+                          "state": st.column_config.TextColumn(_tr("sku_col_state"), width="small"),
+                          "matrix": st.column_config.TextColumn(_tr("sku_col_matrix"), width="small",
+                                                                help=_tr("sku_col_matrix_help")),
+                          "life": st.column_config.TextColumn(_tr("sku_col_life"), width="small",
+                                                              help=_tr("sku_col_life_help")),
                           "todo": st.column_config.TextColumn(_tr("sku_col_todo"), width="large", help=_tr("sku_col_todo_help")),
                           "ean": st.column_config.TextColumn(_tr("sku_col_ean"), width="small"),
-                          "intro": st.column_config.TextColumn(_tr("sku_col_intro"), width="small", help=_tr("sku_intro_help")),
-                          "exit": st.column_config.TextColumn(_tr("sku_col_exit"), width="small"),
                           "dims": st.column_config.TextColumn(_tr("sku_col_dims"), width="small"),
                           "weight": st.column_config.TextColumn(_tr("sku_col_weight"), width="small"),
-                          "scope": st.column_config.TextColumn(_tr("sku_col_scope"), width="small"),
                       })
     st.caption(_tr("sku_list_hint"))
 
-    # ── карточка выбранного SKU ──
+    # ── выбранная строка: изменить / в архив / удалить ──
     rows = ev.selection.rows if ev is not None and hasattr(ev, "selection") else []
     options = list(lst["sku"])
-    if not options:
-        _sku_kits(sm)
-        return
-    # выбор строки в списке открывает её карточку; но только когда выбор в списке ИЗМЕНИЛСЯ — иначе выбранная
-    # строка перебивала бы каждый следующий выбор в поле «SKU» карточки
-    _sel = options[rows[0]] if rows and rows[0] < len(options) else None
-    if _sel and _sel != st.session_state.get("sku_list_last"):
-        st.session_state["sku_card_pick"] = _sel
-    st.session_state["sku_list_last"] = _sel
-    if st.session_state.get("sku_card_pick") not in options:
-        st.session_state["sku_card_pick"] = options[0]
-    _names = dict(zip(sm["sku"], sm["name"].fillna("")))
-    st.markdown("#### " + _tr("sku_card_h"))
-    sku = st.selectbox(_tr("sku_card_pick"), options, key="sku_card_pick",
-                       format_func=lambda s_: f"{s_} — {_names.get(s_, '')}"[:110])
-    r = sm[sm["sku"] == sku].iloc[0]
-    _sku_card(r, _types)
+    if options:
+        # выбор строки открывает её карточку; но только когда выбор в списке ИЗМЕНИЛСЯ — иначе выбранная
+        # строка перебивала бы каждый следующий выбор в поле «SKU» карточки
+        _sel = options[rows[0]] if rows and rows[0] < len(options) else None
+        if _sel and _sel != st.session_state.get("sku_list_last"):
+            st.session_state["sku_card_pick"] = _sel
+        st.session_state["sku_list_last"] = _sel
+        if st.session_state.get("sku_card_pick") not in options:
+            st.session_state["sku_card_pick"] = options[0]
+        _names = dict(zip(sm["sku"], sm["name"].fillna("")))
+        st.markdown("#### " + _tr("sku_card_h"))
+        sku = st.selectbox(_tr("sku_card_pick"), options, key="sku_card_pick",
+                           format_func=lambda s_: f"{s_} — {_names.get(s_, '')}"[:110])
+        r = sm[sm["sku"] == sku].iloc[0]
+        _sku_card(r, _types)
+        _sku_row_actions(r)
+
+    _sku_add_form(sm, _types)
+    _sku_excel(sm, view, _types)
     _sku_kits(sm)
+
+
+def _sku_row_actions(r):
+    """В архив / вернуть из архива / удалить. Удалить можно только SKU без связей и без источника (заведённый
+    вручную и нигде не использованный): иначе удаление оставит допуски, прогнозы и продажи без товара, а код
+    из Odoo загрузчик вернул бы на следующее утро. Архив — флаг is_active: загрузчик его не трогает."""
+    sku = r["sku"]
+    active = bool(r["is_active"]) if not pd.isna(r["is_active"]) else True
+    box = st.container(border=True)
+    box.markdown("**" + _tr("sku_act_h") + "**")
+    refs = _sku_refs(sku)
+    in_src = bool(as_text(r["in_scope"]))
+    c1, c2 = box.columns([1, 2])
+    if active:
+        if c1.button(_tr("sku_act_archive"), key=f"sku_arch_{sku}"):
+            _sku_set_active(sku, False)
+    else:
+        box.info(_tr("sku_is_archived"))
+        if c1.button(_tr("sku_act_restore"), key=f"sku_rest_{sku}"):
+            _sku_set_active(sku, True)
+    with c2:
+        if refs or in_src:
+            why = [f"{lbl}: {n}" for lbl, n in refs] + ([_trf("sku_ref_src", where=as_text(r["in_scope"]))] if in_src else [])
+            st.caption(_tr("sku_del_blocked") + " " + "; ".join(why) + ". " + _tr("sku_del_use_archive"))
+        elif confirm_delete(f"sku_{sku}", _trf("sku_del_what", sku=sku)):
+            try:
+                exec_sql([("DELETE FROM kabinet_data.sku_category_links WHERE sku = %s", (sku,)),
+                          ("INSERT INTO kabinet_data.sku_change_log (sku, field, old_value, new_value, source, actor) "
+                           "VALUES (%s, 'deleted', %s, NULL, 'manual', %s)", (sku, as_text(r["name"]), _actor())),
+                          ("DELETE FROM kabinet_data.sku_master WHERE sku = %s", (sku,))])
+                st.cache_data.clear()
+                st.success(_trf("sku_deleted", sku=sku))
+                st.rerun()
+            except Exception as e:
+                st.error(_trf("err", e=e))
+
+
+def _sku_set_active(sku: str, active: bool):
+    try:
+        exec_sql([("UPDATE kabinet_data.sku_master SET is_active = %s, updated_at = now(), updated_by = %s WHERE sku = %s",
+                   (active, _actor(), sku)),
+                  ("INSERT INTO kabinet_data.sku_change_log (sku, field, old_value, new_value, source, actor) "
+                   "VALUES (%s, 'is_active', %s, %s, 'manual', %s)", (sku, str(not active), str(active), _actor()))])
+        st.cache_data.clear()
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
+
+
+def _sku_new_row_errors(vals: dict, existing: set, kits_ok: bool = True) -> list:
+    """Проверки нового SKU — общие для формы и для загрузки: код, дубль, тип, даты, габариты у набора."""
+    errs = []
+    code = vals.get("sku") or ""
+    if not code:
+        errs.append(("sku", "", _tr("sku_err_code_empty")))
+    elif not _SKU_CODE_RE.match(code):
+        errs.append(("sku", code, _tr("sku_err_code_fmt")))
+    elif code in existing:
+        errs.append(("sku", code, _tr("sku_err_code_dup")))
+    if not vals.get("name"):
+        errs.append(("name", "", _tr("sku_err_name_empty")))
+    if vals.get("exit_date") and vals.get("intro_date") and vals["exit_date"] < vals["intro_date"]:
+        errs.append(("exit_date", str(vals["exit_date"]), _tr("sku_exit_before_intro")))
+    if vals.get("sku_type") == "composite" and any(vals.get(c) is not None for c in
+                                                   ("height_mm", "width_mm", "length_mm", "gross_weight_kg")):
+        errs.append(("height_mm", "", _tr("sku_err_kit_phys")))
+    return errs
+
+
+def _sku_insert_stmts(vals: dict) -> list:
+    dims = [vals.get("height_mm"), vals.get("width_mm"), vals.get("length_mm")]
+    vol = round(dims[0] * dims[1] * dims[2] / 1e9, 6) if all(dims) else None
+    m = lambda f: "manual" if vals.get(f) is not None else None
+    return [
+        ("""INSERT INTO kabinet_data.sku_master
+              (sku, sku_type, type_source, name, name_source, ean, ean_source, supplier_code,
+               intro_date, intro_source, exit_date, exit_source, height_mm, width_mm, length_mm, dims_source, volume_m3,
+               gross_weight_kg, weight_source, restrictions, passport_ref, in_scope, is_active, note, updated_by)
+            VALUES (%s,%s,%s,%s,'manual',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,'{}',true,%s,%s)""",
+         (vals["sku"], vals.get("sku_type"), m("sku_type"), vals.get("name"), vals.get("ean"), m("ean"),
+          vals.get("supplier_code"), vals.get("intro_date"), m("intro_date"), vals.get("exit_date"), m("exit_date"),
+          dims[0], dims[1], dims[2], "manual" if any(dims) else None, vol,
+          vals.get("gross_weight_kg"), m("gross_weight_kg"), json.dumps(vals.get("restrictions") or []),
+          vals.get("passport_ref"), _tr("sku_note_manual"), _actor())),
+        ("INSERT INTO kabinet_data.sku_change_log (sku, field, old_value, new_value, source, actor) "
+         "VALUES (%s, 'created', NULL, %s, 'manual', %s)", (vals["sku"], vals.get("name"), _actor())),
+    ]
+
+
+def _sku_add_form(sm, _types):
+    """Форма добавления — под таблицей, с подсказкой к каждому полю: что вводить и откуда брать."""
+    st.markdown("#### " + _tr("sku_add_h"))
+    st.caption(_tr("sku_add_note"))
+    fields = {f.code: f for f in _sku_fields(_types)}
+    with st.form("sku_add_form", clear_on_submit=False):
+        a1, a2, a3 = st.columns([1, 1, 2])
+        code = a1.text_input(fields["sku"].label + " *", help=fields["sku"].hint, key="sku_add_code").strip().upper()
+        typ = a2.selectbox(fields["sku_type"].label, ["base", "composite"], help=fields["sku_type"].hint,
+                           format_func=lambda x: _types[x], key="sku_add_type")
+        name = a3.text_input(fields["name"].label + " *", help=fields["name"].hint, key="sku_add_name").strip()
+        b1, b2, b3, b4 = st.columns(4)
+        ean = b1.text_input(fields["ean"].label, help=fields["ean"].hint, key="sku_add_ean").strip()
+        sup = b2.text_input(fields["supplier_code"].label, help=fields["supplier_code"].hint, key="sku_add_sup").strip()
+        intro = b3.date_input(fields["intro_date"].label, value=None, format="DD.MM.YYYY",
+                              help=fields["intro_date"].hint, key="sku_add_intro")
+        exit_ = b4.date_input(fields["exit_date"].label, value=None, format="DD.MM.YYYY",
+                              help=fields["exit_date"].hint, key="sku_add_exit")
+        c1, c2, c3, c4 = st.columns(4)
+        h = c1.text_input(fields["height_mm"].label, help=fields["height_mm"].hint, key="sku_add_h")
+        w = c2.text_input(fields["width_mm"].label, help=fields["width_mm"].hint, key="sku_add_w")
+        l_ = c3.text_input(fields["length_mm"].label, help=fields["length_mm"].hint, key="sku_add_l")
+        kg = c4.text_input(fields["gross_weight_kg"].label, help=fields["gross_weight_kg"].hint, key="sku_add_kg")
+        d1, d2 = st.columns(2)
+        restr = d1.text_input(fields["restrictions"].label, help=fields["restrictions"].hint, key="sku_add_r")
+        pas = d2.text_input(fields["passport_ref"].label, help=fields["passport_ref"].hint, key="sku_add_p")
+        go = st.form_submit_button(_tr("sku_add_btn"), type="primary")
+    if not go:
+        return
+    errs = []
+    vals = {"sku": code, "sku_type": typ, "name": name or None, "supplier_code": sup or None,
+            "intro_date": intro, "exit_date": exit_, "passport_ref": pas.strip() or None,
+            "restrictions": _sku_restr(restr)}
+    for fcode, raw in (("ean", ean), ("height_mm", h), ("width_mm", w), ("length_mm", l_), ("gross_weight_kg", kg)):
+        v, e = dict_kit.parse_value(fields[fcode], raw)
+        if e:
+            errs.append((fcode, raw, _tr(f"kit_why_{e}")))
+        vals[fcode] = v
+    errs += _sku_new_row_errors(vals, set(sm["sku"]))
+    if errs:
+        for f, v, why in errs:
+            st.error(f"{fields[f].label}: {why}" + (f" («{v}»)" if v else ""))
+        return
+    try:
+        exec_sql(_sku_insert_stmts(vals))
+        st.cache_data.clear()
+        st.success(_trf("sku_added", sku=code))
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
+
+
+def _sku_excel(sm, view, _types):
+    """Массовая загрузка из Excel: шаблон → загрузка → проверка ДО сохранения → сохранить.
+    Пустая ячейка ничего не меняет; ошибка хотя бы в одной строке блокирует сохранение целиком."""
+    st.markdown("#### " + _tr("sku_xl_h"))
+    st.caption(_tr("sku_xl_note"))
+    fields = _sku_fields(_types)
+    fmap = {f.code: f for f in fields}
+    x1, x2 = st.columns(2)
+    x1.download_button(_tr("sku_xl_tpl_empty"), key="sku_xl_tpl_empty",
+                       data=dict_kit.template_bytes(fields, "SKU", _tr("kit_howto_sheet"),
+                                                    (_tr("kit_hc_field"), _tr("kit_hc_req"), _tr("kit_hc_what"), _tr("kit_hc_ex"))),
+                       file_name="sku_template.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    cur_rows = [{
+        "sku": r.sku, "sku_type": _types.get(r.sku_type, ""), "name": as_text(r.name), "ean": as_text(r.ean),
+        "supplier_code": as_text(r.supplier_code), "intro_date": _sku_fmt_date(r.intro_date),
+        "exit_date": _sku_fmt_date(r.exit_date), "height_mm": num_text(r.height_mm), "width_mm": num_text(r.width_mm),
+        "length_mm": num_text(r.length_mm), "gross_weight_kg": num_text(r.gross_weight_kg, 3),
+        "restrictions": as_text(r.restrictions), "passport_ref": as_text(r.passport_ref)} for r in view.itertuples()]
+    x2.download_button(_trf("sku_xl_tpl_cur", n=len(cur_rows)), key="sku_xl_tpl_cur",
+                       data=dict_kit.template_bytes(fields, "SKU", _tr("kit_howto_sheet"),
+                                                    (_tr("kit_hc_field"), _tr("kit_hc_req"), _tr("kit_hc_what"), _tr("kit_hc_ex")),
+                                                    rows=cur_rows),
+                       file_name="sku_current.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    up = st.file_uploader(_tr("sku_xl_upload"), type=["xlsx", "csv"], key="sku_xl_file")
+    if up is None:
+        return
+    try:
+        df, unknown, missing = dict_kit.read_upload(up, fields)
+    except Exception as e:
+        st.error(_trf("err", e=e))
+        return
+    if unknown:
+        st.warning(_trf("kit_unknown_cols", cols=", ".join(unknown)))
+    if missing:
+        st.error(_trf("kit_missing_cols", cols=", ".join(missing)))
+        return
+    by_sku = {r.sku: r for r in sm.itertuples()}
+    errors, changes, stmts = [], [], []
+    n_new = n_upd = n_same = 0
+    seen = set()
+    for i, row in df.iterrows():
+        line = i + 2                               # номер строки в Excel: первая — заголовки
+        code = str(row.get("sku", "")).strip().upper()
+        code = re.sub(r"\.0$", "", code)
+        _m = re.match(r"^(S\d*_)?(\d{5,7})(-[A-Z0-9]{1,2})?$", code)
+        if _m:                                     # Excel съедает ведущий ноль: 8455000 → 08455000, 8453000-84 → 08453000-84
+            code = (_m.group(1) or "") + _m.group(2).zfill(8) + (_m.group(3) or "")
+        if code in seen:
+            errors.append((line, code, fmap["sku"].label, code, _tr("sku_err_dup_in_file")))
+            continue
+        seen.add(code)
+        vals, row_err = {"sku": code}, []
+        for f in fields[1:]:
+            if f.code not in df.columns:
+                continue
+            raw = row.get(f.code, "")
+            if f.code == "restrictions":
+                vals[f.code] = _sku_restr(raw) if str(raw).strip() else None
+                continue
+            v, e = dict_kit.parse_value(f, raw)
+            if e:
+                row_err.append((line, code, f.label, raw, _tr(f"kit_why_{e}")))
+            vals[f.code] = v
+        if row_err:
+            errors += row_err
+            continue
+        old = by_sku.get(code)
+        if old is None:                            # новый SKU
+            new_vals = {k: v for k, v in vals.items() if v is not None}
+            errs = _sku_new_row_errors(dict(new_vals, sku=code), set(by_sku))
+            if errs:
+                errors += [(line, code, fmap[f].label, v, why) for f, v, why in errs]
+                continue
+            stmts += _sku_insert_stmts(new_vals)
+            changes.append((code, _tr("kit_created"), "", as_text(new_vals.get("name"))))
+            n_new += 1
+            continue
+        # существующий: меняются только непустые ячейки
+        if vals.get("name") and vals["name"] != as_text(old.name) and as_text(old.name_source) in ("odoo", "erp", "amazon"):
+            errors.append((line, code, fmap["name"].label, vals["name"], _tr("sku_err_name_src")))
+            continue
+        is_kit = old.sku_type == "composite"
+        if is_kit and any(vals.get(c) is not None for c in ("height_mm", "width_mm", "length_mm", "gross_weight_kg")):
+            errors.append((line, code, fmap["height_mm"].label, "", _tr("sku_err_kit_phys")))
+            continue
+        o = {"sku_type": old.sku_type if old.sku_type in ("base", "composite") else None,
+             "ean": as_text(old.ean) or None, "supplier_code": as_text(old.supplier_code) or None,
+             "passport_ref": as_text(old.passport_ref) or None,
+             "intro_date": None if pd.isna(old.intro_date) else pd.Timestamp(old.intro_date).date(),
+             "exit_date": None if pd.isna(old.exit_date) else pd.Timestamp(old.exit_date).date(),
+             "gross_weight_kg": None if pd.isna(old.gross_weight_kg) else float(old.gross_weight_kg),
+             "dims": tuple(None if pd.isna(x) else int(x) for x in (old.height_mm, old.width_mm, old.length_mm)),
+             "restrictions": _sku_restr(old.restrictions)}
+        n = dict(o)
+        for k in ("sku_type", "ean", "supplier_code", "passport_ref", "intro_date", "exit_date", "gross_weight_kg"):
+            if vals.get(k) is not None:
+                n[k] = vals[k]
+        if any(vals.get(c) is not None for c in ("height_mm", "width_mm", "length_mm")):
+            n["dims"] = tuple(vals.get(c) if vals.get(c) is not None else o["dims"][j]
+                              for j, c in enumerate(("height_mm", "width_mm", "length_mm")))
+        if vals.get("restrictions") is not None:
+            n["restrictions"] = vals["restrictions"]
+        if n.get("exit_date") and n.get("intro_date") and n["exit_date"] < n["intro_date"]:
+            errors.append((line, code, fmap["exit_date"].label, str(n["exit_date"]), _tr("sku_exit_before_intro")))
+            continue
+        s_, cnt = _sku_stmts(code, o, n)
+        if not cnt:
+            n_same += 1
+            continue
+        _lbl = lambda k: _tr("sku_col_dims") if k == "dims" else (fmap[k].label if k in fmap else k)
+        _txt = lambda v: "×".join("" if x is None else str(x) for x in v) if isinstance(v, tuple) else \
+            (", ".join(v) if isinstance(v, list) else ("" if v is None else str(v)))
+        for k in o:
+            if _txt(o[k]) != _txt(n[k]):
+                changes.append((code, _lbl(k), _txt(o[k]), _txt(n[k])))
+        stmts += s_
+        n_upd += 1
+    ok = dict_kit.check_view(errors, changes, n_new, n_upd, n_same, _tr)
+    if ok and st.button(_trf("sku_xl_save", n=n_new + n_upd), type="primary", key="sku_xl_save"):
+        try:
+            exec_sql(stmts)
+            st.cache_data.clear()
+            st.success(_trf("sku_xl_saved", new=n_new, upd=n_upd))
+            st.rerun()
+        except Exception as e:
+            st.error(_trf("err", e=e))
 
 
 def _sku_card(r, _types):
@@ -3940,78 +4529,6 @@ def _sku_card(r, _types):
         exec_sql(stmts)
         st.cache_data.clear()
         st.success(_trf("sku_saved_manual", n=n))
-        st.rerun()
-    except Exception as e:
-        st.error(_trf("err", e=e))
-
-
-def _sku_bulk(view, _types):
-    """Массовая правка таблицей — для тех, кто вносит десятки габаритов подряд. Даты здесь только для чтения:
-    пустую дату редактор рисует словом «None», а правится дата в карточке."""
-    st.caption(_tr("sku_bulk_note"))
-    v = view.copy()
-    v["sku_type"] = v["sku_type"].map(_types).fillna(_tr("sku_t_none"))
-    for c in ("ean", "supplier_code", "restrictions", "passport_ref", "in_scope", "name", "todo"):
-        v[c] = v[c].fillna("")
-    _NUM_SKU = {"height_mm": 0, "width_mm": 0, "length_mm": 0, "gross_weight_kg": 3}
-    for _c, _nd in _NUM_SKU.items():
-        v[_c] = [num_text(x, _nd) for x in v[_c]]
-    cols = ["sku", "sku_type", "name", "todo", "ean", "height_mm", "width_mm", "length_mm", "gross_weight_kg",
-            "supplier_code", "restrictions", "passport_ref"]
-    ed = st.data_editor(
-        v[cols], key="ed_sku", use_container_width=True, height=560, hide_index=True, num_rows="fixed",
-        disabled=["sku", "name", "todo"],
-        column_config={
-            "sku": st.column_config.TextColumn(_tr("sku_col_sku"), width="small"),
-            "sku_type": st.column_config.SelectboxColumn(_tr("sku_col_type"), options=list(_types.values()) + [_tr("sku_t_none")], width="small"),
-            "name": st.column_config.TextColumn(_tr("sku_col_name"), width="large"),
-            "todo": st.column_config.TextColumn(_tr("sku_col_todo"), width="medium"),
-            "ean": st.column_config.TextColumn(_tr("sku_col_ean"), width="small"),
-            "height_mm": st.column_config.TextColumn(_tr("sku_col_h"), width="small", help=_tr("sku_num_help")),
-            "width_mm": st.column_config.TextColumn(_tr("sku_col_w"), width="small", help=_tr("sku_num_help")),
-            "length_mm": st.column_config.TextColumn(_tr("sku_col_l"), width="small", help=_tr("sku_num_help")),
-            "gross_weight_kg": st.column_config.TextColumn(_tr("sku_col_weight"), help=_tr("sku_num_help"), width="small"),
-            "supplier_code": st.column_config.TextColumn(_tr("sku_col_supplier"), width="small"),
-            "restrictions": st.column_config.TextColumn(_tr("sku_col_restr"), width="small", help=_tr("sku_restr_help")),
-            "passport_ref": st.column_config.TextColumn(_tr("sku_col_passport"), width="small"),
-        },
-    )
-    if not st.button(_tr("save"), key="save_sku", type="primary"):
-        return
-    _code_of = {val: k for k, val in _types.items()}
-    before = view.set_index("sku")
-    stmts, n_fields, bad = [], 0, []
-    for _, r in ed.iterrows():
-        sku = r["sku"]; b = before.loc[sku]
-        nums = {c: text_num(r[c], as_int=(c != "gross_weight_kg")) for c in _NUM_SKU}
-        for c in _NUM_SKU:
-            if str(r[c] or "").strip() and nums[c] is None:
-                bad.append(_trf("sku_num_bad", sku=sku, f=c, v=r[c]))
-        old = {"sku_type": b["sku_type"] if b["sku_type"] in ("base", "composite") else None,
-               "ean": as_text(b["ean"]) or None, "supplier_code": as_text(b["supplier_code"]) or None,
-               "passport_ref": as_text(b["passport_ref"]) or None,
-               "intro_date": None, "exit_date": None,
-               "gross_weight_kg": None if pd.isna(b["gross_weight_kg"]) else float(b["gross_weight_kg"]),
-               "dims": tuple(None if pd.isna(x) else int(x) for x in (b["height_mm"], b["width_mm"], b["length_mm"])),
-               "restrictions": _sku_restr(b["restrictions"])}
-        new = dict(old, sku_type=_code_of.get(r["sku_type"]), ean=as_text(r["ean"]) or None,
-                   supplier_code=as_text(r["supplier_code"]) or None, passport_ref=as_text(r["passport_ref"]) or None,
-                   gross_weight_kg=nums["gross_weight_kg"],
-                   dims=(nums["height_mm"], nums["width_mm"], nums["length_mm"]),
-                   restrictions=_sku_restr(r["restrictions"]))
-        s_, n_ = _sku_stmts(sku, old, new)
-        stmts += s_; n_fields += n_
-    for msg in bad[:5]:
-        st.error(msg)
-    if bad:
-        return                                   # не сохраняем ничего: половина правок хуже отказа
-    if not stmts:
-        st.info(_tr("nochange"))
-        return
-    try:
-        exec_sql(stmts)
-        st.cache_data.clear()
-        st.success(_trf("sku_saved_manual", n=n_fields))
         st.rerun()
     except Exception as e:
         st.error(_trf("err", e=e))
