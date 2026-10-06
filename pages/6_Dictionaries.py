@@ -503,6 +503,44 @@ TR = {
         "ch_same": "Источник и получатель не могут совпадать",
         "ch_exists": "Такая связь уже есть",
         "mp_hint": "Маркетплейс — торговая среда одной площадки в одной стране. Код собирается сам из краткого названия площадки и кода страны, вручную не правится. Площадку и страну можно менять только пока по маркетплейсу нет записей матрицы и документов прогноза: для другой страны или площадки заводится отдельный маркетплейс.",
+        "mp_adep_matrix": "действующих допусков в матрице: {n}",
+        "mp_adep_fc": "строк действующего прогноза: {n}",
+        "mp_about": "**Маркетплейсы** — где мы продаём: одна площадка в одной стране (Amazon Испания, ManoMano Франция). На них ссылаются матрица, прогнозы, пулы, PeID и покрытие.  \n**Как работать:** найдите маркетплейс поиском или фильтрами → нажмите на строку → ниже откроется карточка. Новый маркетплейс — формой «Добавить маркетплейс» внизу. Удаления нет: ненужный маркетплейс отправляется в архив, его история остаётся.",
+        "mp_search": "Код или название",
+        "mp_search_ph": "AMZ-ES, Spain…",
+        "mp_summary": "Показано {shown} из {total} · в архиве {arch}",
+        "mp_col_code": "Код",
+        "mp_col_used": "Где используется",
+        "mp_col_used_help": "Действующие связи: допуски в матрице, участие в пулах, записи действующего прогноза. Пусто — пока нигде.",
+        "mp_list_empty": "По этим фильтрам маркетплейсов нет — снимите часть фильтров.",
+        "mp_list_hint": "Список только для просмотра. Чтобы изменить маркетплейс, нажмите на его строку — карточка откроется ниже.",
+        "mp_card_h": "Карточка маркетплейса",
+        "mp_is_archived": "В архиве: в новых операциях не выбирается.",
+        "mp_used_adm": "в матрице SKU: {n}",
+        "mp_used_pool": "пул: {p}",
+        "mp_used_fc": "в прогнозе SKU: {n}",
+        "mp_name_help": "Как маркетплейс называется на экранах, например «Amazon Spain». Код от названия не зависит.",
+        "mp_site_help": "Необязательно. Полная ссылка с https://, например https://www.amazon.es. Доступность сайта не проверяется.",
+        "mp_act_h": "Архив",
+        "mp_act_archive": "В архив",
+        "mp_act_archive_yes": "Да, в архив",
+        "mp_act_restore": "Вернуть из архива",
+        "mp_restore_note": "Маркетплейс в архиве. Вернуть можно в любой момент — связи и история на месте.",
+        "mp_off_deps_tail": "Архив их не удаляет и не переключает: действующий прогноз и состав пула меняются отдельно (замена прогнозов на «Прогнозе», состав — в «Пулах»).",
+        "mp_off_nodeps": "Действующих связей нет — архив ничего не затронет.",
+        "mp_add_h": "Добавить маркетплейс",
+        "mp_add_note": "Код соберётся сам: краткое название площадки и код страны, например AMZ-ES. Новый маркетплейс сразу активен. В списке — только активные площадки и страны.",
+        "mp_ro_add": "Добавлять маркетплейсы может планировщик или администратор — у вас доступ только на просмотр.",
+        "mp_pick_ph": "выберите…",
+        "mp_add_plat_help": "Оператор, через которого продаём (Amazon, ManoMano…). Нет нужной — сначала заведите её в разделе «Площадки».",
+        "mp_add_ctry_help": "Страна, на которую работает маркетплейс. Одна пара «площадка + страна» — один маркетплейс.",
+        "mp_add_btn": "Добавить маркетплейс",
+        "mp_add_need_plat": "Выберите площадку.",
+        "mp_add_need_ctry": "Выберите страну.",
+        "mp_add_need_curr": "Выберите валюту.",
+        "mp_add_dup_active": "Маркетплейс {code} уже есть — второй на ту же пару «площадка + страна» завести нельзя.",
+        "mp_add_dup_archived": "Маркетплейс {code} уже есть, он в архиве. Верните его из архива (фильтр «Статус» → «В архиве»), а не заводите новый.",
+        "mp_created_ok": "Маркетплейс {code} создан. Карточка открыта ниже.",
         "pool_hint": "Пул — группа маркетплейсов с общим совокупным прогнозом. "
                      "Маркетплейс не может одновременно быть в двух активных пулах.",
         "pool_list": "Пулы", "pool_new": "Новый пул", "pool_name": "Название",
@@ -1048,6 +1086,44 @@ TR = {
         "ch_same": "Джерело та отримувач не можуть збігатися",
         "ch_exists": "Такий звʼязок уже є",
         "mp_hint": "Маркетплейс — торгове середовище однієї площадки в одній країні. Код збирається сам із короткої назви майданчика і коду країни, вручну не правиться. Майданчик і країну можна змінювати лише поки за маркетплейсом немає записів матриці та документів прогнозу: для іншої країни чи майданчика створюється окремий маркетплейс.",
+        "mp_adep_matrix": "чинних допусків у матриці: {n}",
+        "mp_adep_fc": "рядків чинного прогнозу: {n}",
+        "mp_about": "**Маркетплейси** — де ми продаємо: один майданчик в одній країні (Amazon Іспанія, ManoMano Франція). На них посилаються матриця, прогнози, пули, PeID і покриття.  \n**Як працювати:** знайдіть маркетплейс пошуком або фільтрами → натисніть на рядок → нижче відкриється картка. Новий маркетплейс — формою «Додати маркетплейс» унизу. Видалення немає: непотрібний маркетплейс іде в архів, його історія лишається.",
+        "mp_search": "Код або назва",
+        "mp_search_ph": "AMZ-ES, Spain…",
+        "mp_summary": "Показано {shown} з {total} · в архіві {arch}",
+        "mp_col_code": "Код",
+        "mp_col_used": "Де використовується",
+        "mp_col_used_help": "Чинні зв'язки: допуски в матриці, участь у пулах, записи чинного прогнозу. Порожньо — поки ніде.",
+        "mp_list_empty": "За цими фільтрами маркетплейсів немає — зніміть частину фільтрів.",
+        "mp_list_hint": "Список лише для перегляду. Щоб змінити маркетплейс, натисніть на його рядок — картка відкриється нижче.",
+        "mp_card_h": "Картка маркетплейсу",
+        "mp_is_archived": "В архіві: у нових операціях не обирається.",
+        "mp_used_adm": "у матриці SKU: {n}",
+        "mp_used_pool": "пул: {p}",
+        "mp_used_fc": "у прогнозі SKU: {n}",
+        "mp_name_help": "Як маркетплейс називається на екранах, наприклад «Amazon Spain». Код від назви не залежить.",
+        "mp_site_help": "Необов'язково. Повне посилання з https://, наприклад https://www.amazon.es. Доступність сайту не перевіряється.",
+        "mp_act_h": "Архів",
+        "mp_act_archive": "В архів",
+        "mp_act_archive_yes": "Так, в архів",
+        "mp_act_restore": "Повернути з архіву",
+        "mp_restore_note": "Маркетплейс в архіві. Повернути можна будь-коли — зв'язки та історія на місці.",
+        "mp_off_deps_tail": "Архів їх не видаляє і не перемикає: чинний прогноз і склад пулу змінюються окремо (заміна прогнозів на «Прогнозі», склад — у «Пулах»).",
+        "mp_off_nodeps": "Чинних зв'язків немає — архів нічого не зачепить.",
+        "mp_add_h": "Додати маркетплейс",
+        "mp_add_note": "Код збереться сам: коротка назва майданчика і код країни, наприклад AMZ-ES. Новий маркетплейс одразу активний. У списку — лише активні майданчики та країни.",
+        "mp_ro_add": "Додавати маркетплейси може планувальник або адміністратор — у вас доступ лише на перегляд.",
+        "mp_pick_ph": "оберіть…",
+        "mp_add_plat_help": "Оператор, через якого продаємо (Amazon, ManoMano…). Немає потрібного — спершу заведіть його в розділі «Майданчики».",
+        "mp_add_ctry_help": "Країна, на яку працює маркетплейс. Одна пара «майданчик + країна» — один маркетплейс.",
+        "mp_add_btn": "Додати маркетплейс",
+        "mp_add_need_plat": "Оберіть майданчик.",
+        "mp_add_need_ctry": "Оберіть країну.",
+        "mp_add_need_curr": "Оберіть валюту.",
+        "mp_add_dup_active": "Маркетплейс {code} уже є — другий на ту саму пару «майданчик + країна» завести не можна.",
+        "mp_add_dup_archived": "Маркетплейс {code} уже є, він в архіві. Поверніть його з архіву (фільтр «Статус» → «В архіві»), а не заводьте новий.",
+        "mp_created_ok": "Маркетплейс {code} створено. Картка відкрита нижче.",
         "pool_hint": "Пул — група маркетплейсів зі спільним сукупним прогнозом. "
                      "Маркетплейс не може одночасно бути у двох активних пулах.",
         "pool_list": "Пули", "pool_new": "Новий пул", "pool_name": "Назва",
@@ -1593,6 +1669,44 @@ TR = {
         "ch_same": "Source and receiver must differ",
         "ch_exists": "This link already exists",
         "mp_hint": "A marketplace is one platform's trading environment in one country. The code is derived from the platform short name and the country code and is never typed. The platform and country can change only while the marketplace has no matrix records and no forecast documents: for another country or platform, create a separate marketplace.",
+        "mp_adep_matrix": "current matrix admissions: {n}",
+        "mp_adep_fc": "current forecast rows: {n}",
+        "mp_about": "**Marketplaces** — where we sell: one platform in one country (Amazon Spain, ManoMano France). The matrix, forecasts, pools, PeIDs and coverage refer to them.  \n**How to use:** find a marketplace by search or filters → click its row → the card opens below. A new marketplace — the «Add marketplace» form at the bottom. There is no deletion: a marketplace you no longer need goes to the archive, its history stays.",
+        "mp_search": "Code or name",
+        "mp_search_ph": "AMZ-ES, Spain…",
+        "mp_summary": "Shown {shown} of {total} · archived {arch}",
+        "mp_col_code": "Code",
+        "mp_col_used": "Used in",
+        "mp_col_used_help": "Current links: matrix admissions, pool membership, current forecast rows. Empty — not used yet.",
+        "mp_list_empty": "No marketplaces match these filters — clear some of them.",
+        "mp_list_hint": "The list is read-only. To change a marketplace, click its row — the card opens below.",
+        "mp_card_h": "Marketplace card",
+        "mp_is_archived": "Archived: not selectable in new operations.",
+        "mp_used_adm": "matrix SKUs: {n}",
+        "mp_used_pool": "pool: {p}",
+        "mp_used_fc": "forecast SKUs: {n}",
+        "mp_name_help": "How the marketplace is shown on screens, e.g. «Amazon Spain». The code does not depend on the name.",
+        "mp_site_help": "Optional. Full link with https://, e.g. https://www.amazon.es. Site availability is not checked.",
+        "mp_act_h": "Archive",
+        "mp_act_archive": "Archive",
+        "mp_act_archive_yes": "Yes, archive",
+        "mp_act_restore": "Restore from archive",
+        "mp_restore_note": "The marketplace is archived. You can restore it at any time — links and history are intact.",
+        "mp_off_deps_tail": "Archiving neither deletes nor switches them: the current forecast and pool membership are changed separately (forecast replacement on «Forecast», membership in «Pools»).",
+        "mp_off_nodeps": "No current links — archiving affects nothing.",
+        "mp_add_h": "Add marketplace",
+        "mp_add_note": "The code is built automatically: platform short name and country code, e.g. AMZ-ES. A new marketplace is active right away. Only active platforms and countries are listed.",
+        "mp_ro_add": "Planners and admins can add marketplaces — you have read-only access.",
+        "mp_pick_ph": "choose…",
+        "mp_add_plat_help": "The operator we sell through (Amazon, ManoMano…). Not in the list — add it first in «Platforms».",
+        "mp_add_ctry_help": "The country the marketplace serves. One «platform + country» pair — one marketplace.",
+        "mp_add_btn": "Add marketplace",
+        "mp_add_need_plat": "Choose a platform.",
+        "mp_add_need_ctry": "Choose a country.",
+        "mp_add_need_curr": "Choose a currency.",
+        "mp_add_dup_active": "Marketplace {code} already exists — a second one for the same «platform + country» pair is not allowed.",
+        "mp_add_dup_archived": "Marketplace {code} already exists and is archived. Restore it (filter «Status» → «Archived») instead of creating a new one.",
+        "mp_created_ok": "Marketplace {code} created. Its card is open below.",
         "pool_hint": "A pool is a group of marketplaces sharing one aggregate forecast. "
                      "A marketplace cannot belong to two active pools.",
         "pool_list": "Pools", "pool_new": "New pool", "pool_name": "Name",
@@ -2804,190 +2918,212 @@ def _curr_label(code: str, curr: pd.DataFrame) -> str:
     return code
 
 
+def _mp_filters_view(mps: pd.DataFrame, plats: pd.DataFrame, countries: pd.DataFrame):
+    """Поиск и фильтры списка маркетплейсов. Пустой выбор — «все» (как во всех фильтрах Кабинета)."""
+    f1, f2, f3, f4 = st.columns([1.6, 1.2, 1.2, 1])
+    search = f1.text_input(_tr("mp_search"), key="mp_search", placeholder=_tr("mp_search_ph")).strip()
+    plat_sel = f2.multiselect(_tr("mp_platform"), list(plats["short_name"]), placeholder=_tr("ph_any"),
+                              key="mp_plat_f",
+                              format_func=lambda sh: f"{sh} — {plats.set_index('short_name').loc[sh, 'full_name']}")
+    cnames = countries.set_index("alpha2")["name"].to_dict()
+    ctry_sel = f3.multiselect(_tr("mp_country"), sorted(set(mps["country_alpha2"])), placeholder=_tr("ph_any"),
+                              key="mp_ctry_f", format_func=lambda a: f"{cnames.get(a, a)} ({a})")
+    state_sel = f4.selectbox(_tr("sku_state_f"), ["active", "archived", "all"], key="mp_state_f",
+                             format_func=lambda x: _tr(f"sku_state_{x}"))
+    view = mps.copy()
+    if search:
+        view = view[view["code"].str.contains(search, case=False, na=False, regex=False)
+                    | view["name"].fillna("").str.contains(search, case=False, na=False, regex=False)]
+    if plat_sel:
+        view = view[view["platform_short"].isin(plat_sel)]
+    if ctry_sel:
+        view = view[view["country_alpha2"].isin(ctry_sel)]
+    if state_sel != "all":
+        view = view[view["is_active"].astype(bool) == (state_sel == "active")]
+    return view, (search, tuple(plat_sel), tuple(ctry_sel), state_sel)
+
+
 def _section_mp():
-    """Карточка маркетплейса по ТЗ 003: код производный, площадка и страна меняются только пока
-    нет матрицы и прогнозов, валюта из перечня ISO 4217, внешние коды парой, ссылка только https."""
-    st.caption(_tr("mp_hint"))
+    """Маркетплейсы по общему приёму справочников (06.10.2026): инструкция → список с поиском и
+    фильтрами → карточка выбранной строки → форма создания. Правила — ТЗ 003 без изменений:
+    код производный, площадка и страна меняются только пока нет матрицы и прогнозов, валюта из
+    перечня ISO 4217, внешние коды парой, ссылка только https. Физического удаления нет (§6) —
+    только архив и возврат из архива (решение владельца 06.10.2026)."""
+    dict_kit.instruction(_tr("mp_about"), _tr("mp_hint"))
+    if "mp_card_pick_next" in st.session_state:
+        st.session_state["mp_card_pick"] = st.session_state.pop("mp_card_pick_next")
+    _created = st.session_state.pop("mp_created", None)
+    if _created:
+        st.success(_trf("mp_created_ok", code=_created))
     mps = q("""
         SELECT m.id, m.code, m.name, m.platform_short, m.country_alpha2, m.currency, m.is_active,
                m.legacy_code, m.amazon_id,
-               a.external_system, a.external_id, a.website_url
+               a.external_system, a.external_id, a.website_url,
+               (SELECT count(*) FROM kabinet_data.assortment_admissions ad
+                 WHERE ad.level = 'marketplace' AND ad.marketplace_id = m.id AND ad.removed_on IS NULL) AS n_adm,
+               (SELECT string_agg(p.name, ', ' ORDER BY p.name) FROM kabinet_data.pool_members pm
+                 JOIN kabinet_data.pools p ON p.id = pm.pool_id
+                 WHERE pm.marketplace_id = m.id
+                   AND pm.valid_from <= CURRENT_DATE AND (pm.valid_to IS NULL OR pm.valid_to > CURRENT_DATE)) AS pools,
+               (SELECT count(DISTINCT f.sku) FROM kabinet_data.forecast_register f
+                 WHERE f.object_type = 'marketplace' AND f.object_id = m.id AND f.is_current) AS n_fc
         FROM kabinet_data.marketplaces_new m
         LEFT JOIN kabinet_data.marketplace_attributes a ON a.marketplace_id = m.id
         ORDER BY m.code
     """)
-    if mps.empty:
-        st.info(_tr("no_data"))
-        return
     plats = _plat_attrs()
     _lang_col = {"ru": "name_ru", "uk": "name_uk"}.get(get_lang(), "name_en")
-    countries = q(f"""SELECT c.alpha2, COALESCE(n.{_lang_col}, n.name_en, c.name) AS name
+    countries = q(f"""SELECT c.alpha2, COALESCE(n.{_lang_col}, n.name_en, c.name) AS name, c.is_active
                       FROM kabinet_data.countries c
                       LEFT JOIN kabinet_data.country_names n ON n.alpha2 = c.alpha2
-                      WHERE c.is_active ORDER BY 2""")
+                      ORDER BY 2""")
     curr = q("SELECT code, name FROM kabinet_data.currencies WHERE is_active ORDER BY code")
+    if mps.empty:
+        st.info(_tr("no_data"))
+        _mp_add_form(mps, plats, countries, curr)
+        return
 
-    labels = {int(r.id): f"{r.code} — {r['name']}" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
-              for _, r in mps.iterrows()}
-    sel = st.selectbox(_tr("mp_pick"), list(labels), format_func=lambda i: labels[i], key="mp_pick")
-    row = mps.set_index("id").loc[sel]
-
-    blockers = _mp_blockers(int(sel))
-    st.markdown(f"#### {row['code']} · {row['name']}")
-    st.caption(f"ID {int(sel)}")
-    if blockers:
-        st.caption(_tr("mp_deps_head") + " " + "; ".join(blockers))
+    view, fsig = _mp_filters_view(mps, plats, countries)
+    st.caption(_trf("mp_summary", shown=len(view), total=len(mps),
+                    arch=int((~mps["is_active"].astype(bool)).sum())))
+    cnames = countries.set_index("alpha2")["name"].to_dict()
+    pnames = plats.set_index("short_name")["full_name"].to_dict()
+    lst = pd.DataFrame({
+        "code": view["code"],
+        "name": view["name"].fillna(""),
+        "platform": [f"{p} — {pnames.get(p, '')}" for p in view["platform_short"]],
+        "country": [f"{cnames.get(a, a)} ({a})" for a in view["country_alpha2"]],
+        "currency": view["currency"],
+        "state": [_tr("sku_state_active") if bool(a) else _tr("sku_state_archived") for a in view["is_active"]],
+        "used": [_mp_used_text(r) for _, r in view.iterrows()],
+    })
+    # ключ таблицы зависит от фильтров: выбор хранится номером строки, и после смены фильтра тот
+    # же номер указал бы на другой маркетплейс (тот же приём, что у SKU)
+    _fkey = abs(hash(fsig)) % 10 ** 8
+    ev = st.dataframe(lst, key=f"mp_list_{_fkey}", use_container_width=True, hide_index=True,
+                      height=min(420, 38 + 35 * max(len(lst), 1)),
+                      on_select="rerun", selection_mode=["single-row", "single-cell"],
+                      column_config={
+                          "code": st.column_config.TextColumn(_tr("mp_col_code"), width=90),
+                          "name": st.column_config.TextColumn(_tr("col_name"), width="medium"),
+                          "platform": st.column_config.TextColumn(_tr("mp_platform"), width="medium"),
+                          "country": st.column_config.TextColumn(_tr("mp_country"), width="medium"),
+                          "currency": st.column_config.TextColumn(_tr("mp_currency"), width=80),
+                          "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
+                          "used": st.column_config.TextColumn(_tr("mp_col_used"), width="large",
+                                                              help=_tr("mp_col_used_help")),
+                      })
+    if lst.empty:
+        st.caption(_tr("mp_list_empty"))
     else:
-        st.caption(_tr("mp_free"))
+        st.caption(_tr("mp_list_hint"))
 
-    c1, c2 = st.columns([1, 2])
-    c1.text_input(_tr("mp_code_ro"), value=row["code"], disabled=True, key=f"mc_{sel}",
-                  help=_tr("mp_code_hint"))
-    new_name = c2.text_input(_tr("col_name"), value=row["name"] or "", key=f"mn_{sel}")
+    options = [int(i) for i in view["id"]]
+    if options:
+        _sel = ev.selection if ev is not None and hasattr(ev, "selection") else {}
+        rows = list(_sel.get("rows", []) or [])
+        cells = list(_sel.get("cells", []) or [])
+        _pos = rows[0] if rows else (int(cells[0][0]) if cells else None)
+        _picked = options[_pos] if _pos is not None and _pos < len(options) else None
+        _sig = (_fkey, tuple(rows), tuple(tuple(c) for c in cells))
+        if _picked and _sig != st.session_state.get("mp_list_sig"):
+            st.session_state["mp_card_pick"] = _picked
+        st.session_state["mp_list_sig"] = _sig
+        if st.session_state.get("mp_card_pick") not in options:
+            st.session_state["mp_card_pick"] = options[0]
+        labels = {int(r.id): f"{r.code} — {r['name']}" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
+                  for _, r in view.iterrows()}
+        st.markdown("#### " + _tr("mp_card_h"))
+        sel = st.selectbox(_tr("mp_pick"), options, format_func=lambda i: labels[i], key="mp_card_pick")
+        _mp_card(mps.set_index("id").loc[sel], int(sel), plats, countries, curr)
 
-    p1, p2, p3 = st.columns(3)
-    # площадку и страну меняем только при пустых матрице и прогнозах (ТЗ §5) — иначе поля видны,
-    # но заблокированы, и рядом написано, что именно мешает
-    plat_opts = list(plats["short_name"])
-    new_plat = p1.selectbox(_tr("mp_platform"), plat_opts, index=plat_opts.index(row["platform_short"]),
-                            key=f"mp_{sel}", disabled=bool(blockers),
-                            format_func=lambda sh: f"{sh} — {plats.set_index('short_name').loc[sh, 'full_name']}")
-    ctry_opts = list(countries["alpha2"])
-    _ci = ctry_opts.index(row["country_alpha2"]) if row["country_alpha2"] in ctry_opts else 0
-    new_ctry = p2.selectbox(_tr("mp_country"), ctry_opts, index=_ci, key=f"mcy_{sel}",
-                            disabled=bool(blockers),
-                            format_func=lambda a: f"{countries.set_index('alpha2').loc[a, 'name']} ({a})")
-    cur_opts = list(curr["code"])
-    _cu = cur_opts.index(row["currency"]) if row["currency"] in cur_opts else 0
-    new_curr = p3.selectbox(_tr("mp_currency"), cur_opts, index=_cu, key=f"mcu_{sel}",
-                            help=_tr("mp_currency_help"),
-                            format_func=lambda c_: _curr_label(c_, curr))
-    if blockers:
-        # рядом с заблокированным полем говорим не только «нельзя», но и что делать вместо этого:
-        # отказ без выхода читается как поломка экрана
-        st.caption(_trf("mp_locked", what=_tr("mp_locked_what_platform"), what2=_tr("mp_locked_for_platform")))
-        st.info(_tr("mp_locked_advice"))
+    _mp_add_form(mps, plats, countries, curr)
 
-    e1, e2, e3 = st.columns([1, 1, 2])
-    new_esys = e1.text_input(_tr("mp_ext_sys"), value=row["external_system"] or "", key=f"mes_{sel}")
-    new_eid = e2.text_input(_tr("mp_ext_id"), value=row["external_id"] or "", key=f"mei_{sel}")
-    new_site = e3.text_input(_tr("mp_site"), value=row["website_url"] or "", key=f"mw_{sel}")
-    st.caption(_tr("mp_ext_hint"))
 
-    new_act = st.checkbox(_tr("col_active"), value=bool(row["is_active"]), key=f"ma_{sel}")
-    if bool(row["is_active"]) and not new_act:
-        deps = _mp_active_deps(int(sel))
-        if deps:
-            st.warning(_tr("mp_off_deps") + ": " + "; ".join(deps))
-        st.caption(_tr("mp_off_note"))
+def _mp_used_text(r) -> str:
+    """«Где используется» — действующие связи словами, чтобы по списку было видно, что маркетплейс живой."""
+    parts = []
+    if int(r["n_adm"] or 0):
+        parts.append(_trf("mp_used_adm", n=int(r["n_adm"])))
+    if as_text(r["pools"]):
+        parts.append(_trf("mp_used_pool", p=as_text(r["pools"])))
+    if int(r["n_fc"] or 0):
+        parts.append(_trf("mp_used_fc", n=int(r["n_fc"])))
+    return " · ".join(parts)
 
-    if st.button(_tr("save"), key=f"mp_save_{sel}", type="primary"):
-        errs = []
-        plat_changed = new_plat != row["platform_short"]
-        ctry_changed = new_ctry != row["country_alpha2"]
-        if (plat_changed or ctry_changed) and blockers:
-            errs.append(_trf("mp_locked", what=_tr("mp_locked_what_platform"),
-                             what2=_tr("mp_locked_for_platform")) + " " + "; ".join(blockers)
-                        + " " + _tr("mp_locked_advice"))
-        if plat_changed and not bool(plats.set_index("short_name").loc[new_plat, "is_active"]):
-            errs.append(_trf("mp_platform_inactive", name=new_plat))
-        if plat_changed or ctry_changed:
-            dup = q1("""SELECT code FROM kabinet_data.marketplaces_new
-                        WHERE platform_short = %s AND country_alpha2 = %s AND id <> %s""",
-                     (new_plat, new_ctry, int(sel)))
-            if not dup.empty:
-                errs.append(_trf("mp_dup_pair", code=dup["code"].iloc[0]))
-        if ctry_changed:
-            # пул по ТЗ 004 — маркетплейсы ОДНОЙ страны: увести участника в другую страну значит
-            # сломать пул, поэтому проверяем страны остальных действующих участников
-            pools = q1("""SELECT p.name, string_agg(DISTINCT m2.country_alpha2, ', ') AS countries
-                          FROM kabinet_data.pool_members pm
-                          JOIN kabinet_data.pools p ON p.id = pm.pool_id
-                          JOIN kabinet_data.pool_members pm2 ON pm2.pool_id = pm.pool_id
-                               AND pm2.marketplace_id <> pm.marketplace_id
-                               AND (pm2.valid_to IS NULL OR pm2.valid_to > CURRENT_DATE)
-                          JOIN kabinet_data.marketplaces_new m2 ON m2.id = pm2.marketplace_id
-                          WHERE pm.marketplace_id = %s AND (pm.valid_to IS NULL OR pm.valid_to > CURRENT_DATE)
-                          GROUP BY p.name""", (int(sel),))
-            for _, pr in pools.iterrows():
-                others = [x.strip() for x in as_text(pr["countries"]).split(",") if x.strip()]
-                if any(o != new_ctry for o in others):
-                    errs.append(_trf("mp_pool_country", pool=pr["name"], countries=", ".join(others)))
-        if bool(new_esys) != bool(new_eid):
-            errs.append(_tr("mp_ext_half"))
-        if new_esys and new_eid:
-            dup = q1("""SELECT m.code FROM kabinet_data.marketplace_attributes a
-                        JOIN kabinet_data.marketplaces_new m ON m.id = a.marketplace_id
-                        WHERE a.external_system = %s AND a.external_id = %s AND a.marketplace_id <> %s""",
-                     (new_esys.strip(), new_eid.strip(), int(sel)))
-            if not dup.empty:
-                errs.append(_trf("mp_ext_dup", code=dup["code"].iloc[0]))
-        if new_site and not re.match(r"^https://[^\s/]+\.[^\s/]+", new_site.strip()):
-            errs.append(_tr("mp_site_bad"))
-        if not (new_name or "").strip():
-            errs.append(_tr("plat_name_empty"))
 
-        if errs:
-            for e in errs:
-                st.error(e)
+def _mp_card(row, sel: int, plats, countries, curr):
+    """Карточка маркетплейса. Логика сохранения — прежняя (ТЗ 003 §4–§5); признак активности
+    вынесен в отдельные действия «В архив» / «Вернуть из архива» (§6–§7)."""
+    can_edit = auth.can("dict.edit")
+    act_countries = countries[countries["is_active"].astype(bool)]
+    blockers = _mp_blockers(sel)
+    box = st.container(border=True)
+    with box:
+        st.markdown(f"**{row['code']} · {row['name']}**" + ("" if bool(row["is_active"])
+                                                              else f"  \n{_tr('mp_is_archived')}"))
+        st.caption(f"ID {sel}")
+        if blockers:
+            st.caption(_tr("mp_deps_head") + " " + "; ".join(blockers))
         else:
-            stmts, log = [], []
-            new_code = f"{new_plat}-{new_ctry}" if (plat_changed or ctry_changed) else row["code"]
-            if (new_name or "").strip() != (row["name"] or ""):
-                stmts.append(("UPDATE kabinet_data.marketplaces_new SET name = %s WHERE id = %s",
-                              (new_name.strip(), int(sel))))
-                log.append(("name", row["name"], new_name.strip()))
-            if new_curr != row["currency"]:
-                stmts.append(("UPDATE kabinet_data.marketplaces_new SET currency = %s WHERE id = %s",
-                              (new_curr, int(sel))))
-                log.append(("currency", row["currency"], new_curr))
-            if plat_changed:
-                stmts.append(("UPDATE kabinet_data.marketplaces_new SET platform_short = %s WHERE id = %s",
-                              (new_plat, int(sel))))
-                log.append(("platform_short", row["platform_short"], new_plat))
-            if ctry_changed:
-                stmts.append(("UPDATE kabinet_data.marketplaces_new SET country_alpha2 = %s WHERE id = %s",
-                              (new_ctry, int(sel))))
-                log.append(("country_alpha2", row["country_alpha2"], new_ctry))
-            if new_code != row["code"]:
-                # код производный: после разрешённой смены пересобираем его сами, id не трогаем (§4)
-                stmts.append(("UPDATE kabinet_data.marketplaces_new SET code = %s WHERE id = %s",
-                              (new_code, int(sel))))
-                log.append(("code", row["code"], new_code))
-            if bool(new_act) != bool(row["is_active"]):
-                stmts.append(("UPDATE kabinet_data.marketplaces_new SET is_active = %s WHERE id = %s",
-                              (bool(new_act), int(sel))))
-                log.append(("is_active", row["is_active"], new_act))
-            ext = {"external_system": (new_esys or "").strip() or None,
-                   "external_id": (new_eid or "").strip() or None,
-                   "website_url": (new_site or "").strip() or None}
-            if any(not _same(row[k], v) for k, v in ext.items()):
-                stmts.append(("INSERT INTO kabinet_data.marketplace_attributes (marketplace_id) VALUES (%s) "
-                              "ON CONFLICT (marketplace_id) DO NOTHING", (int(sel),)))
-                stmts.append(("UPDATE kabinet_data.marketplace_attributes SET external_system = %s, "
-                              "external_id = %s, website_url = %s, updated_at = now(), updated_by = 'kabinet' "
-                              "WHERE marketplace_id = %s",
-                              (ext["external_system"], ext["external_id"], ext["website_url"], int(sel))))
-                log += [(k, row[k], v) for k, v in ext.items() if not _same(row[k], v)]
-            if not stmts:
-                st.info(_tr("mp_nochange"))
+            st.caption(_tr("mp_free"))
+
+        c1, c2 = st.columns([1, 2])
+        c1.text_input(_tr("mp_code_ro"), value=row["code"], disabled=True, key=f"mc_{sel}",
+                      help=_tr("mp_code_hint"))
+        new_name = c2.text_input(_tr("col_name"), value=row["name"] or "", key=f"mn_{sel}",
+                                 help=_tr("mp_name_help"))
+
+        p1, p2, p3 = st.columns(3)
+        # площадку и страну меняем только при пустых матрице и прогнозах (ТЗ §5) — иначе поля видны,
+        # но заблокированы, и рядом написано, что именно мешает
+        plat_opts = list(plats["short_name"])
+        new_plat = p1.selectbox(_tr("mp_platform"), plat_opts, index=plat_opts.index(row["platform_short"]),
+                                key=f"mp_{sel}", disabled=bool(blockers),
+                                format_func=lambda sh: f"{sh} — {plats.set_index('short_name').loc[sh, 'full_name']}")
+        ctry_opts = list(act_countries["alpha2"])
+        if row["country_alpha2"] not in ctry_opts:
+            ctry_opts = [row["country_alpha2"]] + ctry_opts
+        cn = countries.set_index("alpha2")["name"].to_dict()
+        new_ctry = p2.selectbox(_tr("mp_country"), ctry_opts, index=ctry_opts.index(row["country_alpha2"]),
+                                key=f"mcy_{sel}", disabled=bool(blockers),
+                                format_func=lambda a: f"{cn.get(a, a)} ({a})")
+        cur_opts = list(curr["code"])
+        _cu = cur_opts.index(row["currency"]) if row["currency"] in cur_opts else 0
+        new_curr = p3.selectbox(_tr("mp_currency"), cur_opts, index=_cu, key=f"mcu_{sel}",
+                                help=_tr("mp_currency_help"),
+                                format_func=lambda c_: _curr_label(c_, curr))
+        if blockers:
+            # рядом с заблокированным полем говорим не только «нельзя», но и что делать вместо этого:
+            # отказ без выхода читается как поломка экрана
+            st.caption(_trf("mp_locked", what=_tr("mp_locked_what_platform"), what2=_tr("mp_locked_for_platform")))
+            st.info(_tr("mp_locked_advice"))
+
+        e1, e2, e3 = st.columns([1, 1, 2])
+        new_esys = e1.text_input(_tr("mp_ext_sys"), value=row["external_system"] or "", key=f"mes_{sel}")
+        new_eid = e2.text_input(_tr("mp_ext_id"), value=row["external_id"] or "", key=f"mei_{sel}")
+        new_site = e3.text_input(_tr("mp_site"), value=row["website_url"] or "", key=f"mw_{sel}",
+                                 help=_tr("mp_site_help"))
+        st.caption(_tr("mp_ext_hint"))
+
+        if st.button(_tr("save"), key=f"mp_save_{sel}", type="primary", disabled=not can_edit,
+                     help=None if can_edit else _tr("sku_ro_help")):
+            errs = _mp_check(sel, row, new_name, new_plat, new_ctry, new_esys, new_eid, new_site,
+                             plats, blockers)
+            if errs:
+                for e in errs:
+                    st.error(e)
             else:
-                stmts += [(MPLOG, ("marketplace", int(sel), f,
-                                   None if (o is None or (isinstance(o, float) and pd.isna(o))) else str(o),
-                                   None if v is None else str(v))) for f, o, v in log]
-                try:
-                    exec_sql(stmts)
-                    st.cache_data.clear()
-                    st.success(_trf("mp_saved", code=new_code))
-                    st.rerun()
-                except Exception as e:
-                    st.error(_trf("err", e=e))
+                _mp_save(sel, row, new_name, new_plat, new_ctry, new_curr, new_esys, new_eid, new_site)
+
+    if can_edit:
+        _mp_archive(row, sel)
 
     with st.expander(_tr("mp_log")):
         lg = q1("""SELECT changed_at, field, old_value, new_value, actor
                    FROM kabinet_data.marketplace_change_log
                    WHERE object_type = 'marketplace' AND object_id = %s
-                   ORDER BY changed_at DESC LIMIT 200""", (int(sel),))
+                   ORDER BY changed_at DESC LIMIT 200""", (sel,))
         if lg.empty:
             st.caption(_tr("mp_log_empty"))
         else:
@@ -2997,6 +3133,230 @@ def _section_mp():
             st.dataframe(lg, hide_index=True, use_container_width=True,
                          height=min(320, 38 + 35 * len(lg)))
 
+
+def _mp_ext_site_errors(sel, esys, eid, site) -> list:
+    """Проверки внешних данных и ссылки — общие для карточки и формы создания (ТЗ 003 §4)."""
+    errs = []
+    if bool((esys or "").strip()) != bool((eid or "").strip()):
+        errs.append(_tr("mp_ext_half"))
+    if (esys or "").strip() and (eid or "").strip():
+        dup = q_now("""SELECT m.code FROM kabinet_data.marketplace_attributes a
+                       JOIN kabinet_data.marketplaces_new m ON m.id = a.marketplace_id
+                       WHERE a.external_system = %s AND a.external_id = %s AND a.marketplace_id <> %s""",
+                    (esys.strip(), eid.strip(), sel))
+        if not dup.empty:
+            errs.append(_trf("mp_ext_dup", code=dup["code"].iloc[0]))
+    if (site or "").strip() and not re.match(r"^https://[^\s/]+\.[^\s/]+\S*$", site.strip()):
+        errs.append(_tr("mp_site_bad"))
+    return errs
+
+
+def _mp_check(sel, row, new_name, new_plat, new_ctry, new_esys, new_eid, new_site, plats, blockers) -> list:
+    errs = []
+    plat_changed = new_plat != row["platform_short"]
+    ctry_changed = new_ctry != row["country_alpha2"]
+    if (plat_changed or ctry_changed) and blockers:
+        errs.append(_trf("mp_locked", what=_tr("mp_locked_what_platform"),
+                         what2=_tr("mp_locked_for_platform")) + " " + "; ".join(blockers)
+                    + " " + _tr("mp_locked_advice"))
+    if plat_changed and not bool(plats.set_index("short_name").loc[new_plat, "is_active"]):
+        errs.append(_trf("mp_platform_inactive", name=new_plat))
+    if plat_changed or ctry_changed:
+        dup = q_now("""SELECT code FROM kabinet_data.marketplaces_new
+                       WHERE platform_short = %s AND country_alpha2 = %s AND id <> %s""",
+                    (new_plat, new_ctry, sel))
+        if not dup.empty:
+            errs.append(_trf("mp_dup_pair", code=dup["code"].iloc[0]))
+    if ctry_changed:
+        # пул по ТЗ 004 — маркетплейсы ОДНОЙ страны: увести участника в другую страну значит
+        # сломать пул, поэтому проверяем страны остальных действующих участников
+        pools = q_now("""SELECT p.name, string_agg(DISTINCT m2.country_alpha2, ', ') AS countries
+                         FROM kabinet_data.pool_members pm
+                         JOIN kabinet_data.pools p ON p.id = pm.pool_id
+                         JOIN kabinet_data.pool_members pm2 ON pm2.pool_id = pm.pool_id
+                              AND pm2.marketplace_id <> pm.marketplace_id
+                              AND (pm2.valid_to IS NULL OR pm2.valid_to > CURRENT_DATE)
+                         JOIN kabinet_data.marketplaces_new m2 ON m2.id = pm2.marketplace_id
+                         WHERE pm.marketplace_id = %s AND (pm.valid_to IS NULL OR pm.valid_to > CURRENT_DATE)
+                         GROUP BY p.name""", (sel,))
+        for _, pr in pools.iterrows():
+            others = [x.strip() for x in as_text(pr["countries"]).split(",") if x.strip()]
+            if any(o != new_ctry for o in others):
+                errs.append(_trf("mp_pool_country", pool=pr["name"], countries=", ".join(others)))
+    errs += _mp_ext_site_errors(sel, new_esys, new_eid, new_site)
+    if not (new_name or "").strip():
+        errs.append(_tr("plat_name_empty"))
+    return errs
+
+
+def _mp_save(sel, row, new_name, new_plat, new_ctry, new_curr, new_esys, new_eid, new_site):
+    plat_changed = new_plat != row["platform_short"]
+    ctry_changed = new_ctry != row["country_alpha2"]
+    stmts, log = [], []
+    new_code = f"{new_plat}-{new_ctry}" if (plat_changed or ctry_changed) else row["code"]
+    if (new_name or "").strip() != (row["name"] or ""):
+        stmts.append(("UPDATE kabinet_data.marketplaces_new SET name = %s WHERE id = %s", (new_name.strip(), sel)))
+        log.append(("name", row["name"], new_name.strip()))
+    if new_curr != row["currency"]:
+        stmts.append(("UPDATE kabinet_data.marketplaces_new SET currency = %s WHERE id = %s", (new_curr, sel)))
+        log.append(("currency", row["currency"], new_curr))
+    if plat_changed:
+        stmts.append(("UPDATE kabinet_data.marketplaces_new SET platform_short = %s WHERE id = %s", (new_plat, sel)))
+        log.append(("platform_short", row["platform_short"], new_plat))
+    if ctry_changed:
+        stmts.append(("UPDATE kabinet_data.marketplaces_new SET country_alpha2 = %s WHERE id = %s", (new_ctry, sel)))
+        log.append(("country_alpha2", row["country_alpha2"], new_ctry))
+    if new_code != row["code"]:
+        # код производный: после разрешённой смены пересобираем его сами, id не трогаем (§4)
+        stmts.append(("UPDATE kabinet_data.marketplaces_new SET code = %s WHERE id = %s", (new_code, sel)))
+        log.append(("code", row["code"], new_code))
+    ext = {"external_system": (new_esys or "").strip() or None,
+           "external_id": (new_eid or "").strip() or None,
+           "website_url": (new_site or "").strip() or None}
+    if any(not _same(row[k], v) for k, v in ext.items()):
+        stmts.append(("INSERT INTO kabinet_data.marketplace_attributes (marketplace_id) VALUES (%s) "
+                      "ON CONFLICT (marketplace_id) DO NOTHING", (sel,)))
+        stmts.append(("UPDATE kabinet_data.marketplace_attributes SET external_system = %s, "
+                      "external_id = %s, website_url = %s, updated_at = now(), updated_by = 'kabinet' "
+                      "WHERE marketplace_id = %s",
+                      (ext["external_system"], ext["external_id"], ext["website_url"], sel)))
+        log += [(k, row[k], v) for k, v in ext.items() if not _same(row[k], v)]
+    if not stmts:
+        st.info(_tr("mp_nochange"))
+        return
+    stmts += [(MPLOG, ("marketplace", sel, f,
+                       None if (o is None or (isinstance(o, float) and pd.isna(o))) else str(o),
+                       None if v is None else str(v))) for f, o, v in log]
+    try:
+        exec_sql(stmts)
+        st.cache_data.clear()
+        st.success(_trf("mp_saved", code=new_code))
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
+
+
+def _mp_archive(row, sel: int):
+    """В архив / вернуть из архива (ТЗ 003 §6–§7). Физического удаления нет вовсе — и у записи,
+    заведённой по ошибке, тоже (решение владельца 06.10.2026). Перед архивом — действующие связи
+    и второе нажатие: архив не стирает данные, но выключает маркетплейс из новых операций."""
+    box = st.container(border=True)
+    box.markdown("**" + _tr("mp_act_h") + "**")
+    flag = f"mp_arch_ask_{sel}"
+    if not bool(row["is_active"]):
+        box.caption(_tr("mp_restore_note"))
+        if box.button(_tr("mp_act_restore"), key=f"mp_rest_{sel}"):
+            _mp_set_active(row, sel, True)
+        return
+    if not st.session_state.get(flag):
+        box.caption(_tr("mp_off_note"))
+        if box.button(_tr("mp_act_archive"), key=f"mp_arch_{sel}"):
+            st.session_state[flag] = True
+            st.rerun()
+        return
+    deps = _mp_active_deps(sel)
+    if deps:
+        box.warning(_tr("mp_off_deps") + ":\n\n" + "\n".join(f"- {d}" for d in deps)
+                    + "\n\n" + _tr("mp_off_deps_tail"))
+    else:
+        box.info(_tr("mp_off_nodeps"))
+    c1, c2 = box.columns(2)
+    if c1.button(_tr("mp_act_archive_yes"), key=f"mp_arch_yes_{sel}", type="primary"):
+        st.session_state.pop(flag, None)
+        _mp_set_active(row, sel, False)
+    if c2.button(_tr("del_confirm_no"), key=f"mp_arch_no_{sel}"):
+        st.session_state.pop(flag, None)
+        st.rerun()
+
+
+def _mp_set_active(row, sel: int, active: bool):
+    try:
+        exec_sql([("UPDATE kabinet_data.marketplaces_new SET is_active = %s WHERE id = %s", (active, sel)),
+                  (MPLOG, ("marketplace", sel, "is_active", str(bool(row["is_active"])), str(active)))])
+        st.cache_data.clear()
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
+
+
+def _mp_add_form(mps, plats, countries, curr):
+    """Создание маркетплейса (ТЗ 003 §4–§5): площадка и страна — из справочников и только активные
+    (§7), валюта — из ISO 4217 и не подставляется по стране (§4), код собирается сам, новый
+    маркетплейс активен (§6). Пара «площадка + страна» уникальна среди ВСЕХ записей, включая архив."""
+    st.markdown("#### " + _tr("mp_add_h"))
+    if not auth.can("dict.edit"):
+        st.caption(_tr("mp_ro_add"))
+        return
+    st.caption(_tr("mp_add_note"))
+    act_plats = plats[plats["is_active"].astype(bool)]
+    act_ctry = countries[countries["is_active"].astype(bool)]
+    cn = act_ctry.set_index("alpha2")["name"].to_dict()
+    pn = act_plats.set_index("short_name")["full_name"].to_dict()
+    with st.form("mp_add_form", clear_on_submit=False):
+        a1, a2, a3 = st.columns(3)
+        plat = a1.selectbox(_tr("mp_platform") + " *", list(pn), index=None, placeholder=_tr("mp_pick_ph"),
+                            format_func=lambda sh: f"{sh} — {pn[sh]}", key="mp_add_plat",
+                            help=_tr("mp_add_plat_help"))
+        ctry = a2.selectbox(_tr("mp_country") + " *", list(cn), index=None, placeholder=_tr("mp_pick_ph"),
+                            format_func=lambda a: f"{cn[a]} ({a})", key="mp_add_ctry",
+                            help=_tr("mp_add_ctry_help"))
+        cur = a3.selectbox(_tr("mp_currency") + " *", list(curr["code"]), index=None,
+                           placeholder=_tr("mp_pick_ph"), format_func=lambda c_: _curr_label(c_, curr),
+                           key="mp_add_curr", help=_tr("mp_currency_help"))
+        name = st.text_input(_tr("col_name") + " *", key="mp_add_name", help=_tr("mp_name_help"),
+                             placeholder="Amazon Spain")
+        b1, b2, b3 = st.columns([1, 1, 2])
+        esys = b1.text_input(_tr("mp_ext_sys"), key="mp_add_esys", help=_tr("mp_ext_hint"))
+        eid = b2.text_input(_tr("mp_ext_id"), key="mp_add_eid", help=_tr("mp_ext_hint"))
+        site = b3.text_input(_tr("mp_site"), key="mp_add_site", help=_tr("mp_site_help"),
+                             placeholder="https://www.amazon.es")
+        go = st.form_submit_button(_tr("mp_add_btn"), type="primary")
+    if not go:
+        return
+    errs = []
+    if not plat:
+        errs.append(_tr("mp_add_need_plat"))
+    if not ctry:
+        errs.append(_tr("mp_add_need_ctry"))
+    if not cur:
+        errs.append(_tr("mp_add_need_curr"))
+    if not (name or "").strip():
+        errs.append(_tr("plat_name_empty"))
+    if plat and ctry:
+        dup = q_now("""SELECT code, is_active FROM kabinet_data.marketplaces_new
+                       WHERE platform_short = %s AND country_alpha2 = %s""", (plat, ctry))
+        if not dup.empty:
+            errs.append(_trf("mp_add_dup_active" if bool(dup["is_active"].iloc[0]) else "mp_add_dup_archived",
+                             code=dup["code"].iloc[0]))
+    errs += _mp_ext_site_errors(-1, esys, eid, site)
+    if errs:
+        for e in errs:
+            st.error(e)
+        return
+    code = f"{plat}-{ctry}"
+    ext = ((esys or "").strip() or None, (eid or "").strip() or None, (site or "").strip() or None)
+    try:
+        # одна команда: маркетплейс, его реквизиты и запись журнала — либо всё, либо ничего
+        exec_sql([("""
+            WITH m AS (INSERT INTO kabinet_data.marketplaces_new
+                           (code, platform_short, country_alpha2, name, currency, is_active)
+                       VALUES (%s, %s, %s, %s, %s, true) RETURNING id),
+                 a AS (INSERT INTO kabinet_data.marketplace_attributes
+                           (marketplace_id, external_system, external_id, website_url, updated_by)
+                       SELECT id, %s, %s, %s, %s FROM m)
+            INSERT INTO kabinet_data.marketplace_change_log (object_type, object_id, field, old_value, new_value, actor)
+            SELECT 'marketplace', id, 'created', NULL, %s, %s FROM m
+        """, (code, plat, ctry, name.strip(), cur, *ext, _actor(), f"{code} · {name.strip()}", _actor()))])
+        st.cache_data.clear()
+        new_id = q_now("SELECT id FROM kabinet_data.marketplaces_new WHERE code = %s", (code,))
+        if not new_id.empty:
+            # поле выбора карточки уже нарисовано в этом прогоне — его значение Streamlit менять не
+            # даёт; кладём в соседний ключ, а в начале следующего прогона переносим
+            st.session_state["mp_card_pick_next"] = int(new_id["id"].iloc[0])
+        st.session_state["mp_created"] = code
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
 
 
 # ---------------------------------------------------------------- ТЗ 002 ---
@@ -3262,17 +3622,24 @@ def _mp_active_deps(mp_id: int) -> list:
                (SELECT count(*) FROM kabinet_data.forecast_register
                  WHERE object_type = 'marketplace' AND object_id = %s AND is_current) AS fc,
                (SELECT count(*) FROM kabinet_data.product_entities
-                 WHERE marketplace_id = %s AND is_active IS NOT FALSE) AS peid
-    """, (mp_id, mp_id, mp_id, mp_id))
+                 WHERE marketplace_id = %s AND is_active IS NOT FALSE) AS peid,
+               -- открытые алерты по маркетплейсу как объекту: прогнозные ([PACE:/MISSING:/PARTIAL:код/SKU]).
+               -- Своей колонки рынка у инцидентов нет, поэтому ищем по коду в токене сообщения
+               (SELECT count(*) FROM kabinet_data.incidents
+                 WHERE status IN ('open', 'acknowledged')
+                   AND message LIKE '%%:' || (SELECT code FROM kabinet_data.marketplaces_new WHERE id = %s) || '/%%') AS alerts
+    """, (mp_id, mp_id, mp_id, mp_id, mp_id))
     out = []
     if int(rows["adm"].iloc[0]):
-        out.append(_trf("mp_dep_matrix", n=int(rows["adm"].iloc[0])))
+        out.append(_trf("mp_adep_matrix", n=int(rows["adm"].iloc[0])))
     if int(rows["pools"].iloc[0]):
         out.append(_trf("mp_dep_pool", n=int(rows["pools"].iloc[0])))
     if int(rows["fc"].iloc[0]):
-        out.append(_trf("mp_dep_forecast", n=int(rows["fc"].iloc[0])))
+        out.append(_trf("mp_adep_fc", n=int(rows["fc"].iloc[0])))
     if int(rows["peid"].iloc[0]):
         out.append(_trf("mp_dep_peid", n=int(rows["peid"].iloc[0])))
+    if int(rows["alerts"].iloc[0]):
+        out.append(_trf("mp_dep_alerts", n=int(rows["alerts"].iloc[0])))
     return out
 
 
