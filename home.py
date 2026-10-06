@@ -194,7 +194,7 @@ def load_settled_last(amz_codes: tuple, _v: str = ""):
     неполным и дозаполняется следующими прогонами — в цифры и сравнение его не берём."""
     conn = get_connection()
     try:
-        return mn.settled_last(conn, list(amz_codes))
+        return mn.settled_last(conn)
     except Exception:
         return pd.NaT
     finally:

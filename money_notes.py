@@ -7,16 +7,17 @@
 1. **Подпись под денежной карточкой** — видимая, мелким шрифтом: с НДС или без · какие каналы · по какой
    дате (+ уточнение: «после возвратов»). Подсказка ⓘ остаётся, но её первая фраза — всегда «С НДС.» или
    «Без НДС.»: `money_metric` дописывает её сам, если текст сам этого не говорит.
-2. **Сравнение периодов** — только одинаковые ПОЛНЫЕ периоды. Последний день Amazon догружается: экономика
-   за вчера приходит утром неполной и дозаполняется следующими прогонами (06.10.2026: 05.10 — 988 € против
-   1 512 € в витрине, отношение 0,65 при обычных 0,76–0,82). Поэтому период кончается на последнем
-   «отлежавшемся» дне (`settled_last`), а прошлый период — столько же дней встык перед текущим.
-   Подпись дельты называет, с чем сравниваем: «−30,2 % к 27.09–30.09».
+2. **Сравнение периодов** — только одинаковые ПОЛНЫЕ периоды. Текущий период кончается на последнем
+   «отлежавшемся» дне (`settled_last`), прошлый — столько же дней встык перед текущим. Подпись дельты
+   называет, с чем сравниваем: «−30,2 % к 27.09–30.09». Главное здесь — РАВНАЯ длина: −38 % «Выручки» за
+   01–05.10 дало сравнение четырёх дней данных с пятью, а не недогруженный день.
 3. **Подпись над графиком** — что показано: величина · НДС · каналы · дата · период.
 
-Отношение «экономика / витрина» как признак неполного дня НЕ годится: на двух месяцах каждый десятый
-обычный день ниже 0,66. Признак — время загрузки: день D считается полным, если его строки загружены не
-раньше D + `kpi_day_settle_days` (настройка в `reorder_params`, по умолчанию 2).
+Когда день «полон» — замер 06.10.2026 по истории версий сырья (Delta хранит 7 дней): у Amazon загрузчик
+перечитывает последние три дня, и на D+1 у дня 98,7 % окончательной суммы (худший 96 %), окончательно — на D+3;
+у Leroy Merlin, ManoMano и Carrefour — 100 % с первой загрузки. Поэтому задержка — по площадке:
+`reorder_params.kpi_day_settle_days_<amz|lm|mm|cf>`. Отношение «экономика / витрина» как признак НЕ годится:
+каждый десятый обычный день ниже 0,66 — так и 05.10 с его 0,65 оказался нормальным днём, а не недогруженным.
 """
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -79,36 +80,44 @@ def chart_note(what: str, vat: str | None, channels: str, basis: str | None, d_f
 
 # ── полные дни и сравнение ────────────────────────────────────────────────────
 
-def settle_days(conn) -> int:
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'kpi_day_settle_days'")
-        r = cur.fetchone()
-        return int(r[0]) if r else 2
-    except Exception:
-        return 2
+def settled_last(conn, _unused=None) -> pd.Timestamp:
+    """Последний день, который полон по ВСЕМ каналам, где за него есть строки.
 
+    Задержка у каналов разная (замер 06.10.2026 по истории версий сырья за 7 дней — больше Delta не
+    хранит): у Amazon день дозаполняется, пока загрузчик перечитывает последние три дня (на D+1 —
+    98,7 % окончательной суммы, худший день 96 %, окончательно на D+3); у Leroy Merlin, ManoMano и
+    Carrefour день полон с первой загрузки (100 % на D+1). Поэтому настройка — по площадке:
+    `reorder_params.kpi_day_settle_days_<площадка>` (amz, lm, mm, cf), запасная — `kpi_day_settle_days`.
 
-def settled_last(conn, amazon_codes) -> pd.Timestamp:
-    """Последний полный день экономики Amazon: строки дня загружены не раньше D + kpi_day_settle_days.
-
-    Каналы Mirakl приходят сразу и полными, поэтому граница — по Amazon (как у `util.data_boundary`).
-    Нет строк Amazon — NaT, и вызывающий берёт свою обычную границу."""
-    codes = sorted({str(c).strip().upper() for c in (amazon_codes or []) if str(c).strip()})
-    if not codes:
-        return pd.NaT
-    n = settle_days(conn)
+    День D неполон, если у какого-то канала есть строки за D, загруженные раньше D + задержка этого
+    канала. Граница — день перед самым ранним неполным. Канал, у которого за D строк нет (тихий день,
+    ManoMano FR), границу не двигает: его молчание — не «не догрузилось», а «не продавал»."""
     cur = conn.cursor()
     cur.execute("""
-        SELECT max(sales_date) FROM (
-            SELECT sales_date, max(updated_at) AS loaded
-            FROM kabinet_data.economics_summary
-            WHERE upper(marketplace) = ANY(%s) AND sales_date >= CURRENT_DATE - 120
-            GROUP BY sales_date) d
-        WHERE loaded::date >= sales_date + %s
-    """, (codes, n))
-    r = cur.fetchone()
-    return pd.Timestamp(r[0]) if r and r[0] is not None else pd.NaT
+        WITH mk AS (
+            SELECT DISTINCT upper(v.marketplace_code) AS code, lower(p.short_name) AS plat
+            FROM kabinet_data.v_marketplaces v
+            JOIN kabinet_data.platforms p ON p.full_name = v.channel),
+        per AS (
+            SELECT mk.plat, e.sales_date, max(e.updated_at) AS loaded
+            FROM kabinet_data.economics_summary e
+            JOIN mk ON mk.code = upper(e.marketplace)
+            WHERE e.sales_date >= CURRENT_DATE - 30
+            GROUP BY 1, 2),
+        lag AS (
+            SELECT per.*, COALESCE(
+                (SELECT value::int FROM kabinet_data.reorder_params WHERE key = 'kpi_day_settle_days_' || per.plat),
+                (SELECT value::int FROM kabinet_data.reorder_params WHERE key = 'kpi_day_settle_days'),
+                2) AS settle
+            FROM per)
+        SELECT min(sales_date) FILTER (WHERE loaded::date < sales_date + settle), max(sales_date) FROM lag
+    """)
+    first_open, last_any = cur.fetchone()
+    if last_any is None:
+        return pd.NaT
+    if first_open is None:
+        return pd.Timestamp(last_any)
+    return pd.Timestamp(first_open) - pd.Timedelta(days=1)
 
 
 @dataclass
