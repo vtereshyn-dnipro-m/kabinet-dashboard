@@ -12,6 +12,7 @@ import data_passport as passport
 from i18n import init_lang, t
 import catalog
 import period as period_mod
+import money_notes as mn
 from util import as_text
 
 init_lang()
@@ -560,9 +561,26 @@ if df.empty:
 # словом: без этого остаток по 25-е читается как остаток на сегодня
 _src_dates = (df.groupby(df["source"].fillna("—"))["snapshot_date"]
                 .max().sort_values(ascending=False))
+# источник — словом, а не именем загрузчика: «ledger-summary» человеку ничего не говорит
+_SRC_LABEL = {"ledger-summary": "FBA", "mirakl-offers": "Leroy Merlin / Carrefour", "manomano-offers": "ManoMano"}
+_src_dates.index = [_SRC_LABEL.get(str(k), str(k)) for k in _src_dates.index]
 if len(_src_dates) > 1 and _src_dates.iloc[0] != _src_dates.iloc[-1]:
     st.caption(t("stock.src_lag", items=" · ".join(
         f"{k}: {pd.Timestamp(v).strftime('%d.%m')}" for k, v in _src_dates.items())))
+
+# подпись над каждым графиком (money_notes): что показано и на какую дату. Денег на странице нет — только штуки,
+# поэтому без НДС; дата снимка у источников разная, и тогда называем её по каждому
+_snap_dates = {k: pd.Timestamp(v) for k, v in _src_dates.items() if pd.notna(v)}
+if len(set(_snap_dates.values())) > 1:
+    _snap_note = t("mn.x.stock_by_source", items=", ".join(f"{k} {v.strftime('%d.%m')}" for k, v in _snap_dates.items()))
+elif _snap_dates:
+    _snap_note = t("mn.x.stock_on", d=next(iter(_snap_dates.values())).strftime("%d.%m.%Y"))
+else:
+    _snap_note = None
+
+
+def _stock_note(what: str) -> None:
+    mn.chart_note(what, None, "", None, extra=_snap_note)
 
 df["category"] = df["product_name"].apply(detect_category)
 df["power_w"] = df["product_name"].str.extract(r"(\d{3,4})\s*W", flags=re.I)[0].astype(float)
@@ -730,33 +748,35 @@ if SHOW_DRAFT_TABS:
             top = (f.groupby(["sku_display", "product_name"], as_index=False)["quantity"]
                      .sum().nlargest(15, "quantity"))
             top["label"] = top["product_name"].str.slice(0, 45) + "…"
+            _stock_note(t("stock.ov.top15_title"))
             fig = px.bar(
                 top.sort_values("quantity"),
                 x="quantity", y="label", orientation="h",
-                text="quantity", title=t("stock.ov.top15_title"),
+                text="quantity",
                 color_discrete_sequence=[BLUE],
                 hover_data={"sku_display": True, "label": False},
             )
             fig.update_layout(height=520, yaxis_title=None, xaxis_title=t("stock.ov.unit_short"),
-                              margin=dict(l=10, r=10, t=50, b=10))
+                              margin=dict(l=10, r=10, t=10, b=10))
             st.plotly_chart(fig, use_container_width=True)
 
         with right:
             by_status = f.groupby("availability_status", as_index=False)["quantity"].sum()
+            _stock_note(t("stock.ov.by_status_title"))
             fig = px.pie(by_status, names="availability_status", values="quantity",
-                         hole=0.55, title=t("stock.ov.by_status_title"),
+                         hole=0.55,
                          color_discrete_sequence=[BLUE, ACCENT, "#9aa4b2", "#f2b134"])
-            fig.update_layout(height=250, margin=dict(l=10, r=10, t=50, b=10))
+            fig.update_layout(height=250, margin=dict(l=10, r=10, t=10, b=10))
             st.plotly_chart(fig, use_container_width=True)
 
+            _stock_note(t("stock.ov.dist_title"))
             hist = px.histogram(
                 f.groupby("sku", as_index=False)["quantity"].sum(),
                 x="quantity", nbins=20,
-                title=t("stock.ov.dist_title"),
                 color_discrete_sequence=[BLUE],
             )
             hist.update_layout(height=250, xaxis_title=t("stock.ov.dist_xaxis"),
-                               yaxis_title=t("stock.cat.sku_word"), margin=dict(l=10, r=10, t=50, b=10))
+                               yaxis_title=t("stock.cat.sku_word"), margin=dict(l=10, r=10, t=10, b=10))
             st.plotly_chart(hist, use_container_width=True)
 
 # ---------- Покрытие: на сколько недель хватит ----------
@@ -1320,6 +1340,8 @@ with tab_cov:
                 proj["label"] = (proj["week_num"].astype(str) + ". "
                                  + proj["week_start"].dt.strftime("%d.%m"))
 
+                mn.chart_note(t("mn.what.cov_projection"), None, "", None,
+                              extra=t("mn.x.cov_projection", d=calc_d))
                 pfig = go.Figure()
                 pfig.add_bar(name=t("stock.cov.p_begin"), x=proj["label"],
                              y=proj["stock_begin"], marker_color=BLUE, opacity=0.55)
@@ -1437,15 +1459,15 @@ if SHOW_DRAFT_TABS:
         fig.add_hline(y=80, yref="y2", line_dash="dot", line_color="#666",
                       annotation_text="80%")
         fig.update_layout(
-            title=t("stock.abc.pareto_title"),
             height=480,
             yaxis=dict(title=t("stock.ov.unit_short")),
             yaxis2=dict(title=t("stock.abc.yaxis_pct"), overlaying="y", side="right",
                         range=[0, 105]),
             xaxis=dict(title=t("stock.abc.xaxis"), showticklabels=False),
             legend=dict(orientation="h", y=1.1),
-            margin=dict(l=10, r=10, t=80, b=10),
+            margin=dict(l=10, r=10, t=40, b=10),
         )
+        _stock_note(t("stock.abc.pareto_title"))
         event = st.plotly_chart(fig, use_container_width=True,
                                 on_select="rerun", selection_mode="points",
                                 key="abc_chart")
@@ -1484,20 +1506,20 @@ with tab_cat:
         if pd.notna(_snap) else t("period.snapshot_now"))
     by_cat = (f.groupby("category", as_index=False)
                 .agg(quantity=("quantity", "sum"), skus=("sku", "nunique")))
+    _stock_note(t("stock.cat.treemap_title"))
     fig = px.treemap(by_cat, path=["category"], values="quantity",
-                     title=t("stock.cat.treemap_title"),
                      color="quantity", color_continuous_scale="Blues",
                      custom_data=["skus"])
     fig.update_traces(hovertemplate="<b>%{label}</b><br>" + t("stock.abc.stock_word") + ": %{value} " + t("stock.ov.unit_short")
                                     + "<br>" + t("stock.cat.sku_word") + ": %{customdata[0]}<extra></extra>")
-    fig.update_layout(height=450, margin=dict(l=10, r=10, t=50, b=10))
+    fig.update_layout(height=450, margin=dict(l=10, r=10, t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
     pw = f.dropna(subset=["power_w"])
     if not pw.empty:
+        _stock_note(t("stock.cat.power_scatter_title"))
         fig = px.scatter(pw, x="power_w", y="quantity", color="category",
-                         hover_data=["sku_display", "product_name"],
-                         title=t("stock.cat.power_scatter_title"))
+                         hover_data=["sku_display", "product_name"])
         fig.update_layout(height=400, xaxis_title=t("stock.cat.power_xaxis"),
                           yaxis_title=t("stock.cat.qty_yaxis"),
                           margin=dict(l=10, r=10, t=50, b=10))
@@ -1518,8 +1540,9 @@ if SHOW_DRAFT_TABS:
                 st.metric(row["location"], f"{int(row['quantity'])} {unit}",
                          help=t("stock.ctr.metric_help", n=int(row['skus'])))
 
+        _stock_note(t("stock.ctr.bar_title"))
         fig = px.bar(by_country, x="location", y="quantity", text="quantity",
-                     title=t("stock.ctr.bar_title"), color_discrete_sequence=[BLUE])
+                     color_discrete_sequence=[BLUE])
         fig.update_layout(height=380, xaxis_title=t("stock.ctr.country_axis"), yaxis_title=t("stock.cat.qty_yaxis"),
                           margin=dict(l=10, r=10, t=50, b=10))
         st.plotly_chart(fig, use_container_width=True)
@@ -1536,6 +1559,7 @@ if SHOW_DRAFT_TABS:
 
         y_labels = [f"{sku} · {name_map.get(sku, '')[:28]}" for sku in pivot.index]
 
+        _stock_note(t("stock.ctr.matrix_title"))
         fig = px.imshow(
             pivot.values,
             x=pivot.columns.tolist(),
