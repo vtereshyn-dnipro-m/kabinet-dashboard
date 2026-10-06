@@ -175,6 +175,32 @@ def provisional_text(st_: DayStatus, cur_from, cur_to) -> str:
     return txt[:1].upper() + txt[1:]   # идёт второй фразой в строке про период
 
 
+def period_line(st_: DayStatus, cur_from, as_of, end, loaded_last=None) -> str:
+    """Одна строка про период под карточками (решение владельца 06–07.10.2026): по какое число данные, каких
+    дней ещё нет или что отрезано как недогруженное, и что ещё предварительно. Всё — одной строкой: вторая подпись
+    под заголовком или графиком повторяла бы то же самое.
+
+    `as_of` — последний день в цифрах, `end` — конец выбранного периода (у пресета — сегодня), `loaded_last` —
+    последний загруженный день до обрезки по полноте."""
+    if as_of is None or pd.isna(as_of):
+        return ""
+    as_of = pd.Timestamp(as_of)
+    f = pd.Timestamp(cur_from).strftime("%d.%m") if cur_from is not None and pd.notna(cur_from) else None
+    if loaded_last is not None and pd.notna(loaded_last) and pd.Timestamp(loaded_last) > as_of:
+        cut_from = as_of + pd.Timedelta(days=1)
+        ll = pd.Timestamp(loaded_last)
+        cut = cut_from.strftime("%d.%m") if cut_from == ll else f"{cut_from.strftime('%d.%m')}–{ll.strftime('%d.%m')}"
+        txt = t("mn.cut", d=cut, last=as_of.strftime("%d.%m"))
+    elif end is not None and pd.notna(end) and pd.Timestamp(end) > as_of:
+        nx, e = as_of + pd.Timedelta(days=1), pd.Timestamp(end)
+        miss = nx.strftime("%d.%m") if nx == e else f"{nx.strftime('%d.%m')}–{e.strftime('%d.%m')}"
+        txt = t("mn.as_of_missing", f=f or as_of.strftime("%d.%m"), d=as_of.strftime("%d.%m"), m=miss)
+    else:
+        txt = t("mn.as_of", f=f or as_of.strftime("%d.%m"), d=as_of.strftime("%d.%m"))
+    prov = provisional_text(st_, cur_from, as_of)
+    return " ".join(x for x in (txt, prov) if x)
+
+
 @dataclass
 class Window:
     cur_from: pd.Timestamp
