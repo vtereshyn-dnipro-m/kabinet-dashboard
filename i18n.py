@@ -882,11 +882,6 @@ TRANSLATIONS = {
     "home.sec.sales": {"ru": "Продажи за {d} дней", "uk": "Продажі за {d} днів", "en": "Sales, last {d} days"},
     # Подписи под графиком продаж. Отделены от home.sales.lag: та объясняет
     # задержку Amazon для всей страницы, эти — что именно видно на графике
-    "home.chart.data_through": {
-        "ru": "Данные по {d} включительно — за более поздние дни Amazon отчёт ещё не сформировал",
-        "uk": "Дані по {d} включно — за пізніші дні Amazon звіт ще не сформував",
-        "en": "Data through {d} inclusive — Amazon has not generated the report for later days yet",
-    },
     # Граница данных. Одни и те же фразы на Обзоре и в Деньгах: правило
     # выравнивания общее, значит и объяснять его надо одинаково
     "period.boundary_max": {
@@ -967,20 +962,6 @@ TRANSLATIONS = {
     },
     "home.sales.by_country": {
         "ru": "Amazon по странам:", "uk": "Amazon за країнами:", "en": "Amazon by country:"},
-    "home.sales.lag": {
-        "ru": "Данные по {d} включительно, период {f} — {d}. Финансовые отчёты Amazon "
-              "(комиссии, маржа) отстают на 2-3 дня, последние {n} дн. ещё не загружены. "
-              "График обрезан по последнему полному дню: за более свежие даты приходят "
-              "только каналы Mirakl, и хвост выглядел бы обвалом, хотя продажи идут.",
-        "uk": "Дані по {d} включно, період {f} — {d}. Фінансові звіти Amazon (комісії, "
-              "маржа) відстають на 2-3 дні, останні {n} дн. ще не завантажені. Графік "
-              "обрізано за останнім повним днем: за свіжіші дати приходять лише канали "
-              "Mirakl, і хвіст виглядав би обвалом, хоча продажі йдуть.",
-        "en": "Data through {d}, period {f} — {d}. Amazon financial reports (fees, margin) "
-              "lag by 2-3 days; the last {n} days are not loaded yet. The chart is trimmed "
-              "to the last complete day: for fresher dates only the Mirakl channels arrive, "
-              "and the tail would look like a collapse while sales are in fact normal.",
-    },
     "home.sales.no_plan": {
         "ru": "Сравнение с планом появится, когда будет подключён прогноз продаж. "
               "Пока сравниваем с предыдущим периодом.",
@@ -1095,6 +1076,9 @@ TRANSLATIONS = {
     "home.kpi.as_of": {"ru": "Данные по {d} включительно.",
                        "uk": "Дані по {d} включно.",
                        "en": "Data through {d} inclusive."},
+    "home.kpi.as_of_missing": {"ru": "Данные {f}–{d} включительно; за {m} отчёта Amazon ещё нет.",
+                               "uk": "Дані {f}–{d} включно; за {m} звіту Amazon ще немає.",
+                               "en": "Data {f}–{d} inclusive; Amazon has no report for {m} yet."},
     "home.kpi.as_of_split": {"ru": "Продажи по заказам — по {o} включительно, деньги и маржа — по {m}.",
                              "uk": "Продажі за замовленнями — по {o} включно, гроші та маржа — по {m}.",
                              "en": "Ordered sales through {o} inclusive, money and margin through {m}."},
@@ -1226,9 +1210,9 @@ TRANSLATIONS = {
               "grading, Madrid — per Odoo: received into sellable stock directly or after inspection in the defect location, or sold from it to the Polish company) goes back into the margin; while it sits in the defect location it does not. Internal logistics is not included — see the Money page for the breakdown",
     },
     "home.kpi.acos_help": {
-        "ru": "Расход на всю рекламу (SP, SB, SD и ManoMano) / продажи с рекламы, атрибуция 14 дней. Формула Power BI Дарины. Окно — то же, что у выручки и маржи, все каналы",
-        "uk": "Витрати на всю рекламу (SP, SB, SD і ManoMano) / продажі з реклами, атрибуція 14 днів. Формула Power BI Дарини. Вікно — те саме, що у виручки й маржі, усі канали",
-        "en": "Spend on all ads (SP, SB, SD and ManoMano) / ad-attributed sales, 14-day attribution. Darina's Power BI formula. Same window as revenue and margin, all channels"},
+        "ru": "Расход на всю рекламу (SP, SB, SD и ManoMano) / продажи с рекламы (с НДС), атрибуция 14 дней. Формула Power BI Дарины. Окно — то же, что у выручки и маржи, все каналы",
+        "uk": "Витрати на всю рекламу (SP, SB, SD і ManoMano) / продажі з реклами (з ПДВ), атрибуція 14 днів. Формула Power BI Дарини. Вікно — те саме, що у виручки й маржі, усі канали",
+        "en": "Spend on all ads (SP, SB, SD and ManoMano) / ad-attributed sales (incl. VAT), 14-day attribution. Darina's Power BI formula. Same window as revenue and margin, all channels"},
     "home.kpi.tacos_help": {
         "ru": "Весь расход на рекламу / все продажи с НДС (Amazon — по заказам, Mirakl — строки заказов). Формула Power BI Дарины. Wallapop и сайта в Кабинете нет",
         "uk": "Усі витрати на рекламу / усі продажі з ПДВ (Amazon — за замовленнями, Mirakl — рядки замовлень). Формула Power BI Дарини. Wallapop і сайту в Кабінеті немає",
