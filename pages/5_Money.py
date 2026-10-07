@@ -630,7 +630,7 @@ with k4:
 # нет намеренно (себестоимость возвратов с брака приходит после разбора склада — см. «Обзор»)
 mn.money_metric(k5, t("money.kpi.cm"), "—" if pd.isna(tot_cogs) else f"{cm:,.0f} € · {cm_pct:.1f}%",
                 vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.share_of_revenue"),
-                help=t("money.kpi.cm_help"))
+                help=t("money.kpi.cm_help") + " " + t("mn.margin_no_delta"))
 
 # «По какое число», каких дней ещё нет и что предварительно — одной строкой периода, как на «Обзоре»
 _period_txt = (mn.period_line(_dstat, _w.cur_from, _w.cur_to, PERIOD.end, _loaded_last)
@@ -641,7 +641,7 @@ if _period_txt:
 m1, m2, _ = st.columns([1, 1, 4])
 mn.money_metric(m1, t("money.kpi.cm_dk"), "—" if pd.isna(tot_cogs) else f"{cm:,.0f} € · {cm_pct:.1f}%",
                 vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.share_of_revenue"),
-                help=t("money.kpi.cm_help"))
+                help=t("money.kpi.cm_help") + " " + t("mn.margin_no_delta"))
 mn.money_metric(m2, t("money.kpi.cm_settle"),
                 "—" if pd.isna(tot_cogs) else f"{cm_settle:,.0f} € · {cm_settle_pct:.1f}%",
                 vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.after_settlement"),

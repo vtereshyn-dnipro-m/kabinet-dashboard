@@ -166,12 +166,18 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
             ),
             -- себестоимость годных возвратов (FBA — SELLABLE, Мадрид — годный запас Odoo сразу или с DEF, продажа с DEF в Польшу) возвращается в маржу на дату возврата. Не join'ом к
             -- строкам SKU — в день возврата продажи этого SKU может не быть, — а к дневной сумме рынка; и не
-            -- позже последнего дня экономики, иначе возврат «из завтра» сдвинул бы окно периода
+            -- позже последнего дня экономики СВОЕГО рынка, иначе возврат «из завтра» сдвинул бы окно периода.
+            -- Граница была общей на все каналы (07.10.2026): ManoMano грузится утром, и FBA-возврат Испании за
+            -- день, по которому Amazon ещё не отчитался, давал строку ES за этот день — граница данных уезжала на
+            -- день вперёд, и подпись писала «06.10 ещё загружается» вместо «за 06.10 отчёта Amazon ещё нет»
+            last_mk AS (SELECT marketplace, MAX(sales_date) AS last_day FROM sku GROUP BY 1),
             credit AS (
-                SELECT return_date AS sales_date, marketplace, SUM(cogs_credit)::float AS cogs_credit
-                FROM kabinet_data.v_returns_cogs_credit
-                WHERE return_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
-                  AND return_date <= (SELECT MAX(sales_date) FROM sku)
+                SELECT r.return_date AS sales_date, r.marketplace, SUM(r.cogs_credit)::float AS cogs_credit
+                FROM kabinet_data.v_returns_cogs_credit r
+                -- рынок без строк экономики в окне не теряет возврат: для него остаётся общая граница
+                LEFT JOIN last_mk m ON m.marketplace = r.marketplace
+                WHERE r.return_date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
+                  AND r.return_date <= COALESCE(m.last_day, (SELECT MAX(sales_date) FROM sku))
                 GROUP BY 1, 2
             )
             SELECT COALESCE(b.sales_date, c.sales_date) AS sales_date,
@@ -643,7 +649,7 @@ else:
     # 800 € в неделю. Процент показывал бы падение, которого нет
     mn.money_metric(s2, t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
                     vat=mn.VAT_EXCL, channels="all", basis="order", extra=t("mn.x.after_costs"),
-                    help=passport.tip("home", "margin", t("home.kpi.margin_help")))
+                    help=passport.tip("home", "margin", t("home.kpi.margin_help") + " " + t("mn.margin_no_delta")))
     _ref = int(cur.get("units_refunded", pd.Series(dtype=float)).sum() or 0)
     mn.money_metric(s3, t("home.kpi.units"), f"{units_cur:,}",
                     delta=(f"−{_ref} {t('home.kpi.refunded')}" if _ref else None),
@@ -661,32 +667,19 @@ else:
     # возвращается каждую неделю. Источников у ряда два, и даты у них разные, поэтому когда они
     # расходятся — называем обе: карточка «Продажи по заказам» живёт на витрине S&T,
     # выручка и маржа — на экономике, и экономика обычно отстаёт на день.
-    # Одна строка про период: по какое число, что отрезано как недогруженное и что ещё предварительно
-    # (решение владельца 06.10.2026 — без отдельной плашки, в той же строке).
-    _period_txt = ""
-    if pd.notna(_loaded_last) and pd.notna(_full_last) and _loaded_last > _full_last:
-        _cut_from = _full_last + pd.Timedelta(days=1)
-        _cut_txt = (_cut_from.strftime("%d.%m") if _cut_from == _loaded_last
-                    else f"{_cut_from.strftime('%d.%m')}–{_loaded_last.strftime('%d.%m')}")
-        _period_txt = t("mn.cut", d=_cut_txt, last=_full_last.strftime("%d.%m"))
-    elif pd.notna(_o_to) or pd.notna(_m_to):
-        if _spans_differ:
-            _period_txt = t("home.kpi.as_of_split", o=_o_to.strftime("%d.%m"), m=_m_to.strftime("%d.%m"))
-        else:
-            _as_of = _m_to if pd.notna(_m_to) else _o_to
-            _period_txt = t("home.kpi.as_of", d=_as_of.strftime("%d.%m"))
-            # выбранный период длиннее данных (и пресет, и свой): какие дни ещё не пришли — здесь же, а не
-            # второй подписью под заголовком или графиком
-            _end = PERIOD.end
-            if _end > _as_of:
-                _nx = _as_of + pd.Timedelta(days=1)
-                _miss = (_nx.strftime("%d.%m") if _nx == _end
-                         else f"{_nx.strftime('%d.%m')}–{_end.strftime('%d.%m')}")
-                _period_txt = t("home.kpi.as_of_missing", f=_w.cur_from.strftime("%d.%m"),
-                                d=_as_of.strftime("%d.%m"), m=_miss)
-    _prov = mn.provisional_text(_dstat, _w.cur_from, _w.cur_to)
-    if _period_txt or _prov:
-        st.caption(" ".join(x for x in (_period_txt, _prov) if x))
+    # Одна строка про период: по какое число, каких дней ещё нет, что отрезано как недогруженное и что ещё
+    # предварительно — общая функция money_notes.period_line, та же, что в «Деньгах» (07.10.2026)
+    _cut = pd.notna(_loaded_last) and pd.notna(_full_last) and _loaded_last > _full_last
+    if _spans_differ and not _cut:
+        # витрина и экономика кончаются разными днями — называем обе даты; это единственное, чего общая строка не умеет
+        _period_txt = " ".join(x for x in (
+            t("home.kpi.as_of_split", o=_o_to.strftime("%d.%m"), m=_m_to.strftime("%d.%m")),
+            mn.provisional_text(_dstat, _w.cur_from, _w.cur_to)) if x)
+    else:
+        _as_of = _m_to if pd.notna(_m_to) else (_o_to if pd.notna(_o_to) else _full_last)
+        _period_txt = mn.period_line(_dstat, _w.cur_from, _as_of, PERIOD.end, _loaded_last)
+    if _period_txt:
+        st.caption(_period_txt)
     # ACOS и TACOS — по формулам Дарины (Power BI, 05.10.2026): весь расход на рекламу SP+SB+SD к продажам с
     # рекламы и ко всем продажам с НДС. Окно — то же, что у выручки и маржи; каналы — все, как у неё
     if pd.notna(_m_from) and pd.notna(_m_to):
