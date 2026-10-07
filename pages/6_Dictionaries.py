@@ -414,7 +414,7 @@ TR = {
         "plat_off_note": "Выключенная площадка недоступна для новых маркетплейсов, допусков и прогнозов. История сохраняется, запись не удаляется.",
         "plat_saved": "Сохранено.",
         "plat_mps": "Маркетплейсы площадки",
-        "plat_about": "**Площадки** — операторы, через которых мы продаём: Amazon, Leroy Merlin, ManoMano. Внутри площадки живут маркетплейсы по странам, и все они берут с площадки обозначения ассортиментной структуры (Parent ASIN, Child ASIN, ASIN).  \n**Как работать:** найдите площадку → нажмите на строку → ниже откроется карточка. Новая площадка — формой «Добавить площадку» внизу. Удаления нет: ненужная площадка отправляется в архив.",
+        "plat_about": "**Площадки** — операторы, через которых мы продаём: Amazon, Leroy Merlin, ManoMano. Внутри площадки живут маркетплейсы по странам, и все они берут с площадки обозначения ассортиментной структуры (Parent ASIN, Child ASIN, ASIN). PeID — идентификатор товара на площадке: у Amazon это ASIN, у ManoMano — id_me, у Leroy Merlin и Carrefour — их код товара.  \n**Как работать:** найдите площадку → нажмите на строку → ниже откроется карточка. Новая площадка — формой «Добавить площадку» внизу. Удаления нет: ненужная площадка отправляется в архив.",
         "plat_search": "Краткое название или название",
         "plat_col_mps": "Активные маркетплейсы",
         "plat_col_mps_help": "Коды действующих маркетплейсов этой площадки. Пусто — у площадки пока нет маркетплейсов.",
@@ -525,6 +525,9 @@ TR = {
         "ch_same": "Источник и получатель не могут совпадать",
         "ch_exists": "Такая связь уже есть",
         "mp_hint": "Маркетплейс — торговая среда одной площадки в одной стране. Код собирается сам из краткого названия площадки и кода страны, вручную не правится. Площадку и страну можно менять только пока по маркетплейсу нет записей матрицы и документов прогноза: для другой страны или площадки заводится отдельный маркетплейс.",
+        "kit_search_enter": "Enter — найти",
+        "kit_search_help": "Введите часть кода или названия и нажмите Enter (или кликните мимо поля) — список отфильтруется.",
+        "mp_used_none": "нигде не используется",
         "mp_nodata_text": "Данные не загружаются — нужна настройка подключения. Обратитесь к администратору.",
         "mp_nodata_banner": "Маркетплейсов без данных: {n} ({codes}).",
         "mp_col_data": "Загрузка данных",
@@ -540,7 +543,7 @@ TR = {
         "mp_cfg_sync_economics": "загрузка экономики Amazon",
         "mp_adep_matrix": "действующих допусков в матрице: {n}",
         "mp_adep_fc": "строк действующего прогноза: {n}",
-        "mp_about": "**Маркетплейсы** — где мы продаём: одна площадка в одной стране (Amazon Испания, ManoMano Франция). На них ссылаются матрица, прогнозы, пулы, PeID и покрытие.  \n**Как работать:** найдите маркетплейс поиском или фильтрами → нажмите на строку → ниже откроется карточка. Новый маркетплейс — формой «Добавить маркетплейс» внизу. Удаления нет: ненужный маркетплейс отправляется в архив, его история остаётся.",
+        "mp_about": "**Маркетплейсы** — где мы продаём: одна площадка в одной стране (Amazon Испания, ManoMano Франция). На них ссылаются матрица, прогнозы, пулы, PeID и покрытие. PeID — идентификатор товара на площадке: у Amazon это ASIN, у ManoMano — id_me, у Leroy Merlin и Carrefour — их код товара.  \n**Как работать:** найдите маркетплейс поиском или фильтрами → нажмите на строку → ниже откроется карточка. Новый маркетплейс — формой «Добавить маркетплейс» внизу. Удаления нет: ненужный маркетплейс отправляется в архив, его история остаётся.",
         "mp_search": "Код или название",
         "mp_search_ph": "AMZ-ES, Spain…",
         "mp_summary": "Показано {shown} из {total} · в архиве {arch}",
@@ -1033,7 +1036,7 @@ TR = {
         "plat_off_note": "Вимкнений майданчик недоступний для нових маркетплейсів, допусків і прогнозів. Історія зберігається, запис не видаляється.",
         "plat_saved": "Збережено.",
         "plat_mps": "Маркетплейси майданчика",
-        "plat_about": "**Майданчики** — оператори, через яких ми продаємо: Amazon, Leroy Merlin, ManoMano. Усередині майданчика живуть маркетплейси за країнами, і всі вони беруть із майданчика позначення асортиментної структури (Parent ASIN, Child ASIN, ASIN).  \n**Як працювати:** знайдіть майданчик → натисніть на рядок → нижче відкриється картка. Новий майданчик — формою «Додати майданчик» унизу. Видалення немає: непотрібний майданчик іде в архів.",
+        "plat_about": "**Майданчики** — оператори, через яких ми продаємо: Amazon, Leroy Merlin, ManoMano. Усередині майданчика живуть маркетплейси за країнами, і всі вони беруть із майданчика позначення асортиментної структури (Parent ASIN, Child ASIN, ASIN). PeID — ідентифікатор товару на майданчику: в Amazon це ASIN, у ManoMano — id_me, у Leroy Merlin і Carrefour — їхній код товару.  \n**Як працювати:** знайдіть майданчик → натисніть на рядок → нижче відкриється картка. Новий майданчик — формою «Додати майданчик» унизу. Видалення немає: непотрібний майданчик іде в архів.",
         "plat_search": "Коротка назва або назва",
         "plat_col_mps": "Активні маркетплейси",
         "plat_col_mps_help": "Коди чинних маркетплейсів цього майданчика. Порожньо — у майданчика поки немає маркетплейсів.",
@@ -1143,6 +1146,9 @@ TR = {
         "ch_same": "Джерело та отримувач не можуть збігатися",
         "ch_exists": "Такий звʼязок уже є",
         "mp_hint": "Маркетплейс — торгове середовище однієї площадки в одній країні. Код збирається сам із короткої назви майданчика і коду країни, вручну не правиться. Майданчик і країну можна змінювати лише поки за маркетплейсом немає записів матриці та документів прогнозу: для іншої країни чи майданчика створюється окремий маркетплейс.",
+        "kit_search_enter": "Enter — знайти",
+        "kit_search_help": "Введіть частину коду або назви й натисніть Enter (або клацніть поза полем) — список відфільтрується.",
+        "mp_used_none": "ніде не використовується",
         "mp_nodata_text": "Дані не завантажуються — потрібне налаштування підключення. Зверніться до адміністратора.",
         "mp_nodata_banner": "Маркетплейсів без даних: {n} ({codes}).",
         "mp_col_data": "Завантаження даних",
@@ -1158,7 +1164,7 @@ TR = {
         "mp_cfg_sync_economics": "завантаження економіки Amazon",
         "mp_adep_matrix": "чинних допусків у матриці: {n}",
         "mp_adep_fc": "рядків чинного прогнозу: {n}",
-        "mp_about": "**Маркетплейси** — де ми продаємо: один майданчик в одній країні (Amazon Іспанія, ManoMano Франція). На них посилаються матриця, прогнози, пули, PeID і покриття.  \n**Як працювати:** знайдіть маркетплейс пошуком або фільтрами → натисніть на рядок → нижче відкриється картка. Новий маркетплейс — формою «Додати маркетплейс» унизу. Видалення немає: непотрібний маркетплейс іде в архів, його історія лишається.",
+        "mp_about": "**Маркетплейси** — де ми продаємо: один майданчик в одній країні (Amazon Іспанія, ManoMano Франція). На них посилаються матриця, прогнози, пули, PeID і покриття. PeID — ідентифікатор товару на майданчику: в Amazon це ASIN, у ManoMano — id_me, у Leroy Merlin і Carrefour — їхній код товару.  \n**Як працювати:** знайдіть маркетплейс пошуком або фільтрами → натисніть на рядок → нижче відкриється картка. Новий маркетплейс — формою «Додати маркетплейс» унизу. Видалення немає: непотрібний маркетплейс іде в архів, його історія лишається.",
         "mp_search": "Код або назва",
         "mp_search_ph": "AMZ-ES, Spain…",
         "mp_summary": "Показано {shown} з {total} · в архіві {arch}",
@@ -1651,7 +1657,7 @@ TR = {
         "plat_off_note": "An inactive platform is unavailable for new marketplaces, admissions and forecasts. History is kept, the record is not deleted.",
         "plat_saved": "Saved.",
         "plat_mps": "Marketplaces of this platform",
-        "plat_about": "**Platforms** — the operators we sell through: Amazon, Leroy Merlin, ManoMano. A platform holds marketplaces by country, and all of them take the assortment-structure labels (Parent ASIN, Child ASIN, ASIN) from the platform.  \n**How to use:** find a platform → click its row → the card opens below. A new platform — the «Add platform» form at the bottom. There is no deletion: a platform you no longer need goes to the archive.",
+        "plat_about": "**Platforms** — the operators we sell through: Amazon, Leroy Merlin, ManoMano. A platform holds marketplaces by country, and all of them take the assortment-structure labels (Parent ASIN, Child ASIN, ASIN) from the platform. PeID is the product identifier on the platform: ASIN on Amazon, id_me on ManoMano, the product code on Leroy Merlin and Carrefour.  \n**How to use:** find a platform → click its row → the card opens below. A new platform — the «Add platform» form at the bottom. There is no deletion: a platform you no longer need goes to the archive.",
         "plat_search": "Short name or name",
         "plat_col_mps": "Active marketplaces",
         "plat_col_mps_help": "Codes of this platform's active marketplaces. Empty — the platform has no marketplaces yet.",
@@ -1761,6 +1767,9 @@ TR = {
         "ch_same": "Source and receiver must differ",
         "ch_exists": "This link already exists",
         "mp_hint": "A marketplace is one platform's trading environment in one country. The code is derived from the platform short name and the country code and is never typed. The platform and country can change only while the marketplace has no matrix records and no forecast documents: for another country or platform, create a separate marketplace.",
+        "kit_search_enter": "Enter to search",
+        "kit_search_help": "Type part of a code or name and press Enter (or click outside the field) — the list will filter.",
+        "mp_used_none": "not used anywhere",
         "mp_nodata_text": "Data is not loading — the connection needs to be set up. Contact the administrator.",
         "mp_nodata_banner": "Marketplaces without data: {n} ({codes}).",
         "mp_col_data": "Data loading",
@@ -1776,7 +1785,7 @@ TR = {
         "mp_cfg_sync_economics": "Amazon economics loading",
         "mp_adep_matrix": "current matrix admissions: {n}",
         "mp_adep_fc": "current forecast rows: {n}",
-        "mp_about": "**Marketplaces** — where we sell: one platform in one country (Amazon Spain, ManoMano France). The matrix, forecasts, pools, PeIDs and coverage refer to them.  \n**How to use:** find a marketplace by search or filters → click its row → the card opens below. A new marketplace — the «Add marketplace» form at the bottom. There is no deletion: a marketplace you no longer need goes to the archive, its history stays.",
+        "mp_about": "**Marketplaces** — where we sell: one platform in one country (Amazon Spain, ManoMano France). The matrix, forecasts, pools, PeIDs and coverage refer to them. PeID is the product identifier on the platform: ASIN on Amazon, id_me on ManoMano, the product code on Leroy Merlin and Carrefour.  \n**How to use:** find a marketplace by search or filters → click its row → the card opens below. A new marketplace — the «Add marketplace» form at the bottom. There is no deletion: a marketplace you no longer need goes to the archive, its history stays.",
         "mp_search": "Code or name",
         "mp_search_ph": "AMZ-ES, Spain…",
         "mp_summary": "Shown {shown} of {total} · archived {arch}",
@@ -3026,8 +3035,9 @@ def _curr_label(code: str, curr: pd.DataFrame) -> str:
 def _mp_filters_view(mps: pd.DataFrame, plats: pd.DataFrame, countries: pd.DataFrame):
     """Поиск и фильтры списка маркетплейсов. Пустой выбор — «все» (как во всех фильтрах Кабинета)."""
     f1, f2, f3, f4 = st.columns([1.6, 1.2, 1.2, 1])
-    search = f1.text_input(_tr("mp_search"), key="mp_search", placeholder=_tr("mp_search_ph")).strip()
-    plat_sel = f2.multiselect(_tr("mp_platform"), list(plats["short_name"]), placeholder=_tr("ph_any"),
+    search = dict_kit.search_input(_tr("mp_search"), "mp_search", _tr, _tr("mp_search_ph"), where=f1)
+    # в фильтре — только площадки, у которых есть маркетплейсы: пустой вариант (Wallapop) отсеивал бы всё
+    plat_sel = f2.multiselect(_tr("mp_platform"), sorted(set(mps["platform_short"])), placeholder=_tr("ph_any"),
                               key="mp_plat_f",
                               format_func=lambda sh: f"{sh} — {plats.set_index('short_name').loc[sh, 'full_name']}")
     cnames = countries.set_index("alpha2")["name"].to_dict()
@@ -3055,8 +3065,6 @@ def _section_mp():
     перечня ISO 4217, внешние коды парой, ссылка только https. Физического удаления нет (§6) —
     только архив и возврат из архива (решение владельца 06.10.2026)."""
     dict_kit.instruction(_tr("mp_about"), _tr("mp_hint"))
-    if "mp_card_pick_next" in st.session_state:
-        st.session_state["mp_card_pick"] = st.session_state.pop("mp_card_pick_next")
     _created = st.session_state.pop("mp_created", None)
     if _created:
         st.success(_trf("mp_created_ok", code=_created))
@@ -3109,46 +3117,23 @@ def _section_mp():
                  for st_ in view["data_status"]],
         "used": [_mp_used_text(r) for _, r in view.iterrows()],
     })
-    # ключ таблицы зависит от фильтров: выбор хранится номером строки, и после смены фильтра тот
-    # же номер указал бы на другой маркетплейс (тот же приём, что у SKU)
-    _fkey = abs(hash(fsig)) % 10 ** 8
-    ev = st.dataframe(lst, key=f"mp_list_{_fkey}", use_container_width=True, hide_index=True,
-                      height=min(420, 38 + 35 * max(len(lst), 1)),
-                      on_select="rerun", selection_mode=["single-row", "single-cell"],
-                      column_config={
-                          "code": st.column_config.TextColumn(_tr("mp_col_code"), width=90),
-                          "name": st.column_config.TextColumn(_tr("col_name"), width="medium"),
-                          "platform": st.column_config.TextColumn(_tr("mp_platform"), width="medium"),
-                          "country": st.column_config.TextColumn(_tr("mp_country"), width="medium"),
-                          "currency": st.column_config.TextColumn(_tr("mp_currency"), width=80),
-                          "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
-                          "data": st.column_config.TextColumn(_tr("mp_col_data"), width="medium",
-                                                              help=_tr("mp_col_data_help")),
-                          "used": st.column_config.TextColumn(_tr("mp_col_used"), width="large",
-                                                              help=_tr("mp_col_used_help")),
-                      })
-    if lst.empty:
-        st.caption(_tr("mp_list_empty"))
-    else:
-        st.caption(_tr("mp_list_hint"))
-
     options = [int(i) for i in view["id"]]
+    picked = dict_kit.table_pick(lst, options, "mp_list", fsig, column_config={
+        "code": st.column_config.TextColumn(_tr("mp_col_code"), width=90),
+        "name": st.column_config.TextColumn(_tr("col_name"), width="medium"),
+        "platform": st.column_config.TextColumn(_tr("mp_platform"), width="medium"),
+        "country": st.column_config.TextColumn(_tr("mp_country"), width="medium"),
+        "currency": st.column_config.TextColumn(_tr("mp_currency"), width=80),
+        "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
+        "data": st.column_config.TextColumn(_tr("mp_col_data"), width="medium", help=_tr("mp_col_data_help")),
+        "used": st.column_config.TextColumn(_tr("mp_col_used"), width="large", help=_tr("mp_col_used_help")),
+    })
+    st.caption(_tr("mp_list_empty") if lst.empty else _tr("mp_list_hint"))
     if options:
-        _sel = ev.selection if ev is not None and hasattr(ev, "selection") else {}
-        rows = list(_sel.get("rows", []) or [])
-        cells = list(_sel.get("cells", []) or [])
-        _pos = rows[0] if rows else (int(cells[0][0]) if cells else None)
-        _picked = options[_pos] if _pos is not None and _pos < len(options) else None
-        _sig = (_fkey, tuple(rows), tuple(tuple(c) for c in cells))
-        if _picked and _sig != st.session_state.get("mp_list_sig"):
-            st.session_state["mp_card_pick"] = _picked
-        st.session_state["mp_list_sig"] = _sig
-        if st.session_state.get("mp_card_pick") not in options:
-            st.session_state["mp_card_pick"] = options[0]
         labels = {int(r.id): f"{r.code} — {r['name']}" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
                   for _, r in view.iterrows()}
         st.markdown("#### " + _tr("mp_card_h"))
-        sel = st.selectbox(_tr("mp_pick"), options, format_func=lambda i: labels[i], key="mp_card_pick")
+        sel = dict_kit.card_pick(_tr("mp_pick"), options, labels, "mp_card", picked)
         _mp_card(mps.set_index("id").loc[sel], int(sel), plats, countries, curr)
 
     _mp_add_form(mps, plats, countries, curr)
@@ -3188,7 +3173,7 @@ def _mp_used_text(r) -> str:
         parts.append(_trf("mp_used_pool", p=as_text(r["pools"])))
     if int(r["n_fc"] or 0):
         parts.append(_trf("mp_used_fc", n=int(r["n_fc"])))
-    return " · ".join(parts)
+    return " · ".join(parts) if parts else _tr("mp_used_none")
 
 
 def _mp_card(row, sel: int, plats, countries, curr):
@@ -3491,9 +3476,7 @@ def _mp_add_form(mps, plats, countries, curr):
         st.cache_data.clear()
         new_id = q_now("SELECT id FROM kabinet_data.marketplaces_new WHERE code = %s", (code,))
         if not new_id.empty:
-            # поле выбора карточки уже нарисовано в этом прогоне — его значение Streamlit менять не
-            # даёт; кладём в соседний ключ, а в начале следующего прогона переносим
-            st.session_state["mp_card_pick_next"] = int(new_id["id"].iloc[0])
+            dict_kit.card_focus("mp_card", int(new_id["id"].iloc[0]))
         st.session_state["mp_created"] = code
         st.rerun()
     except Exception as e:
@@ -3791,8 +3774,6 @@ def _section_plat():
     живут на площадке и используются всеми её маркетплейсами; физического удаления нет — только архив и
     возврат (решение владельца 06.10.2026)."""
     dict_kit.instruction(_tr("plat_about"), _tr("plat_hint"))
-    if "plat_card_pick_next" in st.session_state:
-        st.session_state["plat_card_pick"] = st.session_state.pop("plat_card_pick_next")
     _created = st.session_state.pop("plat_created_code", None)
     if _created:
         st.success(_trf("plat_created_ok", code=_created))
@@ -3804,7 +3785,7 @@ def _section_plat():
     """).set_index("platform_short")
 
     f1, f2 = st.columns([2, 1])
-    search = f1.text_input(_tr("plat_search"), key="plat_search", placeholder="AMZ, Amazon…").strip()
+    search = dict_kit.search_input(_tr("plat_search"), "plat_search", _tr, "AMZ, Amazon…", where=f1)
     state_sel = f2.selectbox(_tr("sku_state_f"), ["active", "archived", "all"], key="plat_state_f",
                              format_func=lambda x: _tr(f"sku_state_{x}"))
     view = plats.copy()
@@ -3828,39 +3809,22 @@ def _section_plat():
         "state": [_tr("sku_state_active") if bool(a) else _tr("sku_state_archived") for a in view["is_active"]],
         "comment": [as_text(c) for c in view["comment"]],
     })
-    _fkey = abs(hash((search, state_sel))) % 10 ** 8
-    ev = st.dataframe(lst, key=f"plat_list_{_fkey}", use_container_width=True, hide_index=True,
-                      height=min(420, 38 + 35 * max(len(lst), 1)),
-                      on_select="rerun", selection_mode=["single-row", "single-cell"],
-                      column_config={
-                          "short": st.column_config.TextColumn(_tr("plat_short"), width=140),
-                          "name": st.column_config.TextColumn(_tr("plat_name"), width="medium"),
-                          "mps": st.column_config.TextColumn(_tr("plat_col_mps"), width="large",
-                                                             help=_tr("plat_col_mps_help")),
-                          "labels": st.column_config.TextColumn(_tr("plat_col_labels"), width="medium",
-                                                                help=_tr("plat_col_labels_help")),
-                          "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
-                          "comment": st.column_config.TextColumn(_tr("plat_comment"), width="medium"),
-                      })
-    st.caption(_tr("plat_list_empty") if lst.empty else _tr("plat_list_hint"))
-
     options = [int(i) for i in view["id"]]
+    picked = dict_kit.table_pick(lst, options, "plat_list", (search, state_sel), column_config={
+        "short": st.column_config.TextColumn(_tr("plat_short"), width=140),
+        "name": st.column_config.TextColumn(_tr("plat_name"), width="medium"),
+        "mps": st.column_config.TextColumn(_tr("plat_col_mps"), width="large", help=_tr("plat_col_mps_help")),
+        "labels": st.column_config.TextColumn(_tr("plat_col_labels"), width="medium",
+                                              help=_tr("plat_col_labels_help")),
+        "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
+        "comment": st.column_config.TextColumn(_tr("plat_comment"), width="medium"),
+    })
+    st.caption(_tr("plat_list_empty") if lst.empty else _tr("plat_list_hint"))
     if options:
-        _sel = ev.selection if ev is not None and hasattr(ev, "selection") else {}
-        rows = list(_sel.get("rows", []) or [])
-        cells = list(_sel.get("cells", []) or [])
-        _pos = rows[0] if rows else (int(cells[0][0]) if cells else None)
-        _picked = options[_pos] if _pos is not None and _pos < len(options) else None
-        _sig = (_fkey, tuple(rows), tuple(tuple(c) for c in cells))
-        if _picked and _sig != st.session_state.get("plat_list_sig"):
-            st.session_state["plat_card_pick"] = _picked
-        st.session_state["plat_list_sig"] = _sig
-        if st.session_state.get("plat_card_pick") not in options:
-            st.session_state["plat_card_pick"] = options[0]
         labels = {int(r.id): f"{r.short_name} — {r.full_name}" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
                   for _, r in view.iterrows()}
         st.markdown("#### " + _tr("plat_card_h"))
-        sel = st.selectbox(_tr("plat_pick"), options, format_func=lambda i: labels[i], key="plat_card_pick")
+        sel = dict_kit.card_pick(_tr("plat_pick"), options, labels, "plat_card", picked)
         _plat_card(plats.set_index("id").loc[sel], int(sel), plats, mp_cnt)
 
     _plat_add_form(plats)
@@ -4105,7 +4069,7 @@ def _plat_add_form(plats):
         st.cache_data.clear()
         new_id = q_now("SELECT id FROM kabinet_data.platforms WHERE short_name = %s", (short,))
         if not new_id.empty:
-            st.session_state["plat_card_pick_next"] = int(new_id["id"].iloc[0])
+            dict_kit.card_focus("plat_card", int(new_id["id"].iloc[0]))
         st.session_state["plat_created_code"] = short
         st.rerun()
     except Exception as e:
@@ -4864,7 +4828,7 @@ def _section_sku():
 
     # ── фильтры ──
     f1, f2, f3, f4 = st.columns([1.6, 1, 1.4, 1])
-    search = f1.text_input(_tr("sku_search"), key="sku_search").strip()
+    search = dict_kit.search_input(_tr("sku_search"), "sku_search", _tr, "41324000, Amoladora…", where=f1)
     type_sel = f2.multiselect(_tr("sku_type_f"), ["base", "composite", "none"], placeholder=_tr("ph_any"),
                               format_func=lambda x: _types.get(x, _tr("sku_t_none")), key="sku_type_f")
     cat_sel = f3.multiselect(_tr("sku_cat_f"), sorted(sm["cat1"].dropna().unique()), placeholder=_tr("ph_any"),
@@ -4923,53 +4887,29 @@ def _section_sku():
                  for h, w, l_ in zip(view["height_mm"], view["width_mm"], view["length_mm"])],
         "weight": [num_text(v, 3) for v in view["gross_weight_kg"]],
     })
-    # Ключ таблицы зависит от фильтров: выбор хранится номером строки, и после смены фильтра тот же номер
-    # указал бы на другой SKU — карточка переключилась бы сама. Новый ключ сбрасывает выбор.
-    _fkey = abs(hash((search, tuple(type_sel), tuple(cat_sel), state_sel, tuple(life_sel), mx_sel,
-                      tuple(check_sel), only_issues))) % 10 ** 8
-    # «single-cell» рядом с «single-row»: человек кликает по строке, а не по квадратику слева от неё, и
-    # раньше такой клик выделял ячейку и карточку не переключал (замечание веб-агента 06.10.2026)
-    ev = st.dataframe(lst, key=f"sku_list_{_fkey}", use_container_width=True, height=420, hide_index=True,
-                      on_select="rerun", selection_mode=["single-row", "single-cell"],
-                      column_config={
-                          "sku": st.column_config.TextColumn(_tr("sku_col_sku"), width="small"),
-                          "type": st.column_config.TextColumn(_tr("sku_col_type"), width="small"),
-                          "name": st.column_config.TextColumn(_tr("sku_col_name"), width="large"),
-                          "cat": st.column_config.TextColumn(_tr("sku_col_cat"), width="medium"),
-                          "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
-                          "matrix": st.column_config.TextColumn(_tr("sku_col_matrix"), width="small",
-                                                                help=_tr("sku_col_matrix_help")),
-                          "life": st.column_config.TextColumn(_tr("sku_col_life"), width=150,
-                                                              help=_tr("sku_col_life_help")),
-                          "todo": st.column_config.TextColumn(_tr("sku_col_todo"), width=300, help=_tr("sku_col_todo_help")),
-                          "ean": st.column_config.TextColumn(_tr("sku_col_ean"), width="small"),
-                          "dims": st.column_config.TextColumn(_tr("sku_col_dims"), width="small"),
-                          "weight": st.column_config.TextColumn(_tr("sku_col_weight"), width="small"),
-                      })
+    fsig = (search, tuple(type_sel), tuple(cat_sel), state_sel, tuple(life_sel), mx_sel, tuple(check_sel), only_issues)
+    options = list(lst["sku"])
+    picked = dict_kit.table_pick(lst, options, "sku_list", fsig, height=420, column_config={
+        "sku": st.column_config.TextColumn(_tr("sku_col_sku"), width="small"),
+        "type": st.column_config.TextColumn(_tr("sku_col_type"), width="small"),
+        "name": st.column_config.TextColumn(_tr("sku_col_name"), width="large"),
+        "cat": st.column_config.TextColumn(_tr("sku_col_cat"), width="medium"),
+        "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
+        "matrix": st.column_config.TextColumn(_tr("sku_col_matrix"), width="small", help=_tr("sku_col_matrix_help")),
+        "life": st.column_config.TextColumn(_tr("sku_col_life"), width=150, help=_tr("sku_col_life_help")),
+        "todo": st.column_config.TextColumn(_tr("sku_col_todo"), width=300, help=_tr("sku_col_todo_help")),
+        "ean": st.column_config.TextColumn(_tr("sku_col_ean"), width="small"),
+        "dims": st.column_config.TextColumn(_tr("sku_col_dims"), width="small"),
+        "weight": st.column_config.TextColumn(_tr("sku_col_weight"), width="small"),
+    })
     st.caption(_tr("sku_list_hint"))
 
     # ── выбранная строка: изменить / в архив / удалить ──
-    _selection = ev.selection if ev is not None and hasattr(ev, "selection") else {}
-    rows = list(_selection.get("rows", []) or [])
-    cells = list(_selection.get("cells", []) or [])
-    options = list(lst["sku"])
     if options:
-        # строка — из выделенной строки или из выделенной ячейки. Карточку переключаем, только когда выбор в
-        # таблице ИЗМЕНИЛСЯ: иначе он перебивал бы каждый следующий выбор в поле «SKU» карточки. Сравниваем
-        # весь выбор, а не только номер строки — иначе повторный клик по той же строке после выбора другого
-        # SKU в поле ничего бы не делал
-        _pos = rows[0] if rows else (int(cells[0][0]) if cells else None)
-        _sel = options[_pos] if _pos is not None and _pos < len(options) else None
-        _sig = (_fkey, tuple(rows), tuple(tuple(c) for c in cells))
-        if _sel and _sig != st.session_state.get("sku_list_sig"):
-            st.session_state["sku_card_pick"] = _sel
-        st.session_state["sku_list_sig"] = _sig
-        if st.session_state.get("sku_card_pick") not in options:
-            st.session_state["sku_card_pick"] = options[0]
         _names = dict(zip(sm["sku"], sm["name"].fillna("")))
         st.markdown("#### " + _tr("sku_card_h"))
-        sku = st.selectbox(_tr("sku_card_pick"), options, key="sku_card_pick",
-                           format_func=lambda s_: f"{s_} — {_names.get(s_, '')}"[:110])
+        sku = dict_kit.card_pick(_tr("sku_card_pick"), options,
+                                 {s_: f"{s_} — {_names.get(s_, '')}"[:110] for s_ in options}, "sku_card", picked)
         r = sm[sm["sku"] == sku].iloc[0]
         _sku_card(r, _types)
         _sku_row_actions(r)

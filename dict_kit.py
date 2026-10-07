@@ -161,3 +161,64 @@ def check_view(errors: list, changes: list, n_new: int, n_upd: int, n_same: int,
         st.info(tr("kit_nothing"))
         return False
     return True
+
+
+# ── список → карточка: общий приём для всех справочников (замечания веб-агента 06.10.2026) ──────────────
+
+def search_input(label: str, key: str, tr, example: str = "", where=None) -> str:
+    """Поле поиска по справочнику. Streamlit применяет введённый текст по Enter или когда фокус уходит из
+    поля — «по мере ввода» он не умеет, поэтому это сказано прямо в поле, а не оставлено догадке."""
+    ph = (example + " · " if example else "") + tr("kit_search_enter")
+    # `where` — колонка или контейнер, куда ставить поле: без него оно уходит в общий поток страницы
+    return (where or st).text_input(label, key=key, placeholder=ph, help=tr("kit_search_help")).strip()
+
+
+def table_pick(df: pd.DataFrame, ids: list, key: str, fsig, column_config: dict, height: int | None = None):
+    """Список справочника; строка выбирается кликом по любой её ячейке.
+
+    Режим «single-cell» без «single-row»: строчный режим рисует слева колонку флажков, а массовых действий у
+    списков нет — флажки ничего не делали и только сбивали с толку. Ключ таблицы зависит от фильтров
+    (`fsig`): выбор хранится номером строки, и после смены фильтра тот же номер указал бы на чужую запись.
+
+    Возвращает id выбранной строки, только если выбор в таблице ИЗМЕНИЛСЯ в этом прогоне, иначе None —
+    иначе однажды выбранная строка перебивала бы каждый следующий выбор в поле карточки."""
+    fkey = abs(hash(fsig)) % 10 ** 8
+    ev = st.dataframe(df, key=f"{key}_{fkey}", use_container_width=True, hide_index=True,
+                      height=height or min(420, 38 + 35 * max(len(df), 1)),
+                      on_select="rerun", selection_mode="single-cell", column_config=column_config)
+    sel = ev.selection if ev is not None and hasattr(ev, "selection") else {}
+    cells = list(sel.get("cells", []) or [])
+    pos = int(cells[0][0]) if cells else None
+    sig = (fkey, tuple(tuple(c) for c in cells))
+    picked = None
+    if pos is not None and pos < len(ids) and sig != st.session_state.get(f"{key}__sig"):
+        picked = ids[pos]
+    st.session_state[f"{key}__sig"] = sig
+    return picked
+
+
+def card_focus(state_key: str, item_id) -> None:
+    """Открыть карточку записи (после создания, после клика в таблице). Можно звать в любой момент
+    прогона: пишет в свой ключ состояния, а не в ключ виджета."""
+    st.session_state[state_key] = item_id
+    st.session_state[f"{state_key}__gen"] = st.session_state.get(f"{state_key}__gen", 0) + 1
+
+
+def card_pick(label: str, ids: list, labels: dict, state_key: str, picked=None):
+    """Поле «какая карточка открыта».
+
+    Открытая запись живёт в своём ключе (`state_key`), а не в ключе виджета. Раньше поле было виджетом
+    с постоянным ключом, и при смене фильтров (список вариантов другой) Streamlit пересоздавал его с первым
+    вариантом — карточка сбрасывалась, хотя её строка оставалась в таблице. Теперь открытая карточка
+    остаётся, пока её строка видна; ушла из таблицы — открывается первая строка."""
+    if picked is not None:
+        card_focus(state_key, picked)
+    cur = st.session_state.get(state_key)
+    if cur not in ids:
+        cur = ids[0]
+    gen = st.session_state.get(f"{state_key}__gen", 0)
+    wkey = f"{state_key}__box_{abs(hash(tuple(ids))) % 10 ** 8}_{gen}"
+    chosen = st.selectbox(label, ids, index=ids.index(cur), key=wkey,
+                          format_func=lambda i: labels.get(i, str(i)))
+    st.session_state[state_key] = chosen
+    return chosen

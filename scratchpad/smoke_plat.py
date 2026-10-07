@@ -67,7 +67,7 @@ if r:
     a = one("SELECT is_active, product_entity_label FROM kabinet_data.platform_attributes WHERE platform_id=%s", (r[0],))
     lg = one("SELECT object_id, new_value FROM kabinet_data.marketplace_change_log WHERE object_type='platform' AND field='created' AND new_value LIKE 'OTTO%%'")
     check("активна, обозначение записано, журнал привязан к её id", a and a[0] and a[1] == "OTTO-ID" and lg and lg[0] == r[0], (a, lg))
-    check("после создания открыта её карточка", at.session_state["plat_card_pick"] == r[0], [x.value for x in at.success])
+    check("после создания открыта её карточка", at.session_state["plat_card"] == r[0], [x.value for x in at.success])
 at.text_input(key="plat_add_short").set_value("AMZ"); at.text_input(key="plat_add_name").set_value("Dup")
 [b for b in at.button if b.label == "Создать"][0].click().run()
 check("дубль краткого названия отклонён", any("уже есть" in e.value for e in at.error), [e.value for e in at.error])
@@ -77,17 +77,17 @@ at2.text_input(key="plat_add_short").set_value("A-1"); at2.text_input(key="plat_
 errs = [e.value for e in at2.error]
 check("неверное краткое и пустое название — две ошибки", len(errs) == 2, errs)
 if r:
-    at3 = new_at(); at3.session_state["plat_card_pick"] = r[0]; at3.run()
+    at3 = new_at(); at3.session_state["plat_card"] = r[0]; at3.session_state["plat_card__gen"] = at3.session_state["plat_card__gen"] + 1 if "plat_card__gen" in at3.session_state else 1; at3.run()
     [b for b in at3.button if b.label == "В архив"][0].click().run()
     check("первое «В архив» ничего не пишет", one("SELECT is_active FROM kabinet_data.platform_attributes WHERE platform_id=%s", (r[0],))[0] is True)
     [b for b in at3.button if b.label == "Да, в архив"][0].click().run()
     check("«Да, в архив» — в архиве", one("SELECT is_active FROM kabinet_data.platform_attributes WHERE platform_id=%s", (r[0],))[0] is False)
     at3.selectbox(key="plat_state_f").set_value("all").run()
-    at3.session_state["plat_card_pick"] = r[0]; at3.run()
+    at3.session_state["plat_card"] = r[0]; at3.session_state["plat_card__gen"] = at3.session_state["plat_card__gen"] + 1 if "plat_card__gen" in at3.session_state else 1; at3.run()
     [b for b in at3.button if b.label == "Вернуть из архива"][0].click().run()
     check("возврат из архива", one("SELECT is_active FROM kabinet_data.platform_attributes WHERE platform_id=%s", (r[0],))[0] is True)
 amz = one("SELECT id FROM kabinet_data.platforms WHERE short_name='AMZ'")[0]
-at4 = new_at(); at4.session_state["plat_card_pick"] = amz; at4.run()
+at4 = new_at(); at4.session_state["plat_card"] = amz; at4.session_state["plat_card__gen"] = at4.session_state["plat_card__gen"] + 1 if "plat_card__gen" in at4.session_state else 1; at4.run()
 [b for b in at4.button if b.label == "В архив"][0].click().run()
 w = [x.value for x in at4.warning if "связано" in x.value]
 check("AMZ: перед архивом видны связи площадки и её маркетплейсов", w, w[0][:400] if w else "")

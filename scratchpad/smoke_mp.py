@@ -70,7 +70,7 @@ if r:
     a = one("SELECT website_url FROM kabinet_data.marketplace_attributes WHERE marketplace_id=%s", (r[0],))
     lg = one("SELECT field, new_value, actor FROM kabinet_data.marketplace_change_log WHERE object_id=%s AND field='created'", (r[0],))
     check("реквизиты и журнал записаны", a and a[0] == "https://shop.tiktok.com/it" and lg, (a, lg))
-    check("после создания открыта его карточка", at.session_state["mp_card_pick"] == r[0] if "mp_card_pick" in at.session_state else False,
+    check("после создания открыта его карточка", at.session_state["mp_card"] == r[0] if "mp_card" in at.session_state else False,
           [s.value for s in at.success])
 # дубль активной пары
 at.selectbox(key="mp_add_plat").set_value("AMZ"); at.selectbox(key="mp_add_ctry").set_value("ES")
@@ -88,19 +88,19 @@ check("без валюты и с http:// — две ошибки, ничего �
 # архив и возврат на созданном
 if r:
     at3 = new_at()
-    at3.session_state["mp_card_pick"] = r[0]; at3.run()
+    at3.session_state["mp_card"] = r[0]; at3.session_state["mp_card__gen"] = at3.session_state["mp_card__gen"] + 1 if "mp_card__gen" in at3.session_state else 1; at3.run()
     [b for b in at3.button if b.label == "В архив"][0].click().run()
     check("первое нажатие «В архив» ничего не пишет", one("SELECT is_active FROM kabinet_data.marketplaces_new WHERE id=%s", (r[0],))[0] is True)
     check("второе нажатие спрашивает подтверждение", any(b.label == "Да, в архив" for b in at3.button))
     [b for b in at3.button if b.label == "Да, в архив"][0].click().run()
     check("после «Да» — в архиве", one("SELECT is_active FROM kabinet_data.marketplaces_new WHERE id=%s", (r[0],))[0] is False)
     at3.selectbox(key="mp_state_f").set_value("all").run()
-    at3.session_state["mp_card_pick"] = r[0]; at3.run()
+    at3.session_state["mp_card"] = r[0]; at3.session_state["mp_card__gen"] = at3.session_state["mp_card__gen"] + 1 if "mp_card__gen" in at3.session_state else 1; at3.run()
     [b for b in at3.button if b.label == "Вернуть из архива"][0].click().run()
     check("возврат из архива", one("SELECT is_active FROM kabinet_data.marketplaces_new WHERE id=%s", (r[0],))[0] is True)
 # зависимости перед архивом у живого маркетплейса
 at4 = new_at()
-at4.session_state["mp_card_pick"] = 1; at4.run()
+at4.session_state["mp_card"] = 1; at4.session_state["mp_card__gen"] = at4.session_state["mp_card__gen"] + 1 if "mp_card__gen" in at4.session_state else 1; at4.run()
 [b for b in at4.button if b.label == "В архив"][0].click().run()
 w = [x.value for x in at4.warning if "связано" in x.value]
 check("AMZ-ES: перед архивом показаны действующие связи", w, w[0][:300] if w else "")
