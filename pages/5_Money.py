@@ -403,10 +403,6 @@ if df.empty:
 # по каждому рынку, и страница схлопывалась на дату последнего заказа в
 # Бельгии. Правило и объяснение — в util.data_boundary, оно же работает
 # на Обзоре. Держать здесь отдельную копию нельзя: копии расходятся
-_bound = data_boundary(df, "sales_date", "marketplace", load_amazon_codes())
-_last, _ahead = _bound.last, _bound.ahead
-
-
 @st.cache_data(ttl=300)
 def load_day_status(_v: str = ""):
     """Граница полных дней по последней загрузке каждой площадки — тот же расчёт, что на «Обзоре»."""
@@ -419,9 +415,14 @@ def load_day_status(_v: str = ""):
         conn.close()
 
 
+_dstat = load_day_status(_ver_econ)
+# сегодня по Киеву — по базе; сегодняшний день данными не считается никогда (07.10.2026, как на «Обзоре»)
+_today = _dstat.today if pd.notna(_dstat.today) else pd.Timestamp.now(tz="Europe/Kyiv").normalize().tz_localize(None)
+_bound = data_boundary(df, "sales_date", "marketplace", load_amazon_codes(), today=_today)
+_last, _ahead = _bound.last, _bound.ahead
+
 # день, по которому прошли не все загрузчики, в цифры и сравнение не входит (06.10.2026, как на «Обзоре»)
 _loaded_last = _last
-_dstat = load_day_status(_ver_econ)
 if pd.notna(_dstat.settled) and pd.notna(_last) and _dstat.settled < _last:
     _last = _dstat.settled
 # текущий период — по последний полный день, прошлый — столько же дней встык (money_notes.windows)

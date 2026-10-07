@@ -64,7 +64,7 @@ class Boundary(NamedTuple):
 
 
 def data_boundary(df: pd.DataFrame, date_col: str, group_col: str,
-                  anchor=None) -> Boundary:
+                  anchor=None, today=None) -> Boundary:
     """Последний день, за который картина полная.
 
     Границу задаёт якорный канал: если Amazon отдал отчёт за дату хоть по
@@ -92,6 +92,11 @@ def data_boundary(df: pd.DataFrame, date_col: str, group_col: str,
         return Boundary(pd.NaT, empty, False)
 
     d = df.assign(_d=pd.to_datetime(df[date_col], errors="coerce")).dropna(subset=["_d"])
+    # Сегодняшний день никогда не день с данными (решение владельца 07.10.2026): по нему грузится только часть
+    # каналов (ManoMano приходит утром) и только часть заказов. Без отсечки подпись говорила «по MM_ES есть уже
+    # по 07.10» в сам день 07.10, а фильтр по одному Mirakl (без якоря Amazon) брал неполный сегодняшний день в цифры.
+    if today is not None and pd.notna(today):
+        d = d[d["_d"] < pd.Timestamp(today)]
     if d.empty:
         return Boundary(pd.NaT, empty, False)
 

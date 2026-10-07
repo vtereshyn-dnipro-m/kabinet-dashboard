@@ -259,6 +259,26 @@ def load_ordered_sales(days: int = 30, _v: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
+def load_sales_all_channels(days: int = 30, _v: str = "") -> pd.DataFrame:
+    """Продажи с НДС по ВСЕМ каналам по дате заказа, до возвратов — то, что Дарина в Power BI называет
+    «Revenue VAT Incl» (07.10.2026). Вью v_sales_vat_incl_daily: Amazon — витрина S&T в евро, Mirakl — строки
+    заказов с НДС тем же отбором, что у неё. Wallapop и сайта в Кабинете нет."""
+    if not table_exists("v_sales_vat_incl_daily"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"""
+            SELECT date AS sales_date, marketplace, sales_vat_incl
+            FROM kabinet_data.v_sales_vat_incl_daily
+            WHERE date >= CURRENT_DATE - INTERVAL '{days * 2 + 10} days'
+        """, conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=300)
 def coverage_diag() -> dict:
     """Почему свод покрытия пуст: таблицы нет, строк нет или запрос упал.
     Раньше все три случая давали одинаково пустой блок на экране."""
@@ -489,6 +509,7 @@ try:
     # Деньги обновлялись вместе, а не каждый по своему TTL
     money = load_money(_load_days, data_version("economics_summary", "updated_at"))
     ordered = load_ordered_sales(_load_days, data_version("sales_traffic_daily", "loaded_at"))
+    sales_all = load_sales_all_channels(_load_days, data_version("sales_traffic_daily", "loaded_at"))
     # отдельно берём 90 дней: нужно понять, какие страны продавали раньше,
     # но замолчали в выбранном периоде
     money_wide = (load_money(90, data_version("economics_summary", "updated_at"))
@@ -496,7 +517,9 @@ try:
     cov = load_coverage()
     inc = load_incidents()
     transfers = load_transfers()
-    reviews = load_reviews(PERIOD.start.date(), PERIOD.end.date())
+    # отзывы и запросы — по вчера включительно: сегодняшний день данными не считается (07.10.2026)
+    _rev_end = min(PERIOD.end.date(), today.date() - pd.Timedelta(days=1).to_pytimedelta())
+    reviews = load_reviews(PERIOD.start.date(), _rev_end)
 except Exception as e:
     st.error(f"{t('home.db_error')}: {e}")
     st.stop()
@@ -523,12 +546,14 @@ if not money.empty:
     _amz_codes = (set(_ch.loc[_ch["channel"].str.upper() == "AMAZON",
                               "marketplace_code"])
                   if not _ch.empty else set())
-    _b = data_boundary(money, "sales_date", "marketplace", _amz_codes)
+    _dstat = load_day_status(data_version("economics_summary", "updated_at"))
+    # сегодня по Киеву — по базе (сервер живёт в UTC); сегодняшний день данными не считается никогда
+    _today = _dstat.today if pd.notna(_dstat.today) else pd.Timestamp.now(tz="Europe/Kyiv").normalize().tz_localize(None)
+    _b = data_boundary(money, "sales_date", "marketplace", _amz_codes, today=_today)
     _full_last, _ahead_mk = _b.last, _b.ahead
     # день, который Amazon ещё догружает, в цифры и сравнение не входит (06.10.2026): экономика за вчера
     # приходит неполной, и неполный день в периоде давал «обвал», которого нет
     _loaded_last = _full_last
-    _dstat = load_day_status(data_version("economics_summary", "updated_at"))
     _settled = _dstat.settled
     if pd.notna(_settled) and pd.notna(_full_last) and _settled < _full_last:
         _full_last = _settled
@@ -625,11 +650,23 @@ else:
         else:
             _o_to = _o_from = pd.NaT
 
+    # Продажи с НДС по всем каналам (07.10.2026): то же окно и тот же прошлый период, что у карточки Amazon, —
+    # иначе две соседние карточки сравнивали бы разные дни
+    all_cur, _all_delta = None, None
+    if not sales_all.empty and not ordered.empty:
+        sales_all["sales_date"] = pd.to_datetime(sales_all["sales_date"])
+        _ac = sales_all[(sales_all["sales_date"] >= _lo) & (sales_all["sales_date"] <= _w.cur_to)]
+        _ap = sales_all[(sales_all["sales_date"] >= _w.prev_from) & (sales_all["sales_date"] <= _w.prev_to)]
+        all_cur = float(_ac["sales_vat_incl"].sum())
+        _all_delta = (None if _o_clipped or (pd.notna(_econ_first) and _w.cur_from < _econ_first) else
+                      mn.delta_text(all_cur, float(_ap["sales_vat_incl"].sum()), _w, _ap["sales_date"].nunique()))
+
     _m_to = pd.Timestamp(cur["sales_date"].max()) if len(cur) else pd.NaT
     _m_from = pd.Timestamp(cur["sales_date"].min()) if len(cur) else pd.NaT
     _spans_differ = (pd.notna(_o_to) and pd.notna(_m_to) and _o_to != _m_to)
 
-    s0, s1, s2, s3, s4 = st.columns(5)
+    # пять карточек в ряд: шестая («Площадок») уходит во второй ряд к ACOS и TACOS — при шести названия обрезались
+    s0, s0b, s1, s2, s3 = st.columns(5)
     # под каждой денежной цифрой — видимая подпись: НДС · каналы · дата (money_notes, 06.10.2026)
     mn.money_metric(s0, t("home.kpi.ordered"), fmt_money(ord_cur) if ord_cur else "—", delta=_ord_delta,
                     vat=mn.VAT_INCL, channels="amazon", basis="order", extra=t("mn.x.before_cancel"),
@@ -638,6 +675,9 @@ else:
                            of=_o_from.strftime("%d.%m"), ot=_o_to.strftime("%d.%m"),
                            mf=_m_from.strftime("%d.%m"), mt=_m_to.strftime("%d.%m"))
                          if _spans_differ else t("home.kpi.ordered_help"))))
+    mn.money_metric(s0b, t("home.kpi.sales_all"), fmt_money(all_cur) if all_cur else "—", delta=_all_delta,
+                    vat=mn.VAT_INCL, channels="all", basis="order", extra=t("home.kpi.sales_all_extra"),
+                    help=passport.tip("home", "ordered_all", t("home.kpi.sales_all_help")))
     mn.money_metric(s1, t("home.kpi.revenue"), fmt_money(rev_cur), delta=_rev_delta,
                     vat=mn.VAT_EXCL, channels="all", basis="order", extra=t("mn.x.after_returns"),
                     help=passport.tip("home", "revenue", t("home.kpi.revenue_help_r",
@@ -659,8 +699,7 @@ else:
                     vat=mn.VAT_NONE, channels="all", basis="order",
                     help=passport.tip("home", "units", t("home.kpi.units_help")))
     # площадка с продажами — где были штуки: строка одного возврата и «рекламный день» без продаж (05.10.2026) не в счёт
-    s4.metric(t("home.kpi.markets"), f"{cur.loc[pd.to_numeric(cur['units'], errors='coerce').fillna(0) > 0, 'marketplace'].nunique()}",
-          help=passport.tip("home", "channels"))
+    _n_markets = cur.loc[pd.to_numeric(cur['units'], errors='coerce').fillna(0) > 0, 'marketplace'].nunique()
     # «По какое число» — подписью, а не только в подсказке ⓘ. Еженедельная сверка с внешним
     # отчётом расходилась ровно на один день (28.09.2026: отчёт за 1–26.09 против наших 1–27.09,
     # три рынка из четырёх сошлись до евро), и пока дата не написана рядом с цифрой, этот вопрос
@@ -684,7 +723,8 @@ else:
     # рекламы и ко всем продажам с НДС. Окно — то же, что у выручки и маржи; каналы — все, как у неё
     if pd.notna(_m_from) and pd.notna(_m_to):
         _ar = load_ad_ratios(_m_from.date(), _m_to.date(), data_version("ads_market_daily", "updated_at"))
-        _a1, _a2, _ = st.columns([1, 1, 3])
+        _a1, _a2, _a3, _ = st.columns([1, 1, 1, 2])
+        _a3.metric(t("home.kpi.markets"), f"{_n_markets}", help=passport.tip("home", "channels"))
         mn.money_metric(_a1, "ACOS", f"{_ar['acos']:.1f} %" if _ar.get("acos") is not None else "—",
                         vat=mn.VAT_NONE, channels="all", basis=None, extra=t("mn.x.acos"),
                         help=passport.tip("home", "acos", mn.help_with_vat(mn.VAT_INCL, t("home.kpi.acos_help"))))
@@ -1137,7 +1177,7 @@ with ir:
     else:
         q1, q2 = st.columns(2)
         # даты — те же, что у периода страницы, и названы числами, а не «за N дней»
-        _rf, _rt = PERIOD.start.strftime("%d.%m"), PERIOD.end.strftime("%d.%m")
+        _rf, _rt = PERIOD.start.strftime("%d.%m"), _rev_end.strftime("%d.%m")
         q1.metric(t("home.kpi.requests_r", f=_rf, to=_rt),
                   f"{reviews.get('sent7', 0):,}",
                   help=passport.tip("home", "reviews", t("home.kpi.requests_help_r", f=_rf, to=_rt)))
