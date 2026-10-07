@@ -2754,13 +2754,14 @@ def fmt_d(v) -> str:
 
 # ------------------------------------------------------------- категории ---
 def _section_cat():
-    """Дерево категорий из ERP, связь SKU с ним и ручной жизненный цикл.
+    """Категории по общему приёму справочников (07.10.2026): инструкция → выбор части (связи SKU, дерево, жизненный
+    цикл) → список с поиском и фильтрами → карточка по клику. Три части в одном разделе, потому что это один вопрос:
+    к какой категории относится товар и в каком он состоянии. Части переключаются сегментами, а не вкладками:
+    вкладки Streamlit исполняются все разом при каждом действии.
 
-    Три части разом, потому что это один вопрос: к какой категории относится товар и в
-    каком он состоянии. Разносить их по разным разделам значило бы гонять человека
-    туда-сюда ради одной строки.
-    """
-    st.caption(i18n_t("cat.hint"))
+    Что не менялось: дерево и его ключи приходят из ERP (SKU Master Loader), своя подпись главнее перевода ERP,
+    ручную связь и ручной статус загрузчик не перетирает, дата действия статуса соблюдается."""
+    dict_kit.instruction(i18n_t("cat.about"), i18n_t("cat.hint"))
 
     # Читаем вью, а не таблицу: правило «что человек видит на своём языке» живёт одним
     # написанием в базе, иначе страницы разойдутся с загрузчиком и между собой.
@@ -2771,19 +2772,12 @@ def _section_cat():
                (SELECT count(*) FROM kabinet_data.sku_category_links l
                  WHERE l.category_key = t.category_key)::int AS own_skus
           FROM kabinet_data.v_sku_category_tree t
-         -- Порядок дерева: сначала сам узел первого уровня, затем КАЖДАЯ его ветка
-         -- целиком — второй уровень и сразу его третий. Сортировка по глубине раньше
-         -- ветки ставила все вторые уровни подряд, а третьи — скопом после них, и
-         -- «дерево» переставало быть деревом: потомок стоял не под своим родителем.
+         -- Порядок дерева: узел первого уровня, затем КАЖДАЯ его ветка целиком — второй уровень и сразу его
+         -- третий. Сортировка по глубине раньше ветки ставила потомка не под своим родителем.
          ORDER BY t.level1, COALESCE(t.level2, ''), t.depth, COALESCE(t.level3, '')
     """)
-    # Путь категории и название товара — на языке интерфейса. Английские названия
-    # приезжают из ERP (`dim_translation_en`); где перевода ещё нет, остаётся оригинал —
-    # подставлять вместо него украинский текст, выдавая за перевод, нельзя.
-    #
-    # Выражения колонок собираются строками, а не f-строкой с кавычками внутри: на
-    # Python 3.9 обратный слеш в подстановке f-строки — синтаксическая ошибка, и такая
-    # страница не компилируется вовсе.
+    # Путь и название товара — на языке интерфейса; где перевода ERP ещё нет, остаётся оригинал. Выражения колонок
+    # собираются строками, а не f-строкой с кавычками: на Python 3.9 обратный слеш в подстановке — ошибка компиляции.
     _имя_кол = "m.name"
     _ур_кол = ["t.level1", "t.level2", "t.level3"]
     if get_lang() == "en":
@@ -2791,7 +2785,7 @@ def _section_cat():
         _ур_кол = ["t.level1_en, t.level1", "t.level2_en, t.level2", "t.level3_en, t.level3"]
     связи = q("""
         SELECT m.sku, COALESCE(""" + _имя_кол + """, '') AS name,
-               l.category_key, COALESCE(l.key_source, '') AS key_source,
+               l.category_key, COALESCE(l.key_source, '') AS key_source, l.updated_by, l.updated_at,
                COALESCE(""" + _ур_кол[0] + """, '') AS level1,
                COALESCE(""" + _ур_кол[1] + """, '') AS level2,
                COALESCE(""" + _ур_кол[2] + """, '') AS level3
@@ -2810,84 +2804,215 @@ def _section_cat():
     k2.metric(i18n_t("cat.k_linked"), len(связи) - _без)
     k3.metric(i18n_t("cat.k_nocat"), _без)
     k4.metric(i18n_t("cat.k_manual"), int((связи["key_source"] == "manual").sum()))
-
     # Откуда у связи категория: унаследованная не должна выглядеть заявленной
     _ист = связи[связи["category_key"].notna()]["key_source"].value_counts().to_dict()
     if _ист:
         st.caption(" · ".join(f"{i18n_t('cat.src.' + k)}: {v}" for k, v in sorted(_ист.items())))
 
-    tab_tree, tab_links, tab_life = st.tabs(
-        [i18n_t("cat.tab_tree"), i18n_t("cat.tab_links"), i18n_t("cat.tab_life")])
+    PARTS = ["links", "tree", "life"]
+    part = st.segmented_control(i18n_t("cat.part"), PARTS, key="cat_part",
+                                format_func=lambda p: i18n_t({"links": "cat.tab_links", "tree": "cat.tab_tree",
+                                                              "life": "cat.tab_life"}[p]))
+    # повторный клик по выбранному сегменту снимает выбор (Streamlit) — возвращаем последний
+    if part is None:
+        part = st.session_state.get("cat_part_last", "links")
+    st.session_state["cat_part_last"] = part
 
-    # ─────────────────────────── дерево ───────────────────────────
-    with tab_tree:
-        # Считаем SKU с учётом потомков: у узла первого уровня своих связей почти нет —
-        # они висят на третьем, — и «0» рядом с «Садовой техникой» читался бы как пустая
-        # категория, хотя под ней сотня товаров
-        _родитель = dict(zip(дерево["category_key"], дерево["parent_key"]))
-        _итого = {k: 0 for k in дерево["category_key"]}
-        for ключ, своих in zip(дерево["category_key"], дерево["own_skus"]):
-            узел = ключ
-            while узел:
-                _итого[узел] = _итого.get(узел, 0) + int(своих)
-                узел = _родитель.get(узел)
+    # путь категории на языке интерфейса — общий для списка связей и выбора категории
+    _поле = {"ru": "label_ru", "uk": "label_uk"}.get(get_lang(), "label_en")
+    _подпись = dict(zip(дерево["category_key"], [as_text(v) for v in дерево[_поле]]))
+    _родитель = dict(zip(дерево["category_key"], дерево["parent_key"]))
 
-        # Подпись узла — на языке интерфейса, из вью. Оригинал ERP стоит рядом
-        # отдельной колонкой: без него непонятно, что именно перевели, а при споре о
-        # названии сверяться надо с источником, а не с подписью.
-        _поле = {"ru": "label_ru", "uk": "label_uk"}.get(get_lang(), "label_en")
-        показ = pd.DataFrame({
-            "название": ["— " * (int(d) - 1) + as_text(t)
-                         for d, t in zip(дерево["depth"], дерево[_поле])],
-            "erp": [as_text(v) for v in дерево["title"]],
-            "свои": [num_text(v) for v in дерево["own_skus"]],
-            "всего": [num_text(_итого.get(k, 0)) for k in дерево["category_key"]],
-            "ru": [as_text(v) for v in дерево["name_ru"]],
-            "uk": [as_text(v) for v in дерево["name_uk"]],
-            "en": [as_text(v) for v in дерево["name_en"]],
-            "en_erp": [as_text(v) for v in дерево["title_en"]],
-        })
-        st.caption(i18n_t("cat.tree_hint"))
-        # Сколько узлов перевод ERP уже закрывает и где он спорный. Спорный перевод —
-        # это два разных узла с одним английским названием: на экране они были бы
-        # неразличимы, поэтому у таких подпись откатывается к оригиналу.
-        #
-        # Спорные считаем по ИТОГУ (`label_en_source`), а не по флагу загрузчика: стоит
-        # завести своё название одному из двух одинаково переведённых узлов, и второй
-        # спорным быть перестаёт. Флаг загрузчика этого не знает — он выставлен до того,
-        # как подпись завели, — и подпись «спорных 4» расходилась бы с экраном, где их нет.
-        _пер = int(дерево["title_en"].notna().sum())
-        _спор = int((дерево["label_en_source"] == "ambiguous").sum())
-        _руч = int((дерево["label_en_source"] == "manual").sum())
-        st.caption(i18n_t("cat.en_stats", n=_пер, all=len(дерево), man=_руч))
-        if _спор:
-            st.caption(i18n_t("cat.en_amb", amb=_спор))
-        edited = st.data_editor(
-            показ, width="stretch", hide_index=True, key="cat_tree_editor",
-            column_config={
-                "название": st.column_config.TextColumn(i18n_t("cat.col_title"),
-                                                        disabled=True, width="large"),
-                "свои": st.column_config.TextColumn(i18n_t("cat.col_own"),
-                                                    disabled=True, width="small"),
-                "всего": st.column_config.TextColumn(i18n_t("cat.col_total"),
-                                                     disabled=True, width="small"),
-                "erp": st.column_config.TextColumn(i18n_t("cat.col_erp"),
-                                                   disabled=True, width="medium"),
-                "ru": st.column_config.TextColumn("RU"),
-                "uk": st.column_config.TextColumn("UK"),
-                "en": st.column_config.TextColumn("EN"),
-                "en_erp": st.column_config.TextColumn(i18n_t("cat.col_en_erp"),
-                                                      disabled=True, width="medium"),
-            })
-        if st.button(i18n_t("cat.save_names"), type="primary", key="cat_save_names"):
-            правки = []
-            for i in range(len(показ)):
-                было = (показ.at[i, "ru"], показ.at[i, "uk"], показ.at[i, "en"])
-                стало = (as_text(edited.at[i, "ru"]), as_text(edited.at[i, "uk"]),
-                         as_text(edited.at[i, "en"]))
-                if было != стало:
-                    правки.append((дерево.iloc[i]["category_key"],) + стало)
-            if not правки:
+    def путь(ключ) -> str:
+        части, узел = [], ключ
+        while узел and узел in _подпись:
+            части.append(_подпись[узел]); узел = _родитель.get(узел)
+        return " / ".join(reversed(части))
+
+    if part == "links":
+        _cat_links(дерево, связи, путь)
+    elif part == "tree":
+        _cat_tree(дерево)
+    else:
+        _cat_life(связи)
+
+
+def _cat_links(дерево, связи, путь):
+    """Связь SKU с деревом: список → карточка SKU, где категорию ставят вручную или возвращают автоматическую."""
+    st.caption(i18n_t("cat.links_hint"))
+    SRC = ["all", "erp", "erp:base", "erp:kit", "manual", "none"]
+    f1, f2, f3 = st.columns([2, 1.4, 1.2])
+    поиск = dict_kit.search_input(i18n_t("cat.f_search"), "cat_f_search", _tr, "41324000, Amoladora…", where=f1).lower()
+    _l1 = sorted({as_text(v) for v in связи["level1"] if as_text(v)})
+    ур1 = f2.selectbox(i18n_t("cat.f_level1"), ["all"] + _l1, key="cat_f_l1",
+                       format_func=lambda x: i18n_t("cat.f_all") if x == "all" else x)
+    ист = f3.selectbox(i18n_t("cat.col_source"), SRC, key="cat_f_src",
+                       format_func=lambda x: i18n_t("cat.f_all") if x == "all"
+                       else (i18n_t("cat.src_none") if x == "none" else i18n_t("cat.src." + x)))
+    сито = связи
+    if поиск:
+        сито = сито[[поиск in as_text(a).lower() or поиск in as_text(b).lower()
+                     for a, b in zip(сито["sku"], сито["name"])]]
+    if ур1 != "all":
+        сито = сито[сито["level1"] == ур1]
+    if ист == "none":
+        сито = сито[сито["category_key"].isna()]
+    elif ист != "all":
+        сито = сито[сито["key_source"] == ист]
+    st.caption(i18n_t("cat.shown", n=len(сито), all=len(связи)))
+
+    lst = pd.DataFrame({
+        "sku": сито["sku"],
+        "name": [as_text(v)[:70] for v in сито["name"]],
+        "category": [" / ".join(x for x in (as_text(a), as_text(b), as_text(c)) if x) or "—"
+                     for a, b, c in zip(сито["level1"], сито["level2"], сито["level3"])],
+        "source": [i18n_t("cat.src." + as_text(v)) if as_text(v) else i18n_t("cat.src_none")
+                   for v in сито["key_source"]],
+    })
+    options = list(сито["sku"])
+    picked = dict_kit.table_pick(lst, options, "cat_links", (поиск, ур1, ист), column_config={
+        "sku": st.column_config.TextColumn("SKU", width=130),
+        "name": st.column_config.TextColumn(i18n_t("cat.col_name"), width="large"),
+        "category": st.column_config.TextColumn(i18n_t("cat.col_category"), width="large"),
+        "source": st.column_config.TextColumn(i18n_t("cat.col_source"), width=160, help=i18n_t("cat.src_help")),
+    })
+    st.caption(i18n_t("cat.filtered_empty") if not options else i18n_t("cat.list_hint"))
+    if not options:
+        return
+    labels = {s: f"{s} — {as_text(n)[:60]}" for s, n in zip(сито["sku"], сито["name"])}
+    st.markdown("#### " + i18n_t("cat.link_card"))
+    sel = dict_kit.card_pick("SKU", options, labels, "cat_link_card", picked)
+    r = связи.set_index("sku").loc[sel]
+    can_edit = auth.can("dict.edit")
+    with st.container(border=True):
+        st.markdown(f"**{sel}** · {as_text(r['name'])}")
+        if pd.notna(r["category_key"]):
+            st.caption(i18n_t("cat.link_now", path=путь(r["category_key"]) or "—",
+                              src=i18n_t("cat.src." + as_text(r["key_source"]))))
+        else:
+            st.caption(i18n_t("cat.link_none"))
+        _ключи = list(дерево["category_key"])
+        _пути = {k: путь(k) for k in _ключи}
+        _cur = r["category_key"] if pd.notna(r["category_key"]) and r["category_key"] in _пути else None
+        new_key = st.selectbox(i18n_t("cat.manual_cat"), [None] + _ключи,
+                               index=0 if _cur is None else _ключи.index(_cur) + 1,
+                               format_func=lambda k: i18n_t("cat.pick_cat") if k is None else _пути.get(k, k),
+                               key=f"cat_link_sel_{sel}", disabled=not can_edit, help=i18n_t("cat.manual_cat_help"))
+        b1, b2 = st.columns(2)
+        if b1.button(i18n_t("cat.manual_btn"), type="primary", key=f"cat_link_save_{sel}", disabled=not can_edit,
+                     help=None if can_edit else _tr("sku_ro_help")):
+            if new_key is None:
+                st.error(i18n_t("cat.pick_cat_err"))
+            elif new_key == _cur and r["key_source"] == "manual":
+                st.info(i18n_t("cat.nochange"))
+            else:
+                try:
+                    exec_sql([("""INSERT INTO kabinet_data.sku_category_links
+                                      (sku, category_key, key_source, updated_by, updated_at)
+                                  VALUES (%s, %s, 'manual', %s, now())
+                                  ON CONFLICT (sku) DO UPDATE
+                                     SET category_key = EXCLUDED.category_key, key_source = 'manual',
+                                         updated_by = EXCLUDED.updated_by, updated_at = now()""",
+                               (sel, new_key, _actor()))])
+                    st.cache_data.clear(); st.success(i18n_t("cat.manual_ok", sku=sel)); st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+        st.caption(i18n_t("cat.manual_hint"))
+        # Ручную связь можно снять: тогда утром загрузчик снова поставит автоматическую. До его прогона у SKU
+        # категории не будет — это сказано в подтверждении.
+        if can_edit and r["key_source"] == "manual":
+            with b2:
+                if confirm_delete(f"catlink_{sel}", i18n_t("cat.reset_what", sku=sel)):
+                    try:
+                        exec_sql([("DELETE FROM kabinet_data.sku_category_links WHERE sku = %s AND key_source = 'manual'",
+                                   (sel,))])
+                        st.cache_data.clear(); st.success(i18n_t("cat.reset_ok", sku=sel)); st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
+
+
+def _cat_tree(дерево):
+    """Дерево ERP: список узлов → карточка узла, где правятся свои подписи на трёх языках. Ключи и названия ERP не
+    правятся — их приносит загрузчик."""
+    st.caption(i18n_t("cat.tree_hint"))
+    _пер = int(дерево["title_en"].notna().sum())
+    _спор = int((дерево["label_en_source"] == "ambiguous").sum())
+    _руч = int((дерево["label_en_source"] == "manual").sum())
+    st.caption(i18n_t("cat.en_stats", n=_пер, all=len(дерево), man=_руч))
+    if _спор:
+        st.caption(i18n_t("cat.en_amb", amb=_спор))
+
+    # SKU с учётом потомков: у узла первого уровня своих связей почти нет — они висят на третьем
+    _родитель = dict(zip(дерево["category_key"], дерево["parent_key"]))
+    _итого = {k: 0 for k in дерево["category_key"]}
+    for ключ, своих in zip(дерево["category_key"], дерево["own_skus"]):
+        узел = ключ
+        while узел:
+            _итого[узел] = _итого.get(узел, 0) + int(своих)
+            узел = _родитель.get(узел)
+
+    _поле = {"ru": "label_ru", "uk": "label_uk"}.get(get_lang(), "label_en")
+    f1, f2, f3 = st.columns([2, 1.4, 1])
+    поиск = dict_kit.search_input(i18n_t("cat.f_tree"), "cat_t_search", _tr, "Шуруповерт, Garden…", where=f1).lower()
+    _l1 = list(dict.fromkeys(as_text(v) for v in дерево.loc[дерево["depth"] == 1, _поле]))
+    ур1 = f2.selectbox(i18n_t("cat.f_level1"), ["all"] + _l1, key="cat_t_l1",
+                       format_func=lambda x: i18n_t("cat.f_all") if x == "all" else x)
+    глуб = f3.selectbox(i18n_t("cat.f_depth"), ["all", 1, 2, 3], key="cat_t_depth",
+                        format_func=lambda x: i18n_t("cat.f_all") if x == "all" else i18n_t("cat.depth_n", n=x))
+    вид = дерево
+    if ур1 != "all":
+        _k1 = дерево.loc[(дерево["depth"] == 1) & (дерево[_поле].map(as_text) == ур1), "level1"]
+        вид = вид[вид["level1"].isin(set(_k1))]
+    if глуб != "all":
+        вид = вид[вид["depth"] == глуб]
+    if поиск:
+        вид = вид[[поиск in as_text(a).lower() or поиск in as_text(b).lower() or поиск in as_text(c).lower()
+                   for a, b, c in zip(вид[_поле], вид["title"], вид["title_en"])]]
+    st.caption(i18n_t("cat.shown", n=len(вид), all=len(дерево)))
+    lst = pd.DataFrame({
+        "title": ["— " * (int(d) - 1) + as_text(t) for d, t in zip(вид["depth"], вид[_поле])],
+        "erp": [as_text(v) for v in вид["title"]],
+        "en_erp": [as_text(v) for v in вид["title_en"]],
+        "own": [num_text(v) for v in вид["own_skus"]],
+        "total": [num_text(_итого.get(k, 0)) for k in вид["category_key"]],
+        "label": [i18n_t("cat.lbl_src." + as_text(v, "erp")) for v in вид["label_en_source"]],
+    })
+    options = list(вид["category_key"])
+    picked = dict_kit.table_pick(lst, options, "cat_tree", (поиск, ур1, глуб), column_config={
+        "title": st.column_config.TextColumn(i18n_t("cat.col_title"), width="large"),
+        "erp": st.column_config.TextColumn(i18n_t("cat.col_erp"), width="medium"),
+        "en_erp": st.column_config.TextColumn(i18n_t("cat.col_en_erp"), width="medium"),
+        "own": st.column_config.TextColumn(i18n_t("cat.col_own"), width=90),
+        "total": st.column_config.TextColumn(i18n_t("cat.col_total"), width=110),
+        "label": st.column_config.TextColumn(i18n_t("cat.col_label_src"), width=140, help=i18n_t("cat.lbl_src_help")),
+    })
+    st.caption(i18n_t("cat.filtered_empty") if not options else i18n_t("cat.list_hint"))
+    if not options:
+        return
+    labels = {k: ("— " * (int(d) - 1)) + as_text(t) for k, d, t in zip(вид["category_key"], вид["depth"], вид[_поле])}
+    st.markdown("#### " + i18n_t("cat.node_card"))
+    sel = dict_kit.card_pick(i18n_t("cat.col_title"), options, labels, "cat_node_card", picked)
+    r = дерево.set_index("category_key").loc[sel]
+    can_edit = auth.can("dict.edit")
+    with st.container(border=True):
+        st.markdown(f"**{as_text(r[_поле])}**")
+        st.caption(i18n_t("cat.node_meta", erp=" / ".join(x for x in (as_text(r["level1"]), as_text(r["level2"]),
+                                                                       as_text(r["level3"])) if x),
+                          en=as_text(r["title_en"], "—"), own=int(r["own_skus"]), total=_итого.get(sel, 0)))
+        if bool(r["en_ambiguous"]) if pd.notna(r["en_ambiguous"]) else False:
+            st.caption(i18n_t("cat.node_amb"))
+        c1, c2, c3 = st.columns(3)
+        ru = c1.text_input("RU", value=as_text(r["name_ru"]), key=f"cat_n_ru_{sel}", disabled=not can_edit,
+                           help=i18n_t("cat.name_help"))
+        uk = c2.text_input("UK", value=as_text(r["name_uk"]), key=f"cat_n_uk_{sel}", disabled=not can_edit,
+                           help=i18n_t("cat.name_help"))
+        en = c3.text_input("EN", value=as_text(r["name_en"]), key=f"cat_n_en_{sel}", disabled=not can_edit,
+                           help=i18n_t("cat.name_en_help"))
+        if st.button(i18n_t("cat.save_names"), type="primary", key=f"cat_n_save_{sel}", disabled=not can_edit,
+                     help=None if can_edit else _tr("sku_ro_help")):
+            было = (as_text(r["name_ru"]), as_text(r["name_uk"]), as_text(r["name_en"]))
+            стало = (ru.strip(), uk.strip(), en.strip())
+            if было == стало:
                 st.info(i18n_t("cat.nochange"))
             else:
                 try:
@@ -2898,151 +3023,148 @@ def _section_cat():
                                      SET name_ru = EXCLUDED.name_ru, name_uk = EXCLUDED.name_uk,
                                          name_en = EXCLUDED.name_en,
                                          updated_by = EXCLUDED.updated_by, updated_at = now()""",
-                               (k, ru, uk, en, _actor())) for k, ru, uk, en in правки])
-                    st.cache_data.clear()
-                    st.success(i18n_t("cat.saved", n=len(правки)))
-                    st.rerun()
+                               (sel,) + стало + (_actor(),))])
+                    st.cache_data.clear(); st.success(i18n_t("cat.saved", n=1)); st.rerun()
                 except Exception as e:
                     st.error(_trf("err", e=e))
+        if int(r["own_skus"]):
+            skus = q1("""SELECT m.sku, m.name FROM kabinet_data.sku_category_links l
+                         JOIN kabinet_data.sku_master m ON m.sku = l.sku WHERE l.category_key = %s ORDER BY 1""", (sel,))
+            st.caption(i18n_t("cat.node_skus", n=len(skus)))
+            st.dataframe(skus.rename(columns={"sku": "SKU", "name": i18n_t("cat.col_name")}), hide_index=True,
+                         use_container_width=True, height=min(260, 38 + 35 * len(skus)))
 
-    # ──────────────────────── связь SKU с деревом ────────────────────────
-    with tab_links:
-        f1, f2, f3 = st.columns([1.4, 1.4, 1.2])
-        поиск = f1.text_input(i18n_t("cat.f_search"), key="cat_f_search")
-        # Пустой выбор означает «все», а не «ничего»: человек снимает галочки, чтобы
-        # перестать фильтровать, а не чтобы получить пустую таблицу
-        ур1 = f2.multiselect(i18n_t("cat.f_level1"),
-                             sorted({as_text(v) for v in связи["level1"] if as_text(v)}),
-                             default=[], placeholder=i18n_t("cat.f_all"), key="cat_f_l1")
-        только_без = f3.checkbox(i18n_t("cat.f_nocat"), key="cat_f_nocat")
 
-        сито = связи
+def _cat_life(связи):
+    """Жизненный цикл: список действующих статусов → карточка пары SKU × маркетплейс с историей ручных решений,
+    новым решением с датой и отменой ещё не наступившего. Удалять наступившее решение нельзя — это история."""
+    st.caption(i18n_t("cat.life_hint"))
+    цикл = q("""SELECT sku, marketplace, status, is_manual, effective_from, COALESCE(updated_by, '') AS updated_by
+                FROM kabinet_data.v_sku_lifecycle_current ORDER BY is_manual DESC, sku, marketplace""")
+    будущие = q("""SELECT sku, marketplace, status, effective_from, COALESCE(reason, '') AS reason
+                   FROM kabinet_data.sku_lifecycle_manual WHERE effective_from > current_date
+                   ORDER BY effective_from, sku""")
+    if not будущие.empty:
+        # отложенное решение показываем отдельно: иначе «с 01.11» поставили, а в таблице по-прежнему «активен»
+        st.info(i18n_t("cat.life_future", n=len(будущие)))
+    СТАТУСЫ = ["active", "not_launched", "phasing_out", "seasonal_pause", "discontinued"]
+    _имя = dict(zip(связи["sku"], связи["name"]))
+    f1, f2, f3, f4 = st.columns([2, 1, 1.2, 1])
+    поиск = dict_kit.search_input(i18n_t("cat.f_search"), "cat_l_search", _tr, "41324000…", where=f1).lower()
+    _mps = sorted({as_text(v) for v in цикл["marketplace"]}) if not цикл.empty else []
+    mp = f2.selectbox(i18n_t("cat.life_mp"), ["all"] + _mps, key="cat_l_mp_f",
+                      format_func=lambda x: i18n_t("cat.f_all") if x == "all" else x)
+    стат = f3.selectbox(i18n_t("cat.life_status"), ["all"] + СТАТУСЫ, key="cat_l_st_f",
+                        format_func=lambda x: i18n_t("cat.f_all") if x == "all" else i18n_t("cat.life." + x))
+    реш = f4.selectbox(i18n_t("cat.life_who"), ["all", "manual", "calc"], key="cat_l_who_f",
+                       format_func=lambda x: i18n_t("cat.f_all") if x == "all"
+                       else i18n_t("cat.life_manual" if x == "manual" else "cat.life_calc"))
+    вид = цикл
+    if not вид.empty:
         if поиск:
-            _p = поиск.strip().lower()
-            сито = сито[[_p in as_text(a).lower() or _p in as_text(b).lower()
-                         for a, b in zip(сито["sku"], сито["name"])]]
-        if ур1:
-            сито = сито[сито["level1"].isin(ур1)]
-        if только_без:
-            сито = сито[сито["category_key"].isna()]
-        st.caption(i18n_t("cat.shown", n=len(сито), all=len(связи)))
+            вид = вид[[поиск in as_text(s).lower() or поиск in as_text(_имя.get(s)).lower() for s in вид["sku"]]]
+        if mp != "all":
+            вид = вид[вид["marketplace"] == mp]
+        if стат != "all":
+            вид = вид[вид["status"] == стат]
+        if реш != "all":
+            вид = вид[вид["is_manual"].astype(bool) == (реш == "manual")]
+    st.caption(i18n_t("cat.shown", n=len(вид), all=len(цикл)))
+    keys = [f"{s}|{m}" for s, m in zip(вид["sku"], вид["marketplace"])] if not вид.empty else []
+    lst = pd.DataFrame({
+        "sku": list(вид["sku"]) if keys else [],
+        "name": [as_text(_имя.get(s))[:60] for s in вид["sku"]] if keys else [],
+        "mp": list(вид["marketplace"]) if keys else [],
+        "status": [i18n_t("cat.life." + as_text(v)) for v in вид["status"]] if keys else [],
+        "who": [i18n_t("cat.life_manual") if bool(v) else i18n_t("cat.life_calc") for v in вид["is_manual"]] if keys else [],
+        "from": [fmt_d(v) for v in вид["effective_from"]] if keys else [],
+        "author": [as_text(v, "—") for v in вид["updated_by"]] if keys else [],
+    })
+    picked = dict_kit.table_pick(lst, keys, "cat_life", (поиск, mp, стат, реш), column_config={
+        "sku": st.column_config.TextColumn("SKU", width=130),
+        "name": st.column_config.TextColumn(i18n_t("cat.col_name"), width="large"),
+        "mp": st.column_config.TextColumn(i18n_t("cat.life_mp"), width=90),
+        "status": st.column_config.TextColumn(i18n_t("cat.life_status"), width=130),
+        "who": st.column_config.TextColumn(i18n_t("cat.life_who"), width=100),
+        "from": st.column_config.TextColumn(i18n_t("cat.life_from"), width=100),
+        "author": st.column_config.TextColumn(i18n_t("cat.col_author"), width="small"),
+    })
+    st.caption(i18n_t("cat.filtered_empty") if not keys else i18n_t("cat.list_hint"))
+    can_edit = auth.can("dict.edit")
+    if keys:
+        labels = {k: f"{k.split('|')[0]} · {k.split('|')[1]}" for k in keys}
+        st.markdown("#### " + i18n_t("cat.life_card"))
+        sel = dict_kit.card_pick(i18n_t("cat.life_pair"), keys, labels, "cat_life_card", picked)
+        s_sku, s_mp = sel.split("|", 1)
+        r = цикл[(цикл["sku"] == s_sku) & (цикл["marketplace"] == s_mp)].iloc[0]
+        with st.container(border=True):
+            st.markdown(f"**{s_sku} · {s_mp}** — {as_text(_имя.get(s_sku))}")
+            st.caption(i18n_t("cat.life_now", st=i18n_t("cat.life." + as_text(r["status"])),
+                              who=i18n_t("cat.life_manual") if bool(r["is_manual"]) else i18n_t("cat.life_calc"),
+                              d=fmt_d(r["effective_from"]) or "—"))
+            ист = q1("""SELECT status, effective_from, COALESCE(reason, '') AS reason, COALESCE(updated_by, '') AS who
+                        FROM kabinet_data.sku_lifecycle_manual WHERE sku = %s AND marketplace = %s
+                        ORDER BY effective_from DESC""", (s_sku, s_mp))
+            if ист.empty:
+                st.caption(i18n_t("cat.life_no_manual"))
+            else:
+                st.dataframe(pd.DataFrame({
+                    i18n_t("cat.life_status"): [i18n_t("cat.life." + as_text(v)) for v in ист["status"]],
+                    i18n_t("cat.life_from"): [fmt_d(v) for v in ист["effective_from"]],
+                    i18n_t("cat.life_reason"): [as_text(v) for v in ист["reason"]],
+                    i18n_t("cat.col_author"): [as_text(v, "—") for v in ист["who"]],
+                }), hide_index=True, use_container_width=True, height=min(220, 38 + 35 * len(ист)))
+                # не наступившее решение можно отменить: оно ещё ничего не меняло
+                for d in [v for v in ист["effective_from"] if pd.to_datetime(v).date() > date.today()]:
+                    if can_edit and confirm_delete(f"catlife_{s_sku}_{s_mp}_{d}",
+                                                   i18n_t("cat.life_cancel_what", d=fmt_d(d))):
+                        try:
+                            exec_sql([("""DELETE FROM kabinet_data.sku_lifecycle_manual
+                                          WHERE sku = %s AND marketplace = %s AND effective_from = %s
+                                            AND effective_from > current_date""", (s_sku, s_mp, d))])
+                            st.cache_data.clear(); st.rerun()
+                        except Exception as e:
+                            st.error(_trf("err", e=e))
+            if can_edit:
+                _life_form(s_sku, s_mp, СТАТУСЫ, f"cat_life_c_{sel}")
+    st.markdown("#### " + i18n_t("cat.life_set"))
+    if not can_edit:
+        st.caption(i18n_t("cat.life_ro"))
+        return
+    st.caption(i18n_t("cat.life_new_hint"))
+    c1, c2 = st.columns([1.4, 1])
+    l_sku = c1.selectbox("SKU", list(связи["sku"]), key="cat_l_sku",
+                         format_func=lambda s: f"{s} — {as_text(_имя.get(s))[:50]}")
+    _all_mps = q("SELECT code FROM kabinet_data.v_marketplaces_selectable ORDER BY code")
+    _mp_opts = sorted(set(_mps) | {as_text(v) for v in _all_mps["code"]}) if not _all_mps.empty else (_mps or ["ES"])
+    l_mp = c2.selectbox(i18n_t("cat.life_mp"), _mp_opts, key="cat_l_mp", help=i18n_t("cat.life_mp_help"))
+    _life_form(l_sku, l_mp, СТАТУСЫ, "cat_life_new")
+    st.caption(i18n_t("cat.life_note"))
 
-        показ2 = pd.DataFrame({
-            "sku": сито["sku"],
-            "name": [as_text(v)[:70] for v in сито["name"]],
-            "категория": [" / ".join(x for x in (as_text(a), as_text(b), as_text(c)) if x) or "—"
-                          for a, b, c in zip(сито["level1"], сито["level2"], сито["level3"])],
-            "источник": [i18n_t("cat.src." + as_text(v)) if as_text(v) else "—"
-                         for v in сито["key_source"]],
-        })
-        if показ2.empty:
-            st.caption(i18n_t("cat.filtered_empty"))
-        else:
-            st.dataframe(показ2, width="stretch", hide_index=True, column_config={
-                "sku": st.column_config.TextColumn("SKU", width="small"),
-                "name": st.column_config.TextColumn(i18n_t("cat.col_name"), width="large"),
-                "категория": st.column_config.TextColumn(i18n_t("cat.col_category"), width="large"),
-                "источник": st.column_config.TextColumn(i18n_t("cat.col_source"), width="small"),
-            })
 
-        # Ручная связь — формой, а не правкой в сетке: категорий больше шестисот, и
-        # выпадающий список в каждой строке и медленный, и промахнуться в нём легко
-        with st.form("cat_link_form", clear_on_submit=True):
-            st.markdown("**" + i18n_t("cat.manual_title") + "**")
-            c1, c2, c3 = st.columns([1.2, 2.4, 1])
-            _sku = c1.selectbox(i18n_t("cat.manual_sku"), list(связи["sku"]), key="cat_m_sku")
-            _пути = {r["category_key"]: " / ".join(
-                        x for x in (as_text(r["level1"]), as_text(r["level2"]),
-                                    as_text(r["level3"])) if x)
-                     for _, r in дерево.iterrows()}
-            _ключ = c2.selectbox(i18n_t("cat.manual_cat"), list(_пути),
-                                 format_func=lambda k: _пути.get(k, k), key="cat_m_key")
-            if c3.form_submit_button(i18n_t("cat.manual_btn")):
-                try:
-                    exec_sql([("""INSERT INTO kabinet_data.sku_category_links
-                                      (sku, category_key, key_source, updated_by, updated_at)
-                                  VALUES (%s, %s, 'manual', %s, now())
-                                  ON CONFLICT (sku) DO UPDATE
-                                     SET category_key = EXCLUDED.category_key, key_source = 'manual',
-                                         updated_by = EXCLUDED.updated_by, updated_at = now()""",
-                               (_sku, _ключ, _actor()))])
-                    st.cache_data.clear()
-                    st.success(i18n_t("cat.manual_ok", sku=_sku))
-                    st.rerun()
-                except Exception as e:
-                    st.error(_trf("err", e=e))
-        st.caption(i18n_t("cat.manual_hint"))
-
-    # ───────────────────────── жизненный цикл ─────────────────────────
-    with tab_life:
-        цикл = q("""
-            SELECT sku, marketplace, status, is_manual, effective_from,
-                   COALESCE(updated_by, '') AS updated_by
-              FROM kabinet_data.v_sku_lifecycle_current
-             ORDER BY is_manual DESC, sku, marketplace
-        """)
-        будущие = q("""
-            SELECT sku, marketplace, status, effective_from, COALESCE(reason, '') AS reason
-              FROM kabinet_data.sku_lifecycle_manual
-             WHERE effective_from > current_date
-             ORDER BY effective_from, sku
-        """)
-        st.caption(i18n_t("cat.life_hint"))
-        if not будущие.empty:
-            # Отложенное решение показываем отдельно: иначе человек поставил «с 01.11» и
-            # не понимает, почему в таблице по-прежнему «активен»
-            st.info(i18n_t("cat.life_future", n=len(будущие)))
-            st.dataframe(pd.DataFrame({
-                "sku": будущие["sku"], "mp": будущие["marketplace"],
-                "статус": [i18n_t("cat.life." + as_text(v)) for v in будущие["status"]],
-                "с": [fmt_d(v) for v in будущие["effective_from"]],
-                "причина": [as_text(v) for v in будущие["reason"]],
-            }), width="stretch", hide_index=True)
-
-        if цикл.empty:
-            st.info(_tr("no_data"))
-        else:
-            св = pd.DataFrame({
-                "sku": цикл["sku"], "mp": цикл["marketplace"],
-                "статус": [i18n_t("cat.life." + as_text(v)) for v in цикл["status"]],
-                "решение": [i18n_t("cat.life_manual") if bool(v) else i18n_t("cat.life_calc")
-                            for v in цикл["is_manual"]],
-                "с": [fmt_d(v) for v in цикл["effective_from"]],
-                "автор": [as_text(v, "—") for v in цикл["updated_by"]],
-            })
-            st.dataframe(св.head(400), width="stretch", hide_index=True)
-            if len(св) > 400:
-                st.caption(i18n_t("cat.life_cut", n=len(св)))
-
-        СТАТУСЫ = ["active", "not_launched", "phasing_out", "seasonal_pause", "discontinued"]
-        with st.form("cat_life_form", clear_on_submit=True):
-            st.markdown("**" + i18n_t("cat.life_set") + "**")
-            c1, c2, c3, c4 = st.columns([1.2, 1, 1.2, 1])
-            l_sku = c1.selectbox("SKU", list(связи["sku"]), key="cat_l_sku")
-            _mp = sorted({as_text(v) for v in цикл["marketplace"]}) if not цикл.empty else []
-            l_mp = c2.selectbox(i18n_t("cat.life_mp"), _mp or ["ES"], key="cat_l_mp")
-            # Статус в базе английским кодом — его читают расчёты; на экране слово.
-            # При сохранении подпись переводится обратно (тот же приём, что у ролей).
-            l_st = c3.selectbox(i18n_t("cat.life_status"), СТАТУСЫ,
-                                format_func=lambda s: i18n_t("cat.life." + s), key="cat_l_st")
-            l_from = c4.date_input(i18n_t("cat.life_from"), value=date.today(), key="cat_l_from")
-            l_why = st.text_input(i18n_t("cat.life_reason"), key="cat_l_why")
-            if st.form_submit_button(i18n_t("cat.life_btn")):
-                try:
-                    exec_sql([("""INSERT INTO kabinet_data.sku_lifecycle_manual
-                                      (sku, marketplace, status, effective_from, reason,
-                                       updated_by, updated_at)
-                                  VALUES (%s, %s, %s, %s, NULLIF(%s,''), %s, now())
-                                  ON CONFLICT (sku, marketplace, effective_from) DO UPDATE
-                                     SET status = EXCLUDED.status, reason = EXCLUDED.reason,
-                                         updated_by = EXCLUDED.updated_by, updated_at = now()""",
-                               (l_sku, l_mp, l_st, l_from, l_why, _actor()))])
-                    st.cache_data.clear()
-                    st.success(i18n_t("cat.life_ok", sku=l_sku, d=l_from.strftime("%d.%m.%Y")))
-                    st.rerun()
-                except Exception as e:
-                    st.error(_trf("err", e=e))
-        st.caption(i18n_t("cat.life_note"))
+def _life_form(sku, mp, СТАТУСЫ, key):
+    """Новое ручное решение по статусу пары SKU × маркетплейс: статус, дата начала, причина."""
+    c3, c4 = st.columns([1.2, 1])
+    # статус в базе английским кодом — его читают расчёты; на экране слово
+    l_st = c3.selectbox(i18n_t("cat.life_status"), СТАТУСЫ, format_func=lambda s: i18n_t("cat.life." + s),
+                        key=f"{key}_st")
+    l_from = c4.date_input(i18n_t("cat.life_from"), value=date.today(), key=f"{key}_from",
+                           help=i18n_t("cat.life_from_help"))
+    l_why = st.text_input(i18n_t("cat.life_reason"), key=f"{key}_why", help=i18n_t("cat.life_reason_help"))
+    if st.button(i18n_t("cat.life_btn"), type="primary", key=f"{key}_btn"):
+        try:
+            exec_sql([("""INSERT INTO kabinet_data.sku_lifecycle_manual
+                              (sku, marketplace, status, effective_from, reason, updated_by, updated_at)
+                          VALUES (%s, %s, %s, %s, NULLIF(%s,''), %s, now())
+                          ON CONFLICT (sku, marketplace, effective_from) DO UPDATE
+                             SET status = EXCLUDED.status, reason = EXCLUDED.reason,
+                                 updated_by = EXCLUDED.updated_by, updated_at = now()""",
+                       (sku, mp, l_st, l_from, (l_why or "").strip(), _actor()))])
+            st.cache_data.clear()
+            st.success(i18n_t("cat.life_ok", sku=sku, d=l_from.strftime("%d.%m.%Y")))
+            st.rerun()
+        except Exception as e:
+            st.error(_trf("err", e=e))
 
 
 # ---------------------------------------------------------------- склады ---
