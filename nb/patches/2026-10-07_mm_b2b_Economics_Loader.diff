@@ -1,0 +1,11 @@
+--- Kabinet - Economics Loader (07.10.2026, до)
++++ Kabinet - Economics Loader (ManoMano Pro)
+@@ -2977,7 +2977,7 @@
+     eff = t[t["effective_date"] <= d]["effective_date"].max() if (t["effective_date"] <= d).any() else t["effective_date"].min()
+     t = t[(t["effective_date"] == eff) & (t["min_weight"] <= w) & (w < t["max_weight"])]
+     return float(t["cost"].iloc[0]) if len(t) else None
+-MIRAKL = {"LM", "LM_ES", "MM_ES", "MM_FR", "CF_ES"}
++MIRAKL = {"LM", "LM_ES", "MM_ES", "MM_FR", "MMB_ES", "CF_ES"}   # MMB_ES — ManoMano Pro (B2B ES), с 07.10.2026
+ rows["is_mirakl"] = rows["marketplace"].isin(MIRAKL)
+ rows["rate_country"] = ["ES" if (mk == "ES" or mir) else "Other" for mk, mir in zip(rows["marketplace"], rows["is_mirakl"])]
+ 

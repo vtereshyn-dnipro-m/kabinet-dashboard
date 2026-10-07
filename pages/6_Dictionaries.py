@@ -2453,6 +2453,43 @@ _NORM_TR = {
 }
 for _lg, _d in _NORM_TR.items():
     TR[_lg].update(_d)
+_MPT_TR = {
+    "ru": {
+        "mp_data_trial": "пробный период до {d}", "mp_trial_short": "пробный период",
+        "mp_trial_info": "заказов ещё не было, поэтому отсутствие данных о продажах не тревога. Первый заказ или конец периода вернут обычную проверку.",
+        "mp_trial_h": "Пробный период",
+        "mp_trial_hint": "Отметьте, если площадка дала пробный период (например, тариф на 30 дней) и заказов пока нет. Пока он идёт и заказов не было, сторож не пишет «нет данных».",
+        "mp_trial_on": "Идёт пробный период",
+        "mp_trial_until": "Последний день периода",
+        "mp_trial_until_help": "Дата из кабинета площадки. После неё проверка данных снова обычная, даже если заказов так и не было.",
+        "mp_trial_note": "Пояснение", "mp_trial_note_ph": "например: тариф Booster, бесплатно 30 дней",
+        "mp_trial_save": "Сохранить пробный период",
+    },
+    "uk": {
+        "mp_data_trial": "пробний період до {d}", "mp_trial_short": "пробний період",
+        "mp_trial_info": "замовлень ще не було, тож відсутність даних про продажі не тривога. Перше замовлення або кінець періоду повернуть звичайну перевірку.",
+        "mp_trial_h": "Пробний період",
+        "mp_trial_hint": "Позначте, якщо площадка дала пробний період (наприклад, тариф на 30 днів) і замовлень поки немає. Поки він триває і замовлень не було, сторож не пише «немає даних».",
+        "mp_trial_on": "Триває пробний період",
+        "mp_trial_until": "Останній день періоду",
+        "mp_trial_until_help": "Дата з кабінету площадки. Після неї перевірка даних знову звичайна, навіть якщо замовлень так і не було.",
+        "mp_trial_note": "Пояснення", "mp_trial_note_ph": "наприклад: тариф Booster, безкоштовно 30 днів",
+        "mp_trial_save": "Зберегти пробний період",
+    },
+    "en": {
+        "mp_data_trial": "trial until {d}", "mp_trial_short": "trial period",
+        "mp_trial_info": "there have been no orders yet, so missing sales data is not an alarm. The first order or the end of the period brings back the usual check.",
+        "mp_trial_h": "Trial period",
+        "mp_trial_hint": "Tick it if the platform gave a trial period (e.g. a 30-day plan) and there are no orders yet. While it runs and there are no orders, the watchdog doesn't report «no data».",
+        "mp_trial_on": "Trial period is running",
+        "mp_trial_until": "Last day of the period",
+        "mp_trial_until_help": "The date from the platform's seller account. After it the data check is normal again, even if there were no orders.",
+        "mp_trial_note": "Note", "mp_trial_note_ph": "e.g. Booster plan, free for 30 days",
+        "mp_trial_save": "Save trial period",
+    },
+}
+for _lg, _d in _MPT_TR.items():
+    TR[_lg].update(_d)
 
 def _lang() -> str:
     try:
@@ -3848,8 +3885,7 @@ def _section_mp():
         "country": [f"{cnames.get(a, a)} ({a})" for a in view["country_alpha2"]],
         "currency": view["currency"],
         "state": [_tr("sku_state_active") if bool(a) else _tr("sku_state_archived") for a in view["is_active"]],
-        "data": [_tr("mp_data_" + st_) if st_ in ("no_config", "no_data", "ok") else ""
-                 for st_ in view["data_status"]],
+        "data": [_mp_data_label(r) for _, r in view.iterrows()],
         "used": [_mp_used_text(r) for _, r in view.iterrows()],
     })
     options = [int(i) for i in view["id"]]
@@ -3879,13 +3915,25 @@ def _mp_with_data_status(mps: pd.DataFrame) -> pd.DataFrame:
     «данные не загружаются» живёт в одном месте (sql/marketplace_data_status_2026-10-06.sql). Вью нет или
     оно не прочиталось — колонка пустая, а не «всё в порядке»."""
     try:
-        ds = q("""SELECT marketplace_id AS id, status AS data_status, config_missing, last_data_at, window_days
+        ds = q("""SELECT marketplace_id AS id, status AS data_status, config_missing, last_data_at, window_days,
+                         trial_until
                   FROM kabinet_data.v_marketplace_data_status""")
         return mps.merge(ds, on="id", how="left")
     except Exception:
         out = mps.copy()
         out["data_status"], out["config_missing"], out["last_data_at"], out["window_days"] = None, None, None, None
+        out["trial_until"] = None
         return out
+
+
+def _mp_data_label(r) -> str:
+    """Подпись колонки «Загрузка данных». 'trial' — пробный период без единого заказа: данных по заказам и не должно
+    быть, поэтому это не тревога, а пометка с датой окончания (07.10.2026, ManoMano Pro)."""
+    st_ = r.get("data_status")
+    if st_ == "trial":
+        tu = r.get("trial_until")
+        return _trf("mp_data_trial", d=pd.to_datetime(tu).strftime("%d.%m.%Y")) if not pd.isna(tu) else _tr("mp_trial_short")
+    return _tr("mp_data_" + st_) if st_ in ("no_config", "no_data", "ok") else ""
 
 
 def _mp_nodata_reason(row) -> str:
@@ -3924,6 +3972,8 @@ def _mp_card(row, sel: int, plats, countries, curr):
         st.caption(f"ID {sel}")
         if row["data_status"] in ("no_config", "no_data"):
             st.warning("**" + _tr("mp_nodata_text") + "**  \n" + _mp_nodata_reason(row))
+        elif row.get("data_status") == "trial":
+            st.info(_mp_data_label(row) + " — " + _tr("mp_trial_info"))
         if blockers:
             st.caption(_tr("mp_deps_head") + " " + "; ".join(blockers))
         else:
@@ -3977,6 +4027,7 @@ def _mp_card(row, sel: int, plats, countries, curr):
             else:
                 _mp_save(sel, row, new_name, new_plat, new_ctry, new_curr, new_esys, new_eid, new_site)
 
+    _mp_trial(row, sel, can_edit)
     if can_edit:
         _mp_archive(row, sel)
 
@@ -3993,6 +4044,41 @@ def _mp_card(row, sel: int, plats, countries, curr):
                           _tr("mp_log_new"), _tr("mp_log_who")]
             st.dataframe(lg, hide_index=True, use_container_width=True,
                          height=min(320, 38 + 35 * len(lg)))
+
+
+def _mp_trial(row, sel: int, can_edit: bool):
+    """Пробный период маркетплейса (07.10.2026): дата окончания и пояснение в marketplace_attributes. Пока период идёт
+    и заказов не было, вью v_marketplace_data_status даёт статус 'trial', и сторож не заводит «нет данных»."""
+    cur_tu = q1("SELECT trial_until, trial_note FROM kabinet_data.marketplace_attributes WHERE marketplace_id = %s",
+                (sel,))
+    tu = cur_tu["trial_until"].iloc[0] if not cur_tu.empty else None
+    tu = None if tu is None or pd.isna(tu) else pd.to_datetime(tu).date()
+    note = as_text(cur_tu["trial_note"].iloc[0]) if not cur_tu.empty else ""
+    with st.container(border=True):
+        st.markdown("**" + _tr("mp_trial_h") + "**")
+        st.caption(_tr("mp_trial_hint"))
+        on = st.checkbox(_tr("mp_trial_on"), value=tu is not None, key=f"mtr_on_{sel}", disabled=not can_edit)
+        t1, t2 = st.columns([1, 2])
+        new_tu = t1.date_input(_tr("mp_trial_until"), value=tu or (date.today() + timedelta(days=30)),
+                               key=f"mtr_d_{sel}", disabled=not (can_edit and on), help=_tr("mp_trial_until_help"))
+        new_note = t2.text_input(_tr("mp_trial_note"), value=note, key=f"mtr_n_{sel}",
+                                 disabled=not (can_edit and on), placeholder=_tr("mp_trial_note_ph"))
+        if can_edit and st.button(_tr("mp_trial_save"), key=f"mtr_save_{sel}"):
+            want_tu = new_tu if on else None
+            want_note = ((new_note or "").strip() or None) if on else None
+            if want_tu == tu and (want_note or "") == note:
+                st.info(_tr("nochange"))
+            else:
+                try:
+                    exec_sql([("INSERT INTO kabinet_data.marketplace_attributes (marketplace_id) VALUES (%s) "
+                               "ON CONFLICT (marketplace_id) DO NOTHING", (sel,)),
+                              ("UPDATE kabinet_data.marketplace_attributes SET trial_until = %s, trial_note = %s, "
+                               "updated_at = now() WHERE marketplace_id = %s", (want_tu, want_note, sel)),
+                              (MPLOG, ("marketplace", sel, "trial_until", None if tu is None else str(tu),
+                                       None if want_tu is None else str(want_tu)))])
+                    st.cache_data.clear(); st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
 
 
 def _mp_ext_site_errors(sel, esys, eid, site) -> list:

@@ -1,0 +1,29 @@
+--- Kabinet - Reconciliation (07.10.2026, до)
++++ Kabinet - Reconciliation (ManoMano Pro)
+@@ -77,6 +77,8 @@
+ MAP = {("Amazon", "Spain"): "ES", ("Amazon", "Italy"): "IT", ("Amazon", "France"): "FR",
+        ("Amazon", "Germany"): "DE", ("Leroy Merlin", "Spain"): "LM",
+        ("ManoMano", "Spain"): "MM_ES", ("ManoMano", "France"): "MM_FR",
++       # ManoMano Pro (B2B ES, с 07.10.2026): у Дарины B2B идёт со страной ES_B2B
++       ("ManoMano", "ES_B2B"): "MMB_ES", ("ManoMano Pro", "ES_B2B"): "MMB_ES", ("ManoMano Pro", "Spain"): "MMB_ES",
+        ("Carrefour", "Spain"): "CF_ES"}
+ AMZ = {"ES", "IT", "FR", "DE"}
+ 
+@@ -120,7 +122,7 @@
+ for d, mp, s, u in fetch(f"""
+         SELECT sales_date::text, marketplace, sum(ordered_product_sales)::numeric, sum(units_ordered)::int
+         FROM kabinet_data.economics_summary
+-        WHERE sales_date >= current_date - {WIN} AND marketplace IN ('LM','MM_ES','MM_FR','CF_ES')
++        WHERE sales_date >= current_date - {WIN} AND marketplace IN ('LM','MM_ES','MM_FR','MMB_ES','CF_ES')
+         GROUP BY 1, 2"""):
+     put((d, mp), "sales", s); put((d, mp), "units", u)
+ # себестоимость и комиссии — по всем каналам из экономики
+@@ -419,7 +421,7 @@
+                 return (True, f"возврат комиссии LM у нас вычитается в день возврата, у Дарины относится к дню заказа: "
+                               f"в окно пришло {lm_ref['comm_outside']:.2f} € возвратов по заказам до окна — ровно разница",
+                         dict(lm_ref))
+-        if metric == "комиссии" and scope.startswith("MM_"):
++        if metric == "комиссии" and scope.startswith(("MM_", "MMB_")):   # MMB_ES — ManoMano Pro, та же недельная таблица
+             # комиссии ManoMano приходят раз в неделю: хвост недели ещё без комиссии
+             граница = str(date.fromordinal(CALC.toordinal() - 8))
+             oo, tt = окно(scope, "commission", "ours", граница), окно(scope, "commission", "theirs", граница)

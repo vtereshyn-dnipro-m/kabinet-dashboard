@@ -1,0 +1,13 @@
+--- Kabinet - Stock Loader (07.10.2026, до)
++++ Kabinet - Stock Loader (ManoMano Pro)
+@@ -205,6 +205,10 @@
+     FROM kabinet_data.raw_mm_order_lines
+     WHERE order_date >= CURRENT_DATE - %s
+       AND COALESCE(order_status, '') NOT IN ('CANCELED', 'REFUSED')
++      -- ManoMano Pro (B2B ES, country = 'ES_B2B', с 07.10.2026): своего склада «ManoMano ES_B2B» в остатках нет —
++      -- офферы B2B в stock_local не пишутся, это та же квота Мадрида. Без отсева каждый B2B-заказ заводил бы
++      -- «нет остатка» на несуществующем складе. В спрос автозаказа B2B входит — там отсева нет.
++      AND country <> 'ES_B2B'
+       AND {BASE % 'sku'} IS NOT NULL
+     GROUP BY 1, 2
+ """, (SALES_WINDOW_DAYS,))
