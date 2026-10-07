@@ -59,13 +59,18 @@ check("раздел открылся без ошибок", not at.exception and 
 cap = [c.value for c in at.caption if c.value.startswith("Показано")]
 check("сводка над списком", cap, cap)
 check("форма создания на месте", any(b.label == "Добавить маркетплейс" for b in at.button))
-# создание: TTS-IT (свободная пара)
-at.selectbox(key="mp_add_plat").set_value("TTS"); at.selectbox(key="mp_add_ctry").set_value("IT")
-at.selectbox(key="mp_add_curr").set_value("EUR"); at.text_input(key="mp_add_name").set_value("TikTok Shop Italy")
+# создание: свободная пара TikTok Shop + страна. Пару подбираем, а не зашиваем: 07.10.2026 в живой базе появился
+# TTS-IT, и тест, заводивший именно его, падал на чужих данных
+FREE = next(c for c in ("PT", "AT", "NL", "BE", "PL", "SE", "IE", "CZ")
+            if not one("SELECT 1 FROM kabinet_data.marketplaces_new WHERE platform_short='TTS' AND country_alpha2=%s", (c,))
+            and one("SELECT 1 FROM kabinet_data.countries WHERE alpha2=%s", (c,)))
+CODE = f"TTS-{FREE}"
+at.selectbox(key="mp_add_plat").set_value("TTS"); at.selectbox(key="mp_add_ctry").set_value(FREE)
+at.selectbox(key="mp_add_curr").set_value("EUR"); at.text_input(key="mp_add_name").set_value("TikTok Shop Test")
 at.text_input(key="mp_add_site").set_value("https://shop.tiktok.com/it")
 [b for b in at.button if b.label == "Добавить маркетплейс"][0].click().run()
-r = one("SELECT id, code, is_active, currency FROM kabinet_data.marketplaces_new WHERE code='TTS-IT'")
-check("маркетплейс создан, код собран, активен", r and r[1] == "TTS-IT" and r[2], r)
+r = one("SELECT id, code, is_active, currency FROM kabinet_data.marketplaces_new WHERE code=%s", (CODE,))
+check(f"маркетплейс создан ({CODE}), код собран, активен", r and r[1] == CODE and r[2], r)
 if r:
     a = one("SELECT website_url FROM kabinet_data.marketplace_attributes WHERE marketplace_id=%s", (r[0],))
     lg = one("SELECT field, new_value, actor FROM kabinet_data.marketplace_change_log WHERE object_id=%s AND field='created'", (r[0],))
