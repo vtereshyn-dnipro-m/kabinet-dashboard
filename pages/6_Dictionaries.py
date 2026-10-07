@@ -1899,6 +1899,234 @@ TR = {
 }
 
 
+# Тексты справочника «Пулы» (07.10.2026) — отдельным словарём, вливаются в TR страницы
+_POOL_TR = {
+    "ru": {
+        "pool_about": "**Пулы** — группы маркетплейсов одной страны с общим совокупным прогнозом (ТЗ 004). Пул — отдельный объект планирования и покрытия; маркетплейсом он не является. Прогноз пула — сумма прогнозов участников, своего плана у пула нет.  \n**Как работать:** найдите пул → нажмите на строку → ниже откроется карточка: реквизиты, состав с датами участия, добавление маркетплейса, изменение дат, прекращение действия, журнал. Новый пул — формой «Добавить пул» внизу.",
+        "pool_about_hint": "Пул действует, пока в нём не меньше двух действующих участников (§9); отдельного признака «Активен» нет. Изменение состава НЕ переключает прогнозы и покрытие само по себе — это делает общая замена на странице «Прогноз» (ТЗ 010, сценарий 21). Пул с историей не удаляется: его действие прекращается последним днём участия всех связей.",
+        "pool_created_ok": "Пул «{name}» создан — карточка открыта ниже.",
+        "pool_from_short": "с", "pool_search": "Поиск по названию или коду маркетплейса",
+        "pool_state_f": "Состояние", "pool_state_all": "все", "pool_state_acting": "Действует",
+        "pool_state_not_acting": "Не действует", "pool_country_f": "Страна", "pool_all": "все",
+        "pool_summary": "Показано {shown} из {total} · действуют {acting}",
+        "pool_col_state": "Состояние",
+        "pool_col_state_help": "Действует — сегодня в пуле не меньше двух действующих участников (ТЗ 004 §9). ⚠️ — по пулу есть прогноз со старым составом: нужна замена на «Прогнозе».",
+        "pool_col_country": "Страна", "pool_col_members": "Участники сегодня",
+        "pool_col_members_help": "Маркетплейсы, участвующие в пуле на сегодняшнюю дату.",
+        "pool_col_future": "Вступят позже", "pool_col_future_help": "Связи с датой начала в будущем.",
+        "pool_col_history": "В истории", "pool_col_history_help": "Сколько связей уже завершено. История не удаляется (§6).",
+        "pool_col_used": "Где используется",
+        "pool_col_used_help": "Документы и действующие записи прогноза, нормативы покрытия, приоритеты складов, правила алертов. Пул со ссылками не удаляется (§10).",
+        "pool_list_empty": "По фильтрам ничего не нашлось — это фильтры, а не пустой справочник.",
+        "pool_list_hint": "Нажмите на строку — ниже откроется карточка пула.",
+        "pool_card_h": "Карточка пула", "pool_pick": "Открытый пул",
+        "pool_use_docs": "документов прогноза: {n}", "pool_use_fc_rows": "действующих записей прогноза: {n}",
+        "pool_use_norms": "нормативов покрытия: {n}", "pool_use_prios": "приоритетов складов: {n}",
+        "pool_use_alert_rules": "правил алертов: {n}", "pool_use_none": "нигде не используется",
+        "pool_e_from": "Дата начала обязательна (ТЗ 004 §4).",
+        "pool_e_order": "Последний день участия не может быть раньше даты начала (ТЗ 004 §4).",
+        "pool_e_same": "Маркетплейс уже участвует в этом пуле в пересекающийся период ({per}). Повторная связь возможна только с периодом, который не пересекается (§8).",
+        "pool_e_other": "Маркетплейс в этот период уже участвует в пуле «{pool}» ({per}). Один маркетплейс не может быть в двух пулах в пересекающиеся периоды (§5): сначала завершите прежнее участие.",
+        "pool_e_country": "Нельзя добавить marketplace в пул: страна выбранного marketplace отличается от страны участников пула.",
+        "pool_e_country_new": "(выбраны: {mps})", "pool_e_country_d": "(выбран: {mine}; участники: {them})",
+        "pool_e_dup": "Пул «{name}» уже есть — название пула должно быть уникальным (§3).",
+        "pool_e_two": "Пул состоит минимум из двух маркетплейсов — пул из одного не допускается (§2).",
+        "pool_not_acting_warn": "Пул не действует: действующих участников сегодня {n}, а нужно не меньше двух (§9). Прогноз, проведённый на пул раньше, этим не отменяется — до общей замены на «Прогнозе» он остаётся источником (§9, §11).",
+        "pool_drift_warn": "Состав пула отличается от состава, с которым проведён его прогноз. Пересоздайте прогноз и проведите общую замену на странице «Прогноз» → «Замена после изменения пула» (ТЗ 010, сценарии 12 и 21).",
+        "pool_name_help": "Как пул называется в Кабинете, например «Spain Marketplaces». Уникально среди пулов.",
+        "pool_comment_help": "Необязательно: зачем пул и кто за него отвечает.",
+        "pool_save_attrs": "💾 Сохранить название и комментарий",
+        "pool_members": "Состав и история участия",
+        "pool_members_hint": "«Последний день участия» — включительно: со следующего дня маркетплейс в справочном составе не учитывается (§4). Завершённые связи остаются в истории.",
+        "pool_no_links": "У пула нет ни одной связи с маркетплейсами.",
+        "pool_c_mp": "Маркетплейс", "pool_c_from": "Участвует с", "pool_c_last": "Последний день участия",
+        "pool_c_last_help": "Пусто — без срока. Включительно: со следующего дня маркетплейс в пуле не учитывается.",
+        "pool_link_active": "участвует", "pool_link_future": "вступит позже", "pool_link_past": "история",
+        "pool_ro": "Справочник открыт вам на чтение — менять пулы может планировщик или администратор.",
+        "pool_log_h": "Журнал изменений пула", "pool_log_empty": "Изменений пока не было (журнал ведётся с 07.10.2026).",
+        "pool_act_create": "создал пул", "pool_act_rename": "переименовал", "pool_act_comment": "изменил комментарий",
+        "pool_act_link_add": "добавил маркетплейс", "pool_act_link_dates": "изменил даты участия",
+        "pool_act_link_close": "завершил участие", "pool_act_pool_close": "прекратил действие пула",
+        "pool_act_delete": "удалил пул",
+        "pool_l_ts": "Когда", "pool_l_who": "Кто", "pool_l_what": "Что сделал", "pool_l_was": "Было", "pool_l_now": "Стало",
+        "pool_ref_links": "связей с маркетплейсами: {n}",
+        "pool_del_blocked": "Удалить пул нельзя — {refs}. Пул, который участвовал в расчётах или связан с другими объектами, физически не удаляется (ТЗ 004 §10): его действие прекращается последним днём участия всех связей.",
+        "pool_add_link_h": "➕ Добавить маркетплейс в пул",
+        "pool_add_none": "Добавлять некого: все активные маркетплейсы уже в пуле.",
+        "pool_add_mp_help": "Только активные маркетплейсы активных площадок: деактивированный маркетплейс новых связей не получает (§11). Страна должна совпадать со страной участников (§2).",
+        "pool_from_help": "С какого дня маркетплейс входит в справочный состав пула. Обязательно, по умолчанию — сегодня (§4).",
+        "pool_last_help": "Последний день участия, включительно. Пусто — без срока (§4).",
+        "pool_switch_note": "Даты меняют справочный состав, но не переключают прогнозы и покрытие: до общей замены на «Прогнозе» действуют прежние прогнозы и сохранённый в них состав (§6).",
+        "pool_add_link_btn": "Добавить в пул", "pool_link_added": "{mp} добавлен в пул.",
+        "pool_edit_link_h": "✏️ Изменить даты участия или завершить участие",
+        "pool_edit_pick": "Связь", "pool_edit_save": "💾 Сохранить даты",
+        "pool_end_today": "⏹ Завершить сегодня", "pool_end_today_help": "Последний день участия — сегодня; с завтра маркетплейс в пуле не учитывается.",
+        "pool_close_h": "⏹ Прекратить действие пула",
+        "pool_close_note": "Ставит последний день участия всем действующим связям. Сам пул и история остаются; удаления нет (§10). Действующий прогноз пула этим не отменяется — его заменяют на «Прогнозе» (§9, §11).",
+        "pool_close_future": "У пула есть связи, которые ещё не начались ({mps}). Сначала измените или завершите их в блоке выше.",
+        "pool_close_last_help": "Последний день участия для всех действующих связей, включительно.",
+        "pool_close_btn": "Прекратить действие пула…",
+        "pool_close_q": "Прекратить действие пула «{name}»: {n} действующих связей получат последний день участия {d}. Продолжить?",
+        "pool_close_yes": "Да, прекратить",
+        "pool_close_early": "Дата раньше начала участия у {mps}: выберите дату не раньше начала участия.",
+        "pool_closed_ok": "Действие пула «{name}» прекращено. Прогнозы пула замените на «Прогнозе».",
+        "pool_add_h": "Добавить пул",
+        "pool_add_note": "Минимум два маркетплейса одной страны (§2); название уникально (§3); дата начала обязательна (§4). Прогноз на новый пул заводится на странице «Прогноз».",
+        "pool_add_mps": "Участники",
+        "pool_add_mps_help": "Минимум два активных маркетплейса одной страны. Маркетплейс, который в этот период уже в другом пуле, сначала выведите оттуда (§5).",
+    },
+    "uk": {
+        "pool_about": "**Пули** — групи маркетплейсів однієї країни зі спільним сукупним прогнозом (ТЗ 004). Пул — окремий обʼєкт планування й покриття; маркетплейсом він не є. Прогноз пулу — сума прогнозів учасників, власного плану в пулу немає.  \n**Як працювати:** знайдіть пул → натисніть на рядок → нижче відкриється картка: реквізити, склад із датами участі, додавання маркетплейсу, зміна дат, припинення дії, журнал. Новий пул — формою «Додати пул» унизу.",
+        "pool_about_hint": "Пул діє, поки в ньому не менше двох чинних учасників (§9); окремої ознаки «Активний» немає. Зміна складу НЕ перемикає прогнози й покриття сама по собі — це робить загальна заміна на сторінці «Прогноз» (ТЗ 010, сценарій 21). Пул з історією не видаляється: його дія припиняється останнім днем участі всіх звʼязків.",
+        "pool_created_ok": "Пул «{name}» створено — картка відкрита нижче.",
+        "pool_from_short": "з", "pool_search": "Пошук за назвою або кодом маркетплейсу",
+        "pool_state_f": "Стан", "pool_state_all": "усі", "pool_state_acting": "Діє",
+        "pool_state_not_acting": "Не діє", "pool_country_f": "Країна", "pool_all": "усі",
+        "pool_summary": "Показано {shown} з {total} · діють {acting}",
+        "pool_col_state": "Стан",
+        "pool_col_state_help": "Діє — сьогодні в пулі не менше двох чинних учасників (ТЗ 004 §9). ⚠️ — за пулом є прогноз зі старим складом: потрібна заміна на «Прогнозі».",
+        "pool_col_country": "Країна", "pool_col_members": "Учасники сьогодні",
+        "pool_col_members_help": "Маркетплейси, що беруть участь у пулі на сьогоднішню дату.",
+        "pool_col_future": "Вступлять пізніше", "pool_col_future_help": "Звʼязки з датою початку в майбутньому.",
+        "pool_col_history": "В історії", "pool_col_history_help": "Скільки звʼязків уже завершено. Історія не видаляється (§6).",
+        "pool_col_used": "Де використовується",
+        "pool_col_used_help": "Документи й чинні записи прогнозу, нормативи покриття, пріоритети складів, правила алертів. Пул із посиланнями не видаляється (§10).",
+        "pool_list_empty": "За фільтрами нічого не знайдено — це фільтри, а не порожній довідник.",
+        "pool_list_hint": "Натисніть на рядок — нижче відкриється картка пулу.",
+        "pool_card_h": "Картка пулу", "pool_pick": "Відкритий пул",
+        "pool_use_docs": "документів прогнозу: {n}", "pool_use_fc_rows": "чинних записів прогнозу: {n}",
+        "pool_use_norms": "нормативів покриття: {n}", "pool_use_prios": "пріоритетів складів: {n}",
+        "pool_use_alert_rules": "правил алертів: {n}", "pool_use_none": "ніде не використовується",
+        "pool_e_from": "Дата початку обовʼязкова (ТЗ 004 §4).",
+        "pool_e_order": "Останній день участі не може бути раніше дати початку (ТЗ 004 §4).",
+        "pool_e_same": "Маркетплейс уже бере участь у цьому пулі в період, що перетинається ({per}). Повторний звʼязок можливий лише з періодом, який не перетинається (§8).",
+        "pool_e_other": "Маркетплейс у цей період уже в пулі «{pool}» ({per}). Один маркетплейс не може бути у двох пулах у періоди, що перетинаються (§5): спочатку завершіть попередню участь.",
+        "pool_e_country": "Не можна додати marketplace до пулу: країна вибраного marketplace відрізняється від країни учасників пулу.",
+        "pool_e_country_new": "(вибрано: {mps})", "pool_e_country_d": "(вибрано: {mine}; учасники: {them})",
+        "pool_e_dup": "Пул «{name}» уже є — назва пулу має бути унікальною (§3).",
+        "pool_e_two": "Пул складається щонайменше з двох маркетплейсів — пул з одного не допускається (§2).",
+        "pool_not_acting_warn": "Пул не діє: чинних учасників сьогодні {n}, а потрібно не менше двох (§9). Прогноз, проведений на пул раніше, цим не скасовується — до загальної заміни на «Прогнозі» він лишається джерелом (§9, §11).",
+        "pool_drift_warn": "Склад пулу відрізняється від складу, з яким проведено його прогноз. Перестворіть прогноз і проведіть загальну заміну на сторінці «Прогноз» → «Заміна після зміни пулу» (ТЗ 010, сценарії 12 і 21).",
+        "pool_name_help": "Як пул називається в Кабінеті, наприклад «Spain Marketplaces». Унікальна серед пулів.",
+        "pool_comment_help": "Необовʼязково: навіщо пул і хто за нього відповідає.",
+        "pool_save_attrs": "💾 Зберегти назву й коментар",
+        "pool_members": "Склад та історія участі",
+        "pool_members_hint": "«Останній день участі» — включно: з наступного дня маркетплейс у довідковому складі не враховується (§4). Завершені звʼязки лишаються в історії.",
+        "pool_no_links": "У пулу немає жодного звʼязку з маркетплейсами.",
+        "pool_c_mp": "Маркетплейс", "pool_c_from": "Бере участь з", "pool_c_last": "Останній день участі",
+        "pool_c_last_help": "Порожньо — без терміну. Включно: з наступного дня маркетплейс у пулі не враховується.",
+        "pool_link_active": "бере участь", "pool_link_future": "вступить пізніше", "pool_link_past": "історія",
+        "pool_ro": "Довідник відкрито вам на читання — змінювати пули може планувальник або адміністратор.",
+        "pool_log_h": "Журнал змін пулу", "pool_log_empty": "Змін поки не було (журнал ведеться з 07.10.2026).",
+        "pool_act_create": "створив пул", "pool_act_rename": "перейменував", "pool_act_comment": "змінив коментар",
+        "pool_act_link_add": "додав маркетплейс", "pool_act_link_dates": "змінив дати участі",
+        "pool_act_link_close": "завершив участь", "pool_act_pool_close": "припинив дію пулу",
+        "pool_act_delete": "видалив пул",
+        "pool_l_ts": "Коли", "pool_l_who": "Хто", "pool_l_what": "Що зробив", "pool_l_was": "Було", "pool_l_now": "Стало",
+        "pool_ref_links": "звʼязків із маркетплейсами: {n}",
+        "pool_del_blocked": "Видалити пул не можна — {refs}. Пул, який брав участь у розрахунках або повʼязаний з іншими обʼєктами, фізично не видаляється (ТЗ 004 §10): його дія припиняється останнім днем участі всіх звʼязків.",
+        "pool_add_link_h": "➕ Додати маркетплейс до пулу",
+        "pool_add_none": "Додавати нікого: усі активні маркетплейси вже в пулі.",
+        "pool_add_mp_help": "Лише активні маркетплейси активних майданчиків: деактивований маркетплейс нових звʼязків не отримує (§11). Країна має збігатися з країною учасників (§2).",
+        "pool_from_help": "З якого дня маркетплейс входить до довідкового складу пулу. Обовʼязково, за замовчуванням — сьогодні (§4).",
+        "pool_last_help": "Останній день участі, включно. Порожньо — без терміну (§4).",
+        "pool_switch_note": "Дати змінюють довідковий склад, але не перемикають прогнози й покриття: до загальної заміни на «Прогнозі» діють попередні прогнози й збережений у них склад (§6).",
+        "pool_add_link_btn": "Додати до пулу", "pool_link_added": "{mp} додано до пулу.",
+        "pool_edit_link_h": "✏️ Змінити дати участі або завершити участь",
+        "pool_edit_pick": "Звʼязок", "pool_edit_save": "💾 Зберегти дати",
+        "pool_end_today": "⏹ Завершити сьогодні", "pool_end_today_help": "Останній день участі — сьогодні; із завтра маркетплейс у пулі не враховується.",
+        "pool_close_h": "⏹ Припинити дію пулу",
+        "pool_close_note": "Ставить останній день участі всім чинним звʼязкам. Сам пул та історія лишаються; видалення немає (§10). Чинний прогноз пулу цим не скасовується — його замінюють на «Прогнозі» (§9, §11).",
+        "pool_close_future": "У пулу є звʼязки, які ще не почалися ({mps}). Спочатку змініть або завершіть їх у блоці вище.",
+        "pool_close_last_help": "Останній день участі для всіх чинних звʼязків, включно.",
+        "pool_close_btn": "Припинити дію пулу…",
+        "pool_close_q": "Припинити дію пулу «{name}»: {n} чинних звʼязків отримають останній день участі {d}. Продовжити?",
+        "pool_close_yes": "Так, припинити",
+        "pool_close_early": "Дата раніше початку участі в {mps}: виберіть дату не раніше початку участі.",
+        "pool_closed_ok": "Дію пулу «{name}» припинено. Прогнози пулу замініть на «Прогнозі».",
+        "pool_add_h": "Додати пул",
+        "pool_add_note": "Щонайменше два маркетплейси однієї країни (§2); назва унікальна (§3); дата початку обовʼязкова (§4). Прогноз на новий пул заводиться на сторінці «Прогноз».",
+        "pool_add_mps": "Учасники",
+        "pool_add_mps_help": "Щонайменше два активні маркетплейси однієї країни. Маркетплейс, який у цей період уже в іншому пулі, спочатку виведіть звідти (§5).",
+    },
+    "en": {
+        "pool_about": "**Pools** — groups of marketplaces of one country sharing one aggregate forecast (spec 004). A pool is a separate planning and coverage object, not a marketplace. A pool's forecast is the sum of its members' forecasts; a pool has no plan of its own.  \n**How to use:** find a pool → click its row → the card opens below: attributes, membership with dates, adding a marketplace, changing dates, ending the pool, change log. A new pool — the «Add pool» form at the bottom.",
+        "pool_about_hint": "A pool is in effect while it has at least two current members (§9); there is no separate «Active» flag. Changing membership does NOT switch forecasts and coverage by itself — the joint replacement on the «Forecast» page does (spec 010, scenario 21). A pool with history is never deleted: it is ended by setting the last day of every membership.",
+        "pool_created_ok": "Pool «{name}» created — its card is open below.",
+        "pool_from_short": "from", "pool_search": "Search by name or marketplace code",
+        "pool_state_f": "State", "pool_state_all": "all", "pool_state_acting": "In effect",
+        "pool_state_not_acting": "Not in effect", "pool_country_f": "Country", "pool_all": "all",
+        "pool_summary": "Showing {shown} of {total} · in effect {acting}",
+        "pool_col_state": "State",
+        "pool_col_state_help": "In effect — at least two current members today (spec 004 §9). ⚠️ — the pool has a forecast posted with an old membership: replace it on «Forecast».",
+        "pool_col_country": "Country", "pool_col_members": "Members today",
+        "pool_col_members_help": "Marketplaces in the pool as of today.",
+        "pool_col_future": "Join later", "pool_col_future_help": "Memberships starting in the future.",
+        "pool_col_history": "In history", "pool_col_history_help": "Memberships already ended. History is kept (§6).",
+        "pool_col_used": "Used in",
+        "pool_col_used_help": "Forecast documents and current forecast records, coverage norms, warehouse priorities, alert rules. A referenced pool is not deleted (§10).",
+        "pool_list_empty": "Nothing matches the filters — it is the filters, not an empty directory.",
+        "pool_list_hint": "Click a row — the pool card opens below.",
+        "pool_card_h": "Pool card", "pool_pick": "Open pool",
+        "pool_use_docs": "forecast documents: {n}", "pool_use_fc_rows": "current forecast records: {n}",
+        "pool_use_norms": "coverage norms: {n}", "pool_use_prios": "warehouse priorities: {n}",
+        "pool_use_alert_rules": "alert rules: {n}", "pool_use_none": "not used anywhere",
+        "pool_e_from": "Start date is required (spec 004 §4).",
+        "pool_e_order": "The last day cannot be before the start date (spec 004 §4).",
+        "pool_e_same": "The marketplace is already in this pool for an overlapping period ({per}). A repeat membership is allowed only for a non-overlapping period (§8).",
+        "pool_e_other": "In this period the marketplace is already in pool «{pool}» ({per}). A marketplace cannot be in two pools in overlapping periods (§5): end the earlier membership first.",
+        "pool_e_country": "Cannot add the marketplace to the pool: its country differs from the country of the pool members.",
+        "pool_e_country_new": "(selected: {mps})", "pool_e_country_d": "(selected: {mine}; members: {them})",
+        "pool_e_dup": "Pool «{name}» already exists — pool names must be unique (§3).",
+        "pool_e_two": "A pool consists of at least two marketplaces — a pool of one is not allowed (§2).",
+        "pool_not_acting_warn": "The pool is not in effect: {n} current member(s) today, at least two are required (§9). A forecast posted on the pool earlier is not cancelled by this — it stays the source until the joint replacement on «Forecast» (§9, §11).",
+        "pool_drift_warn": "The pool's membership differs from the one its forecast was posted with. Recreate the forecast and run the joint replacement on «Forecast» → «Replacement after pool change» (spec 010, scenarios 12 and 21).",
+        "pool_name_help": "How the pool is called in Kabinet, e.g. «Spain Marketplaces». Unique among pools.",
+        "pool_comment_help": "Optional: why the pool exists and who owns it.",
+        "pool_save_attrs": "💾 Save name and comment",
+        "pool_members": "Membership and history",
+        "pool_members_hint": "«Last day» is inclusive: from the next day the marketplace is not in the pool's reference membership (§4). Ended memberships stay in history.",
+        "pool_no_links": "The pool has no marketplace memberships.",
+        "pool_c_mp": "Marketplace", "pool_c_from": "Member from", "pool_c_last": "Last day of membership",
+        "pool_c_last_help": "Empty — open-ended. Inclusive: from the next day the marketplace is not counted in the pool.",
+        "pool_link_active": "member", "pool_link_future": "joins later", "pool_link_past": "history",
+        "pool_ro": "The directory is read-only for you — pools are changed by a planner or an administrator.",
+        "pool_log_h": "Pool change log", "pool_log_empty": "No changes yet (the log is kept since 07.10.2026).",
+        "pool_act_create": "created the pool", "pool_act_rename": "renamed", "pool_act_comment": "changed the comment",
+        "pool_act_link_add": "added a marketplace", "pool_act_link_dates": "changed membership dates",
+        "pool_act_link_close": "ended a membership", "pool_act_pool_close": "ended the pool",
+        "pool_act_delete": "deleted the pool",
+        "pool_l_ts": "When", "pool_l_who": "Who", "pool_l_what": "What", "pool_l_was": "Before", "pool_l_now": "After",
+        "pool_ref_links": "marketplace memberships: {n}",
+        "pool_del_blocked": "The pool cannot be deleted — {refs}. A pool that took part in calculations or is referenced elsewhere is never physically deleted (spec 004 §10): it is ended by setting the last day of every membership.",
+        "pool_add_link_h": "➕ Add a marketplace to the pool",
+        "pool_add_none": "Nothing to add: all active marketplaces are already in the pool.",
+        "pool_add_mp_help": "Only active marketplaces of active platforms: a deactivated marketplace gets no new memberships (§11). Its country must match the members' country (§2).",
+        "pool_from_help": "From which day the marketplace joins the pool's reference membership. Required, defaults to today (§4).",
+        "pool_last_help": "Last day of membership, inclusive. Empty — open-ended (§4).",
+        "pool_switch_note": "Dates change the reference membership but do not switch forecasts and coverage: until the joint replacement on «Forecast» the earlier forecasts and the membership saved in them apply (§6).",
+        "pool_add_link_btn": "Add to pool", "pool_link_added": "{mp} added to the pool.",
+        "pool_edit_link_h": "✏️ Change membership dates or end a membership",
+        "pool_edit_pick": "Membership", "pool_edit_save": "💾 Save dates",
+        "pool_end_today": "⏹ End today", "pool_end_today_help": "Last day of membership is today; from tomorrow the marketplace is not counted in the pool.",
+        "pool_close_h": "⏹ End the pool",
+        "pool_close_note": "Sets the last day for all current memberships. The pool and its history stay; there is no deletion (§10). The pool's current forecast is not cancelled by this — it is replaced on «Forecast» (§9, §11).",
+        "pool_close_future": "The pool has memberships that have not started yet ({mps}). Change or end them in the block above first.",
+        "pool_close_last_help": "Last day for all current memberships, inclusive.",
+        "pool_close_btn": "End the pool…",
+        "pool_close_q": "End pool «{name}»: {n} current memberships get last day {d}. Continue?",
+        "pool_close_yes": "Yes, end it",
+        "pool_close_early": "The date is before the membership start for {mps}: pick a date not earlier than the start.",
+        "pool_closed_ok": "Pool «{name}» ended. Replace the pool's forecasts on «Forecast».",
+        "pool_add_h": "Add pool",
+        "pool_add_note": "At least two marketplaces of one country (§2); unique name (§3); start date required (§4). A forecast for the new pool is created on the «Forecast» page.",
+        "pool_add_mps": "Members",
+        "pool_add_mps_help": "At least two active marketplaces of one country. A marketplace already in another pool for this period must be taken out of it first (§5).",
+    },
+}
+for _lg, _d in _POOL_TR.items():
+    TR[_lg].update(_d)
+
 def _lang() -> str:
     try:
         lg = str(get_lang() or "ru").lower()[:2]
@@ -2089,25 +2317,6 @@ def confirm_delete(key: str, what: str) -> bool:
     if yes:
         st.session_state.pop(flag, None)
     return yes
-
-
-def pool_references(pool_id: int) -> list:
-    """Где пул используется: связи с датами, прогноз, правила, нормативы. Непустой список — удалять нельзя."""
-    refs = []
-    for label, sql in (
-        ("связи с маркетплейсами (история)", "SELECT count(*) FROM kabinet_data.pool_members WHERE pool_id = %s"),
-        ("документы прогноза", "SELECT count(*) FROM kabinet_data.forecast_documents WHERE object_type = 'pool' AND object_id = %s"),
-        ("записи реестра прогноза", "SELECT count(*) FROM kabinet_data.forecast_register WHERE object_type = 'pool' AND object_id = %s"),
-        ("правила алертов прогноза", "SELECT count(*) FROM kabinet_data.forecast_alert_rules WHERE object_type = 'pool' AND object_id = %s"),
-        ("нормативы покрытия", "SELECT count(*) FROM kabinet_data.coverage_norms WHERE pool_id = %s"),
-    ):
-        try:
-            n = int(q1(sql, (pool_id,)).iloc[0, 0])
-        except Exception:
-            n = 0   # таблицы может ещё не быть — это не ссылка
-        if n:
-            refs.append(f"{label}: {n}")
-    return refs
 
 
 def build_updates(orig, edited, table, pk, cols):
@@ -4077,156 +4286,513 @@ def _plat_add_form(plats):
 
 
 # ------------------------------------------------------------------ пулы ---
-def _section_pool():
-    st.caption(_tr("pool_hint"))
-    pools = q("SELECT id, name, comment FROM kabinet_data.pools ORDER BY name")
-    mps = q("""
-        SELECT id, code, country FROM kabinet_data.marketplaces
-        WHERE is_active IS NOT FALSE ORDER BY code
+# Справочник по общему приёму (07.10.2026): инструкция → список с поиском и фильтрами → карточка по клику →
+# форма создания. Правила — ТЗ 004 v0.2 без изменений. Отдельного признака «Активен» у пула нет (§9): пул
+# ДЕЙСТВУЕТ, пока у него не меньше двух действующих связей. Пул с историей физически не удаляется (§10) — его
+# действие прекращается датами окончания связей; удалить можно только пул без связей и без ссылок.
+#
+# Даты участия на экране — «с» и «последний день участия» включительно (§4: «после этой даты не учитывается»),
+# а в базе `valid_to` — первый день БЕЗ пула (полуоткрытый период, как читают все потребители состава).
+# Поэтому при записи к последнему дню прибавляется день, при показе — вычитается.
+PLOG = ("INSERT INTO kabinet_data.pool_change_log (pool_id, link_id, action, before_state, after_state, actor) "
+        "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb, %s)")
+
+
+def _pool_links() -> pd.DataFrame:
+    return q("""
+        SELECT pm.id, pm.pool_id, pm.marketplace_id, pm.valid_from, pm.valid_to,
+               m.code, m.name AS mp_name, m.country_alpha2 AS country, m.is_active AS mp_active
+        FROM kabinet_data.pool_members pm
+        JOIN kabinet_data.marketplaces_new m ON m.id = pm.marketplace_id
+        ORDER BY pm.valid_from, m.code
     """)
-    mp_label = {int(r.id): f"{r.code} ({r.country})" for _, r in mps.iterrows()}
-    label_mp = {v: k for k, v in mp_label.items()}
 
-    left, right = st.columns([1, 2])
 
-    with left:
-        st.markdown(f"**{_tr('pool_list')}**")
-        sel_pool = None
-        if pools.empty:
-            st.info(_tr("pool_none"))
-        else:
-            sel_name = st.radio(" ", pools["name"].tolist(), key="pool_pick",
-                                label_visibility="collapsed")
-            sel_pool = int(pools.loc[pools["name"] == sel_name, "id"].iloc[0])
+def _pool_usage() -> pd.DataFrame:
+    """Где пул используется — и для колонки списка, и для запрета удаления (§10)."""
+    try:
+        return q("""
+            SELECT p.id,
+                   (SELECT count(*) FROM kabinet_data.forecast_documents d
+                     WHERE d.object_type = 'pool' AND d.object_id = p.id)::int                      AS docs,
+                   (SELECT count(*) FROM kabinet_data.forecast_register r
+                     WHERE r.object_type = 'pool' AND r.object_id = p.id AND r.is_current)::int    AS fc_rows,
+                   (SELECT count(*) FROM kabinet_data.coverage_norm_rules n WHERE n.pool_id = p.id)::int
+                 + (SELECT count(*) FROM kabinet_data.coverage_norms n2 WHERE n2.pool_id = p.id)::int AS norms,
+                   (SELECT count(*) FROM kabinet_data.warehouse_priorities w
+                     WHERE w.target_type = 'pool' AND w.target_id = p.id)::int                      AS prios,
+                   (SELECT count(*) FROM kabinet_data.forecast_alert_rules a
+                     WHERE a.object_type = 'pool' AND a.object_id = p.id)::int                      AS alert_rules,
+                   (SELECT count(*) FROM kabinet_data.v_forecast_pool_drift v WHERE v.pool_id = p.id)::int AS drift
+            FROM kabinet_data.pools p
+        """).set_index("id")
+    except Exception:
+        return pd.DataFrame(columns=["docs", "fc_rows", "norms", "prios", "alert_rules", "drift"])
 
-        with st.form("new_pool", clear_on_submit=True):
-            st.markdown(f"**{_tr('pool_new')}**")
-            nname = st.text_input(_tr("pool_name"))
-            ncomment = st.text_input(_tr("pool_comment"))
-            if st.form_submit_button(_tr("pool_create")):
-                if not nname.strip():
-                    st.error(_tr("pool_empty_name"))
-                else:
-                    try:
-                        exec_sql([("""
-                            INSERT INTO kabinet_data.pools (name, comment)
-                            VALUES (%s, %s) ON CONFLICT (name) DO NOTHING
-                        """, [nname.strip(), ncomment or None])])
-                        st.cache_data.clear()
-                        st.success(_tr("pool_created"))
-                        st.rerun()
-                    except Exception as e:
-                        st.error(_tr("err").format(e=e))
 
-    with right:
-        if sel_pool:
-            cur_cmt = pools.loc[pools["id"] == sel_pool, "comment"].iloc[0]
-            c1, c2 = st.columns([3, 1])
-            # `cur_cmt` у пула без комментария приходит NaN, а `NaN or ""` даёт сам NaN
-            # (NaN в Python истинен) — поле показывало «nan». Только через `as_text`.
-            new_cmt = c1.text_input(_tr("pool_comment"), value=as_text(cur_cmt),
-                                    key=f"pc_{sel_pool}")
-            if c2.button(_tr("pool_save_cmt"), key=f"pr_{sel_pool}"):
+def _link_state(r, today) -> str:
+    """active — участвует сегодня, future — начнёт позже, past — история (§4, период полуоткрытый)."""
+    vf = pd.Timestamp(r["valid_from"]).date()
+    vt = None if pd.isna(r["valid_to"]) else pd.Timestamp(r["valid_to"]).date()
+    if vf > today:
+        return "future"
+    if vt is not None and vt <= today:
+        return "past"
+    return "active"
+
+
+def _last_day(vt):
+    """`valid_to` базы (первый день без пула) → последний день участия для экрана."""
+    return None if vt is None or pd.isna(vt) else (pd.Timestamp(vt) - pd.Timedelta(days=1)).date()
+
+
+def _vt_from_last(d_last):
+    return None if d_last is None else d_last + timedelta(days=1)
+
+
+def _pool_usage_text(u) -> str:
+    if u is None:
+        return ""
+    parts = []
+    for k in ("docs", "fc_rows", "norms", "prios", "alert_rules"):
+        n = int(u.get(k, 0) or 0)
+        if n:
+            parts.append(_trf(f"pool_use_{k}", n=n))
+    return "; ".join(parts) or _tr("pool_use_none")
+
+
+def _pool_link_errors(pid, mp_id, d_from, d_last, exclude_link=None) -> list:
+    """Проверки связи «пул → маркетплейс» ДО записи — те же, что держит триггер базы, но словами (§2, §4, §5, §8).
+    Читается через `q_now`: десятиминутный кеш разрешил бы то, что уже нельзя."""
+    errs = []
+    if d_from is None:
+        errs.append(_tr("pool_e_from"))
+        return errs
+    if d_last is not None and d_last < d_from:
+        errs.append(_tr("pool_e_order"))
+        return errs
+    vt = _vt_from_last(d_last)
+    ex = int(exclude_link) if exclude_link is not None else -1
+    busy = q_now("""
+        SELECT p.name AS pool_name, pm.pool_id, pm.valid_from, pm.valid_to
+        FROM kabinet_data.pool_members pm JOIN kabinet_data.pools p ON p.id = pm.pool_id
+        WHERE pm.marketplace_id = %s AND pm.id <> %s
+          AND daterange(pm.valid_from, pm.valid_to, '[)') && daterange(%s::date, %s::date, '[)')
+    """, (int(mp_id), ex, d_from, vt))
+    for _, r in busy.iterrows():
+        per = f"{pd.Timestamp(r.valid_from):%d.%m.%Y}–" + (
+            f"{_last_day(r.valid_to):%d.%m.%Y}" if pd.notna(r.valid_to) else _tr("pool_open"))
+        errs.append(_trf("pool_e_same" if int(r.pool_id) == int(pid) else "pool_e_other",
+                         pool=r.pool_name, per=per))
+    # §2: страна нового участника = страна остальных участников, чьё участие пересекается с этим периодом
+    me = q_now("SELECT country_alpha2 FROM kabinet_data.marketplaces_new WHERE id = %s", (int(mp_id),))
+    others = q_now("""
+        SELECT DISTINCT m.country_alpha2 AS c
+        FROM kabinet_data.pool_members pm JOIN kabinet_data.marketplaces_new m ON m.id = pm.marketplace_id
+        WHERE pm.pool_id = %s AND pm.id <> %s AND pm.marketplace_id <> %s
+          AND daterange(pm.valid_from, pm.valid_to, '[)') && daterange(%s::date, %s::date, '[)')
+    """, (int(pid), ex, int(mp_id), d_from, vt))
+    my_c = as_text(me["country_alpha2"].iloc[0]) if not me.empty else ""
+    oth = sorted({as_text(c) for c in others["c"]} - {""}) if not others.empty else []
+    if oth and (len(oth) > 1 or oth[0] != my_c):
+        errs.append(_tr("pool_e_country") + " " + _trf("pool_e_country_d", mine=my_c or "—", them=", ".join(oth)))
+    return errs
+
+
+def _section_pool():
+    dict_kit.instruction(_tr("pool_about"), _tr("pool_about_hint"))
+    _created = st.session_state.pop("pool_created_name", None)
+    if _created:
+        st.success(_trf("pool_created_ok", name=_created))
+    today = date.today()
+    pools = q("SELECT id, name, comment FROM kabinet_data.pools ORDER BY name")
+    links = _pool_links()
+    usage = _pool_usage()
+    if not links.empty:
+        links["state"] = [_link_state(r, today) for _, r in links.iterrows()]
+    else:
+        links["state"] = pd.Series(dtype=str)
+
+    summary = []
+    for _, p in pools.iterrows():
+        L = links[links["pool_id"] == p["id"]]
+        act, fut = L[L["state"] == "active"], L[L["state"] == "future"]
+        cur = pd.concat([act, fut])
+        countries = sorted({as_text(c) for c in (cur if not cur.empty else L)["country"]} - {""})
+        u = usage.loc[int(p["id"])] if int(p["id"]) in usage.index else None
+        summary.append(dict(
+            id=int(p["id"]), name=p["name"], acting=len(act) >= 2, country=", ".join(countries),
+            members=", ".join(act["code"]),
+            future=", ".join(f"{r.code} {_tr('pool_from_short')} {pd.Timestamp(r.valid_from):%d.%m}" for _, r in fut.iterrows()),
+            history=int((L["state"] == "past").sum()), used=_pool_usage_text(u),
+            drift=bool(u is not None and int(u.get("drift", 0) or 0)), comment=as_text(p["comment"]),
+            codes=" ".join(L["code"])))
+    sm = pd.DataFrame(summary, columns=["id", "name", "acting", "country", "members", "future", "history",
+                                        "used", "drift", "comment", "codes"])
+
+    f1, f2, f3 = st.columns([2, 1, 1])
+    search = dict_kit.search_input(_tr("pool_search"), "pool_search", _tr, "Spain, AMZ-ES…", where=f1)
+    state_sel = f2.selectbox(_tr("pool_state_f"), ["all", "acting", "not_acting"], key="pool_state_f",
+                             format_func=lambda x: _tr(f"pool_state_{x}"))
+    ctry_opts = sorted({c.strip() for cs in sm["country"] for c in cs.split(",") if c.strip()})
+    ctry_sel = f3.selectbox(_tr("pool_country_f"), ["*"] + ctry_opts, key="pool_country_f",
+                            format_func=lambda x: _tr("pool_all") if x == "*" else x)
+    view = sm.copy()
+    if search:
+        view = view[view["name"].str.contains(search, case=False, na=False, regex=False)
+                    | view["codes"].str.contains(search, case=False, na=False, regex=False)]
+    if state_sel != "all":
+        view = view[view["acting"] == (state_sel == "acting")]
+    if ctry_sel != "*":
+        view = view[view["country"].str.contains(ctry_sel, na=False, regex=False)]
+    st.caption(_trf("pool_summary", shown=len(view), total=len(sm), acting=int(sm["acting"].sum()) if len(sm) else 0))
+
+    lst = pd.DataFrame({
+        "name": view["name"],
+        "state": [(_tr("pool_state_acting") + (" ⚠️" if d else "")) if a else _tr("pool_state_not_acting")
+                  for a, d in zip(view["acting"], view["drift"])],
+        "country": view["country"], "members": view["members"], "future": view["future"],
+        "history": view["history"].astype(int), "used": view["used"], "comment": view["comment"],
+    })
+    options = [int(i) for i in view["id"]]
+    picked = dict_kit.table_pick(lst, options, "pool_list", (search, state_sel, ctry_sel), column_config={
+        "name": st.column_config.TextColumn(_tr("pool_name"), width="medium"),
+        "state": st.column_config.TextColumn(_tr("pool_col_state"), width=130, help=_tr("pool_col_state_help")),
+        "country": st.column_config.TextColumn(_tr("pool_col_country"), width=80),
+        "members": st.column_config.TextColumn(_tr("pool_col_members"), width="medium", help=_tr("pool_col_members_help")),
+        "future": st.column_config.TextColumn(_tr("pool_col_future"), width="small", help=_tr("pool_col_future_help")),
+        "history": st.column_config.NumberColumn(_tr("pool_col_history"), width=90, help=_tr("pool_col_history_help")),
+        "used": st.column_config.TextColumn(_tr("pool_col_used"), width="large", help=_tr("pool_col_used_help")),
+        "comment": st.column_config.TextColumn(_tr("pool_comment"), width="medium"),
+    })
+    st.caption(_tr("pool_list_empty") if lst.empty else _tr("pool_list_hint"))
+    if options:
+        labels = {int(r.id): f"{r.name} · " + (_tr("pool_state_acting") if r.acting else _tr("pool_state_not_acting"))
+                  for _, r in view.iterrows()}
+        st.markdown("#### " + _tr("pool_card_h"))
+        sel = dict_kit.card_pick(_tr("pool_pick"), options, labels, "pool_card", picked)
+        prow = pools.set_index("id").loc[sel]
+        u = usage.loc[sel] if sel in usage.index else None
+        _pool_card(prow, int(sel), links[links["pool_id"] == sel].copy(), u, today)
+
+    _pool_add_form()
+
+
+def _pool_card(prow, pid: int, L: pd.DataFrame, u, today):
+    can_edit = auth.can("dict.edit")
+    n_act = int((L["state"] == "active").sum()) if not L.empty else 0
+    acting = n_act >= 2
+    cur = L[L["state"].isin(["active", "future"])] if not L.empty else L
+    countries = sorted({as_text(c) for c in (cur if not cur.empty else L)["country"]} - {""}) if not L.empty else []
+    with st.container(border=True):
+        st.markdown(f"**{prow['name']}** · " + (_tr("pool_state_acting") if acting else _tr("pool_state_not_acting")))
+        st.caption(f"ID {pid} · {_tr('pool_col_country')}: {', '.join(countries) or '—'} · "
+                   f"{_tr('pool_col_used')}: {_pool_usage_text(u)}")
+        if not acting:
+            st.warning(_trf("pool_not_acting_warn", n=n_act))
+        if u is not None and int(u.get("drift", 0) or 0):
+            st.warning(_tr("pool_drift_warn"))
+
+        # ── реквизиты ──
+        c1, c2 = st.columns([1, 2])
+        new_name = c1.text_input(_tr("pool_name") + " *", value=prow["name"], key=f"pn_{pid}", help=_tr("pool_name_help"))
+        new_cmt = c2.text_input(_tr("pool_comment"), value=as_text(prow["comment"]), key=f"pcm_{pid}",
+                                help=_tr("pool_comment_help"))
+        if st.button(_tr("pool_save_attrs"), key=f"psa_{pid}", disabled=not can_edit):
+            nm, cm = (new_name or "").strip(), (new_cmt or "").strip() or None
+            if not nm:
+                st.error(_tr("pool_empty_name"))
+            elif nm != prow["name"] and not q_now(
+                    "SELECT 1 FROM kabinet_data.pools WHERE lower(name) = lower(%s) AND id <> %s", (nm, pid)).empty:
+                st.error(_trf("pool_e_dup", name=nm))
+            elif nm == prow["name"] and cm == (as_text(prow["comment"]) or None):
+                st.info(_tr("nochange"))
+            else:
+                before = {"name": prow["name"], "comment": as_text(prow["comment"]) or None}
                 try:
-                    exec_sql([("UPDATE kabinet_data.pools SET comment = %s WHERE id = %s",
-                               [new_cmt or None, sel_pool])])
+                    exec_sql([("UPDATE kabinet_data.pools SET name = %s, comment = %s, updated_at = now() WHERE id = %s",
+                               (nm, cm, pid)),
+                              (PLOG, (pid, None, "rename" if nm != prow["name"] else "comment",
+                                      json.dumps(before, ensure_ascii=False),
+                                      json.dumps({"name": nm, "comment": cm}, ensure_ascii=False), _actor()))])
                     st.cache_data.clear()
                     st.success(_tr("saved").format(n=1))
                     st.rerun()
                 except Exception as e:
-                    st.error(_tr("err").format(e=e))
+                    st.error(_trf("err", e=e))
 
-            st.markdown(f"**{_tr('pool_members')}**")
-            members = q(f"""
-                SELECT marketplace_id FROM kabinet_data.pool_members
-                WHERE pool_id = {sel_pool} AND (valid_to IS NULL OR valid_to > CURRENT_DATE)
-            """)
-            cur_ids = set(members["marketplace_id"].astype(int)) if not members.empty else set()
-            picked = st.multiselect(
-                _tr("pool_select"), list(label_mp.keys()),
-                default=[mp_label[i] for i in cur_ids if i in mp_label],
-                key=f"pm_{sel_pool}", placeholder=_tr("ph_pick_mp"))
-            d1, d2 = st.columns(2)
-            v_from = d1.date_input(_tr("pool_from"), value=date.today(), key=f"pf_{sel_pool}")
-            v_to = d2.date_input(_tr("pool_to"), value=None, key=f"pt_{sel_pool}")
+        # ── состав и история участия ──
+        st.markdown("##### " + _tr("pool_members"))
+        st.caption(_tr("pool_members_hint"))
+        if L.empty:
+            st.info(_tr("pool_no_links"))
+        else:
+            t = pd.DataFrame({
+                "mp": [f"{r.code} · {as_text(r.mp_name)}" + ("" if bool(r.mp_active) else f" ({_tr('wh_inactive')})")
+                       for _, r in L.iterrows()],
+                "country": L["country"].map(as_text),
+                "from": [pd.Timestamp(v).strftime("%d.%m.%Y") for v in L["valid_from"]],
+                "last": [(_last_day(v).strftime("%d.%m.%Y") if pd.notna(v) else _tr("pool_open")) for v in L["valid_to"]],
+                "state": [_tr(f"pool_link_{s}") for s in L["state"]],
+            })
+            st.dataframe(t, hide_index=True, use_container_width=True, column_config={
+                "mp": st.column_config.TextColumn(_tr("pool_c_mp"), width="large"),
+                "country": st.column_config.TextColumn(_tr("pool_col_country"), width=80),
+                "from": st.column_config.TextColumn(_tr("pool_c_from"), width=110),
+                "last": st.column_config.TextColumn(_tr("pool_c_last"), width=150, help=_tr("pool_c_last_help")),
+                "state": st.column_config.TextColumn(_tr("pool_col_state"), width=120),
+            })
 
-            if st.button(_tr("pool_save"), key=f"ps_{sel_pool}", type="primary"):
-                picked_ids = [label_mp[p] for p in picked]
-                # ТЗ 004 §2: пул из одного маркетплейса не допускается, и §6: действующим пул считается,
-                # пока у него не меньше двух действующих связей. Проверяем ДО записи: иначе сохранение
-                # оставило бы пул с одним участником, и он тихо перестал бы быть пулом — прогноз пула
-                # это сумма участников, то есть превратился бы в прогноз одного маркетплейса.
-                if len(picked_ids) < 2:
-                    st.error(_tr("pool_min_two_zero") if not picked_ids else _trf("pool_min_two", n=len(picked_ids)))
-                    st.stop()
-                # ТЗ 004: у маркетплейса не может быть двух членств с пересекающимися периодами —
-                # ни в разных пулах, ни в одном. Сравниваем ПЕРИОД, который человек вводит, с периодами
-                # уже записанных членств, а не «кто активен сегодня»: иначе членство, начинающееся
-                # завтра, проверку проходило бы, а завтра давало бы два пула. Период полуоткрытый
-                # [valid_from, valid_to): valid_to — первый день БЕЗ пула, поэтому снятие сегодня и
-                # вступление в другой пул сегодня же пересечением не считаются.
-                # Проверяем ровно то, что будет ВСТАВЛЕНО: действующих участников этого пула мы не
-                # трогаем, и сравнивать их с самими собой значило бы ругаться на каждое сохранение.
-                # Та же формула стоит триггером в базе (sql/pool_members_periods_OWNER_2026-09-28.sql):
-                # проверка здесь объясняет человеку, триггер держит остальные пути записи.
-                to_insert = [int(x) for x in picked_ids if x not in cur_ids]
-                busy = q_now("""
-                    SELECT pm.marketplace_id, p.name AS pool_name, pm.valid_from, pm.valid_to,
-                           pm.pool_id = %s AS same_pool
-                    FROM kabinet_data.pool_members pm
-                    JOIN kabinet_data.pools p ON p.id = pm.pool_id
-                    WHERE pm.marketplace_id = ANY(%s)
-                      AND daterange(pm.valid_from, pm.valid_to, '[)')
-                       && daterange(%s::date, %s::date, '[)')
-                """, (int(sel_pool), to_insert, v_from, v_to or None)) if to_insert else pd.DataFrame()
-                clash = [f"{mp_label.get(int(r.marketplace_id), r.marketplace_id)} → {r.pool_name}"
-                         + (f" ({_tr('pool_same')}, {r.valid_from:%d.%m.%Y}"
-                            + (f"–{r.valid_to:%d.%m.%Y})" if pd.notna(r.valid_to) else f"–{_tr('pool_open')})")
-                            if r.same_pool else "")
-                         for _, r in busy.iterrows()]
-                if clash:
-                    st.error(_tr("pool_conflict").format(mp=", ".join(sorted(set(clash)))))
-                else:
-                    try:
-                        # история связей сохраняется (ТЗ 004 §11): снятые закрываем датой, новые добавляем,
-                        # оставшиеся не трогаем. Раньше здесь был DELETE всех связей пула и вставка заново
-                        stmts = []
-                        removed = sorted(cur_ids - set(picked_ids))
-                        if removed:
-                            stmts.append(("""UPDATE kabinet_data.pool_members SET valid_to = CURRENT_DATE
-                                             WHERE pool_id = %s AND marketplace_id = ANY(%s) AND (valid_to IS NULL OR valid_to > CURRENT_DATE)""",
-                                          [sel_pool, removed]))
-                        for mid in picked_ids:
-                            if mid in cur_ids:
-                                continue
-                            stmts.append((
-                                "INSERT INTO kabinet_data.pool_members "
-                                "(pool_id, marketplace_id, valid_from, valid_to) "
-                                "VALUES (%s, %s, %s, %s)",
-                                [sel_pool, mid, v_from, v_to or None]))
-                        if not stmts:
-                            st.info(_tr("nochange")); st.stop()
-                        exec_sql(stmts)
-                        st.cache_data.clear()
-                        st.success(_tr("saved").format(n=len(picked_ids)))
-                        st.rerun()
-                    except Exception as e:
-                        st.error(_tr("err").format(e=e))
+        if can_edit:
+            _pool_add_link(pid, L, today)
+            if not L.empty:
+                _pool_edit_link(pid, L, today)
+            if not cur.empty:
+                _pool_close(pid, prow["name"], L, today)
+        else:
+            st.caption(_tr("pool_ro"))
 
-            st.caption(_tr("pool_members_history"))
-            # удаление: только пул без единой ссылки (свежий и пустой), по одному и с подтверждением.
-            # Пул с историей связей, прогнозом или нормативами физически не удаляется (ТЗ 004 §11)
-            _refs = pool_references(sel_pool)
-            if _refs:
-                st.caption(_trf("del_blocked", refs="; ".join(_refs)))
-            elif confirm_delete(f"pool_{sel_pool}", _trf("pool_del_what", name=sel_name, n=0)):
+        # ── журнал ──
+        with st.expander(_tr("pool_log_h")):
+            lg = q_now("""SELECT ts, actor, action, before_state, after_state FROM kabinet_data.pool_change_log
+                          WHERE pool_id = %s ORDER BY ts DESC, id DESC LIMIT 200""", (pid,))
+            if lg.empty:
+                st.caption(_tr("pool_log_empty"))
+            else:
+                st.dataframe(pd.DataFrame({
+                    "ts": pd.to_datetime(lg["ts"], utc=True).dt.tz_convert("Europe/Kyiv").dt.strftime("%d.%m.%Y %H:%M"),
+                    "who": lg["actor"], "what": [_tr(f"pool_act_{a}") for a in lg["action"]],
+                    "was": [json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else as_text(v) for v in lg["before_state"]],
+                    "now": [json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else as_text(v) for v in lg["after_state"]],
+                }), hide_index=True, use_container_width=True, column_config={
+                    "ts": _tr("pool_l_ts"), "who": _tr("pool_l_who"), "what": _tr("pool_l_what"),
+                    "was": _tr("pool_l_was"), "now": _tr("pool_l_now")})
+
+        # ── удаление: только пул без связей и без ссылок (§10) ──
+        if can_edit:
+            refs = []
+            if not L.empty:
+                refs.append(_trf("pool_ref_links", n=len(L)))
+            ut = _pool_usage_text(u)
+            if ut and ut != _tr("pool_use_none"):
+                refs.append(ut)
+            if refs:
+                st.caption(_trf("pool_del_blocked", refs="; ".join(refs)))
+            elif confirm_delete(f"pool_{pid}", _trf("pool_del_what", name=prow["name"], n=0)):
                 try:
-                    exec_sql([("DELETE FROM kabinet_data.pools WHERE id = %s", [sel_pool])])
+                    exec_sql([("DELETE FROM kabinet_data.pools WHERE id = %s", (pid,)),
+                              (PLOG, (pid, None, "delete", json.dumps({"name": prow["name"]}, ensure_ascii=False),
+                                      None, _actor()))])
                     st.cache_data.clear()
                     st.success(_tr("pool_deleted"))
                     st.rerun()
                 except Exception as e:
-                    st.error(_tr("err").format(e=e))
+                    st.error(_trf("err", e=e))
+
+
+def _pool_add_link(pid: int, L: pd.DataFrame, today):
+    """Добавить маркетплейс в пул (§2, §4, §5, §8, §11): только активные маркетплейсы активных площадок,
+    дата начала обязательна (по умолчанию сегодня), последний день — по желанию."""
+    with st.expander(_tr("pool_add_link_h")):
+        sel_mp = q("SELECT id, code, name, country_alpha2 FROM kabinet_data.v_marketplaces_selectable ORDER BY code")
+        busy_now = set(L.loc[L["state"].isin(["active", "future"]), "marketplace_id"].astype(int)) if not L.empty else set()
+        opts = [int(i) for i in sel_mp["id"] if int(i) not in busy_now]
+        if not opts:
+            st.caption(_tr("pool_add_none"))
+            return
+        lab = {int(r.id): f"{r.code} · {as_text(r.name)} ({as_text(r.country_alpha2)})" for _, r in sel_mp.iterrows()}
+        a1, a2, a3 = st.columns([2, 1, 1])
+        mp_id = a1.selectbox(_tr("pool_c_mp"), opts, format_func=lambda i: lab.get(i, str(i)), key=f"pal_mp_{pid}",
+                             help=_tr("pool_add_mp_help"))
+        d_from = a2.date_input(_tr("pool_c_from") + " *", value=today, key=f"pal_f_{pid}", format="DD.MM.YYYY",
+                               help=_tr("pool_from_help"))
+        d_last = a3.date_input(_tr("pool_c_last"), value=None, key=f"pal_l_{pid}", format="DD.MM.YYYY",
+                               help=_tr("pool_last_help"))
+        st.caption(_tr("pool_switch_note"))
+        if st.button(_tr("pool_add_link_btn"), key=f"pal_b_{pid}", type="primary"):
+            errs = _pool_link_errors(pid, mp_id, d_from, d_last)
+            if errs:
+                for e in errs:
+                    st.error(e)
+                return
+            after = {"marketplace": lab.get(mp_id), "from": str(d_from), "last_day": str(d_last) if d_last else None}
+            try:
+                exec_sql([("""
+                    WITH l AS (INSERT INTO kabinet_data.pool_members (pool_id, marketplace_id, valid_from, valid_to)
+                               VALUES (%s, %s, %s, %s) RETURNING id)
+                    INSERT INTO kabinet_data.pool_change_log (pool_id, link_id, action, before_state, after_state, actor)
+                    SELECT %s, id, 'link_add', NULL, %s::jsonb, %s FROM l
+                """, (pid, mp_id, d_from, _vt_from_last(d_last), pid, json.dumps(after, ensure_ascii=False), _actor()))])
+                st.cache_data.clear()
+                st.success(_trf("pool_link_added", mp=lab.get(mp_id)))
+                st.rerun()
+            except Exception as e:
+                st.error(_trf("err", e=e))
+
+
+def _pool_edit_link(pid: int, L: pd.DataFrame, today):
+    """Изменить даты участия или завершить участие (§4, §6): прекращение — это последний день участия,
+    история связи сохраняется."""
+    with st.expander(_tr("pool_edit_link_h")):
+        lab = {int(r.id): f"{r.code} · {pd.Timestamp(r.valid_from):%d.%m.%Y}–"
+               + (f"{_last_day(r.valid_to):%d.%m.%Y}" if pd.notna(r.valid_to) else _tr("pool_open"))
+               + f" · {_tr(f'pool_link_{r.state}')}" for _, r in L.iterrows()}
+        ids = list(lab.keys())
+        lid = st.selectbox(_tr("pool_edit_pick"), ids, format_func=lambda i: lab[i], key=f"pel_{pid}")
+        r = L.set_index("id").loc[lid]
+        e1, e2 = st.columns(2)
+        d_from = e1.date_input(_tr("pool_c_from") + " *", value=pd.Timestamp(r["valid_from"]).date(),
+                               key=f"pel_f_{pid}_{lid}", format="DD.MM.YYYY", help=_tr("pool_from_help"))
+        d_last = e2.date_input(_tr("pool_c_last"), value=_last_day(r["valid_to"]), key=f"pel_l_{pid}_{lid}",
+                               format="DD.MM.YYYY", help=_tr("pool_last_help"))
+        st.caption(_tr("pool_switch_note"))
+        b1, b2 = st.columns(2)
+        save = b1.button(_tr("pool_edit_save"), key=f"pel_s_{pid}_{lid}", type="primary")
+        end_today = b2.button(_tr("pool_end_today"), key=f"pel_e_{pid}_{lid}",
+                              disabled=r["state"] == "past", help=_tr("pool_end_today_help"))
+        if not (save or end_today):
+            return
+        if end_today:
+            d_last = today
+        old_from, old_last = pd.Timestamp(r["valid_from"]).date(), _last_day(r["valid_to"])
+        if d_from == old_from and d_last == old_last:
+            st.info(_tr("nochange"))
+            return
+        errs = _pool_link_errors(pid, int(r["marketplace_id"]), d_from, d_last, exclude_link=lid)
+        if errs:
+            for e in errs:
+                st.error(e)
+            return
+        try:
+            exec_sql([("UPDATE kabinet_data.pool_members SET valid_from = %s, valid_to = %s WHERE id = %s",
+                       (d_from, _vt_from_last(d_last), int(lid))),
+                      (PLOG, (pid, int(lid), "link_close" if end_today else "link_dates",
+                              json.dumps({"marketplace": r["code"], "from": str(old_from),
+                                          "last_day": str(old_last) if old_last else None}, ensure_ascii=False),
+                              json.dumps({"marketplace": r["code"], "from": str(d_from),
+                                          "last_day": str(d_last) if d_last else None}, ensure_ascii=False),
+                              _actor()))])
+            st.cache_data.clear()
+            st.success(_tr("saved").format(n=1))
+            st.rerun()
+        except Exception as e:
+            st.error(_trf("err", e=e))
+
+
+def _pool_close(pid: int, name: str, L: pd.DataFrame, today):
+    """Прекратить действие пула (§9, §10): у всех действующих связей ставится последний день участия. Сам пул и
+    история связей остаются; действующие прогнозы этим не переключаются (§6, §11) — только общей заменой на
+    «Прогнозе»."""
+    with st.expander(_tr("pool_close_h")):
+        st.caption(_tr("pool_close_note"))
+        fut = L[L["state"] == "future"]
+        if not fut.empty:
+            st.warning(_trf("pool_close_future", mps=", ".join(fut["code"])))
+            return
+        d_last = st.date_input(_tr("pool_c_last") + " *", value=today, key=f"pcl_{pid}", format="DD.MM.YYYY",
+                               help=_tr("pool_close_last_help"))
+        act = L[L["state"] == "active"]
+        early = act[[pd.Timestamp(v).date() > d_last for v in act["valid_from"]]] if not act.empty else act
+        flag = f"pool_close_ask_{pid}"
+        if not st.session_state.get(flag):
+            if st.button(_tr("pool_close_btn"), key=f"pcl_b_{pid}"):
+                st.session_state[flag] = True
+                st.rerun()
+            return
+        st.warning(_trf("pool_close_q", name=name, n=len(act), d=d_last.strftime("%d.%m.%Y")))
+        y, n = st.columns(2)
+        if n.button(_tr("del_confirm_no"), key=f"pcl_n_{pid}"):
+            st.session_state.pop(flag, None)
+            st.rerun()
+        if not y.button(_tr("pool_close_yes"), key=f"pcl_y_{pid}", type="primary"):
+            return
+        st.session_state.pop(flag, None)
+        if not early.empty:
+            st.error(_trf("pool_close_early", mps=", ".join(early["code"])))
+            return
+        try:
+            exec_sql([("""UPDATE kabinet_data.pool_members SET valid_to = %s
+                          WHERE pool_id = %s AND valid_from <= %s AND (valid_to IS NULL OR valid_to > %s)""",
+                       (_vt_from_last(d_last), pid, d_last, d_last)),
+                      (PLOG, (pid, None, "pool_close", json.dumps({"active": list(act["code"])}, ensure_ascii=False),
+                              json.dumps({"last_day": str(d_last)}, ensure_ascii=False), _actor()))])
+            st.cache_data.clear()
+            st.success(_trf("pool_closed_ok", name=name))
+            st.rerun()
+        except Exception as e:
+            st.error(_trf("err", e=e))
+
+
+def _pool_add_form():
+    """Создание пула (§2, §3, §4): название обязательно и уникально, участников не меньше двух и все — одной
+    страны, дата начала обязательна. Пул, его связи и запись журнала — одной командой."""
+    st.markdown("#### " + _tr("pool_add_h"))
+    if not auth.can("dict.edit"):
+        st.caption(_tr("pool_ro"))
+        return
+    st.caption(_tr("pool_add_note"))
+    sel_mp = q("SELECT id, code, name, country_alpha2 FROM kabinet_data.v_marketplaces_selectable ORDER BY code")
+    lab = {int(r.id): f"{r.code} · {as_text(r.name)} ({as_text(r.country_alpha2)})" for _, r in sel_mp.iterrows()}
+    ctry = {int(r.id): as_text(r.country_alpha2) for _, r in sel_mp.iterrows()}
+    code = {int(r.id): r.code for _, r in sel_mp.iterrows()}
+    with st.form("pool_add_form", clear_on_submit=False):
+        a1, a2 = st.columns([1, 2])
+        n_name = a1.text_input(_tr("pool_name") + " *", help=_tr("pool_name_help"), key="pool_add_name",
+                               placeholder="Spain Marketplaces")
+        n_cmt = a2.text_input(_tr("pool_comment"), help=_tr("pool_comment_help"), key="pool_add_cmt")
+        n_mps = st.multiselect(_tr("pool_add_mps") + " *", list(lab.keys()), format_func=lambda i: lab[i],
+                               key="pool_add_mps", help=_tr("pool_add_mps_help"), placeholder=_tr("ph_pick_mp"))
+        d1, d2 = st.columns(2)
+        d_from = d1.date_input(_tr("pool_c_from") + " *", value=date.today(), key="pool_add_from",
+                               format="DD.MM.YYYY", help=_tr("pool_from_help"))
+        d_last = d2.date_input(_tr("pool_c_last"), value=None, key="pool_add_last", format="DD.MM.YYYY",
+                               help=_tr("pool_last_help"))
+        go = st.form_submit_button(_tr("pool_create"), type="primary")
+    if not go:
+        return
+    nm = (n_name or "").strip()
+    errs = []
+    if not nm:
+        errs.append(_tr("pool_empty_name"))
+    elif not q_now("SELECT 1 FROM kabinet_data.pools WHERE lower(name) = lower(%s)", (nm,)).empty:
+        errs.append(_trf("pool_e_dup", name=nm))
+    if len(n_mps) < 2:
+        errs.append(_tr("pool_e_two"))
+    if len({ctry.get(i) for i in n_mps}) > 1:
+        errs.append(_tr("pool_e_country") + " " + _trf("pool_e_country_new",
+                    mps=", ".join(f"{code[i]} — {ctry[i]}" for i in n_mps)))
+    if d_from is None:
+        errs.append(_tr("pool_e_from"))
+    elif d_last is not None and d_last < d_from:
+        errs.append(_tr("pool_e_order"))
+    if not errs:
+        for i in n_mps:
+            for e in _pool_link_errors(-1, i, d_from, d_last):
+                errs.append(f"{code[i]}: {e}")
+    if errs:
+        for e in errs:
+            st.error(e)
+        return
+    after = {"name": nm, "comment": (n_cmt or "").strip() or None, "members": [code[i] for i in n_mps],
+             "from": str(d_from), "last_day": str(d_last) if d_last else None}
+    try:
+        exec_sql([("""
+            WITH p AS (INSERT INTO kabinet_data.pools (name, comment) VALUES (%s, %s) RETURNING id),
+                 m AS (INSERT INTO kabinet_data.pool_members (pool_id, marketplace_id, valid_from, valid_to)
+                       SELECT p.id, x, %s, %s FROM p, unnest(%s::int[]) AS x)
+            INSERT INTO kabinet_data.pool_change_log (pool_id, link_id, action, before_state, after_state, actor)
+            SELECT id, NULL, 'create', NULL, %s::jsonb, %s FROM p
+        """, (nm, (n_cmt or "").strip() or None, d_from, _vt_from_last(d_last), [int(i) for i in n_mps],
+              json.dumps(after, ensure_ascii=False), _actor()))])
+        st.cache_data.clear()
+        new_id = q_now("SELECT id FROM kabinet_data.pools WHERE name = %s", (nm,))
+        if not new_id.empty:
+            dict_kit.card_focus("pool_card", int(new_id["id"].iloc[0]))
+        st.session_state["pool_created_name"] = nm
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
+
 
 # ------------------------------------------------------------- нормативы ---
 NLOG = ("INSERT INTO kabinet_data.coverage_norm_log (rule_id, action, before_state, after_state, actor, note) "
