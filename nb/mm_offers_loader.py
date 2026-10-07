@@ -110,7 +110,15 @@ HEADERS  = {"x-api-key": API_KEY, "x-thirdparty-name": TPN, "Accept": "applicati
 CONTRACTS = [
     {"marketplace_code": "MM-ES", "contract_id": "41477561"},
     {"marketplace_code": "MM-FR", "contract_id": "41878496"},
+    # ManoMano Pro — B2B Испания (07.10.2026). Свой код маркетплейса, поэтому ключ (sku, marketplace_code) не
+    # пересекается с B2C, а витрины Дарины (WHERE marketplace_code = 'MM-ES') его не видят.
+    {"marketplace_code": "MMB-ES", "contract_id": dbutils.secrets.get("manomano", "contract_id_b2b_es")},
 ]
+try:
+    dbutils.widgets.text("dry_run", "0")
+    DRY_RUN = (dbutils.widgets.get("dry_run") or "0").strip() == "1"
+except Exception:
+    DRY_RUN = False
 TODAY = date.today()
 print(f"✅ Config: {len(CONTRACTS)} contracts, snapshot_date={TODAY}")
 
@@ -200,6 +208,9 @@ for c in CONTRACTS:
     print(f"  ✅ {len(raw_offers)} offers: {online} online, {in_stock} in-stock, {errors} with errors")
 
 print(f"\n📊 Total: {len(all_rows)} offers across {len(CONTRACTS)} contracts")
+if DRY_RUN:
+    _sum = {c["marketplace_code"]: sum(1 for r in all_rows if r[1] == c["marketplace_code"]) for c in CONTRACTS}
+    print(f"🧪 dry_run: запись пропущена {_sum}"); dbutils.notebook.exit(json.dumps(_sum))
 
 # COMMAND ----------
 
@@ -303,6 +314,10 @@ stock_rows = []
 for r in all_rows:
     sku, mcode = r[0], r[1]
     stock_qty = r[4] or 0
+    # ManoMano Pro (MMB-ES) в остатки не пишем: это та же квота мадридского склада, что и у B2C, и на «Остатках»
+    # офферы ManoMano задвоились бы. Сами офферы B2B лежат в raw_mm_offers под своим кодом.
+    if mcode not in MARKETPLACE_MAP:
+        continue
     wh_name, wh_country = MARKETPLACE_MAP[mcode]
     stock_rows.append((
         str(TODAY), sku, None, None, wh_name, wh_country,

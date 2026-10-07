@@ -110,6 +110,16 @@ at4.session_state["mp_card"] = 1; at4.session_state["mp_card__gen"] = at4.sessio
 w = [x.value for x in at4.warning if "связано" in x.value]
 check("AMZ-ES: перед архивом показаны действующие связи", w, w[0][:300] if w else "")
 check("AMZ-ES не тронут (ждёт подтверждения)", one("SELECT is_active FROM kabinet_data.marketplaces_new WHERE id=1")[0] is True)
+# пробный период (07.10.2026): отметка пишется в реквизиты маркетплейса и в журнал
+at6 = new_at()
+at6.session_state["mp_card"] = 15; at6.session_state["mp_card__gen"] = at6.session_state["mp_card__gen"] + 1 if "mp_card__gen" in at6.session_state else 1; at6.run()
+check("блок «Пробный период» в карточке", any(m.value == "**Пробный период**" for m in at6.markdown))
+at6.checkbox(key="mtr_on_15").check().run()
+at6.text_input(key="mtr_n_15").set_value("тариф Booster").run()
+[b for b in at6.button if b.key == "mtr_save_15"][0].click().run()
+tr = one("SELECT trial_until, trial_note FROM kabinet_data.marketplace_attributes WHERE marketplace_id = 15")
+lg = one("SELECT field FROM kabinet_data.marketplace_change_log WHERE object_id = 15 AND field = 'trial_until' ORDER BY 1 DESC LIMIT 1")
+check("пробный период сохранён и записан в журнал", tr and tr[0] is not None and tr[1] == "тариф Booster" and lg, (tr, lg))
 # только просмотр
 ROLE[0] = auth.VIEWER
 at5 = new_at()

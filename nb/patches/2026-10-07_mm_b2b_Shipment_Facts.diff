@@ -1,0 +1,13 @@
+--- Kabinet - Shipment Facts (07.10.2026, до)
++++ Kabinet - Shipment Facts (ManoMano Pro)
+@@ -229,7 +229,9 @@
+         shipped = mirakl_dates.get((ch, ref))
+         if shipped is None:
+             no_date.add((ch, ref)); continue     # заказ не отгружали или посылку завели мимо SendCloud
+-        cnt[ch] += add(ch, f"{ch}_{country}", ref, ref, sku, qty, shipped, ordered, "sendcloud")
++        # код рынка — как в экономике: ManoMano Pro (country = 'ES_B2B') → MMB_ES, правило kabinet_data.mm_market_code
++        mk = "MMB_ES" if (ch == "MM" and country == "ES_B2B") else f"{ch}_{country}"
++        cnt[ch] += add(ch, mk, ref, ref, sku, qty, shipped, ordered, "sendcloud")
+     print(f"ManoMano {cnt['MM']}, Carrefour {cnt['CF']} строк; без даты отгрузки заказов: "
+           f"MM {sum(1 for c, _ in no_date if c == 'MM')}, CF {sum(1 for c, _ in no_date if c == 'CF')}")
+ except Exception as e:

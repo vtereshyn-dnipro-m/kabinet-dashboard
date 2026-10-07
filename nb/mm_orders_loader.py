@@ -1,8 +1,14 @@
 # Databricks notebook source
-# DBTITLE 1,ManoMano Orders Loader (ES/FR)
+# DBTITLE 1,ManoMano Orders Loader (ES/FR + ManoMano Pro ES)
 # Kabinet - MM Orders Loader
 # Загружает заказы ManoMano (ES/FR) → UC (MERGE) → Lakebase (UPSERT)
 # По образцу LM Orders Loader. Ключи только из secrets.
+#
+# С 07.10.2026 — третий договор: ManoMano Pro, B2B Испания (70159079, секрет contract_id_b2b_es). Его заказы лежат
+# в тех же сырых таблицах с country = 'ES_B2B': ES-витрины Дарины берут WHERE country = 'ES' и B2B не видят,
+# а ей самой — вью dnipro_m.kabinet_data.mm_orders_b2b_es. В экономике это рынок MMB_ES (функция базы
+# kabinet_data.mm_market_code — то же правило). Флаг is_b2b у заказов B2C — другое: B2B-покупатель на B2C-площадке.
+# Колонка contract_id — какой договор отдал строку. Параметр dry_run = 1: только запрос и разбор, без записи.
 
 import os, json, time, datetime
 from zoneinfo import ZoneInfo
@@ -22,8 +28,23 @@ API_KEY = dbutils.secrets.get("manomano", "api-key")
 THIRDPARTY_NAME = dbutils.secrets.get("manomano", "thirdparty-name")
 CONTRACT_ES = dbutils.secrets.get("manomano", "contract_id_es")
 CONTRACT_FR = dbutils.secrets.get("manomano", "contract_id_fr")
+CONTRACT_ES_B2B = dbutils.secrets.get("manomano", "contract_id_b2b_es")
 
-CONTRACTS = {"ES": CONTRACT_ES, "FR": CONTRACT_FR}
+# ключ — страна в сырых таблицах; для B2B это 'ES_B2B', а не 'ES', чтобы B2C-витрины его не прихватили
+CONTRACTS = {"ES": CONTRACT_ES, "FR": CONTRACT_FR, "ES_B2B": CONTRACT_ES_B2B}
+
+def mm_market(country):
+    """Код рынка экономики по стране ManoMano — то же правило, что kabinet_data.mm_market_code()."""
+    return "MMB_ES" if str(country).upper() == "ES_B2B" else f"MM_{str(country).upper()}"
+
+try:
+    dbutils.widgets.text("dry_run", "0")
+    DRY_RUN = (dbutils.widgets.get("dry_run") or "0").strip() == "1"
+except Exception:
+    DRY_RUN = False
+# Ошибку запроса договора больше не глотаем: раньше не-200 печаталось «❌» и прогон шёл дальше зелёным —
+# договор молча выпадал. Теперь ошибки копятся, данные остальных договоров и пульс пишутся, а прогон падает в конце.
+FETCH_ERRORS = []
 BASE_URL = "https://partnersapi.manomano.com"
 MAX_PAGES = 500
 REQUEST_TIMEOUT = 20
@@ -60,6 +81,7 @@ def fetch_manomano_orders(session):
                 print(f"  ⏳ 429, waiting {wait}s"); time.sleep(wait); continue
             if res.status_code != 200:
                 print(f"  ❌ {res.status_code}: {res.text[:200]}")
+                FETCH_ERRORS.append(f"{country}: HTTP {res.status_code} {res.text[:120]}")
                 break
 
             data = res.json()
@@ -93,7 +115,7 @@ def fetch_manomano_orders(session):
                 is_prof = bool(order.get("is_professional", False))  # deprecated, use is_b2b
 
                 orders_list.append({
-                    "order_ref": order_ref, "country": country,
+                    "order_ref": order_ref, "country": country, "contract_id": str(contract_id),
                     "created_at": created_at, "status": status,
                     "is_mmf": is_mmf,
                     "destination_city": shipping.get("city", ""),
@@ -128,7 +150,7 @@ def fetch_manomano_orders(session):
                     shipping_price = round(_amt(p.get("shipping_price")), 2)
                     carrier = (p.get("carrier") or "")[:100]
                     lines_list.append({
-                        "order_ref": order_ref, "country": country,
+                        "order_ref": order_ref, "country": country, "contract_id": str(contract_id),
                         "sku": p.get("seller_sku", "N/A"),
                         "title": (p.get("product_title") or p.get("title", ""))[:500],
                         "quantity": qty,
@@ -169,6 +191,14 @@ if lines:
     for i, l in enumerate(lines[:3]):
         print(f"  {l['order_ref']} | {l['sku']} | qty={l['quantity']} | €{l['unit_price']} | ex_vat=€{l['unit_price_ex_vat']} | ship=€{l['shipping_price']}")
 
+for _c in CONTRACTS:
+    print(f"  {_c}: заказов {sum(1 for o in orders if o['country'] == _c)}, строк {sum(1 for l in lines if l['country'] == _c)}")
+if DRY_RUN:
+    _summary = {c: {"orders": sum(1 for o in orders if o["country"] == c), "lines": sum(1 for l in lines if l["country"] == c)}
+                for c in CONTRACTS}
+    _summary["errors"] = FETCH_ERRORS
+    print("🧪 dry_run: запись пропущена"); dbutils.notebook.exit(json.dumps(_summary, ensure_ascii=False))
+
 # COMMAND ----------
 
 # DBTITLE 1,MERGE into UC + Sync to Lakebase
@@ -177,6 +207,11 @@ from pyspark.sql import Row
 from pyspark.sql.functions import current_timestamp, lit
 
 now_ts = datetime.datetime.now(ZoneInfo("Europe/Kyiv"))
+
+# колонка договора (07.10.2026) — заводим, если её ещё нет; прогон идёт под владельцем таблиц
+for _t in ("raw_mm_orders", "raw_mm_order_lines"):
+    if "contract_id" not in spark.table(f"dnipro_m.kabinet_data.{_t}").columns:
+        spark.sql(f"ALTER TABLE dnipro_m.kabinet_data.{_t} ADD COLUMNS (contract_id STRING)")
 
 # ─── UC MERGE: orders ───
 if orders:
@@ -193,14 +228,16 @@ if orders:
             shipping_discount = s.shipping_discount, total_discount = s.total_discount,
             is_b2b = s.is_b2b, vat_liability = s.vat_liability,
             intraco_vat_number = s.intraco_vat_number, is_professional = s.is_professional,
-            invoice_fiscal_number = s.invoice_fiscal_number, loaded_at = s.loaded_at
+            invoice_fiscal_number = s.invoice_fiscal_number, loaded_at = s.loaded_at,
+            contract_id = s.contract_id
         WHEN NOT MATCHED THEN INSERT
             (order_ref, country, created_at, status, is_mmf, destination_city, zip_code,
              manomano_discount, seller_discount, shipping_discount, total_discount,
-             is_b2b, vat_liability, intraco_vat_number, is_professional, invoice_fiscal_number, loaded_at)
+             is_b2b, vat_liability, intraco_vat_number, is_professional, invoice_fiscal_number, loaded_at, contract_id)
             VALUES (s.order_ref, s.country, s.created_at, s.status, s.is_mmf, s.destination_city, s.zip_code,
              s.manomano_discount, s.seller_discount, s.shipping_discount, s.total_discount,
-             s.is_b2b, s.vat_liability, s.intraco_vat_number, s.is_professional, s.invoice_fiscal_number, s.loaded_at)
+             s.is_b2b, s.vat_liability, s.intraco_vat_number, s.is_professional, s.invoice_fiscal_number, s.loaded_at,
+             s.contract_id)
     """)
     print(f"✅ UC raw_mm_orders: MERGED {len(orders)} rows")
 
@@ -219,15 +256,15 @@ if lines:
             unit_price_ex_vat = s.unit_price_ex_vat, vat_rate = s.vat_rate,
             shipping_price = s.shipping_price, carrier = s.carrier,
             order_date = CAST(s.order_date AS DATE), order_status = s.order_status,
-            loaded_at = s.loaded_at
+            loaded_at = s.loaded_at, contract_id = s.contract_id
         WHEN NOT MATCHED THEN INSERT (
             order_ref, sku, country, title, quantity,
             unit_price, total_price, unit_price_ex_vat, vat_rate,
-            shipping_price, carrier, order_date, order_status, loaded_at)
+            shipping_price, carrier, order_date, order_status, loaded_at, contract_id)
         VALUES (
             s.order_ref, s.sku, s.country, s.title, s.quantity,
             s.unit_price, s.total_price, s.unit_price_ex_vat, s.vat_rate,
-            s.shipping_price, s.carrier, CAST(s.order_date AS DATE), s.order_status, s.loaded_at)
+            s.shipping_price, s.carrier, CAST(s.order_date AS DATE), s.order_status, s.loaded_at, s.contract_id)
     """)
     print(f"✅ UC raw_mm_order_lines: MERGED {len(lines)} rows")
 
@@ -241,6 +278,8 @@ pg = psycopg2.connect(
     user="v.tereshyn@dniprom.com", password=cred.token, sslmode="require")
 pg.autocommit = True
 cur = pg.cursor()
+cur.execute("ALTER TABLE kabinet_data.raw_mm_orders ADD COLUMN IF NOT EXISTS contract_id text")
+cur.execute("ALTER TABLE kabinet_data.raw_mm_order_lines ADD COLUMN IF NOT EXISTS contract_id text")
 
 # Orders upsert
 for o in orders:
@@ -248,9 +287,10 @@ for o in orders:
         INSERT INTO kabinet_data.raw_mm_orders
             (order_ref, country, created_at, status, is_mmf, destination_city, zip_code,
              manomano_discount, seller_discount, shipping_discount, total_discount,
-             is_b2b, vat_liability, intraco_vat_number, is_professional, invoice_fiscal_number)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             is_b2b, vat_liability, intraco_vat_number, is_professional, invoice_fiscal_number, contract_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (order_ref) DO UPDATE SET
+            contract_id = EXCLUDED.contract_id,
             status = EXCLUDED.status, is_mmf = EXCLUDED.is_mmf,
             destination_city = EXCLUDED.destination_city,
             zip_code = EXCLUDED.zip_code,
@@ -270,7 +310,7 @@ for o in orders:
           o.get("shipping_discount"), o.get("total_discount"),
           o.get("is_b2b"), o.get("vat_liability"),
           o.get("intraco_vat_number"), o.get("is_professional"),
-          o.get("invoice_fiscal_number")))
+          o.get("invoice_fiscal_number"), o.get("contract_id")))
 
 # Lines upsert (all fields incl. ex-VAT, carrier, shipping)
 for l in lines:
@@ -278,9 +318,10 @@ for l in lines:
         INSERT INTO kabinet_data.raw_mm_order_lines
             (order_ref, sku, country, title, quantity, unit_price, total_price,
              unit_price_ex_vat, vat_rate, shipping_price, carrier,
-             order_date, order_status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             order_date, order_status, contract_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (order_ref, sku, country) DO UPDATE SET
+            contract_id = EXCLUDED.contract_id,
             title = EXCLUDED.title, quantity = EXCLUDED.quantity,
             unit_price = EXCLUDED.unit_price, total_price = EXCLUDED.total_price,
             unit_price_ex_vat = EXCLUDED.unit_price_ex_vat, vat_rate = EXCLUDED.vat_rate,
@@ -291,7 +332,7 @@ for l in lines:
           l["quantity"], l["unit_price"], l["total_price"],
           l.get("unit_price_ex_vat"), l.get("vat_rate"),
           l.get("shipping_price"), l.get("carrier"),
-          l.get("order_date"), l.get("order_status")))
+          l.get("order_date"), l.get("order_status"), l.get("contract_id")))
 
 cur.close(); pg.close()
 print(f"✅ Lakebase: {len(orders)} orders + {len(lines)} lines synced")
@@ -333,7 +374,7 @@ for l in lines:
     if not created or created < "2020":
         continue
     country = l["country"]
-    marketplace = f"MM_{country}"
+    marketplace = mm_market(country)   # ES → MM_ES, FR → MM_FR, ES_B2B → MMB_ES
     norm = normalize_sku(l["sku"])
     # Prefer API ex-VAT; fall back to calculation if missing
     price_ex = l.get("unit_price_ex_vat") or round(l["unit_price"] / (1 + VAT_RATES.get(country, 0.21)), 2)
@@ -362,7 +403,7 @@ for l in lines:
     lines_total += 1
     c = comm_by_line.get((l["order_ref"], normalize_sku(l["sku"])))
     if c is None: continue
-    fees[(created, f"MM_{l['country']}", normalize_sku(l["sku"]))] += round(c, 2); lines_with_fee += 1
+    fees[(created, mm_market(l["country"]), normalize_sku(l["sku"]))] += round(c, 2); lines_with_fee += 1
 print(f"💶 Комиссии: найдены для {lines_with_fee} из {lines_total} строк заказов, всего {sum(fees.values()):.2f} €")
 
 # ─── COGS считается ниже, после подключения к Lakebase: общая цепочка sku_cogs_current ───
@@ -484,3 +525,7 @@ try:
     print("💓 Heartbeat: Kabinet - MM Orders Loader")
 except Exception as e:
     print(f"⚠️ Heartbeat failed: {e}")
+# Ошибка запроса договора — после записи данных и пульса: пульс говорит «загрузчик жив», а падение прогона —
+# что один из договоров не загрузился. Раньше это печаталось «❌» в лог, и договор молча выпадал.
+if FETCH_ERRORS:
+    raise RuntimeError("ManoMano: не загрузились договоры — " + "; ".join(FETCH_ERRORS))
