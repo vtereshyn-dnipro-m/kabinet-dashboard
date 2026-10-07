@@ -2250,6 +2250,127 @@ _CTRY_TR = {
 }
 for _lg, _d in _CTRY_TR.items():
     TR[_lg].update(_d)
+_CH_TR = {
+    "ru": {
+        "ch_about": "**Подпитка** — какой склад какой пополняет и за сколько дней (плановый срок поставки). По этим срокам считаются автозаказ (когда товар успеет приехать) и переброска на FBA.  \n**Как работать:** найдите связь поиском по складу → нажмите на строку → ниже откроется карточка: там меняются тип маршрута, плановый срок и примечание, связь убирается в архив или возвращается. Новую связь — формой «Добавить связь подпитки» внизу. Тот же срок можно править в карточке склада-получателя («Справочники → Склады») — это одна и та же запись.",
+        "ch_about_cap": "Плановый срок задаёт только человек: Кабинет его сам не меняет, даже если фактические поставки идут дольше или быстрее (ТЗ 001 §5). Факт считается отдельно по закрытым накладным, при заметном расхождении сторож заводит алерт.",
+        "ch_search": "Поиск по складу", "ch_search_ph": "Madrid, Piasecznie, FBA…",
+        "ch_plan_help": "Плановый срок поставки в календарных днях: от отгрузки со склада-источника до приёмки на складе-получателе. Его берут автозаказ и переброска.",
+        "ch_fact_help": "Медиана календарных дней «отгрузка → приёмка» по закрытым накладным за окно из настроек; в скобках — сколько поставок. Пусто — закрытых поставок не было: ERP закрывает накладные редко.",
+        "ch_basis_help": "Откуда взялся плановый срок: «накладных: N» — медиана обещанных дат из N накладных ERP; «оценка вручную» — введён человеком.",
+        "ch_list_hint": "Нажмите на любую ячейку строки — ниже откроется карточка связи. Сортировка — кликом по заголовку колонки.",
+        "ch_list_empty": "По фильтрам ничего не найдено — это фильтры, а не пустой справочник.",
+        "ch_card_h": "Карточка связи", "ch_pick": "Связь",
+        "ch_is_archived": "В архиве: автозаказ и переброска эту связь не используют.",
+        "ch_ends_ro": "Склады связи не меняются: другой источник или получатель — это другая связь, заведите её формой ниже.",
+        "ch_leg_note": "По этой связи автозаказ считает срок плеча «{leg}».",
+        "ch_leg_PL": "Польша → Мадрид", "ch_leg_Madrid": "Мадрид → FBA Испании", "ch_leg_UA": "Украина → Польша",
+        "ch_route_help": "«между складами» — пополнение своего склада; «последняя миля» — со склада в магазин; «поставка на FBA» — отправка на склад Amazon, её читает расчёт переброски.",
+        "ch_note_help": "Что важно знать о маршруте: перевозчик, дни рейсов, откуда взят срок.",
+        "ch_fact_line": "Факт: {fact} дн (поставок в скобках), отклонение от плана {dev}, последняя приёмка {last}.",
+        "ch_fact_none": "Факта нет: закрытых поставок по связи в окне не было (ERP закрывает накладные редко).",
+        "ch_saved": "Сохранено.", "ch_log_empty": "Изменений через Кабинет ещё не было — журнал ведётся с 07.10.2026.",
+        "ch_logf_created": "создана", "ch_logf_median_days": "плановый срок", "ch_logf_route_type": "тип маршрута",
+        "ch_logf_note": "примечание", "ch_logf_is_active": "активность",
+        "ch_off_note": "Связь в архиве не используется автозаказом и переброской; история и факт сохраняются, вернуть можно в любой момент.",
+        "ch_restore_note": "Связь в архиве. Её можно вернуть — срок и история не менялись.",
+        "ch_del_blocked": "Удалить нельзя: по связи были фактические поставки, по ним считался факт срока. Связь остаётся в архиве.",
+        "ch_leg_warn": "По этой связи автозаказ считает срок плеча «{leg}». В архиве её срок брать неоткуда — автозаказ возьмёт оценку поставщика из настроек (обычно 30 дней), и срочность заказов изменится.",
+        "ch_fba_warn": "Это поставка на FBA: без неё переброска не будет предлагать отправку по этому маршруту.",
+        "ch_off_plain": "Связь перестанет использоваться в расчётах; история сохранится.",
+        "ch_add_h": "Добавить связь подпитки",
+        "ch_ro_add": "Добавлять связи может роль с правом на справочники.",
+        "ch_add_note": "Источник, получатель, тип и плановый срок обязательны. Пара «источник → получатель» одна: если она уже есть в архиве — верните её, а не заводите вторую.",
+        "ch_pick_wh": "— выберите склад —",
+        "ch_from_help": "Откуда едет товар. В списке только активные склады; имя — как в «Справочники → Склады».",
+        "ch_to_help": "Куда едет товар. Плановый срок этой связи виден и правится и в карточке этого склада.",
+        "ch_create": "Добавить связь",
+        "ch_need_both": "Выберите склад-источник и склад-получатель.",
+        "ch_need_days": "Укажите плановый срок в днях — без него автозаказ не сможет посчитать плечо.",
+        "ch_exists_archived": "Такая связь уже есть в архиве — найдите её (статус «Все») и верните из архива.",
+        "ch_created_ok": "Связь {name} добавлена. Карточка открыта ниже.",
+    },
+    "uk": {
+        "ch_about": "**Підживлення** — який склад який поповнює і за скільки днів (плановий термін постачання). За цими термінами рахуються автозамовлення (коли товар встигне приїхати) і переміщення на FBA.  \n**Як працювати:** знайдіть зв’язок пошуком за складом → натисніть на рядок → нижче відкриється картка: там змінюються тип маршруту, плановий термін і примітка, зв’язок переводиться в архів або повертається. Новий зв’язок — формою «Додати зв’язок підживлення» внизу. Той самий термін можна правити в картці складу-отримувача («Довідники → Склади») — це той самий запис.",
+        "ch_about_cap": "Плановий термін задає лише людина: Кабінет сам його не змінює, навіть якщо фактичні постачання йдуть довше чи швидше (ТЗ 001 §5). Факт рахується окремо за закритими накладними, за помітного розходження сторож заводить алерт.",
+        "ch_search": "Пошук за складом", "ch_search_ph": "Madrid, Piasecznie, FBA…",
+        "ch_plan_help": "Плановий термін постачання в календарних днях: від відвантаження зі складу-джерела до приймання на складі-отримувачі. Його беруть автозамовлення і переміщення.",
+        "ch_fact_help": "Медіана календарних днів «відвантаження → приймання» за закритими накладними за вікно з налаштувань; у дужках — скільки постачань. Порожньо — закритих постачань не було: ERP закриває накладні рідко.",
+        "ch_basis_help": "Звідки плановий термін: «накладних: N» — медіана обіцяних дат з N накладних ERP; «оцінка вручну» — введений людиною.",
+        "ch_list_hint": "Натисніть на будь-яку клітинку рядка — нижче відкриється картка зв’язку. Сортування — кліком по заголовку колонки.",
+        "ch_list_empty": "За фільтрами нічого не знайдено — це фільтри, а не порожній довідник.",
+        "ch_card_h": "Картка зв’язку", "ch_pick": "Зв’язок",
+        "ch_is_archived": "В архіві: автозамовлення і переміщення цей зв’язок не використовують.",
+        "ch_ends_ro": "Склади зв’язку не змінюються: інше джерело чи отримувач — це інший зв’язок, заведіть його формою нижче.",
+        "ch_leg_note": "За цим зв’язком автозамовлення рахує термін плеча «{leg}».",
+        "ch_leg_PL": "Польща → Мадрид", "ch_leg_Madrid": "Мадрид → FBA Іспанії", "ch_leg_UA": "Україна → Польща",
+        "ch_route_help": "«між складами» — поповнення свого складу; «остання миля» — зі складу в магазин; «постачання на FBA» — відправка на склад Amazon, її читає розрахунок переміщення.",
+        "ch_note_help": "Що важливо знати про маршрут: перевізник, дні рейсів, звідки взято термін.",
+        "ch_fact_line": "Факт: {fact} дн (постачань у дужках), відхилення від плану {dev}, останнє приймання {last}.",
+        "ch_fact_none": "Факту немає: закритих постачань за зв’язком у вікні не було (ERP закриває накладні рідко).",
+        "ch_saved": "Збережено.", "ch_log_empty": "Змін через Кабінет ще не було — журнал ведеться з 07.10.2026.",
+        "ch_logf_created": "створено", "ch_logf_median_days": "плановий термін", "ch_logf_route_type": "тип маршруту",
+        "ch_logf_note": "примітка", "ch_logf_is_active": "активність",
+        "ch_off_note": "Зв’язок в архіві не використовується автозамовленням і переміщенням; історія і факт зберігаються, повернути можна будь-коли.",
+        "ch_restore_note": "Зв’язок в архіві. Його можна повернути — термін і історія не змінювалися.",
+        "ch_del_blocked": "Видалити не можна: за зв’язком були фактичні постачання, за ними рахувався факт терміну. Зв’язок лишається в архіві.",
+        "ch_leg_warn": "За цим зв’язком автозамовлення рахує термін плеча «{leg}». В архіві його термін брати нізвідки — автозамовлення візьме оцінку постачальника з налаштувань (зазвичай 30 днів), і терміновість замовлень зміниться.",
+        "ch_fba_warn": "Це постачання на FBA: без нього переміщення не пропонуватиме відправку цим маршрутом.",
+        "ch_off_plain": "Зв’язок перестане використовуватися в розрахунках; історія збережеться.",
+        "ch_add_h": "Додати зв’язок підживлення",
+        "ch_ro_add": "Додавати зв’язки може роль із правом на довідники.",
+        "ch_add_note": "Джерело, отримувач, тип і плановий термін обов’язкові. Пара «джерело → отримувач» одна: якщо вона вже є в архіві — поверніть її, а не заводьте другу.",
+        "ch_pick_wh": "— оберіть склад —",
+        "ch_from_help": "Звідки їде товар. У списку лише активні склади; назва — як у «Довідники → Склади».",
+        "ch_to_help": "Куди їде товар. Плановий термін цього зв’язку видно і правиться і в картці цього складу.",
+        "ch_create": "Додати зв’язок",
+        "ch_need_both": "Оберіть склад-джерело і склад-отримувач.",
+        "ch_need_days": "Вкажіть плановий термін у днях — без нього автозамовлення не зможе порахувати плече.",
+        "ch_exists_archived": "Такий зв’язок уже є в архіві — знайдіть його (статус «Усі») і поверніть з архіву.",
+        "ch_created_ok": "Зв’язок {name} додано. Картка відкрита нижче.",
+    },
+    "en": {
+        "ch_about": "**Supply chains** — which warehouse replenishes which and in how many days (planned lead time). Reorder (when goods will arrive) and transfers to FBA are calculated from these lead times.  \n**How to use it:** find a link by searching a warehouse → click its row → the card opens below, where you change the route type, planned lead time and note, archive the link or restore it. Add a new link with the «Add supply link» form at the bottom. The same lead time can be edited in the receiving warehouse card («Directories → Warehouses») — it is one and the same record.",
+        "ch_about_cap": "Only a person sets the planned lead time: Kabinet never changes it by itself, even if actual deliveries are slower or faster (spec 001 §5). The actual lead time is computed separately from closed invoices, and the watchdog raises an alert on a notable gap.",
+        "ch_search": "Search by warehouse", "ch_search_ph": "Madrid, Piasecznie, FBA…",
+        "ch_plan_help": "Planned lead time in calendar days: from dispatch at the source warehouse to receipt at the receiving one. Used by reorder and transfers.",
+        "ch_fact_help": "Median calendar days «dispatch → receipt» over closed invoices within the configured window; deliveries in brackets. Empty means no closed deliveries: ERP rarely closes invoices.",
+        "ch_basis_help": "Where the planned lead time came from: «invoices: N» — median promised dates of N ERP invoices; «manual estimate» — entered by a person.",
+        "ch_list_hint": "Click any cell of a row — the link card opens below. Sort by clicking a column header.",
+        "ch_list_empty": "Nothing matches the filters — this is the filters, not an empty directory.",
+        "ch_card_h": "Link card", "ch_pick": "Link",
+        "ch_is_archived": "Archived: reorder and transfers don't use this link.",
+        "ch_ends_ro": "A link's warehouses don't change: another source or receiver is another link — add it with the form below.",
+        "ch_leg_note": "Reorder computes the «{leg}» leg lead time from this link.",
+        "ch_leg_PL": "Poland → Madrid", "ch_leg_Madrid": "Madrid → FBA Spain", "ch_leg_UA": "Ukraine → Poland",
+        "ch_route_help": "«between warehouses» — replenishing our own warehouse; «last mile» — from a warehouse to a store; «inbound to FBA» — shipping to an Amazon warehouse, read by the transfer calculation.",
+        "ch_note_help": "What matters about the route: carrier, trip days, where the lead time came from.",
+        "ch_fact_line": "Actual: {fact} days (deliveries in brackets), deviation from plan {dev}, last receipt {last}.",
+        "ch_fact_none": "No actual: no closed deliveries on this link within the window (ERP rarely closes invoices).",
+        "ch_saved": "Saved.", "ch_log_empty": "No changes through Kabinet yet — the log is kept since 07.10.2026.",
+        "ch_logf_created": "created", "ch_logf_median_days": "planned lead time", "ch_logf_route_type": "route type",
+        "ch_logf_note": "note", "ch_logf_is_active": "activity",
+        "ch_off_note": "An archived link isn't used by reorder or transfers; history and actuals stay, and it can be restored at any time.",
+        "ch_restore_note": "The link is archived. It can be restored — lead time and history were not changed.",
+        "ch_del_blocked": "Can't delete: there were actual deliveries on this link, and the actual lead time was computed from them. The link stays archived.",
+        "ch_leg_warn": "Reorder computes the «{leg}» leg lead time from this link. Once archived there is nowhere to take it from — reorder will use the supplier estimate from settings (usually 30 days), and order urgency will change.",
+        "ch_fba_warn": "This is an inbound to FBA: without it transfers won't suggest shipping along this route.",
+        "ch_off_plain": "The link will stop being used in calculations; history stays.",
+        "ch_add_h": "Add supply link",
+        "ch_ro_add": "Links can be added by a role with directory rights.",
+        "ch_add_note": "Source, receiver, type and planned lead time are required. There is one link per «source → receiver» pair: if it is already archived, restore it instead of adding a second one.",
+        "ch_pick_wh": "— pick a warehouse —",
+        "ch_from_help": "Where goods ship from. Only active warehouses are listed; names as in «Directories → Warehouses».",
+        "ch_to_help": "Where goods ship to. This link's planned lead time is also shown and editable in that warehouse's card.",
+        "ch_create": "Add link",
+        "ch_need_both": "Pick the source and the receiving warehouse.",
+        "ch_need_days": "Enter the planned lead time in days — reorder can't compute the leg without it.",
+        "ch_exists_archived": "This link already exists in the archive — find it (status «All») and restore it.",
+        "ch_created_ok": "Link {name} added. Its card is open below.",
+    },
+}
+for _lg, _d in _CH_TR.items():
+    TR[_lg].update(_d)
 
 def _lang() -> str:
     try:
@@ -3079,13 +3200,17 @@ def _section_wh():
                     before_src = src.set_index("id")
                     for r in ed_src.itertuples():
                         b = before_src.loc[int(r.id)]
-                        sets, params = [], []
+                        sets, params, logs = [], [], []
                         if _int0(r.median_days) != _int0(b["median_days"]):
-                            sets.append("median_days = %s"); params.append(_int0(r.median_days))
+                            # срок, введённый человеком, — уже не медиана накладных: основание «вручную»
+                            sets += ["median_days = %s", "lead_source = 'expert'"]; params.append(_int0(r.median_days))
+                            logs.append(_ch_log(int(r.id), "median_days", b["median_days"], _int0(r.median_days)))
                         if bool(r.is_active) != bool(b["is_active"]):
                             sets.append("is_active = %s"); params.append(bool(r.is_active))
+                            logs.append(_ch_log(int(r.id), "is_active", bool(b["is_active"]), bool(r.is_active)))
                         if sets:
                             stmts.append((f"UPDATE kabinet_data.supply_chains SET {', '.join(sets)}, updated_at = now() WHERE id = %s", params + [int(r.id)]))
+                            stmts += logs
                 # страны обслуживания: сравниваем множества, пишем разницу
                 if set(served_new) != set(_served_now):
                     gone = set(_served_now) - set(served_new)
@@ -3246,112 +3371,307 @@ def _section_wh():
                            ["type", "marketplace", "country", "is_active", "note"])
 
 # ------------------------------------------------------------- подпитка ---
-def _section_ch():
-    st.caption(_tr("ch_hint"))
-    # Имя склада на экран — всегда `COALESCE(display_name, name)`: в `warehouses.name` лежит имя
-    # из ERP, и у польских складов оно украинское («… (Основний)») посреди русского интерфейса.
-    # Сопоставление и ключи — по `name`, меняется только подпись (доработка 28.09).
-    ch = q("""
-        SELECT c.id,
-               COALESCE(fa.display_name, f.name)   AS from_name,
-               COALESCE(ta.display_name, tw.name)  AS to_name,
-               c.route_type, c.median_days, c.shipment_count,
-               c.lead_source, c.sample_size, c.is_active, c.note
+# Плечи, по которым Stock Loader считает срок поставки в автозаказе (`_route_days`, константы WH_* в ноутбуке):
+# Piasecznie → Мадрид, Мадрид → FBA ES, Тернополь → Piasecznie. Выключи такую связь — автозаказ возьмёт
+# оценку поставщика из reorder_params, и человек должен узнать это ДО нажатия, а не из лога загрузчика.
+AUTOORDER_LEGS = {(32, 43): "PL", (43, 86): "Madrid", (37, 32): "UA"}
+SCLOG = ("INSERT INTO kabinet_data.supply_chain_change_log (chain_id, field, old_value, new_value, actor) "
+         "VALUES (%s, %s, %s, %s, %s)")
+CH_ROUTES = ["internal", "last_mile", "fba_inbound"]
+
+
+def _ch_log(cid, field, old, new):
+    o = None if old is None or (not isinstance(old, str) and pd.isna(old)) else str(old)
+    n = None if new is None or (not isinstance(new, str) and pd.isna(new)) else str(new)
+    return (SCLOG, (int(cid), field, o, n, _actor()))
+
+
+def _ch_load() -> pd.DataFrame:
+    # Имя склада на экран — `COALESCE(display_name, name)`; сопоставление и ключи — по id (доработка 28.09)
+    return q("""
+        SELECT c.id, c.from_warehouse_id AS from_id, c.to_warehouse_id AS to_id,
+               COALESCE(fa.display_name, f.name)  AS from_name,
+               COALESCE(ta.display_name, tw.name) AS to_name,
+               c.route_type, c.median_days, c.lead_source, c.sample_size, c.is_active, c.note,
+               lt.actual_days, lt.shipments, lt.last_delivery
         FROM kabinet_data.supply_chains c
         LEFT JOIN kabinet_data.warehouses f  ON f.id  = c.from_warehouse_id
         LEFT JOIN kabinet_data.warehouses tw ON tw.id = c.to_warehouse_id
         LEFT JOIN kabinet_data.warehouse_attributes fa ON fa.warehouse_id = f.id
         LEFT JOIN kabinet_data.warehouse_attributes ta ON ta.warehouse_id = tw.id
-        ORDER BY 3, c.median_days
+        LEFT JOIN kabinet_data.supply_lead_time_facts lt ON lt.route_id = c.id
+        ORDER BY 5, 4
     """)
-    wh_all = q("""
+
+
+def _ch_fact(r) -> str:
+    """Факт — текстом: пусто значит «закрытых поставок в окне не было», а не ноль дней."""
+    if pd.notna(r["actual_days"]) and pd.notna(r["shipments"]) and int(r["shipments"]) > 0:
+        return f"{float(r['actual_days']):.0f} ({int(r['shipments'])})"
+    return ""
+
+
+def _ch_dev(r) -> str:
+    if pd.notna(r["actual_days"]) and pd.notna(r["median_days"]) and float(r["median_days"]) > 0:
+        return f"{(float(r['actual_days']) - float(r['median_days'])) / float(r['median_days']) * 100:+.0f} %"
+    return ""
+
+
+def _ch_basis(r) -> str:
+    if r["lead_source"] == "ttn_planned" and pd.notna(r["sample_size"]):
+        return _trf("basis_ttn", n=int(r["sample_size"]))
+    return _tr("basis_expert")
+
+
+def _section_ch():
+    """Подпитка по общему приёму справочников (07.10.2026): инструкция → список с поиском и фильтрами → карточка
+    по клику → форма добавления. Плановый срок (`median_days`) правит только человек (ТЗ 001 §5) — здесь или в
+    карточке склада-получателя; Кабинет его сам не меняет ни при каком отклонении факта. Ни один загрузчик в
+    `supply_chains` не пишет: все связи ведутся здесь."""
+    dict_kit.instruction(_tr("ch_about"), _tr("ch_about_cap"))
+    _created = st.session_state.pop("ch_created_msg", None)
+    if _created:
+        st.success(_created)
+    ch = _ch_load()
+    route_lbl = {c: _tr("ch_route_" + c) for c in CH_ROUTES}
+
+    f1, f2, f3 = st.columns([2, 1, 1])
+    needle = dict_kit.search_input(_tr("ch_search"), "ch_search", _tr, _tr("ch_search_ph"), where=f1).lower()
+    route_sel = f2.selectbox(_tr("col_route"), ["all"] + CH_ROUTES, key="ch_route_f",
+                             format_func=lambda x: _tr("ctry_state_all") if x == "all" else route_lbl[x])
+    state_sel = f3.selectbox(_tr("sku_state_f"), ["active", "archived", "all"], key="ch_state_f",
+                             format_func=lambda x: _tr(f"sku_state_{x}"))
+    view = ch
+    if needle:
+        view = view[view["from_name"].fillna("").str.lower().str.contains(needle, regex=False)
+                    | view["to_name"].fillna("").str.lower().str.contains(needle, regex=False)]
+    if route_sel != "all":
+        view = view[view["route_type"] == route_sel]
+    if state_sel != "all":
+        view = view[view["is_active"].astype(bool) == (state_sel == "active")]
+    st.caption(_trf("mp_summary", shown=len(view), total=len(ch), arch=int((~ch["is_active"].astype(bool)).sum())))
+
+    lst = pd.DataFrame({
+        "from": view["from_name"].fillna("—"),
+        "to": view["to_name"].fillna("—"),
+        "route": [route_lbl.get(x, as_text(x)) for x in view["route_type"]],
+        "plan": [("" if pd.isna(x) else f"{int(x)}") for x in view["median_days"]],
+        "fact": [_ch_fact(r) for _, r in view.iterrows()],
+        "dev": [_ch_dev(r) for _, r in view.iterrows()],
+        "basis": [_ch_basis(r) for _, r in view.iterrows()],
+        "state": [_tr("sku_state_active") if bool(a) else _tr("sku_state_archived") for a in view["is_active"]],
+        "note": [as_text(x) for x in view["note"]],
+    })
+    options = [int(i) for i in view["id"]]
+    picked = dict_kit.table_pick(lst, options, "ch_list", (needle, route_sel, state_sel), column_config={
+        "from": st.column_config.TextColumn(_tr("ch_from"), width="medium"),
+        "to": st.column_config.TextColumn(_tr("ch_to"), width="medium"),
+        "route": st.column_config.TextColumn(_tr("col_route"), width=130),
+        "plan": st.column_config.TextColumn(_tr("col_lt_plan"), width=90, help=_tr("ch_plan_help")),
+        "fact": st.column_config.TextColumn(_tr("col_lt_fact"), width=90, help=_tr("ch_fact_help")),
+        "dev": st.column_config.TextColumn(_tr("col_lt_dev"), width=90),
+        "basis": st.column_config.TextColumn(_tr("col_basis"), width=120, help=_tr("ch_basis_help")),
+        "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
+        "note": st.column_config.TextColumn(_tr("col_note"), width="large"),
+    })
+    st.caption(_tr("ch_list_empty") if lst.empty else _tr("ch_list_hint"))
+    if options:
+        labels = {int(r.id): f"{as_text(r.from_name, '—')} → {as_text(r.to_name, '—')}"
+                  + ("" if bool(r.is_active) else f" · {_tr('wh_inactive')}") for r in view.itertuples()}
+        st.markdown("#### " + _tr("ch_card_h"))
+        sel = dict_kit.card_pick(_tr("ch_pick"), options, labels, "ch_card", picked)
+        _ch_card(ch.set_index("id").loc[sel], int(sel), route_lbl)
+
+    _ch_add_form(ch, route_lbl)
+
+
+def _ch_card(row, sel: int, route_lbl: dict):
+    can_edit = auth.can("dict.edit")
+    leg = AUTOORDER_LEGS.get((int(row["from_id"]), int(row["to_id"])))
+    with st.container(border=True):
+        st.markdown(f"**{as_text(row['from_name'], '—')} → {as_text(row['to_name'], '—')}**"
+                    + ("" if bool(row["is_active"]) else f"  \n{_tr('ch_is_archived')}"))
+        st.caption(f"ID {sel} · " + _tr("ch_ends_ro"))
+        if leg:
+            st.caption(_trf("ch_leg_note", leg=_tr(f"ch_leg_{leg}")))
+        c1, c2 = st.columns(2)
+        cur_route = row["route_type"] if row["route_type"] in CH_ROUTES else CH_ROUTES[0]
+        new_route = c1.selectbox(_tr("col_route"), CH_ROUTES, index=CH_ROUTES.index(cur_route),
+                                 format_func=lambda x: route_lbl[x], key=f"ch_route_{sel}",
+                                 help=_tr("ch_route_help"), disabled=not can_edit)
+        new_days = c2.number_input(_tr("col_lt_plan"), min_value=0, max_value=365, step=1,
+                                   value=_int0(row["median_days"]), key=f"ch_days_{sel}",
+                                   help=_tr("ch_plan_help"), disabled=not can_edit)
+        new_note = st.text_input(_tr("col_note"), value=as_text(row["note"]), key=f"ch_note_{sel}",
+                                 help=_tr("ch_note_help"), disabled=not can_edit)
+        fact = _ch_fact(row)
+        if fact:
+            st.caption(_trf("ch_fact_line", fact=fact, dev=_ch_dev(row) or "—",
+                            last=pd.Timestamp(row["last_delivery"]).strftime("%d.%m.%Y")
+                            if pd.notna(row["last_delivery"]) else "—"))
+        else:
+            st.caption(_tr("ch_fact_none"))
+        st.caption(_tr("col_basis") + ": " + _ch_basis(row))
+        if st.button(_tr("save"), key=f"ch_save_{sel}", type="primary", disabled=not can_edit,
+                     help=None if can_edit else _tr("sku_ro_help")):
+            stmts, sets, params = [], [], []
+            if new_route != row["route_type"]:
+                sets.append("route_type = %s"); params.append(new_route)
+                stmts.append(_ch_log(sel, "route_type", row["route_type"], new_route))
+            if int(new_days) != _int0(row["median_days"]):
+                # срок, введённый человеком, — уже не медиана накладных: основание меняется на «вручную»
+                sets += ["median_days = %s", "lead_source = 'expert'"]; params.append(int(new_days))
+                stmts.append(_ch_log(sel, "median_days", row["median_days"], int(new_days)))
+            if (new_note or "").strip() != as_text(row["note"]):
+                sets.append("note = %s"); params.append((new_note or "").strip() or None)
+                stmts.append(_ch_log(sel, "note", row["note"], (new_note or "").strip() or None))
+            if not sets:
+                st.info(_tr("nochange"))
+            else:
+                stmts.insert(0, (f"UPDATE kabinet_data.supply_chains SET {', '.join(sets)}, updated_at = now() "
+                                 f"WHERE id = %s", tuple(params) + (sel,)))
+                try:
+                    exec_sql(stmts); st.cache_data.clear(); st.success(_tr("ch_saved")); st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
+
+    if can_edit:
+        _ch_archive(row, sel, leg)
+
+    with st.expander(_tr("ctry_log")):
+        lg = q1("""SELECT ts, field, old_value, new_value, actor FROM kabinet_data.supply_chain_change_log
+                   WHERE chain_id = %s ORDER BY ts DESC LIMIT 200""", (sel,))
+        if lg.empty:
+            st.caption(_tr("ch_log_empty"))
+        else:
+            lg["ts"] = pd.to_datetime(lg["ts"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg["field"] = [_tr(f"ch_logf_{f}") if f in ("created", "median_days", "route_type", "note", "is_active")
+                           else f for f in lg["field"]]
+            lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"), _tr("mp_log_new"), _tr("mp_log_who")]
+            st.dataframe(lg, hide_index=True, use_container_width=True, height=min(300, 38 + 35 * len(lg)))
+
+
+def _ch_archive(row, sel: int, leg):
+    """В архив / вернуть / удалить. Удалить можно только связь, уже убранную в архив и без фактических поставок:
+    по связи с поставками считался факт срока, и история сравнения план — факт без неё стала бы необъяснимой."""
+    box = st.container(border=True)
+    box.markdown("**" + _tr("mp_act_h") + "**")
+    flag = f"ch_arch_ask_{sel}"
+    if not bool(row["is_active"]):
+        box.caption(_tr("ch_restore_note"))
+        if box.button(_tr("mp_act_restore"), key=f"ch_rest_{sel}"):
+            _ch_set_active(sel, True)
+        has_fact = pd.notna(row["shipments"]) and int(row["shipments"]) > 0
+        if has_fact:
+            box.caption(_tr("ch_del_blocked"))
+        else:
+            with box:
+                if confirm_delete(f"ch_{sel}", f"{as_text(row['from_name'])} → {as_text(row['to_name'])}"):
+                    try:
+                        exec_sql([("DELETE FROM kabinet_data.supply_chains WHERE id = %s AND NOT is_active", (sel,)),
+                                  _ch_log(sel, "deleted", f"{row['from_name']} → {row['to_name']}", None)])
+                        st.cache_data.clear()
+                        st.session_state.pop("ch_card", None)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(_trf("err", e=e))
+        return
+    if not st.session_state.get(flag):
+        box.caption(_tr("ch_off_note"))
+        if box.button(_tr("mp_act_archive"), key=f"ch_arch_{sel}"):
+            st.session_state[flag] = True
+            st.rerun()
+        return
+    if leg:
+        box.warning(_trf("ch_leg_warn", leg=_tr(f"ch_leg_{leg}")))
+    elif row["route_type"] == "fba_inbound":
+        box.warning(_tr("ch_fba_warn"))
+    else:
+        box.info(_tr("ch_off_plain"))
+    c1, c2 = box.columns(2)
+    if c1.button(_tr("mp_act_archive_yes"), key=f"ch_arch_yes_{sel}", type="primary"):
+        st.session_state.pop(flag, None)
+        _ch_set_active(sel, False)
+    if c2.button(_tr("del_confirm_no"), key=f"ch_arch_no_{sel}"):
+        st.session_state.pop(flag, None)
+        st.rerun()
+
+
+def _ch_set_active(sel: int, active: bool):
+    try:
+        exec_sql([("UPDATE kabinet_data.supply_chains SET is_active = %s, updated_at = now() WHERE id = %s", (active, sel)),
+                  _ch_log(sel, "is_active", str(not active), str(active))])
+        st.cache_data.clear()
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
+
+
+def _ch_add_form(ch: pd.DataFrame, route_lbl: dict):
+    """Новая связь: источник, получатель, тип маршрута и плановый срок обязательны; пара «источник → получатель»
+    уникальна среди ВСЕХ связей, и найденная в архиве предлагается к возврату, а не дублируется."""
+    st.markdown("#### " + _tr("ch_add_h"))
+    if not auth.can("dict.edit"):
+        st.caption(_tr("ch_ro_add"))
+        return
+    st.caption(_tr("ch_add_note"))
+    wh = q("""
         SELECT w.id, COALESCE(a.display_name, w.name) AS name, COALESCE(w.code, '') AS code
         FROM kabinet_data.warehouses w
         LEFT JOIN kabinet_data.warehouse_attributes a ON a.warehouse_id = w.id
         WHERE w.is_active IS NOT FALSE
         ORDER BY 2
     """)
-    wh_label = {int(r.id): (f"{r['name']} ({r.code})" if r.code else r["name"])
-                for _, r in wh_all.iterrows()}
-    label_wh = {v: k for k, v in wh_label.items()}
-    # Тип маршрута в базе — английский код, на экране слово: код читают загрузчики,
-    # человек — подпись. Тот же приём, что у «Режима» и «Уровня» в алертах.
-    ROUTES = ["internal", "last_mile", "fba_inbound"]
-    _route_lbl = {c: _tr("ch_route_" + c) for c in ROUTES}
-    _route_code = {v: k for k, v in _route_lbl.items()}
-    ROUTE_OPTS = [_route_lbl[c] for c in ROUTES]
-    if not ch.empty:
-        ch = ch.copy()
-        ch["route_type"] = ch["route_type"].map(lambda v: _route_lbl.get(v, v))
-        # В редактируемой сетке пустых ячеек быть не должно: Streamlit рисует любую пустую
-        # словом «None» (это рендер редактора, а не тип данных). Обе колонки только для чтения.
-        for _c in ("shipment_count", "sample_size"):
-            ch[_c] = ch[_c].map(lambda v: "—" if pd.isna(v) else f"{int(v)}")
-
-    if ch.empty:
-        st.info(_tr("no_data"))
-    else:
-        ed_ch = st.data_editor(
-            ch, key="ed_ch", use_container_width=True, height=460,
-            hide_index=True, num_rows="fixed",
-            disabled=["id", "from_name", "to_name", "shipment_count",
-                      "lead_source", "sample_size"],
-            column_config={
-                "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
-                "from_name": st.column_config.TextColumn(_tr("ch_from"), width="medium"),
-                "to_name": st.column_config.TextColumn(_tr("ch_to"), width="medium"),
-                "route_type": st.column_config.SelectboxColumn(
-                    _tr("col_route"), options=ROUTE_OPTS),
-                "median_days": st.column_config.NumberColumn(
-                    _tr("col_median"), min_value=0, max_value=365, step=1),
-                "shipment_count": st.column_config.TextColumn(
-                    _tr("col_shipments"), width="small", help=_tr("col_shipments_help")),
-                "lead_source": st.column_config.TextColumn(_tr("col_lead_src"), width="small"),
-                "sample_size": st.column_config.TextColumn(_tr("col_sample"), width="small", help=_tr("col_sample_help")),
-                "is_active": st.column_config.CheckboxColumn(_tr("col_active")),
-                "note": st.column_config.TextColumn(_tr("col_note"), width="large"),
-            },
-        )
-        if st.button(_tr("save"), key="save_ch", type="primary"):
-            _ed = ed_ch.copy()
-            _ed["route_type"] = _ed["route_type"].map(lambda v: _route_code.get(v, v))
-            _orig = ch.copy()
-            _orig["route_type"] = _orig["route_type"].map(lambda v: _route_code.get(v, v))
-            save_block(_orig, _ed, "kabinet_data.supply_chains", "id",
-                       ["route_type", "median_days", "is_active", "note"])
-
-    with st.expander(_tr("ch_add")):
-        c1, c2 = st.columns(2)
-        src = c1.selectbox(_tr("ch_from"), list(label_wh.keys()), key="new_ch_src")
-        rec = c2.selectbox(_tr("ch_to"), list(label_wh.keys()), key="new_ch_rec")
-        c3, c4, c5 = st.columns([1, 1, 2])
-        rtype = _route_code[c3.selectbox(_tr("col_route"), ROUTE_OPTS, key="new_ch_type")]
-        lead = c4.number_input(_tr("col_median"), 0, 365, 14, key="new_ch_lead")
-        note = c5.text_input(_tr("col_note"), key="new_ch_note")
-        if st.button(_tr("ch_add"), key="add_ch", type="primary"):
-            sid, rid = label_wh[src], label_wh[rec]
-            exists = q(f"""
-                SELECT 1 FROM kabinet_data.supply_chains
-                WHERE from_warehouse_id = {sid} AND to_warehouse_id = {rid}
-                LIMIT 1
-            """)
-            if sid == rid:
-                st.error(_tr("ch_same"))
-            elif not exists.empty:
-                st.warning(_tr("ch_exists"))
-            else:
-                try:
-                    exec_sql([("""
-                        INSERT INTO kabinet_data.supply_chains
-                            (from_warehouse_id, to_warehouse_id, route_type,
-                             median_days, lead_source, is_active, note)
-                        VALUES (%s, %s, %s, %s, 'expert', TRUE, %s)
-                    """, [sid, rid, rtype, int(lead), note or None])])
-                    st.cache_data.clear()
-                    st.success(_tr("saved").format(n=1))
-                    st.rerun()
-                except Exception as e:
-                    st.error(_tr("err").format(e=e))
+    lbl = {int(r.id): (f"{r['name']} ({r.code})" if r.code else r["name"]) for _, r in wh.iterrows()}
+    ids = [None] + list(lbl)
+    fmt = lambda i: _tr("ch_pick_wh") if i is None else lbl[i]
+    c1, c2 = st.columns(2)
+    src = c1.selectbox(_tr("ch_from") + " *", ids, format_func=fmt, key="ch_add_src", help=_tr("ch_from_help"))
+    rec = c2.selectbox(_tr("ch_to") + " *", ids, format_func=fmt, key="ch_add_rec", help=_tr("ch_to_help"))
+    c3, c4, c5 = st.columns([1, 1, 2])
+    rtype = c3.selectbox(_tr("col_route") + " *", CH_ROUTES, format_func=lambda x: route_lbl[x], key="ch_add_type",
+                         help=_tr("ch_route_help"))
+    days = c4.number_input(_tr("col_lt_plan") + " *", min_value=0, max_value=365, step=1, value=None,
+                           placeholder="14", key="ch_add_days", help=_tr("ch_plan_help"))
+    note = c5.text_input(_tr("col_note"), key="ch_add_note", help=_tr("ch_note_help"))
+    if not st.button(_tr("ch_create"), key="ch_add_go", type="primary"):
+        return
+    errs = []
+    if src is None or rec is None:
+        errs.append(_tr("ch_need_both"))
+    elif src == rec:
+        errs.append(_tr("ch_same"))
+    if days is None:
+        errs.append(_tr("ch_need_days"))
+    if not errs:
+        ex = q_now("SELECT id, is_active FROM kabinet_data.supply_chains WHERE from_warehouse_id = %s "
+                   "AND to_warehouse_id = %s LIMIT 1", (int(src), int(rec)))
+        if not ex.empty:
+            errs.append(_tr("ch_exists") if bool(ex["is_active"].iloc[0]) else _tr("ch_exists_archived"))
+    if errs:
+        for e in errs:
+            st.error(e)
+        return
+    try:
+        exec_sql([("""
+            WITH c AS (INSERT INTO kabinet_data.supply_chains
+                           (from_warehouse_id, to_warehouse_id, route_type, median_days, lead_source, is_active, note)
+                       VALUES (%s, %s, %s, %s, 'expert', TRUE, %s) RETURNING id)
+            INSERT INTO kabinet_data.supply_chain_change_log (chain_id, field, old_value, new_value, actor)
+            SELECT id, 'created', NULL, %s, %s FROM c
+        """, (int(src), int(rec), rtype, int(days), (note or "").strip() or None,
+              f"{lbl[src]} → {lbl[rec]} · {int(days)}", _actor()))])
+        st.cache_data.clear()
+        new = q_now("SELECT id FROM kabinet_data.supply_chains WHERE from_warehouse_id = %s AND to_warehouse_id = %s",
+                    (int(src), int(rec)))
+        if not new.empty:
+            dict_kit.card_focus("ch_card", int(new["id"].iloc[0]))
+        for k in ("ch_add_src", "ch_add_rec", "ch_add_days", "ch_add_note"):
+            st.session_state.pop(k, None)
+        st.session_state["ch_created_msg"] = _trf("ch_created_ok", name=f"{lbl[src]} → {lbl[rec]}")
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
 
 # -------------------------------------------------------- маркетплейсы ---
 def _curr_label(code: str, curr: pd.DataFrame) -> str:
