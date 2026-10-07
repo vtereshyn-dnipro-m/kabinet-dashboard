@@ -2126,6 +2126,130 @@ _POOL_TR = {
 }
 for _lg, _d in _POOL_TR.items():
     TR[_lg].update(_d)
+_CTRY_TR = {
+    "ru": {
+        "ctry_about": "**Справочник стран** — единый для всех кабинетов: из него выбирают страну склада, маркетплейса и всего, что привязано к географии. Здесь хранятся нормативные значения: название латиницей и три ISO-кода.  \n**Как работать:** найдите страну поиском → нажмите на строку → ниже откроется карточка: там можно поправить название, сделать страну неактивной или вернуть. Новую страну — формой «Новая страна» внизу. Удаления нет: страна только выключается, история и связи остаются.",
+        "ctry_created_ok": "Страна {code} создана. Карточка открыта ниже.",
+        "ctry_state_active": "Активна", "ctry_state_inactive": "Неактивна", "ctry_state_all": "Все",
+        "ctry_summary": "Показано {shown} из {total} · неактивных {off}",
+        "ctry_col_id": "Alpha-2 (Internal ID)",
+        "ctry_col_id_help": "Ключ ссылок — двухбуквенный код ISO 3166-1. Он неизменяем, коды ISO не переиспользуются, и все связи в базе построены на нём, поэтому отдельного технического ID нет.",
+        "ctry_col_used": "Где используется",
+        "ctry_col_used_help": "Маркетплейсы этой страны (коды), склады, которые в ней находятся, и склады, которые её обслуживают.",
+        "ctry_use_wh": "складов: {n}", "ctry_use_serve": "обслуживают: {n}", "ctry_use_none": "нигде не используется",
+        "ctry_list_hint": "Нажмите на любую ячейку строки — ниже откроется карточка страны. Сортировка — кликом по заголовку колонки.",
+        "ctry_list_empty": "По фильтрам ничего не найдено — это фильтры, а не пустой справочник.",
+        "ctry_is_off": "Неактивна: не предлагается при создании новых связей.",
+        "ctry_name_help": "Основное название страны латиницей, как в ISO 3166-1 (например, Germany). На других языках не вводится — подписи на языке интерфейса у Кабинета свои.",
+        "ctry_a2_help": "Две заглавные латинские буквы по ISO 3166-1 alpha-2 (DE). Где взять: iso.org/obp или статья «ISO 3166-1» в Википедии. После создания не меняется.",
+        "ctry_a3_help": "Три заглавные латинские буквы по ISO 3166-1 alpha-3 (DEU). Там же, где Alpha-2. После создания не меняется.",
+        "ctry_num_help": "Цифровой код ISO 3166-1 numeric, от 1 до 999 (Германия — 276, Австрия — 040). Ведущие нули можно не вводить. После создания не меняется.",
+        "ctry_add_note": "Все четыре поля обязательны. Коды и название проверяются на дубли по всем странам, включая неактивные; страна создаётся активной.",
+        "ctry_ro_add": "Создавать страны может роль с правом на справочники.",
+        "ctry_logf_name": "название", "ctry_logf_is_active": "активность",
+        "ctry_logf_created": "создана", "ctry_logf_migration_plan": "план миграции",
+        "ctry_act_h": "Активность",
+        "ctry_act_off": "Сделать неактивной", "ctry_act_on": "Сделать активной",
+        "ctry_act_off_yes": "Да, сделать неактивной",
+        "ctry_on_note": "Страна неактивна. Её можно снова сделать активной — связи и история не менялись.",
+        "ctry_off_note": "Неактивная страна не предлагается для новых маркетплейсов, допусков и операций. Существующие связи, история и документы сохраняются; вернуть активность можно в любой момент. Перед выключением будет показано, что от страны зависит.",
+        "ctry_off_deps": "От страны сейчас зависит",
+        "ctry_dep_mps": "действующих маркетплейсов: {n} ({codes})",
+        "ctry_dep_pools": "пулы с её маркетплейсами: {names}",
+        "ctry_dep_adm": "действующих допусков в матрице: {n}",
+        "ctry_dep_fc": "действующих строк прогноза: {n}",
+        "ctry_dep_wh": "складов находится в стране: {n}",
+        "ctry_dep_serve": "складов её обслуживают: {n}",
+        "ctry_dep_none": "От страны ничего не зависит — её можно сделать неактивной.",
+        "ctry_off_deps_tail": "Деактивация ничего из этого не удаляет и не переключает: прогнозы и алерты завершаются по своим правилам.",
+        "ctry_need_plan": "У страны есть действующие маркетплейсы — новые операции по ним не закрыты. Выключить страну можно, либо сначала переведя их в архив («Справочники → Маркетплейсы»), либо с подтверждённым планом миграции (ТЗ 002 §8).",
+        "ctry_plan": "План миграции",
+        "ctry_plan_help": "Что будет с маркетплейсами, пулами и прогнозами страны и кто это подтвердил. Текст сохранится в истории страны.",
+        "ctry_plan_needed": "Опишите план миграции — без него страну с действующими маркетплейсами выключить нельзя.",
+    },
+    "uk": {
+        "ctry_about": "**Довідник країн** — єдиний для всіх кабінетів: з нього обирають країну складу, маркетплейсу та всього, що прив’язано до географії. Тут зберігаються нормативні значення: назва латиницею і три ISO-коди.  \n**Як працювати:** знайдіть країну пошуком → натисніть на рядок → нижче відкриється картка: там можна виправити назву, зробити країну неактивною або повернути. Нову країну — формою «Нова країна» внизу. Видалення немає: країна лише вимикається, історія і зв’язки лишаються.",
+        "ctry_created_ok": "Країну {code} створено. Картка відкрита нижче.",
+        "ctry_state_active": "Активна", "ctry_state_inactive": "Неактивна", "ctry_state_all": "Усі",
+        "ctry_summary": "Показано {shown} з {total} · неактивних {off}",
+        "ctry_col_id": "Alpha-2 (Internal ID)",
+        "ctry_col_id_help": "Ключ посилань — двобуквений код ISO 3166-1. Він незмінний, коди ISO не використовуються повторно, і всі зв’язки в базі побудовані на ньому, тому окремого технічного ID немає.",
+        "ctry_col_used": "Де використовується",
+        "ctry_col_used_help": "Маркетплейси цієї країни (коди), склади, що в ній розташовані, і склади, що її обслуговують.",
+        "ctry_use_wh": "складів: {n}", "ctry_use_serve": "обслуговують: {n}", "ctry_use_none": "ніде не використовується",
+        "ctry_list_hint": "Натисніть на будь-яку клітинку рядка — нижче відкриється картка країни. Сортування — кліком по заголовку колонки.",
+        "ctry_list_empty": "За фільтрами нічого не знайдено — це фільтри, а не порожній довідник.",
+        "ctry_is_off": "Неактивна: не пропонується під час створення нових зв’язків.",
+        "ctry_name_help": "Основна назва країни латиницею, як в ISO 3166-1 (наприклад, Germany). Іншими мовами не вводиться — підписи мовою інтерфейсу в Кабінету свої.",
+        "ctry_a2_help": "Дві великі латинські літери за ISO 3166-1 alpha-2 (DE). Де взяти: iso.org/obp або стаття «ISO 3166-1» у Вікіпедії. Після створення не змінюється.",
+        "ctry_a3_help": "Три великі латинські літери за ISO 3166-1 alpha-3 (DEU). Там само, де Alpha-2. Після створення не змінюється.",
+        "ctry_num_help": "Цифровий код ISO 3166-1 numeric, від 1 до 999 (Німеччина — 276, Австрія — 040). Провідні нулі можна не вводити. Після створення не змінюється.",
+        "ctry_add_note": "Усі чотири поля обов’язкові. Коди й назва перевіряються на дублі по всіх країнах, зокрема неактивних; країна створюється активною.",
+        "ctry_ro_add": "Створювати країни може роль із правом на довідники.",
+        "ctry_logf_name": "назва", "ctry_logf_is_active": "активність",
+        "ctry_logf_created": "створена", "ctry_logf_migration_plan": "план міграції",
+        "ctry_act_h": "Активність",
+        "ctry_act_off": "Зробити неактивною", "ctry_act_on": "Зробити активною",
+        "ctry_act_off_yes": "Так, зробити неактивною",
+        "ctry_on_note": "Країна неактивна. Її можна знову зробити активною — зв’язки й історія не змінювалися.",
+        "ctry_off_note": "Неактивна країна не пропонується для нових маркетплейсів, допусків і операцій. Наявні зв’язки, історія та документи зберігаються; повернути активність можна будь-коли. Перед вимкненням буде показано, що від країни залежить.",
+        "ctry_off_deps": "Від країни зараз залежить",
+        "ctry_dep_mps": "діючих маркетплейсів: {n} ({codes})",
+        "ctry_dep_pools": "пули з її маркетплейсами: {names}",
+        "ctry_dep_adm": "діючих допусків у матриці: {n}",
+        "ctry_dep_fc": "діючих рядків прогнозу: {n}",
+        "ctry_dep_wh": "складів розташовано в країні: {n}",
+        "ctry_dep_serve": "складів її обслуговують: {n}",
+        "ctry_dep_none": "Від країни нічого не залежить — її можна зробити неактивною.",
+        "ctry_off_deps_tail": "Деактивація нічого з цього не видаляє і не перемикає: прогнози й алерти завершуються за своїми правилами.",
+        "ctry_need_plan": "У країни є діючі маркетплейси — нові операції по них не закриті. Вимкнути країну можна або спершу перевівши їх в архів («Довідники → Маркетплейси»), або з підтвердженим планом міграції (ТЗ 002 §8).",
+        "ctry_plan": "План міграції",
+        "ctry_plan_help": "Що буде з маркетплейсами, пулами й прогнозами країни і хто це підтвердив. Текст збережеться в історії країни.",
+        "ctry_plan_needed": "Опишіть план міграції — без нього країну з діючими маркетплейсами вимкнути не можна.",
+    },
+    "en": {
+        "ctry_about": "**Country directory** — one for every cabinet: the country of a warehouse, a marketplace and anything else tied to geography is picked from here. It holds the normative values: the Latin-script name and three ISO codes.  \n**How to use it:** find a country with the search → click its row → the card opens below, where you can fix the name, make the country inactive or reactivate it. Add a new country with the «New country» form at the bottom. There is no deletion: a country is only switched off, its links and history stay.",
+        "ctry_created_ok": "Country {code} created. Its card is open below.",
+        "ctry_state_active": "Active", "ctry_state_inactive": "Inactive", "ctry_state_all": "All",
+        "ctry_summary": "Showing {shown} of {total} · inactive {off}",
+        "ctry_col_id": "Alpha-2 (Internal ID)",
+        "ctry_col_id_help": "The reference key is the ISO 3166-1 two-letter code. It never changes, ISO codes are not reused, and every link in the database is built on it, so there is no separate technical ID.",
+        "ctry_col_used": "Where it is used",
+        "ctry_col_used_help": "Marketplaces of this country (codes), warehouses located in it and warehouses serving it.",
+        "ctry_use_wh": "warehouses: {n}", "ctry_use_serve": "served by: {n}", "ctry_use_none": "not used anywhere",
+        "ctry_list_hint": "Click any cell of a row — the country card opens below. Sort by clicking a column header.",
+        "ctry_list_empty": "Nothing matches the filters — this is the filters, not an empty directory.",
+        "ctry_is_off": "Inactive: not offered when creating new links.",
+        "ctry_name_help": "The main country name in Latin script, as in ISO 3166-1 (e.g. Germany). Other languages are not entered here — Kabinet has its own interface-language labels.",
+        "ctry_a2_help": "Two capital Latin letters per ISO 3166-1 alpha-2 (DE). Source: iso.org/obp or the «ISO 3166-1» Wikipedia article. Cannot be changed after creation.",
+        "ctry_a3_help": "Three capital Latin letters per ISO 3166-1 alpha-3 (DEU). Same source as Alpha-2. Cannot be changed after creation.",
+        "ctry_num_help": "ISO 3166-1 numeric code, 1 to 999 (Germany 276, Austria 040). Leading zeros are optional. Cannot be changed after creation.",
+        "ctry_add_note": "All four fields are required. Codes and name are checked for duplicates across all countries, inactive included; the country is created active.",
+        "ctry_ro_add": "Countries can be created by a role with directory rights.",
+        "ctry_logf_name": "name", "ctry_logf_is_active": "activity",
+        "ctry_logf_created": "created", "ctry_logf_migration_plan": "migration plan",
+        "ctry_act_h": "Activity",
+        "ctry_act_off": "Make inactive", "ctry_act_on": "Make active",
+        "ctry_act_off_yes": "Yes, make inactive",
+        "ctry_on_note": "The country is inactive. It can be made active again — links and history were not changed.",
+        "ctry_off_note": "An inactive country is not offered for new marketplaces, admissions or operations. Existing links, history and documents stay; it can be reactivated at any time. Before switching it off you will see what depends on it.",
+        "ctry_off_deps": "Currently depends on this country",
+        "ctry_dep_mps": "active marketplaces: {n} ({codes})",
+        "ctry_dep_pools": "pools with its marketplaces: {names}",
+        "ctry_dep_adm": "current matrix admissions: {n}",
+        "ctry_dep_fc": "current forecast rows: {n}",
+        "ctry_dep_wh": "warehouses located in it: {n}",
+        "ctry_dep_serve": "warehouses serving it: {n}",
+        "ctry_dep_none": "Nothing depends on the country — it can be made inactive.",
+        "ctry_off_deps_tail": "Deactivation deletes or switches none of this: forecasts and alerts end by their own rules.",
+        "ctry_need_plan": "The country has active marketplaces — new operations on them are not closed. It can be switched off either after archiving them («Directories → Marketplaces») or with a confirmed migration plan (spec 002 §8).",
+        "ctry_plan": "Migration plan",
+        "ctry_plan_help": "What happens to the country's marketplaces, pools and forecasts, and who confirmed it. The text is saved in the country's history.",
+        "ctry_plan_needed": "Describe the migration plan — a country with active marketplaces cannot be switched off without it.",
+    },
+}
+for _lg, _d in _CTRY_TR.items():
+    TR[_lg].update(_d)
 
 def _lang() -> str:
     try:
@@ -3696,8 +3820,6 @@ def _mp_add_form(mps, plats, countries, curr):
 A2_RE = re.compile(r"^[A-Z]{2}$")
 A3_RE = re.compile(r"^[A-Z]{3}$")
 CNAME_RE = re.compile(r"^[A-Za-z][A-Za-z\s\.\-'’()]{1,}$")
-CLOG = ("INSERT INTO kabinet_data.country_change_log (alpha2, field, old_value, new_value, actor) "
-        "VALUES (%s, %s, %s, %s, 'kabinet')")
 
 
 def _cname_key(v: str) -> str:
@@ -3707,26 +3829,62 @@ def _cname_key(v: str) -> str:
     return re.sub(r"\s+", " ", (v or "").strip()).lower()
 
 
-def _country_deps(a2: str) -> list:
-    """На что страна уже ссылается: показываем перед выключением (ТЗ 002 §3)."""
-    r = q1("""
-        SELECT (SELECT count(*) FROM kabinet_data.marketplaces_new WHERE country_alpha2 = %s) AS mp,
+def _ctry_usage() -> pd.DataFrame:
+    """Где страна используется — для колонки списка: маркетплейсы (коды), склады нахождения и обслуживания."""
+    return q("""
+        SELECT c.alpha2,
+               (SELECT string_agg(m.code, ', ' ORDER BY m.code) FROM kabinet_data.marketplaces_new m
+                 WHERE m.country_alpha2 = c.alpha2) AS mps,
+               (SELECT count(*) FROM kabinet_data.warehouses w WHERE w.country = c.alpha2) AS wh,
+               (SELECT count(*) FROM kabinet_data.warehouse_countries wc WHERE wc.country_alpha2 = c.alpha2) AS serve
+        FROM kabinet_data.countries c
+    """).set_index("alpha2")
+
+
+def _country_deps(a2: str) -> dict:
+    """Что зависит от страны сейчас (ТЗ 002 §8): действующие маркетплейсы, пулы, матрица и прогнозы; склады —
+    для сведения. Читается без кеша: по этому списку решается, можно ли деактивировать."""
+    r = q_now("""
+        WITH m AS (SELECT id, code, is_active FROM kabinet_data.marketplaces_new WHERE country_alpha2 = %s),
+             p AS (SELECT DISTINCT pm.pool_id FROM kabinet_data.pool_members pm
+                    WHERE pm.marketplace_id IN (SELECT id FROM m)
+                      AND pm.valid_from <= CURRENT_DATE AND (pm.valid_to IS NULL OR pm.valid_to > CURRENT_DATE))
+        SELECT (SELECT string_agg(code, ', ' ORDER BY code) FROM m WHERE is_active) AS mps,
+               (SELECT count(*) FROM m WHERE is_active) AS mps_n,
+               (SELECT string_agg(name, ', ' ORDER BY name) FROM kabinet_data.pools WHERE id IN (SELECT pool_id FROM p)) AS pools,
+               (SELECT count(*) FROM kabinet_data.assortment_admissions
+                 WHERE level = 'marketplace' AND removed_on IS NULL AND marketplace_id IN (SELECT id FROM m)) AS adm,
+               (SELECT count(*) FROM kabinet_data.forecast_register
+                 WHERE is_current AND ((object_type = 'marketplace' AND object_id IN (SELECT id FROM m))
+                                       OR (object_type = 'pool' AND object_id IN (SELECT pool_id FROM p)))) AS fc,
                (SELECT count(*) FROM kabinet_data.warehouses WHERE country = %s) AS wh,
                (SELECT count(*) FROM kabinet_data.warehouse_countries WHERE country_alpha2 = %s) AS serve
     """, (a2, a2, a2))
-    out = []
-    if int(r["mp"].iloc[0]):
-        out.append(_trf("ctry_dep_mp", n=int(r["mp"].iloc[0])))
-    if int(r["wh"].iloc[0]):
-        out.append(_trf("ctry_dep_wh", n=int(r["wh"].iloc[0])))
-    if int(r["serve"].iloc[0]):
-        out.append(_trf("ctry_dep_serve", n=int(r["serve"].iloc[0])))
-    return out or [_tr("ctry_dep_none")]
+    row = r.iloc[0]
+    return {"mps": as_text(row["mps"]), "mps_n": int(row["mps_n"]), "pools": as_text(row["pools"]),
+            "adm": int(row["adm"]), "fc": int(row["fc"]), "wh": int(row["wh"]), "serve": int(row["serve"])}
+
+
+def _ctry_log_row(a2, field, old, new):
+    return ("INSERT INTO kabinet_data.country_change_log (alpha2, field, old_value, new_value, actor) "
+            "VALUES (%s, %s, %s, %s, %s)", (a2, field, old, new, _actor()))
+
+
+def _ctry_field_errs(key: str, field: str):
+    """Ошибка проверки под своим полем (ТЗ 002 §7: «ошибки показываются на уровне конкретного поля»)."""
+    for e in st.session_state.get(key, {}).get(field, []):
+        st.error(e)
 
 
 def _section_ctry():
-    st.caption(_tr("ctry_hint"))
-    st.caption(_tr("ctry_id_note"))
+    """Страны по общему приёму справочников (07.10.2026): инструкция → список с поиском и фильтром → карточка по
+    клику → форма создания. Правила ТЗ 002 v0.2 без изменений: ключ ссылок — Alpha-2, ISO-коды после создания
+    только для чтения, дубли ищутся по ВСЕМ записям (коды как есть, название без регистра и лишних пробелов),
+    физического удаления нет — только признак активности, деактивация с проверкой зависимостей (§8)."""
+    dict_kit.instruction(_tr("ctry_about"), _tr("ctry_id_note"))
+    _created = st.session_state.pop("ctry_created_code", None)
+    if _created:
+        st.success(_trf("ctry_created_ok", code=_created))
     _lang_col = {"ru": "name_ru", "uk": "name_uk"}.get(get_lang(), "name_en")
     ctry = q(f"""
         SELECT c.alpha2, c.alpha3, c."numeric" AS num, c.name, c.is_active,
@@ -3735,127 +3893,89 @@ def _section_ctry():
         LEFT JOIN kabinet_data.country_names n ON n.alpha2 = c.alpha2
         ORDER BY c.name
     """)
+    use = _ctry_usage()
 
-    f1, f2 = st.columns([3, 1])
-    needle = f1.text_input(_tr("ctry_search"), key="ctry_search").strip().lower()
-    only_active = f2.checkbox(_tr("ctry_only_active"), value=False, key="ctry_active_only")
+    f1, f2 = st.columns([2, 1])
+    needle = dict_kit.search_input(_tr("ctry_search"), "ctry_search", _tr, "Spain, ES, ESP, 724…", where=f1).lower()
+    # по умолчанию «Все», как и было: активных стран полтора десятка, остальные ISO-страны выключены, и
+    # список «только активные» прятал бы почти весь справочник
+    state_sel = f2.selectbox(_tr("sku_state_f"), ["all", "active", "inactive"], key="ctry_state_f",
+                             format_func=lambda x: _tr(f"ctry_state_{x}"))
     view = ctry
     if needle:
         view = view[view.apply(lambda r: needle in str(r["name"]).lower()
-                               or needle in str(r["local_name"] or "").lower()
-                               or needle in str(r["alpha2"]).lower()
-                               or needle in str(r["alpha3"]).lower()
-                               or needle == str(r["num"]), axis=1)]
-    if only_active:
-        view = view[view["is_active"]]
-    st.caption(_trf("ctry_found", n=len(view), all=len(ctry)))
+                               or needle in as_text(r["local_name"]).lower()
+                               or needle == str(r["alpha2"]).lower()
+                               or needle == str(r["alpha3"]).lower()
+                               or needle.lstrip("0") == str(r["num"]), axis=1)]
+        # точное совпадение кода — первой строкой: по «ES» ищут Испанию, а не Estonia и Seychelles
+        exact = (view["alpha2"].str.lower() == needle) | (view["alpha3"].str.lower() == needle)
+        view = pd.concat([view[exact], view[~exact]])
+    if state_sel != "all":
+        view = view[view["is_active"].astype(bool) == (state_sel == "active")]
+    st.caption(_trf("ctry_summary", shown=len(view), total=len(ctry),
+                    off=int((~ctry["is_active"].astype(bool)).sum())))
 
-    # активность правится из списка (ТЗ §7); ISO-коды и название — только в карточке
-    ed = st.data_editor(
-        view[["alpha2", "alpha3", "num", "name", "local_name", "is_active"]],
-        key="ed_ctry", hide_index=True, use_container_width=True, num_rows="fixed",
-        height=min(420, 38 + 35 * max(len(view), 1)),
-        disabled=["alpha2", "alpha3", "num", "name", "local_name"],
-        column_config={
-            "alpha2": st.column_config.TextColumn(_tr("ctry_col_a2"), width="small"),
-            "alpha3": st.column_config.TextColumn(_tr("ctry_col_a3"), width="small"),
-            "num": st.column_config.TextColumn(_tr("ctry_col_num"), width="small"),
-            "name": st.column_config.TextColumn(_tr("ctry_col_name"), width="medium"),
-            "local_name": st.column_config.TextColumn(_tr("ctry_col_local"), width="medium"),
-            "is_active": st.column_config.CheckboxColumn(_tr("col_active"), width="small"),
-        })
-    if st.button(_tr("save"), key="ctry_save_list"):
-        before = view.set_index("alpha2")
-        stmts = []
-        for r in ed.itertuples():
-            was = bool(before.loc[r.alpha2, "is_active"])
-            if bool(r.is_active) != was:
-                stmts.append(("UPDATE kabinet_data.countries SET is_active = %s WHERE alpha2 = %s",
-                              (bool(r.is_active), r.alpha2)))
-                stmts.append((CLOG, (r.alpha2, "is_active", str(was), str(bool(r.is_active)))))
-        if not stmts:
-            st.info(_tr("nochange"))
-        else:
-            try:
-                exec_sql(stmts); st.cache_data.clear(); st.success(_tr("ctry_saved")); st.rerun()
-            except Exception as e:
-                st.error(_trf("err", e=e))
+    def _used(a2):
+        if a2 not in use.index:
+            return ""
+        u = use.loc[a2]
+        parts = []
+        if as_text(u["mps"]):
+            parts.append(as_text(u["mps"]))
+        if int(u["wh"]):
+            parts.append(_trf("ctry_use_wh", n=int(u["wh"])))
+        if int(u["serve"]):
+            parts.append(_trf("ctry_use_serve", n=int(u["serve"])))
+        return " · ".join(parts) or _tr("ctry_use_none")
 
-    st.divider()
-    left, right = st.columns([1, 2])
-    with left:
-        with st.form("new_ctry", clear_on_submit=True):
-            st.markdown(f"**{_tr('ctry_new')}**")
-            n_a2 = st.text_input(_tr("ctry_col_a2"))
-            n_a3 = st.text_input(_tr("ctry_col_a3"))
-            n_num = st.text_input(_tr("ctry_col_num"))
-            n_name = st.text_input(_tr("ctry_col_name"))
-            if st.form_submit_button(_tr("ctry_create")):
-                a2, a3 = (n_a2 or "").strip().upper(), (n_a3 or "").strip().upper()
-                name = (n_name or "").strip()
-                errs = []
-                if not A2_RE.match(a2):
-                    errs.append(_tr("ctry_a2_bad"))
-                if not A3_RE.match(a3):
-                    errs.append(_tr("ctry_a3_bad"))
-                try:
-                    num = int((n_num or "").strip())
-                    if not 1 <= num <= 999:
-                        raise ValueError
-                except ValueError:
-                    num = None
-                    errs.append(_tr("ctry_num_bad"))
-                if not CNAME_RE.match(name):
-                    errs.append(_tr("ctry_name_bad"))
-                # дубли ищем среди ВСЕХ записей, активных и неактивных (ТЗ §4)
-                if a2 in set(ctry["alpha2"]):
-                    errs.append(_trf("ctry_dup_a2", v=a2,
-                                     name=ctry.set_index("alpha2").loc[a2, "name"]))
-                if a3 in set(ctry["alpha3"]):
-                    errs.append(_trf("ctry_dup_a3", v=a3,
-                                     name=ctry.set_index("alpha3").loc[a3, "name"]))
-                if num is not None and num in set(int(x) for x in ctry["num"]):
-                    errs.append(_trf("ctry_dup_num", v=num,
-                                     name=ctry[ctry["num"] == num]["name"].iloc[0]))
-                keys = {_cname_key(x): x for x in ctry["name"]}
-                if _cname_key(name) in keys:
-                    errs.append(_trf("ctry_dup_name", name=keys[_cname_key(name)]))
-                if errs:
-                    for e in errs:
-                        st.error(e)
-                else:
-                    try:
-                        exec_sql([
-                            ("INSERT INTO kabinet_data.countries (alpha2, alpha3, \"numeric\", name, is_active) "
-                             "VALUES (%s, %s, %s, %s, true)", (a2, a3, num, name)),
-                            (CLOG, (a2, "created", None, f"{a2}/{a3}/{num} {name}")),
-                        ])
-                        st.cache_data.clear(); st.success(_tr("ctry_created")); st.rerun()
-                    except Exception as e:
-                        st.error(_trf("err", e=e))
+    lst = pd.DataFrame({
+        "a2": view["alpha2"],
+        "name": view["name"],
+        "local": [as_text(x) for x in view["local_name"]],
+        "a3": view["alpha3"],
+        "num": [f"{int(x):03d}" for x in view["num"]],
+        "state": [_tr("ctry_state_active") if bool(a) else _tr("ctry_state_inactive") for a in view["is_active"]],
+        "used": [_used(a) for a in view["alpha2"]],
+    })
+    options = list(view["alpha2"])
+    picked = dict_kit.table_pick(lst, options, "ctry_list", (needle, state_sel), column_config={
+        "a2": st.column_config.TextColumn(_tr("ctry_col_id"), width=160, help=_tr("ctry_col_id_help")),
+        "name": st.column_config.TextColumn(_tr("ctry_col_name"), width="medium"),
+        "local": st.column_config.TextColumn(_tr("ctry_col_local"), width="medium", help=_tr("ctry_local_note")),
+        "a3": st.column_config.TextColumn(_tr("ctry_col_a3"), width=80),
+        "num": st.column_config.TextColumn(_tr("ctry_col_num"), width=80),
+        "state": st.column_config.TextColumn(_tr("sku_col_state"), width=100),
+        "used": st.column_config.TextColumn(_tr("ctry_col_used"), width="large", help=_tr("ctry_col_used_help")),
+    })
+    st.caption(_tr("ctry_list_empty") if lst.empty else _tr("ctry_list_hint"))
+    if options:
+        labels = {r.alpha2: f"{r.name} ({r.alpha2})" + ("" if r.is_active else f" · {_tr('ctry_state_inactive')}")
+                  for r in view.itertuples()}
+        st.markdown("#### " + _tr("ctry_card"))
+        sel = dict_kit.card_pick(_tr("ctry_pick"), options, labels, "ctry_card", picked)
+        _ctry_card(ctry.set_index("alpha2").loc[sel], sel, ctry)
 
-    with right:
-        if ctry.empty:
-            return
-        labels = {r.alpha2: f"{r.name} ({r.alpha2})" + ("" if r.is_active else f" · {_tr('wh_inactive')}")
-                  for r in ctry.itertuples()}
-        sel = st.selectbox(_tr("ctry_pick"), list(labels), format_func=lambda a: labels[a], key="ctry_pick")
-        row = ctry.set_index("alpha2").loc[sel]
-        st.markdown(f"##### {_tr('ctry_card')}")
+    _ctry_add_form(ctry)
+
+
+def _ctry_card(row, sel: str, ctry: pd.DataFrame):
+    can_edit = auth.can("dict.edit")
+    ekey = f"ctry_card_errs_{sel}"
+    with st.container(border=True):
+        st.markdown(f"**{row['name']} · {sel}**" + ("" if bool(row["is_active"]) else f"  \n{_tr('ctry_is_off')}"))
         c1, c2, c3 = st.columns(3)
-        c1.text_input(_tr("ctry_col_a2"), value=sel, disabled=True, key=f"ca2_{sel}")
+        c1.text_input(_tr("ctry_col_id"), value=sel, disabled=True, key=f"ca2_{sel}")
         c2.text_input(_tr("ctry_col_a3"), value=row["alpha3"], disabled=True, key=f"ca3_{sel}")
-        c3.text_input(_tr("ctry_col_num"), value=str(row["num"]), disabled=True, key=f"cnum_{sel}")
+        c3.text_input(_tr("ctry_col_num"), value=f"{int(row['num']):03d}", disabled=True, key=f"cnum_{sel}")
         st.caption(_tr("ctry_codes_ro"))
-        new_name = st.text_input(_tr("ctry_col_name"), value=row["name"], key=f"cname_{sel}")
-        if row["local_name"]:
+        new_name = st.text_input(_tr("ctry_col_name"), value=row["name"], key=f"cname_{sel}",
+                                 help=_tr("ctry_name_help"), disabled=not can_edit)
+        _ctry_field_errs(ekey, "name")
+        if as_text(row["local_name"]):
             st.caption(f"{_tr('ctry_col_local')}: {row['local_name']} · {_tr('ctry_local_note')}")
-        new_act = st.checkbox(_tr("col_active"), value=bool(row["is_active"]), key=f"cact_{sel}")
-        if bool(row["is_active"]) and not new_act:
-            st.warning(_tr("ctry_off_deps") + ": " + "; ".join(_country_deps(sel)))
-            st.caption(_tr("ctry_off_note"))
-
-        if st.button(_tr("save"), key=f"ctry_save_{sel}", type="primary"):
+        if st.button(_tr("save"), key=f"ctry_save_{sel}", type="primary", disabled=not can_edit,
+                     help=None if can_edit else _tr("sku_ro_help")):
             name = (new_name or "").strip()
             errs = []
             if not CNAME_RE.match(name):
@@ -3865,37 +3985,172 @@ def _section_ctry():
             if _cname_key(name) in keys:
                 errs.append(_trf("ctry_dup_name", name=keys[_cname_key(name)]))
             if errs:
-                for e in errs:
-                    st.error(e)
+                st.session_state[ekey] = {"name": errs}
+                st.rerun()
+            st.session_state.pop(ekey, None)
+            if name == row["name"]:
+                st.info(_tr("nochange"))
             else:
-                stmts = []
-                if name != row["name"]:
-                    stmts.append(("UPDATE kabinet_data.countries SET name = %s WHERE alpha2 = %s", (name, sel)))
-                    stmts.append((CLOG, (sel, "name", row["name"], name)))
-                if bool(new_act) != bool(row["is_active"]):
-                    stmts.append(("UPDATE kabinet_data.countries SET is_active = %s WHERE alpha2 = %s",
-                                  (bool(new_act), sel)))
-                    stmts.append((CLOG, (sel, "is_active", str(bool(row["is_active"])), str(bool(new_act)))))
-                if not stmts:
-                    st.info(_tr("nochange"))
-                else:
-                    try:
-                        exec_sql(stmts); st.cache_data.clear(); st.success(_tr("ctry_saved")); st.rerun()
-                    except Exception as e:
-                        st.error(_trf("err", e=e))
+                try:
+                    exec_sql([("UPDATE kabinet_data.countries SET name = %s WHERE alpha2 = %s", (name, sel)),
+                              _ctry_log_row(sel, "name", row["name"], name)])
+                    st.cache_data.clear(); st.success(_tr("ctry_saved")); st.rerun()
+                except Exception as e:
+                    st.error(_trf("err", e=e))
 
-        with st.expander(_tr("ctry_log")):
-            lg = q1("""SELECT changed_at, field, old_value, new_value, actor
-                       FROM kabinet_data.country_change_log WHERE alpha2 = %s
-                       ORDER BY changed_at DESC LIMIT 200""", (sel,))
-            if lg.empty:
-                st.caption(_tr("mp_log_empty"))
-            else:
-                lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
-                lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"),
-                              _tr("mp_log_new"), _tr("mp_log_who")]
-                st.dataframe(lg, hide_index=True, use_container_width=True,
-                             height=min(300, 38 + 35 * len(lg)))
+    if can_edit:
+        _ctry_activity(row, sel)
+
+    with st.expander(_tr("ctry_log")):
+        lg = q1("""SELECT changed_at, field, old_value, new_value, actor
+                   FROM kabinet_data.country_change_log WHERE alpha2 = %s
+                   ORDER BY changed_at DESC LIMIT 200""", (sel,))
+        if lg.empty:
+            st.caption(_tr("mp_log_empty"))
+        else:
+            lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg["field"] = [_tr(f"ctry_logf_{f}") if f in ("name", "is_active", "created", "migration_plan") else f
+                           for f in lg["field"]]
+            lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"),
+                          _tr("mp_log_new"), _tr("mp_log_who")]
+            st.dataframe(lg, hide_index=True, use_container_width=True, height=min(300, 38 + 35 * len(lg)))
+
+
+def _ctry_activity(row, sel: str):
+    """Сделать неактивной / вернуть (ТЗ 002 §3, §8). Удаления нет. Перед деактивацией — всё, что от страны
+    зависит; пока у неё есть действующие маркетплейсы (новые операции по ним не закрыты), деактивация проходит
+    только с подтверждённым планом миграции — он ложится в историю страны."""
+    box = st.container(border=True)
+    box.markdown("**" + _tr("ctry_act_h") + "**")
+    flag = f"ctry_off_ask_{sel}"
+    if not bool(row["is_active"]):
+        box.caption(_tr("ctry_on_note"))
+        if box.button(_tr("ctry_act_on"), key=f"ctry_on_{sel}"):
+            _ctry_set_active(sel, True)
+        return
+    if not st.session_state.get(flag):
+        box.caption(_tr("ctry_off_note"))
+        if box.button(_tr("ctry_act_off"), key=f"ctry_off_{sel}"):
+            st.session_state[flag] = True
+            st.rerun()
+        return
+    d = _country_deps(sel)
+    lines = []
+    if d["mps_n"]:
+        lines.append(_trf("ctry_dep_mps", n=d["mps_n"], codes=d["mps"]))
+    if d["pools"]:
+        lines.append(_trf("ctry_dep_pools", names=d["pools"]))
+    if d["adm"]:
+        lines.append(_trf("ctry_dep_adm", n=d["adm"]))
+    if d["fc"]:
+        lines.append(_trf("ctry_dep_fc", n=d["fc"]))
+    if d["wh"]:
+        lines.append(_trf("ctry_dep_wh", n=d["wh"]))
+    if d["serve"]:
+        lines.append(_trf("ctry_dep_serve", n=d["serve"]))
+    if lines:
+        box.warning(_tr("ctry_off_deps") + ":\n\n" + "\n".join(f"- {x}" for x in lines)
+                    + "\n\n" + _tr("ctry_off_deps_tail"))
+    else:
+        box.info(_tr("ctry_dep_none"))
+    plan = ""
+    if d["mps_n"]:
+        box.caption(_tr("ctry_need_plan"))
+        plan = box.text_area(_tr("ctry_plan"), key=f"ctry_plan_{sel}", help=_tr("ctry_plan_help")).strip()
+    c1, c2 = box.columns(2)
+    blocked = bool(d["mps_n"]) and not plan
+    if c1.button(_tr("ctry_act_off_yes"), key=f"ctry_off_yes_{sel}", type="primary", disabled=blocked,
+                 help=_tr("ctry_plan_needed") if blocked else None):
+        st.session_state.pop(flag, None)
+        _ctry_set_active(sel, False, plan or None)
+    if c2.button(_tr("del_confirm_no"), key=f"ctry_off_no_{sel}"):
+        st.session_state.pop(flag, None)
+        st.rerun()
+
+
+def _ctry_set_active(sel: str, active: bool, plan: str | None = None):
+    stmts = [("UPDATE kabinet_data.countries SET is_active = %s WHERE alpha2 = %s", (active, sel)),
+             _ctry_log_row(sel, "is_active", str(not active), str(active))]
+    if plan:
+        stmts.append(_ctry_log_row(sel, "migration_plan", None, plan))
+    try:
+        exec_sql(stmts)
+        st.cache_data.clear()
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
+
+
+def _ctry_add_form(ctry: pd.DataFrame):
+    """Создание страны (ТЗ 002): все четыре поля обязательны, страна создаётся активной. Проверки формата и
+    дублей — до сохранения и по ВСЕМ записям, ошибка — под своим полем (§7)."""
+    st.markdown("#### " + _tr("ctry_new"))
+    if not auth.can("dict.edit"):
+        st.caption(_tr("ctry_ro_add"))
+        return
+    st.caption(_tr("ctry_add_note"))
+    ekey = "ctry_add_errs"
+    a1, a2c, a3c = st.columns(3)
+    with a1:
+        n_a2 = st.text_input(_tr("ctry_col_a2") + " *", key="ctry_add_a2", placeholder="DE", help=_tr("ctry_a2_help"))
+        _ctry_field_errs(ekey, "a2")
+    with a2c:
+        n_a3 = st.text_input(_tr("ctry_col_a3") + " *", key="ctry_add_a3", placeholder="DEU", help=_tr("ctry_a3_help"))
+        _ctry_field_errs(ekey, "a3")
+    with a3c:
+        n_num = st.text_input(_tr("ctry_col_num") + " *", key="ctry_add_num", placeholder="276",
+                              help=_tr("ctry_num_help"))
+        _ctry_field_errs(ekey, "num")
+    n_name = st.text_input(_tr("ctry_col_name") + " *", key="ctry_add_name", placeholder="Germany",
+                           help=_tr("ctry_name_help"))
+    _ctry_field_errs(ekey, "name")
+    if not st.button(_tr("ctry_create"), key="ctry_add_go", type="primary"):
+        return
+    a2, a3 = (n_a2 or "").strip().upper(), (n_a3 or "").strip().upper()
+    name = (n_name or "").strip()
+    errs = {}
+    # дубли ищем среди ВСЕХ записей, активных и неактивных (ТЗ §4); читаем без кеша — проверка перед записью
+    allc = q_now('SELECT alpha2, alpha3, "numeric" AS num, name FROM kabinet_data.countries', ())
+    if not A2_RE.match(a2):
+        errs.setdefault("a2", []).append(_tr("ctry_a2_bad"))
+    elif a2 in set(allc["alpha2"]):
+        errs.setdefault("a2", []).append(_trf("ctry_dup_a2", v=a2, name=allc.set_index("alpha2").loc[a2, "name"]))
+    if not A3_RE.match(a3):
+        errs.setdefault("a3", []).append(_tr("ctry_a3_bad"))
+    elif a3 in set(allc["alpha3"]):
+        errs.setdefault("a3", []).append(_trf("ctry_dup_a3", v=a3, name=allc.set_index("alpha3").loc[a3, "name"]))
+    try:
+        num = int((n_num or "").strip())
+        if not 1 <= num <= 999:
+            raise ValueError
+    except ValueError:
+        num = None
+        errs.setdefault("num", []).append(_tr("ctry_num_bad"))
+    if num is not None and num in set(int(x) for x in allc["num"]):
+        errs.setdefault("num", []).append(_trf("ctry_dup_num", v=f"{num:03d}",
+                                               name=allc[allc["num"] == num]["name"].iloc[0]))
+    if not CNAME_RE.match(name):
+        errs.setdefault("name", []).append(_tr("ctry_name_bad"))
+    else:
+        keys = {_cname_key(x): x for x in allc["name"]}
+        if _cname_key(name) in keys:
+            errs.setdefault("name", []).append(_trf("ctry_dup_name", name=keys[_cname_key(name)]))
+    if errs:
+        st.session_state[ekey] = errs
+        st.rerun()
+    st.session_state.pop(ekey, None)
+    try:
+        exec_sql([("INSERT INTO kabinet_data.countries (alpha2, alpha3, \"numeric\", name, is_active) "
+                   "VALUES (%s, %s, %s, %s, true)", (a2, a3, num, name)),
+                  _ctry_log_row(a2, "created", None, f"{a2} / {a3} / {num:03d} · {name}")])
+        st.cache_data.clear()
+        for k in ("ctry_add_a2", "ctry_add_a3", "ctry_add_num", "ctry_add_name"):
+            st.session_state.pop(k, None)
+        dict_kit.card_focus("ctry_card", a2)
+        st.session_state["ctry_created_code"] = a2
+        st.rerun()
+    except Exception as e:
+        st.error(_trf("err", e=e))
 
 # ---------------------------------------------------------------- ТЗ 003 ---
 SHORT_RE = re.compile(r"^[A-Z0-9]{2,10}$")
