@@ -2289,6 +2289,8 @@ _CH_TR = {
         "ch_need_days": "Укажите плановый срок в днях — без него автозаказ не сможет посчитать плечо.",
         "ch_exists_archived": "Такая связь уже есть в архиве — найдите её (статус «Все») и верните из архива.",
         "ch_created_ok": "Связь {name} добавлена. Карточка открыта ниже.",
+        "ch_col_changed": "Изменено", "ch_col_changed_help": "Последняя правка связи: когда (по Киеву) и кто. Журнал ведётся с 07.10.2026 — у связей, которые с тех пор не правили, пусто.",
+        "wh_ch_log": "История изменений сроков поставки на этот склад",
     },
     "uk": {
         "ch_about": "**Підживлення** — який склад який поповнює і за скільки днів (плановий термін постачання). За цими термінами рахуються автозамовлення (коли товар встигне приїхати) і переміщення на FBA.  \n**Як працювати:** знайдіть зв’язок пошуком за складом → натисніть на рядок → нижче відкриється картка: там змінюються тип маршруту, плановий термін і примітка, зв’язок переводиться в архів або повертається. Новий зв’язок — формою «Додати зв’язок підживлення» внизу. Той самий термін можна правити в картці складу-отримувача («Довідники → Склади») — це той самий запис.",
@@ -2328,6 +2330,8 @@ _CH_TR = {
         "ch_need_days": "Вкажіть плановий термін у днях — без нього автозамовлення не зможе порахувати плече.",
         "ch_exists_archived": "Такий зв’язок уже є в архіві — знайдіть його (статус «Усі») і поверніть з архіву.",
         "ch_created_ok": "Зв’язок {name} додано. Картка відкрита нижче.",
+        "ch_col_changed": "Змінено", "ch_col_changed_help": "Остання правка зв’язку: коли (за Києвом) і хто. Журнал ведеться з 07.10.2026 — у зв’язків, які відтоді не правили, порожньо.",
+        "wh_ch_log": "Історія змін термінів постачання на цей склад",
     },
     "en": {
         "ch_about": "**Supply chains** — which warehouse replenishes which and in how many days (planned lead time). Reorder (when goods will arrive) and transfers to FBA are calculated from these lead times.  \n**How to use it:** find a link by searching a warehouse → click its row → the card opens below, where you change the route type, planned lead time and note, archive the link or restore it. Add a new link with the «Add supply link» form at the bottom. The same lead time can be edited in the receiving warehouse card («Directories → Warehouses») — it is one and the same record.",
@@ -2367,6 +2371,8 @@ _CH_TR = {
         "ch_need_days": "Enter the planned lead time in days — reorder can't compute the leg without it.",
         "ch_exists_archived": "This link already exists in the archive — find it (status «All») and restore it.",
         "ch_created_ok": "Link {name} added. Its card is open below.",
+        "ch_col_changed": "Changed", "ch_col_changed_help": "Last change of the link: when (Kyiv time) and who. The log is kept since 07.10.2026 — links not edited since then are empty.",
+        "wh_ch_log": "Lead time change history for links into this warehouse",
     },
 }
 for _lg, _d in _CH_TR.items():
@@ -2501,6 +2507,12 @@ def _lang() -> str:
 
 def _tr(key: str) -> str:
     return TR[_lang()].get(key, TR["ru"].get(key, key))
+
+
+def _kyiv_ts(col) -> pd.Series:
+    """Время журнала — по Киеву (07.10.2026). В базе оно в UTC, и журналы показывали 15:55 там, где человек нажимал
+    кнопку в 18:55 — запись выглядела чужой или «не той». Время без зоны в базе тоже UTC (now() сессии в UTC)."""
+    return pd.to_datetime(col, utc=True).dt.tz_convert("Europe/Kyiv").dt.strftime("%d.%m.%Y %H:%M")
 
 
 def _actor() -> str:
@@ -3361,6 +3373,23 @@ def _section_wh():
                                    "is_active": st.column_config.CheckboxColumn(_tr("col_active"))})
                 if not src["actual_days"].notna().any():
                     st.caption(_trf("wh_lt_nofact", n=_ttn_all, k=_ttn_closed))
+                # тот же журнал, что в «Подпитке»: срок правят в двух местах, и кто его менял, видно в обоих
+                with st.expander(_tr("wh_ch_log")):
+                    _wl = q1("""SELECT l.ts, COALESCE(fa.display_name, f.name) AS src, l.field, l.old_value, l.new_value, l.actor
+                                FROM kabinet_data.supply_chain_change_log l
+                                JOIN kabinet_data.supply_chains c ON c.id = l.chain_id
+                                LEFT JOIN kabinet_data.warehouses f ON f.id = c.from_warehouse_id
+                                LEFT JOIN kabinet_data.warehouse_attributes fa ON fa.warehouse_id = f.id
+                                WHERE c.to_warehouse_id = %s ORDER BY l.ts DESC LIMIT 200""", (int(sel),))
+                    if _wl.empty:
+                        st.caption(_tr("ch_log_empty"))
+                    else:
+                        _wl["ts"] = _kyiv_ts(_wl["ts"])
+                        _wl["field"] = [_tr(f"ch_logf_{f}") if f in ("created", "median_days", "route_type", "note", "is_active")
+                                        else f for f in _wl["field"]]
+                        _wl.columns = [_tr("mp_log_when"), _tr("col_src"), _tr("mp_log_field"), _tr("mp_log_old"),
+                                       _tr("mp_log_new"), _tr("mp_log_who")]
+                        st.dataframe(_wl, hide_index=True, use_container_width=True, height=min(260, 38 + 35 * len(_wl)))
 
             # ── страны обслуживания, Long Term, график отгрузки, внешние коды (ТЗ 001) ──
             st.markdown("##### " + _tr("wh_serve_h"))
@@ -3634,13 +3663,17 @@ def _ch_load() -> pd.DataFrame:
                COALESCE(fa.display_name, f.name)  AS from_name,
                COALESCE(ta.display_name, tw.name) AS to_name,
                c.route_type, c.median_days, c.lead_source, c.sample_size, c.is_active, c.note,
-               lt.actual_days, lt.shipments, lt.last_delivery
+               lt.actual_days, lt.shipments, lt.last_delivery,
+               lg.ts AS last_change_at, lg.actor AS last_change_by
         FROM kabinet_data.supply_chains c
         LEFT JOIN kabinet_data.warehouses f  ON f.id  = c.from_warehouse_id
         LEFT JOIN kabinet_data.warehouses tw ON tw.id = c.to_warehouse_id
         LEFT JOIN kabinet_data.warehouse_attributes fa ON fa.warehouse_id = f.id
         LEFT JOIN kabinet_data.warehouse_attributes ta ON ta.warehouse_id = tw.id
         LEFT JOIN kabinet_data.supply_lead_time_facts lt ON lt.route_id = c.id
+        -- последняя правка связи — кто и когда (журнал ведётся с 07.10.2026)
+        LEFT JOIN LATERAL (SELECT l.ts, l.actor FROM kabinet_data.supply_chain_change_log l
+                           WHERE l.chain_id = c.id ORDER BY l.ts DESC LIMIT 1) lg ON true
         ORDER BY 5, 4
     """)
 
@@ -3702,6 +3735,8 @@ def _section_ch():
         "basis": [_ch_basis(r) for _, r in view.iterrows()],
         "state": [_tr("sku_state_active") if bool(a) else _tr("sku_state_archived") for a in view["is_active"]],
         "note": [as_text(x) for x in view["note"]],
+        "changed": [(f"{t_} · {as_text(a)}" if as_text(a) else "") for t_, a in
+                    zip(_kyiv_ts(view["last_change_at"]).fillna(""), view["last_change_by"])],
     })
     options = [int(i) for i in view["id"]]
     picked = dict_kit.table_pick(lst, options, "ch_list", (needle, route_sel, state_sel), column_config={
@@ -3714,6 +3749,7 @@ def _section_ch():
         "basis": st.column_config.TextColumn(_tr("col_basis"), width=120, help=_tr("ch_basis_help")),
         "state": st.column_config.TextColumn(_tr("sku_col_state"), width=90),
         "note": st.column_config.TextColumn(_tr("col_note"), width="large"),
+        "changed": st.column_config.TextColumn(_tr("ch_col_changed"), width="medium", help=_tr("ch_col_changed_help")),
     })
     st.caption(_tr("ch_list_empty") if lst.empty else _tr("ch_list_hint"))
     if options:
@@ -3785,7 +3821,7 @@ def _ch_card(row, sel: int, route_lbl: dict):
         if lg.empty:
             st.caption(_tr("ch_log_empty"))
         else:
-            lg["ts"] = pd.to_datetime(lg["ts"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg["ts"] = _kyiv_ts(lg["ts"])
             lg["field"] = [_tr(f"ch_logf_{f}") if f in ("created", "median_days", "route_type", "note", "is_active")
                            else f for f in lg["field"]]
             lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"), _tr("mp_log_new"), _tr("mp_log_who")]
@@ -4161,7 +4197,7 @@ def _mp_card(row, sel: int, plats, countries, curr):
         if lg.empty:
             st.caption(_tr("mp_log_empty"))
         else:
-            lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg["changed_at"] = _kyiv_ts(lg["changed_at"])
             lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"),
                           _tr("mp_log_new"), _tr("mp_log_who")]
             st.dataframe(lg, hide_index=True, use_container_width=True,
@@ -4618,7 +4654,7 @@ def _ctry_card(row, sel: str, ctry: pd.DataFrame):
         if lg.empty:
             st.caption(_tr("mp_log_empty"))
         else:
-            lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg["changed_at"] = _kyiv_ts(lg["changed_at"])
             lg["field"] = [_tr(f"ctry_logf_{f}") if f in ("name", "is_active", "created", "migration_plan") else f
                            for f in lg["field"]]
             lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"),
@@ -5004,7 +5040,7 @@ def _plat_card(row, sel: int, plats, mp_cnt):
         if lg.empty:
             st.caption(_tr("mp_log_empty"))
         else:
-            lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg["changed_at"] = _kyiv_ts(lg["changed_at"])
             lg.columns = [_tr("mp_log_when"), _tr("mp_log_field"), _tr("mp_log_old"),
                           _tr("mp_log_new"), _tr("mp_log_who")]
             st.dataframe(lg, hide_index=True, use_container_width=True,
@@ -5850,7 +5886,7 @@ def _norm_card(row, sel: int, rows_now: int, today, LVL_SHOW):
         if lg.empty:
             st.caption(_tr("norm_log_none"))
         else:
-            lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg["changed_at"] = _kyiv_ts(lg["changed_at"])
             lg["action"] = [_tr(f"norm_act_{a}") if a in ("created", "closed") else a for a in lg["action"]]
             lg.columns = [_tr("mp_log_when"), _tr("norm_log_action"), _tr("mp_log_who"), _tr("norm_note")]
             st.dataframe(lg, hide_index=True, use_container_width=True, height=min(260, 38 + 35 * len(lg)))
@@ -7187,7 +7223,7 @@ def _section_vg():
                     if _gl.empty:
                         st.caption(_tr("vg_log_none"))
                     else:
-                        _gl["changed_at"] = pd.to_datetime(_gl["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+                        _gl["changed_at"] = _kyiv_ts(_gl["changed_at"])
                         st.dataframe(_gl, hide_index=True, use_container_width=True, height=min(300, 38 + 35 * len(_gl)))
 
 
