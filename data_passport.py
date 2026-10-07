@@ -61,7 +61,7 @@ PAGES = {
         Source("returns", "v_returns_cogs_credit", "return_date", "Kabinet - Returns Loader", 96, ("margin",),
                watch=False),
         Source("traffic", "sales_traffic_daily", "snapshot_date", "Kabinet - Sales & Traffic Replica", 72,
-               ("ordered", "plan", "tacos")),
+               ("ordered", "ordered_all", "plan", "tacos")),
         # план месяца неделями не меняется по делу, а инциденты молчат, когда всё хорошо:
         # у обоих дату показываем, но в «устарело» не записываем — иначе предупреждение
         # висело бы там, где ничего не случилось, и его перестали бы читать

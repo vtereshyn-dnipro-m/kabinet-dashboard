@@ -28,7 +28,7 @@ ES 100 %, IT 102 %, FR 104 %, DE 104 %, GB 100 %, BE 91 % от заказанн�
 −63 % к плану при реальных −40 %.
 """
 import calendar
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 
@@ -233,7 +233,9 @@ SQL_MONTH = """
 
 def load_month(conn, today: date) -> pd.DataFrame:
     """Маркетплейсы (факт с начала месяца + собственный план) и пулы (план) за текущий месяц."""
-    df = pd.read_sql(SQL_MONTH, conn, params={"m0": today.replace(day=1), "d1": today})
+    # факт — по вчера включительно: сегодняшний день данными не считается никогда (решение владельца 07.10.2026) —
+    # отгрузки за сегодня приходят частью, и подпись блока называла бы сегодняшнюю дату днём с данными
+    df = pd.read_sql(SQL_MONTH, conn, params={"m0": today.replace(day=1), "d1": today - timedelta(days=1)})
     if df.empty:
         return df
     df["data_through"] = pd.to_datetime(df["data_through"]).dt.date

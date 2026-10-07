@@ -185,6 +185,14 @@ def period_line(st_: DayStatus, cur_from, as_of, end, loaded_last=None) -> str:
     if as_of is None or pd.isna(as_of):
         return ""
     as_of = pd.Timestamp(as_of)
+    # Сегодняшний день не называется вовсе — ни днём с данными, ни днём, «за который отчёта ещё нет» (07.10.2026):
+    # за сегодня полного отчёта не бывает по определению. Конец периода у пресета — сегодня, поэтому режем до вчера
+    _today = st_.today if pd.notna(st_.today) else pd.Timestamp(date.today())
+    _yday = pd.Timestamp(_today).normalize() - pd.Timedelta(days=1)
+    if end is not None and pd.notna(end) and pd.Timestamp(end) > _yday:
+        end = _yday
+    if loaded_last is not None and pd.notna(loaded_last) and pd.Timestamp(loaded_last) > _yday:
+        loaded_last = _yday
     f = pd.Timestamp(cur_from).strftime("%d.%m") if cur_from is not None and pd.notna(cur_from) else None
     if loaded_last is not None and pd.notna(loaded_last) and pd.Timestamp(loaded_last) > as_of:
         cut_from = as_of + pd.Timedelta(days=1)

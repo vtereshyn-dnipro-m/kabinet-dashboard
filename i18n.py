@@ -973,13 +973,13 @@ TRANSLATIONS = {
     "home.plan.title": {
         "ru": "План месяца", "uk": "План місяця", "en": "Month plan"},
     "home.plan.note": {
-        "ru": "Деньги с НДС, только Amazon: план — по листу, факт — отгруженное покупателю по {d} включительно (по дате отгрузки, а не заказа; поэтому сумма не равна карточке «Продажи по заказам»: в месяц входят отгрузки заказов конца прошлого месяца и не входят заказы, которые ещё не уехали — на сентябре расхождение около 2 %). Ожидание — "
+        "ru": "Деньги с НДС, только Amazon: план — по листу, факт — отгруженное покупателю по {d} включительно (по дате отгрузки, а не заказа; поэтому сумма не равна карточке «Продажи Amazon по заказам»: в месяц входят отгрузки заказов конца прошлого месяца и не входят заказы, которые ещё не уехали — на сентябре расхождение около 2 %). Ожидание — "
               "доля календарных дней месяца с данными ({k} из {n}). Темп: "
               "факт / ожидание − 1, порог {thr}%.",
-        "uk": "Гроші з ПДВ, лише Amazon: план — за листом, факт — відвантажене покупцеві по {d} включно (за датою відвантаження, а не замовлення; тому сума не дорівнює картці «Продажі за замовленнями»: до місяця входять відвантаження замовлень кінця минулого місяця і не входять замовлення, які ще не поїхали — у вересні розбіжність близько 2 %). Очікування — "
+        "uk": "Гроші з ПДВ, лише Amazon: план — за листом, факт — відвантажене покупцеві по {d} включно (за датою відвантаження, а не замовлення; тому сума не дорівнює картці «Продажі Amazon за замовленнями»: до місяця входять відвантаження замовлень кінця минулого місяця і не входять замовлення, які ще не поїхали — у вересні розбіжність близько 2 %). Очікування — "
               "частка календарних днів місяця з даними ({k} з {n}). Темп: "
               "факт / очікування − 1, поріг {thr}%.",
-        "en": "Money incl. VAT, Amazon only: plan per the sheet, fact — shipped to the customer through {d} (by ship date, not order date; the sum therefore differs from the «Ordered sales» card: shipments of late-previous-month orders count in, orders not yet shipped do not — about 2 % apart in September). Expectation is "
+        "en": "Money incl. VAT, Amazon only: plan per the sheet, fact — shipped to the customer through {d} (by ship date, not order date; the sum therefore differs from the «Amazon ordered sales» card: shipments of late-previous-month orders count in, orders not yet shipped do not — about 2 % apart in September). Expectation is "
               "the share of calendar days with data ({k} of {n}). Pace: "
               "fact / expected − 1, threshold {thr}%.",
     },
@@ -1021,9 +1021,9 @@ TRANSLATIONS = {
         "uk": "План × {k} днів з даними / {n} днів у місяці",
         "en": "Plan × {k} days with data / {n} days in month"},
     "home.plan.total_fact_help": {
-        "ru": "Отгруженное покупателю с НДС по всем строкам блока, включая страны без плана (BE, GB): отчёт отгрузок FBA плюс MFN мадридского склада, цена — из строки заказа. Карточка «Продажи по заказам» считает по дате заказа, поэтому суммы не обязаны совпадать. Каналы Mirakl в блок не входят: план есть только по Amazon. Темп в дельте — только по строкам, у которых план есть",
-        "uk": "Відвантажене покупцеві з ПДВ за всіма рядками блоку, включно з країнами без плану (BE, GB): звіт відвантажень FBA плюс MFN мадридського складу, ціна — з рядка замовлення. Картка «Продажі за замовленнями» рахує за датою замовлення, тому суми не мусять збігатися. Канали Mirakl до блоку не входять: план є лише за Amazon. Темп у дельті — лише за рядками, де план є",
-        "en": "Shipped to the customer incl. VAT across all rows, including countries without a plan (BE, GB): the FBA shipments report plus MFN from the Madrid warehouse, priced from the order line. The «Ordered sales» card counts by order date, so the sums need not match. Mirakl channels are not in this block: the plan exists for Amazon only. The pace delta covers only rows that have a plan"},
+        "ru": "Отгруженное покупателю с НДС по всем строкам блока, включая страны без плана (BE, GB): отчёт отгрузок FBA плюс MFN мадридского склада, цена — из строки заказа. Карточка «Продажи Amazon по заказам» считает по дате заказа, поэтому суммы не обязаны совпадать. Каналы Mirakl в блок не входят: план есть только по Amazon. Темп в дельте — только по строкам, у которых план есть",
+        "uk": "Відвантажене покупцеві з ПДВ за всіма рядками блоку, включно з країнами без плану (BE, GB): звіт відвантажень FBA плюс MFN мадридського складу, ціна — з рядка замовлення. Картка «Продажі Amazon за замовленнями» рахує за датою замовлення, тому суми не мусять збігатися. Канали Mirakl до блоку не входять: план є лише за Amazon. Темп у дельті — лише за рядками, де план є",
+        "en": "Shipped to the customer incl. VAT across all rows, including countries without a plan (BE, GB): the FBA shipments report plus MFN from the Madrid warehouse, priced from the order line. The «Amazon ordered sales» card counts by order date, so the sums need not match. Mirakl channels are not in this block: the plan exists for Amazon only. The pace delta covers only rows that have a plan"},
     "home.plan.total_help": {
         "ru": "Сумма по всем объектам плана текущего месяца; одинакова во всех разрезах",
         "uk": "Сума за всіма обʼєктами плану поточного місяця; однакова в усіх розрізах",
@@ -1110,9 +1110,9 @@ TRANSLATIONS = {
         "en": "No change vs the previous period on purpose — COGS of returns from the defect warehouse arrives 6–23 days late, so past weeks would always look richer."},
     "mn.provisional": {"ru": "{days} предварительно, Amazon может уточнить до ~{gap} %.", "uk": "{days} попередньо, Amazon може уточнити до ~{gap} %.", "en": "{days} is provisional, Amazon may revise it by up to ~{gap} %."},
     "mn.prov_yesterday": {"ru": "вчера ({d})", "uk": "вчора ({d})", "en": "yesterday ({d})"},
-    "home.kpi.as_of_split": {"ru": "Продажи по заказам — по {o} включительно, деньги и маржа — по {m}.",
-                             "uk": "Продажі за замовленнями — по {o} включно, гроші та маржа — по {m}.",
-                             "en": "Ordered sales through {o} inclusive, money and margin through {m}."},
+    "home.kpi.as_of_split": {"ru": "Продажи Amazon по заказам — по {o} включительно, деньги и маржа — по {m}.",
+                             "uk": "Продажі Amazon за замовленнями — по {o} включно, гроші та маржа — по {m}.",
+                             "en": "Amazon ordered sales through {o} inclusive, money and margin through {m}."},
     "home.plan.col_done": {"ru": "Выполнение", "uk": "Виконання", "en": "Done"},
     "home.plan.col_pace": {"ru": "Темп", "uk": "Темп", "en": "Pace"},
     "home.plan.col_pace_to": {"ru": "Темп к ожиданию по {d}", "uk": "Темп до очікування по {d}", "en": "Pace vs expected through {d}"},
@@ -1149,7 +1149,17 @@ TRANSLATIONS = {
         "uk": "На місяці обраного періоду плану в реєстрі немає.",
         "en": "No plan in the register for the months of the selected period."},
     "home.kpi.ordered": {
-        "ru": "Продажи по заказам", "uk": "Продажі за замовленнями", "en": "Ordered sales"},
+        "ru": "Продажи Amazon по заказам", "uk": "Продажі Amazon за замовленнями", "en": "Amazon ordered sales"},
+    # Продажи с НДС по всем каналам — то, что в Power BI Дарины «Revenue VAT Incl» (07.10.2026)
+    "home.kpi.sales_all": {"ru": "Продажи с НДС, все каналы", "uk": "Продажі з ПДВ, усі канали", "en": "Sales incl. VAT, all channels"},
+    "home.kpi.sales_all_extra": {
+        "ru": "до возвратов · Wallapop и сайт не загружаются (у Дарины они есть)",
+        "uk": "до повернень · Wallapop і сайт не завантажуються (у Дарини вони є)",
+        "en": "before returns · Wallapop and the website are not loaded (Darina has them)"},
+    "home.kpi.sales_all_help": {
+        "ru": "Сумма заказов по всем каналам Кабинета: Amazon (витрина Seller Central) плюс Leroy Merlin, ManoMano и Carrefour (строки заказов с НДС, без отменённых; у Leroy Merlin — без строк REFUNDED). Тот же отбор, что в Power BI Дарины («Revenue VAT Incl»), поэтому по каждому каналу цифры совпадают до евро. Разница с её итогом — Wallapop и сайт: их в Кабинете нет.",
+        "uk": "Сума замовлень за всіма каналами Кабінету: Amazon (вітрина Seller Central) плюс Leroy Merlin, ManoMano і Carrefour (рядки замовлень з ПДВ, без скасованих; у Leroy Merlin — без рядків REFUNDED). Той самий відбір, що в Power BI Дарини («Revenue VAT Incl»), тож за кожним каналом цифри збігаються до євро. Різниця з її підсумком — Wallapop і сайт: їх у Кабінеті немає.",
+        "en": "Orders across all Kabinet channels: Amazon (Seller Central storefront report) plus Leroy Merlin, ManoMano and Carrefour (order lines incl. VAT, excluding cancelled; Leroy Merlin without REFUNDED lines). Same selection as Darina's Power BI («Revenue VAT Incl»), so every channel matches to the euro. The gap to her total is Wallapop and the website, which Kabinet doesn't have."},
     "home.kpi.ordered_help_span": {
         "ru": "Внимание: это число за {of} — {ot}, а «Выручка» рядом за {mf} — {mt}. "
               "Отчёт заказов отстаёт на день, финансовые отчёты Amazon — на 2-3, поэтому "
@@ -1176,35 +1186,35 @@ TRANSLATIONS = {
               "by order date, cancellations not deducted. This is the storefront, not cash",
     },
     "home.sales.channels_basis": {
-        "ru": "Выручка без НДС и после возвратов — база для маржи. Это не «Продажи по заказам» из карточки сверху: та с НДС и до отмен.",
-        "uk": "Виручка без ПДВ і після повернень — база для маржі. Це не «Продажі за замовленнями» з картки згори: та з ПДВ і до скасувань.",
-        "en": "Revenue net of VAT and refunds — the margin base. Not the «Ordered sales» card above: that one is VAT-inclusive and before cancellations."},
+        "ru": "Выручка без НДС и после возвратов — база для маржи. Это не «Продажи Amazon по заказам» из карточки сверху: та с НДС и до отмен.",
+        "uk": "Виручка без ПДВ і після повернень — база для маржі. Це не «Продажі Amazon за замовленнями» з картки згори: та з ПДВ і до скасувань.",
+        "en": "Revenue net of VAT and refunds — the margin base. Not the «Amazon ordered sales» card above: that one is VAT-inclusive and before cancellations."},
     "home.sales.two_numbers_lag": {
         "ru": " Четвёртое слагаемое — лаг: экономика за {d} ещё неполная, {e:,.0f} € против {s:,.0f} € в витрине, доедет с ближайшим прогоном.",
         "uk": " Четвертий доданок — лаг: економіка за {d} ще неповна, {e:,.0f} € проти {s:,.0f} € у вітрині, доїде з найближчим прогоном.",
         "en": " The fourth component is lag: economics for {d} is still incomplete, {e:,.0f} € vs {s:,.0f} € in the storefront report; it arrives with the next load."},
     "home.sales.two_numbers": {
-        "ru": "«Продажи по заказам» Amazon (с НДС) больше выручки Amazon (без НДС, после возвратов) на "
+        "ru": "«Продажи Amazon по заказам» Amazon (с НДС) больше выручки Amazon (без НДС, после возвратов) на "
               "{gap:,.0f} € ({pct:.0f}%): НДС уходит государству, часть заказов отменяют и возвращают. "
               "Первое число сходится с кабинетом Amazon, второе — то, с чего считается маржа.",
-        "uk": "«Продажі за замовленнями» Amazon (з ПДВ) більші за виручку Amazon (без ПДВ, після повернень) на "
+        "uk": "«Продажі Amazon за замовленнями» Amazon (з ПДВ) більші за виручку Amazon (без ПДВ, після повернень) на "
               "{gap:,.0f} € ({pct:.0f}%): ПДВ іде державі, частину замовлень скасовують і повертають. "
               "Перше число збігається з кабінетом Amazon, друге — те, з чого рахується маржа.",
-        "en": "Amazon «Ordered sales» (incl. VAT) exceed Amazon revenue (excl. VAT, after returns) by "
+        "en": "«Amazon ordered sales» (incl. VAT) exceed Amazon revenue (excl. VAT, after returns) by "
               "{gap:,.0f} € ({pct:.0f}%): VAT goes to the state, some orders are cancelled or returned. "
               "The first matches Seller Central, the second is what margin is calculated from.",
     },
     "home.sales.two_numbers_neg": {
         "ru": "Выручка Amazon без НДС оказалась больше «Продаж по заказам» с НДС на {gap:,.0f} € — так быть не должно: "
               "витрина Amazon за конец периода ещё не догружена, разница уйдёт с её следующим прогоном.",
-        "uk": "Виручка Amazon без ПДВ виявилася більшою за «Продажі за замовленнями» з ПДВ на {gap:,.0f} € — так не має бути: "
+        "uk": "Виручка Amazon без ПДВ виявилася більшою за «Продажі Amazon за замовленнями» з ПДВ на {gap:,.0f} € — так не має бути: "
               "вітрина Amazon за кінець періоду ще не довантажена, різниця зникне з її наступним прогоном.",
-        "en": "Amazon revenue excl. VAT came out {gap:,.0f} € above «Ordered sales» incl. VAT — this should not happen: "
+        "en": "Amazon revenue excl. VAT came out {gap:,.0f} € above «Amazon ordered sales» incl. VAT — this should not happen: "
               "the Amazon storefront report for the end of the period is not fully loaded yet; it resolves with its next run."},
     "home.sales.two_numbers_other": {
-        "ru": " Обе цифры здесь — по Amazon; выручка Leroy Merlin, ManoMano и Carrefour ({m:,.0f} € без НДС) входит в «Выручку», но не в «Продажи по заказам».",
-        "uk": " Обидві цифри тут — по Amazon; виручка Leroy Merlin, ManoMano і Carrefour ({m:,.0f} € без ПДВ) входить у «Виручку», але не в «Продажі за замовленнями».",
-        "en": " Both figures here are Amazon only; Leroy Merlin, ManoMano and Carrefour revenue ({m:,.0f} € excl. VAT) is in «Revenue» but not in «Ordered sales».",
+        "ru": " Обе цифры здесь — по Amazon; выручка Leroy Merlin, ManoMano и Carrefour ({m:,.0f} € без НДС) входит в «Выручку», но не в «Продажи Amazon по заказам».",
+        "uk": " Обидві цифри тут — по Amazon; виручка Leroy Merlin, ManoMano і Carrefour ({m:,.0f} € без ПДВ) входить у «Виручку», але не в «Продажі Amazon за замовленнями».",
+        "en": " Both figures here are Amazon only; Leroy Merlin, ManoMano and Carrefour revenue ({m:,.0f} € excl. VAT) is in «Revenue» but not in «Amazon ordered sales».",
     },
     "home.kpi.revenue": {"ru": "Выручка", "uk": "Виручка", "en": "Revenue"},
     "home.kpi.revenue_help_r": {
@@ -1253,9 +1263,9 @@ TRANSLATIONS = {
         "uk": "Маржа — за SKU із завантаженою собівартістю ({known} % виручки); без собівартості — {rev} € ({pct} %), вони в маржу не входять",
         "en": "Margin covers SKUs with COGS loaded ({known} % of revenue); {rev} € ({pct} %) have no COGS and are excluded"},
     "home.sales.ordered_clipped": {
-        "ru": "«Продажи по заказам» считаются с {d}: раньше экономики в Кабинете нет (витрина Amazon есть с 01.2025, Data Kiosk — с 15.05.2026), иначе две карточки сравнивали бы разные периоды",
-        "uk": "«Продажі за замовленнями» рахуються з {d}: раніше економіки в Кабінеті немає (вітрина Amazon є з 01.2025, Data Kiosk — з 15.05.2026), інакше дві картки порівнювали б різні періоди",
-        "en": "«Ordered sales» start from {d}: there is no economics before that (the Amazon storefront report goes back to 01.2025, Data Kiosk — to 15.05.2026), otherwise the two cards would compare different periods"},
+        "ru": "«Продажи Amazon по заказам» считаются с {d}: раньше экономики в Кабинете нет (витрина Amazon есть с 01.2025, Data Kiosk — с 15.05.2026), иначе две карточки сравнивали бы разные периоды",
+        "uk": "«Продажі Amazon за замовленнями» рахуються з {d}: раніше економіки в Кабінеті немає (вітрина Amazon є з 01.2025, Data Kiosk — з 15.05.2026), інакше дві картки порівнювали б різні періоди",
+        "en": "«Amazon ordered sales» start from {d}: there is no economics before that (the Amazon storefront report goes back to 01.2025, Data Kiosk — to 15.05.2026), otherwise the two cards would compare different periods"},
     "home.kpi.units": {"ru": "Продано штук", "uk": "Продано штук", "en": "Units sold"},
     "home.kpi.markets": {"ru": "Площадок", "uk": "Майданчиків", "en": "Channels"},
     "home.cov.no_data": {
@@ -2037,7 +2047,7 @@ TRANSLATIONS = {
     "money.filter.search": {"ru": "Поиск по SKU", "uk": "Пошук за SKU", "en": "Search SKU"},
     "money.filter.search_ph": {"ru": "напр. 41324000", "uk": "напр. 41324000", "en": "e.g. 41324000"},
     "money.kpi.ordered": {
-        "ru": "Продажи по заказам", "uk": "Продажі за замовленнями", "en": "Ordered sales"},
+        "ru": "Продажи Amazon по заказам", "uk": "Продажі Amazon за замовленнями", "en": "Amazon ordered sales"},
     "money.kpi.ordered_help": {
         "ru": "ВСЕ заказы за период, включая ожидающие отгрузку и ещё не отгруженные. "
               "Как в кабинете Amazon: с НДС и доставкой, по дате заказа, отменённые не "
@@ -2066,10 +2076,10 @@ TRANSLATIONS = {
               "Поэтому она всегда меньше «Продаж по заказам» — там сидят и те заказы, "
               "которые ещё не уехали. С этой строки считается вся экономика ниже",
         "uk": "Лише ВІДВАНТАЖЕНІ замовлення: чиста виручка після повернень, без ПДВ. "
-              "Тому вона завжди менша за «Продажі за замовленнями» — там є й ті "
+              "Тому вона завжди менша за «Продажі Amazon за замовленнями» — там є й ті "
               "замовлення, які ще не поїхали. З цього рядка рахується вся економіка нижче",
         "en": "SHIPPED orders only: net revenue after returns, excluding VAT. It is always "
-              "lower than «Ordered sales», which also counts orders not yet shipped. "
+              "lower than «Amazon ordered sales», which also counts orders not yet shipped. "
               "All economics below are based on this line",
     },
     "money.kpi.revenue": {"ru": "Выручка ({d} дн)", "uk": "Виручка ({d} дн)", "en": "Revenue ({d}d)"},
@@ -4116,7 +4126,8 @@ TRANSLATIONS = {
     "passport.feeds.margin": {"ru": "маржа", "uk": "маржа", "en": "margin"},
     "passport.feeds.units": {"ru": "штуки", "uk": "штуки", "en": "units"},
     "passport.feeds.channels": {"ru": "продажи по каналам", "uk": "продажі за каналами", "en": "sales by channel"},
-    "passport.feeds.ordered": {"ru": "продажи по заказам", "uk": "продажі за замовленнями", "en": "ordered sales"},
+    "passport.feeds.ordered": {"ru": "продажи Amazon по заказам", "uk": "продажі Amazon за замовленнями", "en": "Amazon ordered sales"},
+    "passport.feeds.ordered_all": {"ru": "продажи с НДС, все каналы", "uk": "продажі з ПДВ, усі канали", "en": "sales incl. VAT, all channels"},
     "passport.feeds.plan": {"ru": "план месяца", "uk": "план місяця", "en": "month plan"},
     "passport.feeds.coverage": {"ru": "покрытие и дефициты", "uk": "покриття і дефіцити", "en": "coverage and gaps"},
     "passport.feeds.stock": {"ru": "остаток", "uk": "залишок", "en": "stock"},
