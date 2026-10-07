@@ -2371,6 +2371,88 @@ _CH_TR = {
 }
 for _lg, _d in _CH_TR.items():
     TR[_lg].update(_d)
+_NORM_TR = {
+    "ru": {
+        "norm_about": "**Нормативы покрытия** — сколько дней продаж должен покрывать запас: минимум, цель и максимум. По ним на «Остатках» каждой строке ставится статус: недостаточное покрытие, норма или избыточное.  \n**Как работать:** найдите норматив поиском по SKU или категории → нажмите на строку → ниже откроется карточка: там его можно пересмотреть (создаётся новая версия с даты) или прекратить датой. Новый норматив — формой «Добавить норматив» внизу. Удаления нет: прошлые расчёты ссылаются на версию норматива.",
+        "norm_lvl_dflt_short": "по умолчанию",
+        "norm_search": "Поиск по SKU или категории", "norm_search_ph": "41324000, Chainsaws…",
+        "norm_state_active": "Действует", "norm_state_future": "С будущей даты", "norm_state_past": "Закрыт",
+        "norm_state_all": "Все",
+        "norm_shown": "Показано {shown} из {total}",
+        "norm_col_days": "Мин – цель – макс, дн",
+        "norm_col_rows_help": "Сколько строк «Остатков» в последнем расчёте получили статус по этому нормативу. Ноль у действующего — правило не совпало ни с одной парой SKU × маркетплейс.",
+        "norm_list_hint": "Нажмите на любую ячейку строки — ниже откроется карточка норматива. Сортировка — кликом по заголовку колонки.",
+        "norm_list_empty": "По фильтрам ничего не найдено — это фильтры, а не пустой справочник.",
+        "norm_card_h": "Карточка норматива", "norm_pick": "Норматив", "norm_days_unit": "дн",
+        "norm_card_meta": "Уровень: {level} · период {period} · строк покрытия сейчас: {rows} · автор {who}",
+        "norm_no_rows": "В последнем расчёте покрытия по этому нормативу не посчитана ни одна строка: проверьте SKU, категорию и привязку.",
+        "norm_revise_from_help": "С какого дня действует новая версия. Прежняя закроется днём раньше. Дата должна быть позже начала текущей версии.",
+        "norm_ro_state": "Закрытый норматив и норматив с будущей даты не пересматриваются и не закрываются здесь: закрытый — история, будущий вступит в силу сам.",
+        "norm_log_action": "Действие", "norm_act_created": "создан", "norm_act_closed": "закрыт",
+        "norm_add_h": "Добавить норматив", "norm_add_btn": "Добавить норматив",
+        "norm_ro_add": "Добавлять нормативы может роль с правом на справочники.",
+        "norm_add_note": "Уровень, объект, привязка, три порога и дата начала обязательны. На одну связку не может быть двух нормативов с пересекающимися периодами — база не пустит.",
+        "norm_level_help": "SKU — норматив на один товар; категория — на все товары категории; по умолчанию — на весь маркетплейс или пул. Применяется самый конкретный из подходящих.",
+        "norm_sku_help": "Код товара из «Справочники → SKU». Норматив на код, которого там нет, не сработает.",
+        "norm_target_help": "Маркетплейс — для одной витрины; пул — для всех его участников вместе (ТЗ 004).",
+        "norm_from_help": "С какого дня норматив действует. Можно указать будущую дату — он вступит в силу сам.",
+        "norm_note_help": "Почему такие значения и кто их согласовал.",
+    },
+    "uk": {
+        "norm_about": "**Нормативи покриття** — скільки днів продажів має покривати запас: мінімум, ціль і максимум. За ними на «Залишках» кожному рядку ставиться статус: недостатнє покриття, норма або надлишкове.  \n**Як працювати:** знайдіть норматив пошуком за SKU або категорією → натисніть на рядок → нижче відкриється картка: там його можна переглянути (створюється нова версія з дати) або припинити датою. Новий норматив — формою «Додати норматив» внизу. Видалення немає: минулі розрахунки посилаються на версію нормативу.",
+        "norm_lvl_dflt_short": "за замовчуванням",
+        "norm_search": "Пошук за SKU або категорією", "norm_search_ph": "41324000, Chainsaws…",
+        "norm_state_active": "Діє", "norm_state_future": "З майбутньої дати", "norm_state_past": "Закритий",
+        "norm_state_all": "Усі",
+        "norm_shown": "Показано {shown} з {total}",
+        "norm_col_days": "Мін – ціль – макс, дн",
+        "norm_col_rows_help": "Скільки рядків «Залишків» в останньому розрахунку отримали статус за цим нормативом. Нуль у чинного — правило не збіглося з жодною парою SKU × маркетплейс.",
+        "norm_list_hint": "Натисніть на будь-яку клітинку рядка — нижче відкриється картка нормативу. Сортування — кліком по заголовку колонки.",
+        "norm_list_empty": "За фільтрами нічого не знайдено — це фільтри, а не порожній довідник.",
+        "norm_card_h": "Картка нормативу", "norm_pick": "Норматив", "norm_days_unit": "дн",
+        "norm_card_meta": "Рівень: {level} · період {period} · рядків покриття зараз: {rows} · автор {who}",
+        "norm_no_rows": "В останньому розрахунку покриття за цим нормативом не пораховано жодного рядка: перевірте SKU, категорію і прив’язку.",
+        "norm_revise_from_help": "З якого дня діє нова версія. Попередня закриється днем раніше. Дата має бути пізніше початку поточної версії.",
+        "norm_ro_state": "Закритий норматив і норматив з майбутньої дати тут не переглядаються і не закриваються: закритий — історія, майбутній набуде чинності сам.",
+        "norm_log_action": "Дія", "norm_act_created": "створено", "norm_act_closed": "закрито",
+        "norm_add_h": "Додати норматив", "norm_add_btn": "Додати норматив",
+        "norm_ro_add": "Додавати нормативи може роль із правом на довідники.",
+        "norm_add_note": "Рівень, об’єкт, прив’язка, три пороги і дата початку обов’язкові. На одну зв’язку не може бути двох нормативів із періодами, що перетинаються, — база не пустить.",
+        "norm_level_help": "SKU — норматив на один товар; категорія — на всі товари категорії; за замовчуванням — на весь маркетплейс або пул. Застосовується найконкретніший із тих, що підходять.",
+        "norm_sku_help": "Код товару з «Довідники → SKU». Норматив на код, якого там немає, не спрацює.",
+        "norm_target_help": "Маркетплейс — для однієї вітрини; пул — для всіх його учасників разом (ТЗ 004).",
+        "norm_from_help": "З якого дня норматив діє. Можна вказати майбутню дату — він набуде чинності сам.",
+        "norm_note_help": "Чому такі значення і хто їх погодив.",
+    },
+    "en": {
+        "norm_about": "**Coverage norms** — how many days of sales the stock should cover: minimum, target and maximum. On «Stock» every row gets a status against them: under-covered, normal or over-covered.  \n**How to use it:** find a norm by searching an SKU or category → click its row → the card opens below, where you can revise it (a new version from a date) or end it by date. Add a new norm with the «Add norm» form at the bottom. There is no deletion: past calculations refer to the norm version.",
+        "norm_lvl_dflt_short": "default",
+        "norm_search": "Search by SKU or category", "norm_search_ph": "41324000, Chainsaws…",
+        "norm_state_active": "In effect", "norm_state_future": "From a future date", "norm_state_past": "Closed",
+        "norm_state_all": "All",
+        "norm_shown": "Showing {shown} of {total}",
+        "norm_col_days": "Min – target – max, days",
+        "norm_col_rows_help": "How many «Stock» rows in the latest calculation got their status from this norm. Zero on a norm in effect means it matched no SKU × marketplace pair.",
+        "norm_list_hint": "Click any cell of a row — the norm card opens below. Sort by clicking a column header.",
+        "norm_list_empty": "Nothing matches the filters — this is the filters, not an empty directory.",
+        "norm_card_h": "Norm card", "norm_pick": "Norm", "norm_days_unit": "days",
+        "norm_card_meta": "Level: {level} · period {period} · coverage rows now: {rows} · author {who}",
+        "norm_no_rows": "The latest coverage calculation produced no rows for this norm: check the SKU, category and target.",
+        "norm_revise_from_help": "The day the new version takes effect. The previous one closes the day before. Must be later than the current version's start.",
+        "norm_ro_state": "A closed norm and a norm starting in the future are not revised or ended here: a closed one is history, a future one takes effect by itself.",
+        "norm_log_action": "Action", "norm_act_created": "created", "norm_act_closed": "closed",
+        "norm_add_h": "Add norm", "norm_add_btn": "Add norm",
+        "norm_ro_add": "Norms can be added by a role with directory rights.",
+        "norm_add_note": "Level, object, target, the three thresholds and the start date are required. One link can't have two norms with overlapping periods — the database won't allow it.",
+        "norm_level_help": "SKU — a norm for one product; category — for every product in the category; default — for the whole marketplace or pool. The most specific matching norm applies.",
+        "norm_sku_help": "A product code from «Directories → SKU». A norm on a code that isn't there will never apply.",
+        "norm_target_help": "Marketplace — for one storefront; pool — for all its members together (spec 004).",
+        "norm_from_help": "The day the norm takes effect. A future date is allowed — it will take effect by itself.",
+        "norm_note_help": "Why these values and who agreed them.",
+    },
+}
+for _lg, _d in _NORM_TR.items():
+    TR[_lg].update(_d)
 
 def _lang() -> str:
     try:
@@ -5385,32 +5467,44 @@ def _norm_state(r) -> str:
     return f'{obj} · {r["target_name"]}'
 
 
-def _section_norm():
-    st.caption(_tr("norm_hint"))
-    today = date.today()
+def _norm_period_state(r, today) -> str:
+    """Состояние версии норматива считается по датам, не хранится: действует / с будущей даты / закрыт."""
+    if r["effective_from"] > today:
+        return "future"
+    if pd.notna(r["effective_to"]) and r["effective_to"] < today:
+        return "past"
+    return "active"
 
+
+def _section_norm():
+    """Нормативы покрытия по общему приёму справочников (07.10.2026): инструкция → список с поиском и фильтрами →
+    карточка по клику (пересмотр новой версией, закрытие датой, журнал правила) → форма «Добавить норматив».
+    Правила ТЗ «Остатки» §9 без изменений: дни — единица хранения, три уровня с приоритетом в одной функции базы,
+    пересмотр — новая версия, а не правка действующей, удаления нет — только закрытие датой."""
+    dict_kit.instruction(_tr("norm_about"), _tr("norm_hint"))
+    today = date.today()
     rules = q("""
         SELECT r.id, r.level, r.sku, r.category, r.marketplace_id, r.pool_id,
                COALESCE(m.code, p.name) AS target_name,
                r.min_days, r.target_days, r.max_days,
-               r.effective_from, r.effective_to, r.note, r.updated_by, r.updated_at,
-               (r.effective_from <= CURRENT_DATE
-                AND (r.effective_to IS NULL OR r.effective_to >= CURRENT_DATE)) AS is_active
+               r.effective_from, r.effective_to, r.note, r.updated_by, r.updated_at
         FROM kabinet_data.coverage_norm_rules r
         LEFT JOIN kabinet_data.marketplaces_new m ON m.id = r.marketplace_id
         LEFT JOIN kabinet_data.pools p            ON p.id = r.pool_id
         ORDER BY r.effective_from DESC, r.id DESC
     """)
+    if not rules.empty:
+        rules["state"] = [_norm_period_state(r, today) for _, r in rules.iterrows()]
+        rules["is_active"] = rules["state"] == "active"
     active = rules[rules["is_active"]] if not rules.empty else rules
 
-    # Сколько строк покрытия получило норматив в последнем расчёте — это и есть ответ на вопрос
-    # «а работает ли справочник»: правило можно завести так, что оно не совпадёт ни с одной парой
+    # Сколько строк покрытия получило норматив в последнем расчёте — ответ на вопрос «а работает ли справочник»:
+    # правило можно завести так, что оно не совпадёт ни с одной парой
     used = q("""
-        SELECT COALESCE(norm_status, 'no_norm') AS norm_status, COALESCE(norm_level, '—') AS norm_level,
-               count(*)::int AS n
+        SELECT COALESCE(norm_status, 'no_norm') AS norm_status, count(*)::int AS n
         FROM kabinet_data.coverage_summary
         WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.coverage_summary)
-        GROUP BY 1, 2
+        GROUP BY 1
     """)
     rows_total = int(used["n"].sum()) if not used.empty else 0
     with_norm = int(used.loc[used["norm_status"] != "no_norm", "n"].sum()) if not used.empty else 0
@@ -5426,11 +5520,143 @@ def _section_norm():
     if active.empty:
         st.info(_tr("norm_empty_register"))
 
-    # ── справочники для формы ──
-    mps_n = q("""
-        SELECT id, code, country_alpha2 AS country FROM kabinet_data.v_marketplaces_selectable
-        ORDER BY code
+    LVL_SHOW = {"sku": _tr("norm_lvl_sku"), "category": _tr("norm_lvl_category"), "default": _tr("norm_lvl_dflt_short")}
+    f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
+    needle = dict_kit.search_input(_tr("norm_search"), "norm_search", _tr, _tr("norm_search_ph"), where=f1).lower()
+    lvl_sel = f2.selectbox(_tr("norm_level"), ["all", "sku", "category", "default"], key="norm_lvl_f",
+                           format_func=lambda x: _tr("ctry_state_all") if x == "all" else LVL_SHOW[x])
+    tgt_names = sorted(set(rules["target_name"].dropna())) if not rules.empty else []
+    tgt_sel = f3.selectbox(_tr("norm_col_target"), ["all"] + tgt_names, key="norm_tgt_f",
+                           format_func=lambda x: _tr("ctry_state_all") if x == "all" else x)
+    state_sel = f4.selectbox(_tr("sku_state_f"), ["active", "future", "past", "all"], key="norm_state_f",
+                             format_func=lambda x: _tr(f"norm_state_{x}"))
+    view = rules
+    if not view.empty:
+        if needle:
+            view = view[view["sku"].fillna("").str.lower().str.contains(needle, regex=False)
+                        | view["category"].fillna("").str.lower().str.contains(needle, regex=False)]
+        if lvl_sel != "all":
+            view = view[view["level"] == lvl_sel]
+        if tgt_sel != "all":
+            view = view[view["target_name"] == tgt_sel]
+        if state_sel != "all":
+            view = view[view["state"] == state_sel]
+    st.caption(_trf("norm_shown", shown=len(view), total=len(rules)))
+
+    by_rule = q("""
+        SELECT norm_rule_id AS id, count(*)::int AS rows_now
+        FROM kabinet_data.coverage_summary
+        WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.coverage_summary)
+          AND norm_rule_id IS NOT NULL GROUP BY 1
     """)
+    cnt = {int(r.id): int(r.rows_now) for r in by_rule.itertuples()}
+    options = [int(i) for i in view["id"]] if not view.empty else []
+    lst = pd.DataFrame({
+        "level": [LVL_SHOW.get(x, x) for x in view["level"]] if options else [],
+        "object": [as_text(r.sku) or as_text(r.category) or _tr("norm_lvl_dflt_short") for r in view.itertuples()] if options else [],
+        "target": list(view["target_name"].fillna("—")) if options else [],
+        "days": [f"{int(r.min_days)} – {int(r.target_days)} – {int(r.max_days)}" for r in view.itertuples()] if options else [],
+        # период — текстом: пустая дата в таблице рисуется словом «None» (Streamlit 1.64)
+        "period": [f'{r.effective_from:%d.%m.%Y} → ' + (f'{r.effective_to:%d.%m.%Y}' if pd.notna(r.effective_to) else '…')
+                   for r in view.itertuples()] if options else [],
+        "state": [_tr(f"norm_state_{s}") for s in view["state"]] if options else [],
+        "rows_now": [num_text(cnt.get(int(i), 0)) for i in view["id"]] if options else [],
+        "note": [as_text(x) for x in view["note"]] if options else [],
+        "author": [as_text(x) for x in view["updated_by"]] if options else [],
+    })
+    picked = dict_kit.table_pick(lst, options, "norm_list", (needle, lvl_sel, tgt_sel, state_sel), column_config={
+        "level": st.column_config.TextColumn(_tr("norm_level"), width=110),
+        "object": st.column_config.TextColumn(_tr("norm_col_object"), width="medium"),
+        "target": st.column_config.TextColumn(_tr("norm_col_target"), width=110),
+        "days": st.column_config.TextColumn(_tr("norm_col_days"), width=130, help=_tr("norm_days_help")),
+        "period": st.column_config.TextColumn(_tr("norm_col_period"), width=180),
+        "state": st.column_config.TextColumn(_tr("sku_col_state"), width=110),
+        "rows_now": st.column_config.TextColumn(_tr("norm_col_rows"), width=110, help=_tr("norm_col_rows_help")),
+        "note": st.column_config.TextColumn(_tr("norm_note"), width="medium"),
+        "author": st.column_config.TextColumn(_tr("col_author"), width="small"),
+    })
+    st.caption(_tr("norm_list_empty") if not options else _tr("norm_list_hint"))
+    if options:
+        labels = {int(r["id"]): f'#{int(r["id"])} · {_norm_state(r)} · {_tr("norm_state_" + r["state"])}'
+                  for _, r in view.iterrows()}
+        st.markdown("#### " + _tr("norm_card_h"))
+        sel = dict_kit.card_pick(_tr("norm_pick"), options, labels, "norm_card", picked)
+        _norm_card(rules.set_index("id").loc[sel], int(sel), cnt.get(int(sel), 0), today, LVL_SHOW)
+
+    _norm_add_form(today, bool(active.empty))
+
+
+def _norm_card(row, sel: int, rows_now: int, today, LVL_SHOW):
+    can_edit = auth.can("dict.edit")
+    r = row.copy(); r["id"] = sel
+    with st.container(border=True):
+        st.markdown(f'**#{sel} · {_norm_state(r)}**  \n{_tr("norm_state_" + row["state"])}')
+        c1, c2, c3 = st.columns(3)
+        c1.metric(_tr("col_min"), f'{int(row["min_days"])} {_tr("norm_days_unit")}')
+        c2.metric(_tr("col_target"), f'{int(row["target_days"])} {_tr("norm_days_unit")}')
+        c3.metric(_tr("col_max"), f'{int(row["max_days"])} {_tr("norm_days_unit")}')
+        st.caption(_trf("norm_card_meta", level=LVL_SHOW.get(row["level"], row["level"]),
+                        period=f'{row["effective_from"]:%d.%m.%Y} → '
+                               + (f'{row["effective_to"]:%d.%m.%Y}' if pd.notna(row["effective_to"]) else '…'),
+                        rows=rows_now, who=as_text(row["updated_by"], "—")))
+        if as_text(row["note"]):
+            st.caption(_tr("norm_note") + ": " + as_text(row["note"]))
+        if row["state"] == "active" and not rows_now:
+            st.caption(_tr("norm_no_rows"))
+
+    if can_edit and row["state"] == "active":
+        with st.container(border=True):
+            st.markdown("**" + _tr("norm_revise") + "**")
+            st.caption(_tr("norm_revise_hint"))
+            r1, r2, r3, r4 = st.columns(4)
+            n_mn = r1.number_input(_tr("col_min"), 0, 999, int(row["min_days"]), step=5, key=f"norm_rev_mn_{sel}",
+                                   help=_tr("norm_days_help"))
+            n_tg = r2.number_input(_tr("col_target"), 0, 999, int(row["target_days"]), step=5, key=f"norm_rev_tg_{sel}")
+            n_mx = r3.number_input(_tr("col_max"), 0, 999, int(row["max_days"]), step=5, key=f"norm_rev_mx_{sel}")
+            n_from = r4.date_input(_tr("norm_revise_from"), value=today, key=f"norm_rev_from_{sel}",
+                                   help=_tr("norm_revise_from_help"))
+            n_note = st.text_input(_tr("norm_note"), value=as_text(row["note"]), key=f"norm_rev_note_{sel}").strip() or None
+            if st.button(_tr("norm_revise_btn"), type="primary", key=f"norm_rev_btn_{sel}"):
+                if not (n_mn <= n_tg <= n_mx):
+                    st.error(_tr("norm_order"))
+                elif n_from <= row["effective_from"]:
+                    st.error(_trf("norm_revise_past", d=f'{row["effective_from"]:%d.%m.%Y}'))
+                else:
+                    _revise_norm(r, n_mn, n_tg, n_mx, n_from, n_note)
+
+        with st.container(border=True):
+            st.markdown("**" + _tr("norm_close") + "**")
+            st.caption(_tr("norm_close_hint"))
+            c_date = st.date_input(_tr("norm_close_date"), value=today, key=f"norm_cls_date_{sel}")
+            if c_date < row["effective_from"]:
+                st.error(_trf("norm_revise_past", d=f'{row["effective_from"]:%d.%m.%Y}'))
+            elif confirm_delete(f"normclose_{sel}", _trf("norm_close_what", id=sel, what=_norm_state(r),
+                                                         d=f"{c_date:%d.%m.%Y}")):
+                _close_norm(r, c_date)
+    elif row["state"] != "active":
+        st.caption(_tr("norm_ro_state"))
+
+    with st.expander(_tr("ctry_log")):
+        lg = q1("""SELECT changed_at, action, actor, note FROM kabinet_data.coverage_norm_log
+                   WHERE rule_id = %s ORDER BY changed_at DESC LIMIT 100""", (sel,))
+        if lg.empty:
+            st.caption(_tr("norm_log_none"))
+        else:
+            lg["changed_at"] = pd.to_datetime(lg["changed_at"]).dt.strftime("%d.%m.%Y %H:%M")
+            lg["action"] = [_tr(f"norm_act_{a}") if a in ("created", "closed") else a for a in lg["action"]]
+            lg.columns = [_tr("mp_log_when"), _tr("norm_log_action"), _tr("mp_log_who"), _tr("norm_note")]
+            st.dataframe(lg, hide_index=True, use_container_width=True, height=min(260, 38 + 35 * len(lg)))
+
+
+def _norm_add_form(today, expanded: bool):
+    """Новый норматив: уровень, объект, привязка, три порога в днях, дата начала. Пересечение периодов по той же
+    связке не пускает триггер базы — его текст показывается как есть."""
+    st.markdown("#### " + _tr("norm_add_h"))
+    if not auth.can("dict.edit"):
+        st.caption(_tr("norm_ro_add"))
+        return
+    st.caption(_tr("norm_add_note"))
+    mps_n = q("""SELECT id, code, country_alpha2 AS country FROM kabinet_data.v_marketplaces_selectable ORDER BY code""")
     pools_n = q("SELECT id, name FROM kabinet_data.pools ORDER BY name") if has_table("kabinet_data.pools") \
         else pd.DataFrame(columns=["id", "name"])
     cats = q("""
@@ -5438,163 +5664,62 @@ def _section_norm():
         WHERE effective_to IS NULL AND data_quality_status IS NULL
         GROUP BY 1 ORDER BY 1
     """)
-    skus_n = q("""
-        SELECT s.sku, s.name FROM kabinet_data.sku_master s WHERE s.is_active ORDER BY s.sku
-    """)
+    skus_n = q("SELECT s.sku, s.name FROM kabinet_data.sku_master s WHERE s.is_active ORDER BY s.sku")
     mp_opts = {f'{r.code} ({r.country})': int(r.id) for r in mps_n.itertuples()}
     pool_opts = {r.name: int(r.id) for r in pools_n.itertuples()}
     sku_title = {r.sku: (f"{r.sku} — {r.name}" if r.name else r.sku) for r in skus_n.itertuples()}
 
-    # ── добавить норматив ──
-    with st.expander(_tr("norm_add"), expanded=active.empty):
-        LVL = {"sku": _tr("norm_lvl_sku"), "category": _tr("norm_lvl_category"),
-               "default": _tr("norm_lvl_default")}
-        lvl = st.radio(_tr("norm_level"), list(LVL), format_func=LVL.get, horizontal=True, key="norm_lvl")
-
-        a1, a2 = st.columns([2, 2])
-        sku_val = cat_val = None
-        if lvl == "sku":
-            manual = a1.checkbox(_tr("norm_manual"), key="norm_manual")
-            if manual or skus_n.empty:
-                sku_val = a1.text_input(_tr("norm_sku"), key="norm_sku_txt").strip()
-            else:
-                sku_val = a1.selectbox(_tr("norm_sku"), list(sku_title),
-                                       format_func=sku_title.get, key="norm_sku_sel")
-        elif lvl == "category":
-            if cats.empty:
-                a1.caption(_tr("norm_cat_none"))
-            else:
-                cat_val = a1.selectbox(_tr("norm_category"), list(cats["category"]),
-                                       format_func=lambda c: f"{c} ({int(cats.loc[cats['category'] == c, 'skus'].iloc[0])})",
-                                       key="norm_cat_sel")
-                a1.caption(_trf("norm_cat_hint", n=int(cats["skus"].sum())))
-
-        if not pool_opts:
-            a2.caption(_tr("norm_no_pools"))
-            is_mp = True
+    LVL = {"sku": _tr("norm_lvl_sku"), "category": _tr("norm_lvl_category"), "default": _tr("norm_lvl_default")}
+    lvl = st.radio(_tr("norm_level") + " *", list(LVL), format_func=LVL.get, horizontal=True, key="norm_lvl",
+                   help=_tr("norm_level_help"))
+    a1, a2 = st.columns([2, 2])
+    sku_val = cat_val = None
+    if lvl == "sku":
+        manual = a1.checkbox(_tr("norm_manual"), key="norm_manual")
+        if manual or skus_n.empty:
+            sku_val = a1.text_input(_tr("norm_sku") + " *", key="norm_sku_txt", help=_tr("norm_sku_help")).strip()
         else:
-            is_mp = a2.selectbox(_tr("norm_target"), [_tr("norm_target_mp"), _tr("norm_target_pool")],
-                                 key="norm_tgt") == _tr("norm_target_mp")
-        opts = mp_opts if is_mp else pool_opts
-        tgt_val = a2.selectbox(_tr("norm_target_val"), list(opts) or ["—"], key="norm_tgt_val")
-
-        b1, b2, b3, b4 = st.columns(4)
-        mn = b1.number_input(_tr("col_min"), 0, 999, 30, step=5, key="norm_mn", help=_tr("norm_days_help"))
-        tg = b2.number_input(_tr("col_target"), 0, 999, 60, step=5, key="norm_tg")
-        mx = b3.number_input(_tr("col_max"), 0, 999, 90, step=5, key="norm_mx")
-        eff = b4.date_input(_tr("norm_from"), value=today, key="norm_eff")
-        note = st.text_input(_tr("norm_note"), key="norm_note_new").strip() or None
-
-        if st.button(_tr("norm_add"), type="primary", key="norm_add_btn"):
-            if lvl == "sku" and not sku_val:
-                st.error(_tr("norm_empty"))
-            elif lvl == "category" and not cat_val:
-                st.error(_tr("norm_cat_none"))
-            elif not opts:
-                st.error(_tr("norm_no_target"))
-            elif not (mn <= tg <= mx):
-                st.error(_tr("norm_order"))
-            elif lvl == "sku" and sku_val not in sku_title:
-                # не отказ, а предупреждение: SKU может появиться позже, но молча норматив
-                # на несуществующий артикул не сработает никогда — об этом надо сказать
-                st.warning(_trf("norm_sku_unknown", sku=sku_val))
-            else:
-                _insert_norm(lvl, sku_val, cat_val, opts[tgt_val], is_mp, mn, tg, mx, eff, note)
-
-    # ── список ──
-    st.markdown(f"**{_tr('norm_list')}**")
-    VIEW = {"active": _tr("norm_view_active"), "history": _tr("norm_view_history"), "all": _tr("norm_view_all")}
-    view = st.radio(_tr("norm_view"), list(VIEW), format_func=VIEW.get, horizontal=True, key="norm_view")
-    show = rules if view == "all" else (active if view == "active" else rules[~rules["is_active"]]) \
-        if not rules.empty else rules
-    if show.empty:
-        st.info(_tr("norm_none"))
+            sku_val = a1.selectbox(_tr("norm_sku") + " *", list(sku_title), format_func=sku_title.get,
+                                   key="norm_sku_sel", help=_tr("norm_sku_help"))
+    elif lvl == "category":
+        if cats.empty:
+            a1.caption(_tr("norm_cat_none"))
+        else:
+            cat_val = a1.selectbox(_tr("norm_category") + " *", list(cats["category"]),
+                                   format_func=lambda c: f"{c} ({int(cats.loc[cats['category'] == c, 'skus'].iloc[0])})",
+                                   key="norm_cat_sel")
+            a1.caption(_trf("norm_cat_hint", n=int(cats["skus"].sum())))
+    if not pool_opts:
+        a2.caption(_tr("norm_no_pools"))
+        is_mp = True
     else:
-        LVL_SHOW = {"sku": _tr("norm_lvl_sku"), "category": _tr("norm_lvl_category"), "default": "—"}
-        # сколько строк покрытия сейчас посчитано по каждому правилу: правило, под которое не
-        # подошла ни одна пара, выглядит настроенным, но ни на что не влияет
-        by_rule = q("""
-            SELECT norm_rule_id AS id, count(*)::int AS rows_now
-            FROM kabinet_data.coverage_summary
-            WHERE calc_date = (SELECT MAX(calc_date) FROM kabinet_data.coverage_summary)
-              AND norm_rule_id IS NOT NULL GROUP BY 1
-        """)
-        cnt = {int(r.id): int(r.rows_now) for r in by_rule.itertuples()}
-        view_n = pd.DataFrame({
-            "id": show["id"].astype(int),
-            "level": [LVL_SHOW.get(x, x) for x in show["level"]],
-            "object": [(r.sku or r.category or _tr("norm_lvl_default")) for r in show.itertuples()],
-            "target": show["target_name"],
-            "min_days": show["min_days"].astype(int),
-            "target_days": show["target_days"].astype(int),
-            "max_days": show["max_days"].astype(int),
-            # период — текстом: пустая дата в st.dataframe рисуется словом «None» (Streamlit 1.64)
-            "period": [f'{r.effective_from:%d.%m.%Y} → ' + (f'{r.effective_to:%d.%m.%Y}' if r.effective_to else '…')
-                       for r in show.itertuples()],
-            "rows_now": [num_text(cnt.get(int(r.id), 0)) for r in show.itertuples()],
-            "note": [x or "" for x in show["note"]],
-            "updated_by": show["updated_by"],
-        })
-        st.dataframe(view_n, hide_index=True, use_container_width=True,
-                     height=min(460, 38 + 35 * len(view_n)),
-                     column_config={
-                         "id": st.column_config.NumberColumn(_tr("col_id"), width="small"),
-                         "level": st.column_config.TextColumn(_tr("norm_level"), width="small"),
-                         "object": st.column_config.TextColumn(_tr("norm_col_object"), width="medium"),
-                         "target": st.column_config.TextColumn(_tr("norm_col_target"), width="small"),
-                         "min_days": st.column_config.NumberColumn(_tr("col_min"), format="%d"),
-                         "target_days": st.column_config.NumberColumn(_tr("col_target"), format="%d"),
-                         "max_days": st.column_config.NumberColumn(_tr("col_max"), format="%d"),
-                         "period": st.column_config.TextColumn(_tr("norm_col_period"), width="medium"),
-                         "rows_now": st.column_config.TextColumn(_tr("norm_col_rows"), width="small"),
-                         "note": st.column_config.TextColumn(_tr("norm_note"), width="medium"),
-                         "updated_by": st.column_config.TextColumn(_tr("col_author"), width="small"),
-                     })
+        is_mp = a2.selectbox(_tr("norm_target") + " *", [_tr("norm_target_mp"), _tr("norm_target_pool")],
+                             key="norm_tgt", help=_tr("norm_target_help")) == _tr("norm_target_mp")
+    opts = mp_opts if is_mp else pool_opts
+    tgt_val = a2.selectbox(_tr("norm_target_val") + " *", list(opts) or ["—"], key="norm_tgt_val")
 
-    # ── пересмотр: новая версия, а не правка действующей (ТЗ §9.2) ──
-    if not active.empty:
-        with st.expander(_tr("norm_revise")):
-            st.caption(_tr("norm_revise_hint"))
-            _opts = {int(r.id): _norm_state(r) for _, r in active.iterrows()}
-            rid = st.selectbox(_tr("norm_revise_pick"), list(_opts), format_func=_opts.get, key="norm_rev_pick")
-            cur_row = active[active["id"] == rid].iloc[0]
-            r1, r2, r3, r4 = st.columns(4)
-            n_mn = r1.number_input(_tr("col_min"), 0, 999, int(cur_row["min_days"]), step=5, key="norm_rev_mn")
-            n_tg = r2.number_input(_tr("col_target"), 0, 999, int(cur_row["target_days"]), step=5, key="norm_rev_tg")
-            n_mx = r3.number_input(_tr("col_max"), 0, 999, int(cur_row["max_days"]), step=5, key="norm_rev_mx")
-            n_from = r4.date_input(_tr("norm_revise_from"), value=today, key="norm_rev_from")
-            n_note = st.text_input(_tr("norm_note"), value=cur_row["note"] or "", key="norm_rev_note").strip() or None
-            if st.button(_tr("norm_revise_btn"), type="primary", key="norm_rev_btn"):
-                if not (n_mn <= n_tg <= n_mx):
-                    st.error(_tr("norm_order"))
-                elif n_from <= cur_row["effective_from"]:
-                    st.error(_trf("norm_revise_past", d=f'{cur_row["effective_from"]:%d.%m.%Y}'))
-                else:
-                    _revise_norm(cur_row, n_mn, n_tg, n_mx, n_from, n_note)
+    b1, b2, b3, b4 = st.columns(4)
+    mn = b1.number_input(_tr("col_min") + " *", 0, 999, 30, step=5, key="norm_mn", help=_tr("norm_days_help"))
+    tg = b2.number_input(_tr("col_target") + " *", 0, 999, 60, step=5, key="norm_tg", help=_tr("norm_days_help"))
+    mx = b3.number_input(_tr("col_max") + " *", 0, 999, 90, step=5, key="norm_mx", help=_tr("norm_days_help"))
+    eff = b4.date_input(_tr("norm_from") + " *", value=today, key="norm_eff", help=_tr("norm_from_help"))
+    note = st.text_input(_tr("norm_note"), key="norm_note_new", help=_tr("norm_note_help")).strip() or None
 
-        # ── закрытие датой вместо удаления ──
-        with st.expander(_tr("norm_close")):
-            st.caption(_tr("norm_close_hint"))
-            _opts2 = {int(r.id): _norm_state(r) for _, r in active.iterrows()}
-            cid = st.selectbox(_tr("norm_close_pick"), list(_opts2), format_func=_opts2.get, key="norm_cls_pick")
-            c_row = active[active["id"] == cid].iloc[0]
-            c_date = st.date_input(_tr("norm_close_date"), value=today, key="norm_cls_date")
-            if c_date < c_row["effective_from"]:
-                st.error(_trf("norm_revise_past", d=f'{c_row["effective_from"]:%d.%m.%Y}'))
-            elif confirm_delete(f"normclose_{cid}", _trf("norm_close_what", id=cid,
-                                                         what=_opts2[cid], d=f"{c_date:%d.%m.%Y}")):
-                _close_norm(c_row, c_date)
-
-    # ── журнал ──
-    log = q("""
-        SELECT l.changed_at, l.rule_id, l.action, l.actor, l.note
-        FROM kabinet_data.coverage_norm_log l ORDER BY l.changed_at DESC LIMIT 200
-    """)
-    with st.expander(_trf("norm_log", n=len(log))):
-        if log.empty:
-            st.caption(_tr("norm_log_none"))
+    if st.button(_tr("norm_add_btn"), type="primary", key="norm_add_btn"):
+        if lvl == "sku" and not sku_val:
+            st.error(_tr("norm_empty"))
+        elif lvl == "category" and not cat_val:
+            st.error(_tr("norm_cat_none"))
+        elif not opts:
+            st.error(_tr("norm_no_target"))
+        elif not (mn <= tg <= mx):
+            st.error(_tr("norm_order"))
+        elif lvl == "sku" and sku_val not in sku_title:
+            # не отказ, а предупреждение: SKU может появиться позже, но молча норматив
+            # на несуществующий артикул не сработает никогда — об этом надо сказать
+            st.warning(_trf("norm_sku_unknown", sku=sku_val))
         else:
-            st.dataframe(log, hide_index=True, use_container_width=True)
+            _insert_norm(lvl, sku_val, cat_val, opts[tgt_val], is_mp, mn, tg, mx, eff, note)
 
 
 def _norm_json(row) -> str:
