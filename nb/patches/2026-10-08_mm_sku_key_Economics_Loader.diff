@@ -1,0 +1,14 @@
+--- Economics Loader (до)
++++ Economics Loader (после)
+@@ -864,7 +864,10 @@
+             "LPAD(REGEXP_EXTRACT(x, '^(?:S[0-9]*_)?([0-9]{5,})', 1), 8, '0'), "
+             "REGEXP_EXTRACT(x, '^(?:S[0-9]*_)?[0-9]{5,}(-[A-Z0-9]{1,2})?', 1)) ELSE '' END")   # вариант — короткий хвост (-A, -B, -1)
+ CLEAN_SQL = "REGEXP_REPLACE(REGEXP_REPLACE(UPPER(TRIM({c})), '^(AMZN\\.GR\\.)?', ''), '[-_ ]*(FBA|FBM)([-_].*)?$', '')"
+-MM_KEY_SQL = r"regexp_replace(regexp_replace(regexp_replace(trim(m.sku), '^S[0-9]+_', ''), '[\\s-]+[A-D]$', ''), '\\s+[0-9]+$', '')"
++# То же правило, что normalize_sku в Kabinet - MM Orders Loader — менять вместе. С 08.10.2026: хвост «_» (41500000-A_)
++# и потерянный ведущий ноль (8457000 → 08457000) сводятся к коду справочника, иначе реклама не встретит строку экономики.
++MM_KEY_SQL = (r"regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(trim(m.sku), '_+$', ''), "
++              r"'^S[0-9]+_', ''), '[\\s-]+[A-D]$', ''), '\\s+[0-9]+$', ''), '^([0-9]{7})(?![0-9])', '0$1')")
+ SB_CC = [cc for cc in ("es", "it", "fr", "de") if spark.catalog.tableExists(f"dnipro_m.dnipro_m.raw_amazon_sb_calculations_{cc}")]
+ 
+ # ─── SP union SQL (8 стран) ────────═────────────────────────────
