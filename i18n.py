@@ -1159,9 +1159,9 @@ TRANSLATIONS = {
     "home.kpi.sales_all_missing.wallapop": {"ru": "Wallapop", "uk": "Wallapop", "en": "Wallapop"},
     "home.kpi.sales_all_missing.site": {"ru": "сайта", "uk": "сайту", "en": "the website"},
     "home.kpi.sales_all_help": {
-        "ru": "Сумма заказов по всем каналам Кабинета: Amazon (витрина Seller Central) плюс Leroy Merlin, ManoMano и Carrefour (строки заказов с НДС, без отменённых; у Leroy Merlin — без строк REFUNDED). Тот же отбор, что в Power BI («Revenue VAT Incl»), поэтому по каждому каналу цифры совпадают до евро. Разница с итогом Power BI — Wallapop и сайт: их подключаем.",
-        "uk": "Сума замовлень за всіма каналами Кабінету: Amazon (вітрина Seller Central) плюс Leroy Merlin, ManoMano і Carrefour (рядки замовлень з ПДВ, без скасованих; у Leroy Merlin — без рядків REFUNDED). Той самий відбір, що в Power BI («Revenue VAT Incl»), тож за кожним каналом цифри збігаються до євро. Різниця з підсумком Power BI — Wallapop і сайт: їх підключаємо.",
-        "en": "Orders across all Kabinet channels: Amazon (Seller Central storefront report) plus Leroy Merlin, ManoMano and Carrefour (order lines incl. VAT, excluding cancelled; Leroy Merlin without REFUNDED lines). Same selection as Power BI («Revenue VAT Incl»), so every channel matches to the euro. The gap to the Power BI total is Wallapop and the website, which are being connected."},
+        "ru": "Сумма заказов по всем каналам Кабинета: Amazon (витрина Seller Central) плюс Leroy Merlin, ManoMano и Carrefour (строки заказов с НДС, без отменённых; у Leroy Merlin — без строк REFUNDED), Wallapop и сайт (заказы Odoo, строки товаров без скидки и доставки). Тот же отбор, что в Power BI («Revenue VAT Incl»), поэтому по каждому каналу цифры совпадают до евро. Канала, которого ещё нет в данных, подпись под цифрой называет.",
+        "uk": "Сума замовлень за всіма каналами Кабінету: Amazon (вітрина Seller Central) плюс Leroy Merlin, ManoMano і Carrefour (рядки замовлень з ПДВ, без скасованих; у Leroy Merlin — без рядків REFUNDED), Wallapop і сайт (замовлення Odoo, рядки товарів без знижки й доставки). Той самий відбір, що в Power BI («Revenue VAT Incl»), тож за кожним каналом цифри збігаються до євро. Канал, якого ще немає в даних, підпис під цифрою називає.",
+        "en": "Orders across all Kabinet channels: Amazon (Seller Central storefront report) plus Leroy Merlin, ManoMano and Carrefour (order lines incl. VAT, excluding cancelled; Leroy Merlin without REFUNDED lines), Wallapop and the website (Odoo orders, product lines without discount and shipping). Same selection as Power BI («Revenue VAT Incl»), so every channel matches to the euro. A channel not yet in the data is named in the caption under the figure."},
     "home.kpi.ordered_help_span": {
         "ru": "Внимание: это число за {of} — {ot}, а «Выручка» рядом за {mf} — {mt}. "
               "Отчёт заказов отстаёт на день, финансовые отчёты Amazon — на 2-3, поэтому "
@@ -1257,9 +1257,9 @@ TRANSLATIONS = {
         "uk": "Витрати на всю рекламу (SP, SB, SD і ManoMano) / продажі з реклами (з ПДВ), атрибуція 14 днів. Формула Power BI. Вікно — те саме, що у виручки й маржі, усі канали",
         "en": "Spend on all ads (SP, SB, SD and ManoMano) / ad-attributed sales (incl. VAT), 14-day attribution. Power BI formula. Same window as revenue and margin, all channels"},
     "home.kpi.tacos_help": {
-        "ru": "Весь расход на рекламу / все продажи с НДС (Amazon — по заказам, Mirakl — строки заказов). Формула Power BI. Wallapop и сайта в Кабинете нет",
-        "uk": "Усі витрати на рекламу / усі продажі з ПДВ (Amazon — за замовленнями, Mirakl — рядки замовлень). Формула Power BI. Wallapop і сайту в Кабінеті немає",
-        "en": "Total ad spend / all sales incl. VAT (Amazon — ordered sales, Mirakl — order lines). Power BI formula. Wallapop and the website are not in Kabinet"},
+        "ru": "Весь расход на рекламу / все продажи с НДС (Amazon — по заказам, Mirakl — строки заказов, Wallapop и сайт — заказы Odoo). Формула Power BI",
+        "uk": "Усі витрати на рекламу / усі продажі з ПДВ (Amazon — за замовленнями, Mirakl — рядки замовлень, Wallapop і сайт — замовлення Odoo). Формула Power BI",
+        "en": "Total ad spend / all sales incl. VAT (Amazon — ordered sales, Mirakl — order lines, Wallapop and the website — Odoo orders). Power BI formula"},
     "home.kpi.margin_partial": {
         "ru": "Маржа — по SKU с загруженной себестоимостью ({known} % выручки); без себестоимости — {rev} € ({pct} %), они в маржу не входят",
         "uk": "Маржа — за SKU із завантаженою собівартістю ({known} % виручки); без собівартості — {rev} € ({pct} %), вони в маржу не входять",

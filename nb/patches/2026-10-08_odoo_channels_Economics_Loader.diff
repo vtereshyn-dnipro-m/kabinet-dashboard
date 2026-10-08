@@ -1,0 +1,12 @@
+--- Economics Loader (до)
++++ Economics Loader (после)
+@@ -2983,7 +2983,8 @@
+     # число. Раньше пустота уходила дальше как NaN, и NaN × штуки давал NaN в shipping_cost — а SUM в базе по такой
+     # строке становится NaN целиком (08.10.2026: IT 24.08, 6,02 кг, обнулял маржу Италии за день на «Обзоре»).
+     return float(t["cost"].iloc[0]) if len(t) and pd.notna(t["cost"].iloc[0]) else None
+-MIRAKL = {"LM", "LM_ES", "MM_ES", "MM_FR", "MMB_ES", "CF_ES"}   # MMB_ES — ManoMano Pro (B2B ES), с 07.10.2026
++MIRAKL = {"LM", "LM_ES", "MM_ES", "MM_FR", "MMB_ES", "CF_ES",   # MMB_ES — ManoMano Pro (B2B ES), с 07.10.2026
++          "WP_ES", "WEB_ES"}   # Wallapop и сайт из Odoo (с 08.10.2026): отгрузка из Мадрида на все штуки, тариф ES — как у Mirakl
+ rows["is_mirakl"] = rows["marketplace"].isin(MIRAKL)
+ rows["rate_country"] = ["ES" if (mk == "ES" or mir) else "Other" for mk, mir in zip(rows["marketplace"], rows["is_mirakl"])]
+ 

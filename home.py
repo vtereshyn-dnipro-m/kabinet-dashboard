@@ -280,7 +280,8 @@ def sales_all_extra(sales_all: pd.DataFrame) -> str:
 def load_sales_all_channels(days: int = 30, _v: str = "") -> pd.DataFrame:
     """Продажи с НДС по ВСЕМ каналам по дате заказа, до возвратов — то, что в Power BI называется
     «Revenue VAT Incl» (07.10.2026). Вью v_sales_vat_incl_daily: Amazon — витрина S&T в евро, Mirakl — строки
-    заказов с НДС тем же отбором, что в Power BI. Wallapop и сайта в Кабинете пока нет."""
+    заказов с НДС тем же отбором, что в Power BI; Wallapop и сайт (с 08.10.2026) — заказы Odoo из реплики
+    raw_odoo_channel_sales (Kabinet - Odoo Channels Loader)."""
     if not table_exists("v_sales_vat_incl_daily"):
         return pd.DataFrame()
     conn = get_connection()
