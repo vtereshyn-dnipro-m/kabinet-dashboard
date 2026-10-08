@@ -353,10 +353,15 @@ import re
 VAT_RATES = {"ES": 0.21, "FR": 0.20}
 
 def normalize_sku(sku):
+    # Одно правило для обоих договоров (B2C и ManoMano Pro) и копия в Kabinet - Economics Loader (MM_KEY_SQL,
+    # ключ рекламы ManoMano) — менять вместе. С 08.10.2026 сводит и коды, записанные на площадке с опечаткой:
+    # хвост «_» (41500000-A_, S2_08455000_) и потерянный ведущий ноль (8457000) — это те же товары справочника.
     s = str(sku).strip()
+    s = re.sub(r'_+$', '', s)             # хвост «_»: 41500000-A_ → 41500000-A
     s = re.sub(r'^S[0-9]+_', '', s)       # strip S2_/S3_ prefix
     s = re.sub(r'[\s-]+[A-D]$', '', s)    # strip trailing -A/-B/-C/-D
     s = re.sub(r'\s+\d+$', '', s)         # strip trailing space+digits
+    s = re.sub(r'^(\d{7})(?!\d)', r'0\1', s)   # потерянный ведущий ноль: 8457000 → 08457000
     return s
 
 # Build order lookup: order_ref → (created_at, status, country)
