@@ -1,0 +1,18 @@
+--- CF Orders Loader (до)
++++ CF Orders Loader (после)
+@@ -304,10 +304,15 @@
+ VAT_RATE = 0.21  # Spain
+ 
+ def normalize_sku(sku):
++    # То же правило, что normalize_sku в Kabinet - MM Orders Loader (с 08.10.2026): коды, записанные на площадке
++    # с опечаткой, — хвост «_» (41500000-A_, S2_08455000_) и потерянный ведущий ноль (8457000) — это те же товары
++    # справочника. Без этого продажа такого кода легла бы отдельной строкой экономики рядом с основной.
+     s = str(sku).strip()
++    s = re.sub(r'_+$', '', s)             # хвост «_»: 41500000-A_ → 41500000-A
+     s = re.sub(r'^S[0-9]+_', '', s)       # strip S2_/S3_ prefix
+     s = re.sub(r'[\s-]+[A-D]$', '', s)    # strip trailing -A/-B/-C/-D
+     s = re.sub(r'\s+\d+$', '', s)         # strip trailing space+digits
++    s = re.sub(r'^(\d{7})(?!\d)', r'0\1', s)   # потерянный ведущий ноль: 8457000 → 08457000
+     return s
+ 
+ # Build order lookup: order_ref → (created_at, status)
