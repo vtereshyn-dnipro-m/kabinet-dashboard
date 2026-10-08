@@ -1,0 +1,11 @@
+--- Stock_Loader (до)
++++ Stock_Loader (после)
+@@ -1717,7 +1717,7 @@
+             if route_days is not None:
+                 note = None
+                 if norm_sku in darina_planned:
+-                    note = f"\u26a0\ufe0f Дарина план: {darina_planned[norm_sku]} шт"
++                    note = f"\u26a0\ufe0f План снабжения (лист Poland-Spain): {darina_planned[norm_sku]} шт"
+                 donors.append((route_days, "RS Spain Madrid (Stock)", "madrid",
+                                madrid_for_sku, None, note))
+             else:

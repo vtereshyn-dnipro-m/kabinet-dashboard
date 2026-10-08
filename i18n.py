@@ -1152,14 +1152,16 @@ TRANSLATIONS = {
         "ru": "Продажи Amazon по заказам", "uk": "Продажі Amazon за замовленнями", "en": "Amazon ordered sales"},
     # Продажи с НДС по всем каналам — то, что в Power BI Дарины «Revenue VAT Incl» (07.10.2026)
     "home.kpi.sales_all": {"ru": "Продажи с НДС, все каналы", "uk": "Продажі з ПДВ, усі канали", "en": "Sales incl. VAT, all channels"},
-    "home.kpi.sales_all_extra": {
-        "ru": "до возвратов · Wallapop и сайт не загружаются (у Дарины они есть)",
-        "uk": "до повернень · Wallapop і сайт не завантажуються (у Дарини вони є)",
-        "en": "before returns · Wallapop and the website are not loaded (Darina has them)"},
+    "home.kpi.sales_all_extra": {"ru": "до возвратов", "uk": "до повернень", "en": "before returns"},
+    # оговорка о каналах, которых ещё нет; уходит сама, когда их строки появятся в продажах (home.py)
+    "home.kpi.sales_all_missing": {"ru": "без {what} — подключаем", "uk": "без {what} — підключаємо", "en": "without {what} — being connected"},
+    "home.kpi.sales_all_missing.both": {"ru": "Wallapop и сайта", "uk": "Wallapop і сайту", "en": "Wallapop and the website"},
+    "home.kpi.sales_all_missing.wallapop": {"ru": "Wallapop", "uk": "Wallapop", "en": "Wallapop"},
+    "home.kpi.sales_all_missing.site": {"ru": "сайта", "uk": "сайту", "en": "the website"},
     "home.kpi.sales_all_help": {
-        "ru": "Сумма заказов по всем каналам Кабинета: Amazon (витрина Seller Central) плюс Leroy Merlin, ManoMano и Carrefour (строки заказов с НДС, без отменённых; у Leroy Merlin — без строк REFUNDED). Тот же отбор, что в Power BI Дарины («Revenue VAT Incl»), поэтому по каждому каналу цифры совпадают до евро. Разница с её итогом — Wallapop и сайт: их в Кабинете нет.",
-        "uk": "Сума замовлень за всіма каналами Кабінету: Amazon (вітрина Seller Central) плюс Leroy Merlin, ManoMano і Carrefour (рядки замовлень з ПДВ, без скасованих; у Leroy Merlin — без рядків REFUNDED). Той самий відбір, що в Power BI Дарини («Revenue VAT Incl»), тож за кожним каналом цифри збігаються до євро. Різниця з її підсумком — Wallapop і сайт: їх у Кабінеті немає.",
-        "en": "Orders across all Kabinet channels: Amazon (Seller Central storefront report) plus Leroy Merlin, ManoMano and Carrefour (order lines incl. VAT, excluding cancelled; Leroy Merlin without REFUNDED lines). Same selection as Darina's Power BI («Revenue VAT Incl»), so every channel matches to the euro. The gap to her total is Wallapop and the website, which Kabinet doesn't have."},
+        "ru": "Сумма заказов по всем каналам Кабинета: Amazon (витрина Seller Central) плюс Leroy Merlin, ManoMano и Carrefour (строки заказов с НДС, без отменённых; у Leroy Merlin — без строк REFUNDED). Тот же отбор, что в Power BI («Revenue VAT Incl»), поэтому по каждому каналу цифры совпадают до евро. Разница с итогом Power BI — Wallapop и сайт: их подключаем.",
+        "uk": "Сума замовлень за всіма каналами Кабінету: Amazon (вітрина Seller Central) плюс Leroy Merlin, ManoMano і Carrefour (рядки замовлень з ПДВ, без скасованих; у Leroy Merlin — без рядків REFUNDED). Той самий відбір, що в Power BI («Revenue VAT Incl»), тож за кожним каналом цифри збігаються до євро. Різниця з підсумком Power BI — Wallapop і сайт: їх підключаємо.",
+        "en": "Orders across all Kabinet channels: Amazon (Seller Central storefront report) plus Leroy Merlin, ManoMano and Carrefour (order lines incl. VAT, excluding cancelled; Leroy Merlin without REFUNDED lines). Same selection as Power BI («Revenue VAT Incl»), so every channel matches to the euro. The gap to the Power BI total is Wallapop and the website, which are being connected."},
     "home.kpi.ordered_help_span": {
         "ru": "Внимание: это число за {of} — {ot}, а «Выручка» рядом за {mf} — {mt}. "
               "Отчёт заказов отстаёт на день, финансовые отчёты Amazon — на 2-3, поэтому "
@@ -1251,13 +1253,13 @@ TRANSLATIONS = {
               "grading, Madrid — per Odoo: received into sellable stock directly or after inspection in the defect location, or sold from it to the Polish company) goes back into the margin; while it sits in the defect location it does not. Internal logistics is not included — see the Money page for the breakdown",
     },
     "home.kpi.acos_help": {
-        "ru": "Расход на всю рекламу (SP, SB, SD и ManoMano) / продажи с рекламы (с НДС), атрибуция 14 дней. Формула Power BI Дарины. Окно — то же, что у выручки и маржи, все каналы",
-        "uk": "Витрати на всю рекламу (SP, SB, SD і ManoMano) / продажі з реклами (з ПДВ), атрибуція 14 днів. Формула Power BI Дарини. Вікно — те саме, що у виручки й маржі, усі канали",
-        "en": "Spend on all ads (SP, SB, SD and ManoMano) / ad-attributed sales (incl. VAT), 14-day attribution. Darina's Power BI formula. Same window as revenue and margin, all channels"},
+        "ru": "Расход на всю рекламу (SP, SB, SD и ManoMano) / продажи с рекламы (с НДС), атрибуция 14 дней. Формула Power BI. Окно — то же, что у выручки и маржи, все каналы",
+        "uk": "Витрати на всю рекламу (SP, SB, SD і ManoMano) / продажі з реклами (з ПДВ), атрибуція 14 днів. Формула Power BI. Вікно — те саме, що у виручки й маржі, усі канали",
+        "en": "Spend on all ads (SP, SB, SD and ManoMano) / ad-attributed sales (incl. VAT), 14-day attribution. Power BI formula. Same window as revenue and margin, all channels"},
     "home.kpi.tacos_help": {
-        "ru": "Весь расход на рекламу / все продажи с НДС (Amazon — по заказам, Mirakl — строки заказов). Формула Power BI Дарины. Wallapop и сайта в Кабинете нет",
-        "uk": "Усі витрати на рекламу / усі продажі з ПДВ (Amazon — за замовленнями, Mirakl — рядки замовлень). Формула Power BI Дарини. Wallapop і сайту в Кабінеті немає",
-        "en": "Total ad spend / all sales incl. VAT (Amazon — ordered sales, Mirakl — order lines). Darina's Power BI formula. Wallapop and the website are not in Kabinet"},
+        "ru": "Весь расход на рекламу / все продажи с НДС (Amazon — по заказам, Mirakl — строки заказов). Формула Power BI. Wallapop и сайта в Кабинете нет",
+        "uk": "Усі витрати на рекламу / усі продажі з ПДВ (Amazon — за замовленнями, Mirakl — рядки замовлень). Формула Power BI. Wallapop і сайту в Кабінеті немає",
+        "en": "Total ad spend / all sales incl. VAT (Amazon — ordered sales, Mirakl — order lines). Power BI formula. Wallapop and the website are not in Kabinet"},
     "home.kpi.margin_partial": {
         "ru": "Маржа — по SKU с загруженной себестоимостью ({known} % выручки); без себестоимости — {rev} € ({pct} %), они в маржу не входят",
         "uk": "Маржа — за SKU із завантаженою собівартістю ({known} % виручки); без собівартості — {rev} € ({pct} %), вони в маржу не входять",
@@ -2314,12 +2316,12 @@ TRANSLATIONS = {
         "uk": "Собівартість проданого за період",
         "en": "COGS for period",
     },
-    "money.col.acos_help": {"ru": "Весь расход на рекламу (SP, SB, SD) / продажи с рекламы (SP, SB, SD), атрибуция 14 дней — формула Power BI Дарины, как на «Рекламе» и «Обзоре». Пусто — продаж с рекламы у SKU за период нет",
-                            "uk": "Усі витрати на рекламу (SP, SB, SD) / продажі з реклами (SP, SB, SD), атрибуція 14 днів — формула Power BI Дарини, як на «Рекламі» й «Огляді». Порожньо — продажів з реклами в SKU за період немає",
-                            "en": "Total ad spend (SP, SB, SD) / ad-attributed sales (SP, SB, SD), 14-day attribution — Darina's Power BI formula, same as on Ads and Overview. Empty — the SKU had no ad-attributed sales in the period"},
-    "money.col.tacos_help": {"ru": "Весь расход на рекламу (SP, SB, SD, ManoMano) / продажи SKU с НДС — формула Power BI Дарины, как на «Рекламе» и «Обзоре»",
-                             "uk": "Усі витрати на рекламу (SP, SB, SD, ManoMano) / продажі SKU з ПДВ — формула Power BI Дарини, як на «Рекламі» й «Огляді»",
-                             "en": "Total ad spend (SP, SB, SD, ManoMano) / SKU sales incl. VAT — Darina's Power BI formula, same as on Ads and Overview"},
+    "money.col.acos_help": {"ru": "Весь расход на рекламу (SP, SB, SD) / продажи с рекламы (SP, SB, SD), атрибуция 14 дней — формула Power BI, как на «Рекламе» и «Обзоре». Пусто — продаж с рекламы у SKU за период нет",
+                            "uk": "Усі витрати на рекламу (SP, SB, SD) / продажі з реклами (SP, SB, SD), атрибуція 14 днів — формула Power BI, як на «Рекламі» й «Огляді». Порожньо — продажів з реклами в SKU за період немає",
+                            "en": "Total ad spend (SP, SB, SD) / ad-attributed sales (SP, SB, SD), 14-day attribution — Power BI formula, same as on Ads and Overview. Empty — the SKU had no ad-attributed sales in the period"},
+    "money.col.tacos_help": {"ru": "Весь расход на рекламу (SP, SB, SD, ManoMano) / продажи SKU с НДС — формула Power BI, как на «Рекламе» и «Обзоре»",
+                             "uk": "Усі витрати на рекламу (SP, SB, SD, ManoMano) / продажі SKU з ПДВ — формула Power BI, як на «Рекламі» й «Огляді»",
+                             "en": "Total ad spend (SP, SB, SD, ManoMano) / SKU sales incl. VAT — Power BI formula, same as on Ads and Overview"},
     "money.col.ad_spend_all": {"ru": "Расход на рекламу", "uk": "Витрати на рекламу", "en": "Ad spend"},
     "money.col.ad_spend_all_help": {"ru": "Весь расход на рекламу SKU: SP, SB, SD — тот же, что в TACOS и ACOS. В маржу из него идут только SB и SD (колонка «Реклама в марже»)",
                                     "uk": "Усі витрати на рекламу SKU: SP, SB, SD — ті самі, що в TACOS і ACOS. У маржу з них ідуть лише SB і SD (колонка «Реклама в маржі»)",
@@ -2467,9 +2469,9 @@ TRANSLATIONS = {
     "money.wf.logistics": {"ru": "Упаковка и доставка", "uk": "Пакування й доставка", "en": "Packing & shipping"},
     "money.kpi.logistics": {"ru": "Упаковка и доставка", "uk": "Пакування й доставка", "en": "Packing & shipping"},
     "money.kpi.logistics_help": {
-        "ru": "Упаковка 1,5 € за проданную единицу и доставка по весу SKU из тарифной сетки (у Amazon — только единицы FBM, у FBA сбор уже в комиссиях; у Mirakl — все). Те же правила, что в витрине Дарины; ставки — в reorder_params.",
-        "uk": "Пакування 1,5 € за продану одиницю і доставка за вагою SKU з тарифної сітки (в Amazon — лише одиниці FBM, у FBA збір уже в комісіях; у Mirakl — усі). Ті самі правила, що у вітрині Дарини; ставки — у reorder_params.",
-        "en": "Packing 1.5 € per unit sold and shipping by SKU weight from the rate card (Amazon — FBM units only, the FBA fee is already in fees; Mirakl — all units). Same rules as Darina's mart; rates live in reorder_params."},
+        "ru": "Упаковка 1,5 € за проданную единицу и доставка по весу SKU из тарифной сетки (у Amazon — только единицы FBM, у FBA сбор уже в комиссиях; у Mirakl — все). Те же правила, что в Power BI; ставки — в reorder_params.",
+        "uk": "Пакування 1,5 € за продану одиницю і доставка за вагою SKU з тарифної сітки (в Amazon — лише одиниці FBM, у FBA збір уже в комісіях; у Mirakl — усі). Ті самі правила, що в Power BI; ставки — у reorder_params.",
+        "en": "Packing 1.5 € per unit sold and shipping by SKU weight from the rate card (Amazon — FBM units only, the FBA fee is already in fees; Mirakl — all units). Same rules as in Power BI; rates live in reorder_params."},
     "money.wf.ads": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
     "money.wf.cm": {"ru": "Прибыль (CM)", "uk": "Прибуток (CM)", "en": "Profit (CM)"},
     "money.waterfall_caption": {
@@ -3411,16 +3413,16 @@ TRANSLATIONS = {
     "ads.card.sales_base_all": {"ru": "с рекламы SP + SB + SD, атрибуция 14 дн.", "uk": "з реклами SP + SB + SD, атрибуція 14 дн.", "en": "from SP + SB + SD ads, 14-day attribution"},
     "ads.scope.label": {"ru": "ACOS, TACOS, расход и продажи с рекламы", "uk": "ACOS, TACOS, витрати й продажі з реклами", "en": "ACOS, TACOS, spend and ad sales"},
     "ads.scope.page": {"ru": "рынок страницы: {m}", "uk": "ринок сторінки: {m}", "en": "page market: {m}"},
-    "ads.scope.all": {"ru": "все рынки и каналы — как Power BI Дарины", "uk": "усі ринки й канали — як Power BI Дарини", "en": "all markets and channels — as in Darina's Power BI"},
+    "ads.scope.all": {"ru": "все рынки и каналы — как в Power BI", "uk": "усі ринки й канали — як у Power BI", "en": "all markets and channels — as in Power BI"},
     "ads.card.acos_all_base": {"ru": "все рынки Amazon и ManoMano", "uk": "усі ринки Amazon і ManoMano", "en": "all Amazon markets and ManoMano"},
     "ads.card.formula_note": {
-        "ru": "ACOS и TACOS — по формулам Power BI Дарины: ACOS = расход на всю рекламу (SP, SB, SD) / продажи с рекламы; "
+        "ru": "ACOS и TACOS — по формулам Power BI: ACOS = расход на всю рекламу (SP, SB, SD) / продажи с рекламы; "
               "TACOS = весь расход на рекламу / все продажи с НДС. Порог в карточке ACOS и ACOS кампаний в таблице ниже — "
               "по данным AMC и от маржи товаров, это другое число.",
-        "uk": "ACOS і TACOS — за формулами Power BI Дарини: ACOS = витрати на всю рекламу (SP, SB, SD) / продажі з реклами; "
+        "uk": "ACOS і TACOS — за формулами Power BI: ACOS = витрати на всю рекламу (SP, SB, SD) / продажі з реклами; "
               "TACOS = усі витрати на рекламу / усі продажі з ПДВ. Поріг у картці ACOS і ACOS кампаній у таблиці нижче — "
               "за даними AMC і від маржі товарів, це інше число.",
-        "en": "ACOS and TACOS follow Darina's Power BI formulas: ACOS = spend on all ads (SP, SB, SD) / ad-attributed sales; "
+        "en": "ACOS and TACOS follow the Power BI formulas: ACOS = spend on all ads (SP, SB, SD) / ad-attributed sales; "
               "TACOS = total ad spend / all sales incl. VAT. The target on the ACOS card and the campaign ACOS in the table "
               "below come from AMC and product margin — a different number."},
     "ads.card.ntb": {"ru": "Новых", "uk": "Нових", "en": "New-to-brand"},
@@ -4028,22 +4030,22 @@ TRANSLATIONS = {
               "actually has content for — not when the loader ran: what matters is how current the numbers are.",
     },
     "passport.col_src": {"ru": "Что даёт", "uk": "Що дає", "en": "What it feeds"},
-    "passport.col_darina": {"ru": "У Дарины", "uk": "У Дарини", "en": "In Darina’s view"},
+    "passport.col_darina": {"ru": "В Power BI", "uk": "У Power BI", "en": "In Power BI"},
     "passport.col_darina_help": {
-        "ru": "Как тот же показатель считает витрина Дарины v_all_marketplaces_spiderweb_report — по её SQL-определению. "
-              "Итог: совпадает, точнее у нас, точнее у неё, разная методика или уточняется (ждём ответа Дарины), и почему. Прочерк — показателя в её витрине нет.",
-        "uk": "Як той самий показник рахує вітрина Дарини v_all_marketplaces_spiderweb_report — за її SQL-визначенням. "
-              "Підсумок: збігається, точніше в нас, точніше в неї, різна методика або уточнюється (чекаємо відповіді Дарини), і чому. Прочерк — показника в її вітрині немає.",
-        "en": "How Darina’s view v_all_marketplaces_spiderweb_report computes the same metric — from its SQL definition. "
-              "Verdict: same, ours is more precise, hers is more precise, a different method, or being clarified (waiting for Darina) — and why. A dash means "
-              "her view has no such metric.",
+        "ru": "Как тот же показатель считает Power BI — по SQL-определению витрины продаж v_all_marketplaces_spiderweb_report, из которой он строится. "
+              "Итог: совпадает, точнее у нас, точнее в Power BI, разная методика или уточняется (ждём ответа), и почему. Прочерк — такого показателя в Power BI нет.",
+        "uk": "Як той самий показник рахує Power BI — за SQL-визначенням вітрини продажів v_all_marketplaces_spiderweb_report, з якої він будується. "
+              "Підсумок: збігається, точніше в нас, точніше в Power BI, різна методика або уточнюється (чекаємо відповіді), і чому. Прочерк — такого показника в Power BI немає.",
+        "en": "How Power BI computes the same metric — from the SQL definition of the sales mart v_all_marketplaces_spiderweb_report it is built on. "
+              "Verdict: same, ours is more precise, Power BI is more precise, a different method, or being clarified (awaiting an answer) — and why. A dash means "
+              "Power BI has no such metric.",
     },
     "passport.darina.same": {"ru": "совпадает", "uk": "збігається", "en": "same"},
     "passport.darina.ours_better": {"ru": "точнее у нас", "uk": "точніше в нас", "en": "ours is more precise"},
-    "passport.darina.hers_better": {"ru": "точнее у неё", "uk": "точніше в неї", "en": "hers is more precise"},
+    "passport.darina.hers_better": {"ru": "точнее в Power BI", "uk": "точніше в Power BI", "en": "Power BI is more precise"},
     "passport.darina.different": {"ru": "разная методика", "uk": "різна методика", "en": "different method"},
     "passport.darina.pending": {"ru": "уточняется", "uk": "уточнюється", "en": "being clarified"},
-    "passport.darina.how": {"ru": "Как у неё: {how}", "uk": "Як у неї: {how}", "en": "How she computes it: {how}"},
+    "passport.darina.how": {"ru": "Как в Power BI: {how}", "uk": "Як у Power BI: {how}", "en": "How Power BI computes it: {how}"},
     "passport.col_table": {"ru": "Наша таблица", "uk": "Наша таблиця", "en": "Our table"},
     "passport.col_as_of": {"ru": "Данные по / возраст", "uk": "Дані по / вік", "en": "Data through / age"},
     "passport.col_age": {"ru": "Возраст", "uk": "Вік", "en": "Age"},
