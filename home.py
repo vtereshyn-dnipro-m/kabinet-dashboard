@@ -258,11 +258,29 @@ def load_ordered_sales(days: int = 30, _v: str = "") -> pd.DataFrame:
         conn.close()
 
 
+# Каналы, которых в Кабинете пока нет (08.10.2026): оговорка «без … — подключаем» под карточкой продаж по всем каналам
+# уходит сама, как только строки канала появятся в v_sales_vat_incl_daily. Узнаём канал по коду рынка.
+_PENDING_CHANNELS = (("wallapop", ("WALLAPOP", "WP_", "WLP")), ("site", ("WEB", "SITE")))
+
+
+def sales_all_extra(sales_all: pd.DataFrame) -> str:
+    """Подпись под «Продажи с НДС, все каналы»: «до возвратов» и, пока Wallapop или сайта нет в данных, —
+    «без … — подключаем». Имён людей в подписи нет: источник называем системой (правило 08.10.2026)."""
+    codes = ([str(c).upper() for c in sales_all["marketplace"].dropna().unique()]
+             if not sales_all.empty and "marketplace" in sales_all else [])
+    missing = [k for k, marks in _PENDING_CHANNELS if not any(c.startswith(m) for c in codes for m in marks)]
+    out = t("home.kpi.sales_all_extra")
+    if missing:
+        what = t("home.kpi.sales_all_missing.both") if len(missing) == 2 else t(f"home.kpi.sales_all_missing.{missing[0]}")
+        out += " · " + t("home.kpi.sales_all_missing", what=what)
+    return out
+
+
 @st.cache_data(ttl=300)
 def load_sales_all_channels(days: int = 30, _v: str = "") -> pd.DataFrame:
-    """Продажи с НДС по ВСЕМ каналам по дате заказа, до возвратов — то, что Дарина в Power BI называет
+    """Продажи с НДС по ВСЕМ каналам по дате заказа, до возвратов — то, что в Power BI называется
     «Revenue VAT Incl» (07.10.2026). Вью v_sales_vat_incl_daily: Amazon — витрина S&T в евро, Mirakl — строки
-    заказов с НДС тем же отбором, что у неё. Wallapop и сайта в Кабинете нет."""
+    заказов с НДС тем же отбором, что в Power BI. Wallapop и сайта в Кабинете пока нет."""
     if not table_exists("v_sales_vat_incl_daily"):
         return pd.DataFrame()
     conn = get_connection()
@@ -676,7 +694,7 @@ else:
                            mf=_m_from.strftime("%d.%m"), mt=_m_to.strftime("%d.%m"))
                          if _spans_differ else t("home.kpi.ordered_help"))))
     mn.money_metric(s0b, t("home.kpi.sales_all"), fmt_money(all_cur) if all_cur else "—", delta=_all_delta,
-                    vat=mn.VAT_INCL, channels="all", basis="order", extra=t("home.kpi.sales_all_extra"),
+                    vat=mn.VAT_INCL, channels="all", basis="order", extra=sales_all_extra(sales_all),
                     help=passport.tip("home", "ordered_all", t("home.kpi.sales_all_help")))
     mn.money_metric(s1, t("home.kpi.revenue"), fmt_money(rev_cur), delta=_rev_delta,
                     vat=mn.VAT_EXCL, channels="all", basis="order", extra=t("mn.x.after_returns"),

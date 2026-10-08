@@ -1,0 +1,97 @@
+--- Reconciliation (до)
++++ Reconciliation (после)
+@@ -175,7 +175,7 @@
+         # «нет данных» и «расхождение» — разные вещи: у LM и CF себестоимости нет вовсе,
+         # и писать по ним «расхождение 100 %» значит обвинять расчёт в том, чего он не делал
+         if t_sum == 0 and o_sum == 0:
+-            verdict, note = "no_data", "ни у нас, ни у неё за окно нет значений"
++            verdict, note = "no_data", "ни у нас, ни в Power BI за окно нет значений"
+         elif o_sum == 0 and t_sum != 0:
+             verdict, note = "no_data", "у нас этого показателя нет — сверять не с чем"
+         else:
+@@ -183,7 +183,7 @@
+             verdict = "ok" if off == 0 else "off"
+             note = (f"дней за допуском: {off} из {len(days)}" if off else
+                     f"все {len(days)} дней в пределах {tol:g} %")
+-        rows.append((CALC, "kabinet_data.economics_summary", "витрина Дарины", label, scope,
++        rows.append((CALC, "kabinet_data.economics_summary", "Power BI", label, scope,
+                      days[0] if days else None, days[-1] if days else None,
+                      round(o_sum, 2), round(t_sum, 2),
+                      round((o_sum / t_sum - 1) * 100, 2) if t_sum else None,
+@@ -336,7 +336,7 @@
+ #   комиссии — наши меньше на возвраты комиссии, пришедшие в окно по заказам ДО окна (у неё они ушли к дате заказа).
+ lm_ref = {}
+ try:
+-    _lm_rows = [r for r in rows if r[4] == "LM" and r[2] == "витрина Дарины"]
++    _lm_rows = [r for r in rows if r[4] == "LM" and r[2] == "Power BI"]
+     if _lm_rows:
+         _d0, _d1 = _lm_rows[0][5], _lm_rows[0][6]
+         _q = spark.sql(f"""
+@@ -365,7 +365,7 @@
+         return None, None, None
+     o, t = float(o or 0), float(t or 0)
+     # сдвиг по дням: сумма за окно в допуске, за допуском только отдельные дни
+-    if against == "витрина Дарины" and diff is not None and abs(float(diff)) <= tol:
++    if against == "Power BI" and diff is not None and abs(float(diff)) <= tol:
+         return (True, f"за окно в допуске ({float(diff):+.2f} %), за допуском только {off} "
+                       f"дн. из {days} — день атрибуции, а не потеря", None)
+     # мелочь — не повод: порог значимости в евро (у штук своей «мелочи в евро» нет)
+@@ -382,7 +382,7 @@
+                     {"заказов_без_цены": n, "их_сумма_settlement": round(amt, 2),
+                      "расхождение_с_ними_pct": round(без, 2)})
+         return False, None, None
+-    if against == "витрина Дарины":
++    if against == "Power BI":
+         if metric == "комиссии" and scope in комп_её and scope in комп_наш:
+             h, n = комп_её[scope], комп_наш[scope]
+             ref_o, ref_q = n.get("ReferralFee", (0.0, 0.0))
+@@ -403,22 +403,22 @@
+             if rate_h and rate_o and abs(rate_o / rate_h - 1) * 100 <= TOL_RATE:
+                 return (True,
+                         f"ставка реферальной комиссии за штуку та же ({rate_o:.2f} против {rate_h:.2f} €); "
+-                        f"разница в базе: у Дарины на все заказанные штуки ({h['units']:.0f}), у Amazon "
++                        f"разница в базе: в Power BI на все заказанные штуки ({h['units']:.0f}), у Amazon "
+                         f"начислено на {ref_q:.0f} отгруженных; digital Amazon списывает отдельно "
+-                        f"({h['dig']:.0f} против {dig_o:.0f} €); FBA у неё по признаку листинга "
++                        f"({h['dig']:.0f} против {dig_o:.0f} €); FBA в Power BI по признаку листинга "
+                         f"({h['fba']:.0f} €), у нас по факту ({fba_o:.0f} € на {fba_q:.0f} шт)", comp)
+             return False, "ставка комиссии за штуку расходится — разница не в базе штук", comp
+         if scope == "LM" and lm_ref:
+             # допуск — штука и евро: правило подтверждает объяснение, только если цифры сходятся
+             _d = o - t
+             if metric == "штуки" and lm_ref["units"] and abs(_d - lm_ref["units"]) <= 0.5:
+-                return (True, f"у Дарины строки полного возврата не входят в продажи LM, у нас продажа учтена, а "
++                return (True, f"в Power BI строки полного возврата не входят в продажи LM, у нас продажа учтена, а "
+                               f"возврат вычтен отдельно: {lm_ref['units']:.0f} шт — ровно разница", dict(lm_ref))
+             if metric == "продажи" and lm_ref["amount"] and abs(_d - lm_ref["amount"]) <= 1:
+-                return (True, f"у Дарины строки полного возврата не входят в продажи LM, у нас продажа учтена: "
++                return (True, f"в Power BI строки полного возврата не входят в продажи LM, у нас продажа учтена: "
+                               f"{lm_ref['amount']:.2f} € — ровно разница", dict(lm_ref))
+             if metric == "комиссии" and lm_ref["comm_outside"] and abs(_d + lm_ref["comm_outside"]) <= 1:
+-                return (True, f"возврат комиссии LM у нас вычитается в день возврата, у Дарины относится к дню заказа: "
++                return (True, f"возврат комиссии LM у нас вычитается в день возврата, в Power BI относится к дню заказа: "
+                               f"в окно пришло {lm_ref['comm_outside']:.2f} € возвратов по заказам до окна — ровно разница",
+                         dict(lm_ref))
+         if metric == "комиссии" and scope.startswith(("MM_", "MMB_")):   # MMB_ES — ManoMano Pro, та же недельная таблица
+@@ -442,10 +442,10 @@
+                 штуки_ок = abs(uo / uh - 1) * 100 <= TOL_SALES or (
+                     th and abs(to / th - 1) * 100 <= TOL_SALES and uo <= uh)
+                 if штуки_ок and abs(co / ch - 1) * 100 <= TOL_UNIT_COST:
+-                    хвост = (f"; у {нет_себ:.0f} шт из {to:.0f} нашей себестоимости нет (у Дарины есть) — "
++                    хвост = (f"; у {нет_себ:.0f} шт из {to:.0f} нашей себестоимости нет (в Power BI есть) — "
+                              f"это пробел справочника, а не ошибка расчёта" if uo < uh and нет_себ else "")
+                     return (True, f"штуки сходятся ({to:.0f} против {th:.0f}); разница в цене за единицу "
+-                                  f"{(co / ch - 1) * 100:+.1f} % — дата себестоимости: у Дарины на месяц "
++                                  f"{(co / ch - 1) * 100:+.1f} % — дата себестоимости: в Power BI на месяц "
+                                   f"продажи, у нас последний срез (уйдёт с дневной себестоимостью из ERP)"
+                                   + хвост, comp)
+                 return False, "штуки или цена за единицу расходятся сверх допуска", comp
+@@ -489,7 +489,7 @@
+     UPDATE kabinet_data.data_source_origins
+        SET reconcile_with = %s, reconciled_at = now(), reconcile_result = %s
+      WHERE table_name = 'kabinet_data.economics_summary'""",
+-    ("витрина Дарины и settlement Amazon", _result))
++    ("Power BI и settlement Amazon", _result))
+ pg.commit()
+ print(f"✅ паспорт: {_result}")
+ 

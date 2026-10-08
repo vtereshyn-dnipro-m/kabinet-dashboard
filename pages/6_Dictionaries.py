@@ -315,7 +315,7 @@ TR = {
         "sku_saved_manual": "Сохранено: {n} полей помечены как введённые вручную",
         "al_hint": "Справочник типов алертов Кабинета. Указан список ClickUp — задачи уходят туда; "
                    "список пуст — тип живёт только в «Инцидентах». Других включателей нет. "
-                   "Исполнитель — роль ClickUp, не человек; роли заведёт Владислав. "
+                   "Исполнитель — роль ClickUp, не человек; людей в роли добавляет администратор ClickUp. "
                    "«Контроль закрытия»: Кабинет сам закрывает задачу, когда причина ушла из данных, и "
                    "переоткрывает, если её закрыли руками при живой причине; без контроля — задачу создали и отдали.",
         "al_hint2": "Идентификатор алерта обязателен в задаче: в списке ClickUp должно быть текстовое поле "
@@ -937,7 +937,7 @@ TR = {
         "sku_saved_manual": "Збережено: {n} полів позначено як введені вручну",
         "al_hint": "Довідник типів алертів Кабінету. Вказано список ClickUp — задачі йдуть туди; "
                    "список порожній — тип живе лише в «Інцидентах». Інших вмикачів немає. "
-                   "Виконавець — роль ClickUp, не людина; ролі заведе Владислав. "
+                   "Виконавець — роль ClickUp, не людина; людей до ролей додає адміністратор ClickUp. "
                    "«Контроль закриття»: Кабінет сам закриває задачу, коли причина зникла з даних, і "
                    "перевідкриває, якщо її закрили руками при живій причині; без контролю — задачу створили й віддали.",
         "al_hint2": "Ідентифікатор алерту обов'язковий у задачі: у списку ClickUp має бути текстове поле "
@@ -1558,7 +1558,7 @@ TR = {
         "sku_saved_manual": "Saved: {n} fields marked as manually entered",
         "al_hint": "Dictionary of Kabinet alert types. A ClickUp list set — tasks go there; "
                    "list empty — the type lives only in «Incidents». There is no other switch. "
-                   "Assignee is a ClickUp role, not a person; roles will be created by Vladyslav. "
+                   "Assignee is a ClickUp role, not a person; people are added to roles by the ClickUp admin. "
                    "«Watch close»: Kabinet closes the task itself once the cause is gone from data and "
                    "reopens it if closed by hand while the cause persists; unwatched — created and handed over.",
         "al_hint2": "The alert identifier is mandatory on the task: the ClickUp list must have a text field "
