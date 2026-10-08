@@ -25,6 +25,7 @@ import streamlit as st
 from db.connection import get_connection
 from i18n import t
 from util import as_text
+import pbi
 
 
 @dataclass(frozen=True)
@@ -48,7 +49,11 @@ class Source:
 
 # Что стоит за цифрами каждой страницы. Порядок — как на экране сверху вниз.
 PAGES = {
-    "home": (
+    "home": ((
+        # с 08.10.2026 все денежные карточки «Обзора» — цифры Power BI из реплики его витрины (pbi.py)
+        Source("pbi", "pbi_spiderweb_report", "date", "Kabinet - Power BI Replica", 72,
+               ("ordered", "ordered_all", "revenue", "margin", "units", "channels", "acos", "tacos")),
+    ) if not pbi.OWN_METHOD else (
         Source("economics", "economics_summary", "sales_date", "Kabinet - Economics Loader", 96,
                ("revenue", "margin", "units", "channels")),
         Source("logistics", "economics_logistics", "sales_date", "Kabinet - Economics Loader", 96,
@@ -60,8 +65,9 @@ PAGES = {
         # Годные возвраты редки, и дни без них — норма, поэтому «устарело» по этой дате не считаем
         Source("returns", "v_returns_cogs_credit", "return_date", "Kabinet - Returns Loader", 96, ("margin",),
                watch=False),
+    )) + (
         Source("traffic", "sales_traffic_daily", "snapshot_date", "Kabinet - Sales & Traffic Replica", 72,
-               ("ordered", "ordered_all", "plan", "tacos")),
+               ("ordered", "ordered_all", "plan", "tacos") if pbi.OWN_METHOD else ("plan",)),
         # план месяца неделями не меняется по делу, а инциденты молчат, когда всё хорошо:
         # у обоих дату показываем, но в «устарело» не записываем — иначе предупреждение
         # висело бы там, где ничего не случилось, и его перестали бы читать
@@ -105,7 +111,11 @@ PAGES = {
         Source("reserve", "warehouse_stock", "snapshot_date", "Kabinet - Stock Loader", 38, ("reserve",)),
     ),
     # ── Деньги ───────────────────────────────────────────────────────────
-    "money": (
+    "money": ((
+        # с 08.10.2026 карточки и таблицы «Денег» — цифры Power BI из реплики его витрины (pbi.py)
+        Source("pbi", "pbi_spiderweb_report", "date", "Kabinet - Power BI Replica", 72,
+               ("ordered", "revenue", "net", "cogs", "logistics", "ads", "cm")),
+    ) if not pbi.OWN_METHOD else (
         Source("economics", "economics_summary", "sales_date", "Kabinet - Economics Loader", 96,
                ("ordered", "revenue", "net", "cogs", "cm")),
         Source("logistics", "economics_logistics", "sales_date", "Kabinet - Economics Loader", 96,
@@ -113,9 +123,10 @@ PAGES = {
         Source("ads", "ads_spend", "date", "Kabinet - Economics Loader", 96, ("ads", "cm")),
         Source("traffic", "sales_traffic_daily", "snapshot_date", "Kabinet - Sales & Traffic Replica", 72,
                ("ordered", "plan")),
-        Source("shipments", "shipment_facts", "shipped_date", "Kabinet - Shipment Facts", 48, ("plan",)),
         Source("settlements", "raw_amazon_settlements", "posted_date", "Kabinet - Settlements Loader", 240,
                ("cm_settle",), watch=False),
+    )) + (
+        Source("shipments", "shipment_facts", "shipped_date", "Kabinet - Shipment Facts", 48, ("plan",)),
         Source("forecast", "forecast_register", "changed_at", "Kabinet - Forecast Plan Loader", 720,
                ("plan",), watch=False),
     ),
@@ -153,10 +164,13 @@ PAGES = {
         Source("amc", "v_amc_attribution", "report_date", "AMC Collect", 72,
                ("campaigns", "no_sales")),
         # карточки ACOS, TACOS, расход и продажи с рекламы — по формулам Power BI Дарины (ad_ratios.py)
-        Source("ads_market", "ads_market_daily", "date", "Kabinet - Economics Loader", 96,
-               ("acos", "tacos", "spend", "ad_sales")),
-        Source("traffic", "sales_traffic_daily", "snapshot_date", "Kabinet - Sales & Traffic Replica", 72,
-               ("tacos",)),
+        *((Source("ads_market", "ads_market_daily", "date", "Kabinet - Economics Loader", 96,
+                  ("acos", "tacos", "spend", "ad_sales")),
+           Source("traffic", "sales_traffic_daily", "snapshot_date", "Kabinet - Sales & Traffic Replica", 72,
+                  ("tacos",))) if pbi.OWN_METHOD else
+          # с 08.10.2026 ACOS, TACOS, расход и продажи с рекламы — цифры Power BI (ad_ratios.py)
+          (Source("pbi", "pbi_spiderweb_report", "date", "Kabinet - Power BI Replica", 72,
+                  ("acos", "tacos", "spend", "ad_sales")),)),
         # ads_spend страница «Реклама» не читает вовсе (строка = SKU, продаж SB в ней нет) — в паспорте её нет
         Source("ads_alerts", "ads_alerts", "calc_date", "Kabinet - Ads Alerts", 48, ("alerts",)),
         # журнал кнопок: пишется только когда человек нажал, «устарел» он по делу не бывает
@@ -180,8 +194,9 @@ PAGES = {
     ),
     # ── Площадки (CM Dashboard) ──────────────────────────────────────────
     "cm": (
-        Source("economics", "economics_summary", "sales_date", "Kabinet - Economics Loader", 96,
-               ("revenue", "cm")),
+        (Source("economics", "economics_summary", "sales_date", "Kabinet - Economics Loader", 96,
+                ("revenue", "cm")) if pbi.OWN_METHOD else
+         Source("pbi", "pbi_spiderweb_report", "date", "Kabinet - Power BI Replica", 72, ("revenue", "cm"))),
         Source("mirakl_stock", "stock_local", "snapshot_date", "Kabinet - LM Orders Loader", 48, ("stock",),
                where="source <> 'ledger-summary'"),
         Source("parity", "price_parity", "updated_at", "Kabinet - Price Parity", 48, ("parity",)),

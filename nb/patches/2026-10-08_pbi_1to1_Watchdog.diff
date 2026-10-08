@@ -1,0 +1,17 @@
+--- Kabinet - Watchdog (до)
++++ Kabinet - Watchdog (после)
+@@ -1787,6 +1787,14 @@
+             _msg = (f"[{_tok}] {_sc}, {_mt}: у нас {_num(_o)}, у источника {_num(_t)} "
+                     f"({_diff} при допуске {float(_tol):g} %), {_d0} — {_d1}. {(_note or '').rstrip('.')}."
+                     + (f" Разложение: {_expl}" if _expl else " Разложение по слагаемым причину не нашло."))
++            if _ag == "Power BI 1:1":
++                # Кабинет показывает цифры Power BI (с 08.10.2026): любое расхождение больше 1 € значит, что на экране
++                # не то, что в Power BI, — объяснений у этой сверки нет, поэтому и сообщение своё: разница в деньгах
++                _sev = "high"
++                _m2 = lambda x: f"{float(x or 0):,.2f}".replace(",", " ")
++                _msg = (f"[{_tok}] {_sc}, {_mt}: Кабинет показывает {_m2(_o)}, Power BI — {_m2(_t)} ({_note}). "
++                        f"Реплика витрины kabinet_data.pbi_spiderweb_report разошлась с витриной: проверьте джобу "
++                        f"Kabinet - Power BI Replica.")
+             _rc_want[_tok] = (_sev, _msg)
+         pg_cur.execute("""SELECT id, message FROM kabinet_data.incidents
+                           WHERE incident_type = 'reconciliation' AND resolved_at IS NULL""")

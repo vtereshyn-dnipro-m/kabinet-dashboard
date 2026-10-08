@@ -1058,6 +1058,136 @@ TRANSLATIONS = {
     "mn.basis.month_plan": {"ru": "план текущего месяца", "uk": "план поточного місяця", "en": "current month plan"},
     "mn.basis.month_to_date": {"ru": "план на прошедшие дни месяца", "uk": "план на дні місяця, що минули", "en": "plan for elapsed days"},
     "mn.x.before_cancel": {"ru": "до отмен и возвратов", "uk": "до скасувань і повернень", "en": "before cancellations and returns"},
+    # ── цифры как в Power BI (08.10.2026) ──
+    "mn.x.as_pbi": {"ru": "как в Power BI", "uk": "як у Power BI", "en": "as in Power BI"},
+    "mn.x.before_returns": {"ru": "до возвратов", "uk": "до повернень", "en": "before returns"},
+    "mn.x.share_of_sales_excl": {"ru": "доля — от продаж без НДС", "uk": "частка — від продажів без ПДВ", "en": "share of sales excl. VAT"},
+    "mn.x.acos_pbi": {"ru": "вся реклама к продажам с рекламы", "uk": "уся реклама до продажів з реклами", "en": "all ad spend over ad sales"},
+    "mn.x.by_settlement": {"ru": "Amazon — по дате расчёта", "uk": "Amazon — за датою розрахунку", "en": "Amazon by settlement date"},
+    "home.kpi.revenue_pbi": {"ru": "Продажи без НДС", "uk": "Продажі без ПДВ", "en": "Sales excl. VAT"},
+    "home.kpi.revenue_help_pbi": {
+        "ru": "Без НДС. Продажи всех каналов до возвратов — Revenue VAT Excl отчёта Power BI. У Amazon это продажи с НДС, "
+              "делённые на ставку НДС страны (ES 21 %, IT 22 %, FR 20 %, DE 19 %…), у Leroy Merlin, ManoMano, Carrefour, "
+              "Wallapop и сайта — сумма заказов без НДС. Период {f}–{to}, сравнение с {pf}–{pt}.",
+        "uk": "Без ПДВ. Продажі всіх каналів до повернень — Revenue VAT Excl звіту Power BI. В Amazon це продажі з ПДВ, "
+              "поділені на ставку ПДВ країни (ES 21 %, IT 22 %, FR 20 %, DE 19 %…), у Leroy Merlin, ManoMano, Carrefour, "
+              "Wallapop і сайту — сума замовлень без ПДВ. Період {f}–{to}, порівняння з {pf}–{pt}.",
+        "en": "Excl. VAT. Sales of all channels before returns — Revenue VAT Excl in the Power BI report. For Amazon it is "
+              "sales incl. VAT divided by the country VAT rate (ES 21 %, IT 22 %, FR 20 %, DE 19 %…); for Leroy Merlin, "
+              "ManoMano, Carrefour, Wallapop and the website — order totals excl. VAT. Period {f}–{to}, compared with {pf}–{pt}."},
+    "home.kpi.margin_pbi": {"ru": "Contribution Profit и доля", "uk": "Contribution Profit і частка", "en": "Contribution Profit and share"},
+    "home.kpi.margin_help_pbi": {
+        "ru": "Без НДС. Contribution Profit отчёта Power BI: продажи без НДС минус расходы (комиссии, себестоимость, доставка, "
+              "упаковка), плюс себестоимость возвращённого товара за вычетом расходов на возврат, минус реклама. Доля — к "
+              "продажам без НДС, как «% Contribution Margin (VAT Excl)». Возвраты Amazon идут по дате расчёта, и прошлые "
+              "недели меняются задним числом, поэтому процента изменения у этой цифры нет.",
+        "uk": "Без ПДВ. Contribution Profit звіту Power BI: продажі без ПДВ мінус витрати (комісії, собівартість, доставка, "
+              "пакування), плюс собівартість поверненого товару за вирахуванням витрат на повернення, мінус реклама. Частка — "
+              "до продажів без ПДВ, як «% Contribution Margin (VAT Excl)». Повернення Amazon ідуть за датою розрахунку, і "
+              "минулі тижні змінюються заднім числом, тому відсотка зміни в цієї цифри немає.",
+        "en": "Excl. VAT. Contribution Profit from the Power BI report: sales excl. VAT minus expenses (fees, cost of goods, "
+              "shipping, packing), plus the cost of returned goods net of return costs, minus advertising. Share is of sales "
+              "excl. VAT, like “% Contribution Margin (VAT Excl)”. Amazon returns come by settlement date and change past "
+              "weeks retroactively, so this figure has no period-over-period change."},
+    "home.kpi.units_help_pbi": {
+        "ru": "Штуки заказов всех каналов — Units Sold отчёта Power BI. Под числом — возвращено штук (Quantity Refund); у "
+              "Amazon — по дате расчёта.",
+        "uk": "Штуки замовлень усіх каналів — Units Sold звіту Power BI. Під числом — повернено штук (Quantity Refund); в "
+              "Amazon — за датою розрахунку.",
+        "en": "Ordered units of all channels — Units Sold in the Power BI report. Below — units returned (Quantity Refund); "
+              "for Amazon by settlement date."},
+    "money.kpi.sales_incl_pbi": {"ru": "Продажи с НДС", "uk": "Продажі з ПДВ", "en": "Sales incl. VAT"},
+    "money.kpi.sales_incl_pbi_help": {
+        "ru": "С НДС. Revenue VAT Incl отчёта Power BI: продажи выбранных каналов до возвратов. У Amazon — витрина Sales & "
+              "Traffic, у остальных — сумма заказов с НДС.",
+        "uk": "З ПДВ. Revenue VAT Incl звіту Power BI: продажі обраних каналів до повернень. В Amazon — вітрина Sales & "
+              "Traffic, в інших — сума замовлень з ПДВ.",
+        "en": "Incl. VAT. Revenue VAT Incl in the Power BI report: sales of the selected channels before returns. Amazon — "
+              "Sales & Traffic, others — order totals incl. VAT."},
+    "money.kpi.sales_excl_pbi": {"ru": "Продажи без НДС", "uk": "Продажі без ПДВ", "en": "Sales excl. VAT"},
+    "money.kpi.sales_excl_pbi_help": {
+        "ru": "Без НДС. Revenue VAT Excl отчёта Power BI. У Amazon — продажи с НДС, делённые на ставку НДС страны; у "
+              "остальных — сумма заказов без НДС.",
+        "uk": "Без ПДВ. Revenue VAT Excl звіту Power BI. В Amazon — продажі з ПДВ, поділені на ставку ПДВ країни; в інших — "
+              "сума замовлень без ПДВ.",
+        "en": "Excl. VAT. Revenue VAT Excl in the Power BI report. Amazon — sales incl. VAT divided by the country VAT rate; "
+              "others — order totals excl. VAT."},
+    "money.kpi.expenses_pbi": {"ru": "Расходы", "uk": "Витрати", "en": "Expenses"},
+    "money.kpi.expenses_pbi_help": {
+        "ru": "Без НДС. Expenses отчёта Power BI: комиссии {comm} €, себестоимость {cogs} €, доставка и упаковка {log} €, "
+              "прочее {other} € (скидки продавца ManoMano). Комиссии Amazon в Power BI — модельные: реферальный процент, "
+              "digital-сбор и расчётный сбор FBA на заказанные штуки.",
+        "uk": "Без ПДВ. Expenses звіту Power BI: комісії {comm} €, собівартість {cogs} €, доставка і пакування {log} €, "
+              "інше {other} € (знижки продавця ManoMano). Комісії Amazon у Power BI — модельні: реферальний відсоток, "
+              "digital-збір і розрахунковий збір FBA на замовлені штуки.",
+        "en": "Excl. VAT. Expenses in the Power BI report: fees €{comm}, cost of goods €{cogs}, shipping and packing €{log}, "
+              "other €{other} (ManoMano seller discounts). Amazon fees in Power BI are modelled: referral rate, digital "
+              "fee and estimated FBA fee on ordered units."},
+    "money.kpi.exp_refund_pbi": {"ru": "Возвраты", "uk": "Повернення", "en": "Returns"},
+    "money.kpi.exp_refund_pbi_help": {
+        "ru": "Без НДС. Expenses Refund отчёта Power BI: себестоимость возвращённого товара минус доставка возврата и прочие "
+              "расходы на возврат. У Amazon себестоимость возврата — 90 % себестоимости каждой возвращённой штуки, возвраты "
+              "идут по дате расчёта.",
+        "uk": "Без ПДВ. Expenses Refund звіту Power BI: собівартість поверненого товару мінус доставка повернення та інші "
+              "витрати на повернення. В Amazon собівартість повернення — 90 % собівартості кожної поверненої штуки, повернення "
+              "йдуть за датою розрахунку.",
+        "en": "Excl. VAT. Expenses Refund in the Power BI report: cost of returned goods minus return shipping and other return "
+              "costs. For Amazon the cost of a return is 90 % of the unit cost of each returned unit, by settlement date."},
+    "money.kpi.reimb_pbi": {"ru": "Компенсации", "uk": "Компенсації", "en": "Reimbursements"},
+    "money.kpi.reimb_pbi_help": {
+        "ru": "Без НДС. Компенсации и прочие начисления Amazon по расчётам (Reimbursement в витрине Power BI). Входят в "
+              "Contribution Profit.",
+        "uk": "Без ПДВ. Компенсації та інші нарахування Amazon за розрахунками (Reimbursement у вітрині Power BI). Входять до "
+              "Contribution Profit.",
+        "en": "Excl. VAT. Amazon reimbursements and other settlement credits (Reimbursement in the Power BI view). Part of "
+              "Contribution Profit."},
+    "money.kpi.spend_pbi": {"ru": "Реклама", "uk": "Реклама", "en": "Advertising"},
+    "money.kpi.spend_pbi_help": {
+        "ru": "Без НДС. Spend отчёта Power BI: весь расход на рекламу — Amazon SP, SB, SD, ManoMano и Leroy Merlin там, где он "
+              "есть.",
+        "uk": "Без ПДВ. Spend звіту Power BI: уся витрата на рекламу — Amazon SP, SB, SD, ManoMano і Leroy Merlin там, де вона "
+              "є.",
+        "en": "Excl. VAT. Spend in the Power BI report: all ad spend — Amazon SP, SB, SD, ManoMano and Leroy Merlin where "
+              "available."},
+    "money.kpi.cp_pbi": {"ru": "Contribution Profit", "uk": "Contribution Profit", "en": "Contribution Profit"},
+    "money.kpi.cp_pbi_help": {
+        "ru": "Без НДС. Contribution Profit отчёта Power BI: продажи без НДС − расходы + возвраты + компенсации − реклама. "
+              "Доля — к продажам без НДС.",
+        "uk": "Без ПДВ. Contribution Profit звіту Power BI: продажі без ПДВ − витрати + повернення + компенсації − реклама. "
+              "Частка — до продажів без ПДВ.",
+        "en": "Excl. VAT. Contribution Profit in the Power BI report: sales excl. VAT − expenses + returns + reimbursements − "
+              "advertising. Share is of sales excl. VAT."},
+    "money.wf.revenue_pbi": {"ru": "Продажи без НДС", "uk": "Продажі без ПДВ", "en": "Sales excl. VAT"},
+    "money.wf.other_pbi": {"ru": "Прочие расходы", "uk": "Інші витрати", "en": "Other expenses"},
+    "money.waterfall_caption_pbi": {
+        "ru": "Как в Power BI: от продаж без НДС к Contribution Profit. Слагаемые те же, что у карточек сверху, и "
+              "складываются в Contribution Profit до цента.",
+        "uk": "Як у Power BI: від продажів без ПДВ до Contribution Profit. Доданки ті самі, що в карток зверху, і "
+              "складаються в Contribution Profit до цента.",
+        "en": "As in Power BI: from sales excl. VAT to Contribution Profit. The parts are the same as the cards above and "
+              "add up to Contribution Profit to the cent."},
+    "cm.amz.refunded_help_pbi": {
+        "ru": "Без НДС. Возвращённые деньги по витрине Power BI (Refund Total VAT Excl): у Amazon — по дате расчёта, у "
+              "Mirakl — по дате возврата. Штуки слева — физические возвраты по отчёту о возвратах, по дате возврата.",
+        "uk": "Без ПДВ. Повернені гроші за вітриною Power BI (Refund Total VAT Excl): в Amazon — за датою розрахунку, в "
+              "Mirakl — за датою повернення. Штуки зліва — фізичні повернення за звітом про повернення, за датою повернення.",
+        "en": "Excl. VAT. Refunded money from the Power BI view (Refund Total VAT Excl): Amazon by settlement date, Mirakl "
+              "by return date. Units on the left are physical returns from the returns report, by return date."},
+    "cm.all.metric_help_pbi": {
+        "ru": "Продажи без НДС и доля Contribution Profit за выбранный период — как в Power BI",
+        "uk": "Продажі без ПДВ і частка Contribution Profit за обраний період — як у Power BI",
+        "en": "Sales excl. VAT and Contribution Profit share for the selected period — as in Power BI"},
+    "cm.all.note_pbi": {
+        "ru": "Цифры как в Power BI: продажи без НДС, комиссии и себестоимость его витрины; Contribution Profit — после "
+              "доставки, упаковки, возвратов и рекламы.",
+        "uk": "Цифри як у Power BI: продажі без ПДВ, комісії та собівартість його вітрини; Contribution Profit — після "
+              "доставки, пакування, повернень і реклами.",
+        "en": "Figures as in Power BI: sales excl. VAT, fees and cost of goods from its view; Contribution Profit is after "
+              "shipping, packing, returns and advertising."},
+    "cm.col.cp_pct_pbi": {"ru": "Contribution Profit %", "uk": "Contribution Profit %", "en": "Contribution Profit %"},
+    "passport.src.pbi": {"ru": "Цифры Power BI: продажи, Contribution Profit, реклама",
+                         "uk": "Цифри Power BI: продажі, Contribution Profit, реклама",
+                         "en": "Power BI figures: sales, Contribution Profit, advertising"},
     "mn.x.after_returns": {"ru": "после возвратов", "uk": "після повернень", "en": "after returns"},
     "mn.x.after_costs": {"ru": "после возвратов, комиссий, рекламы и себестоимости", "uk": "після повернень, комісій, реклами й собівартості", "en": "after returns, fees, ads and cost of goods"},
     "mn.x.acos": {"ru": "реклама SP+SB+SD+ManoMano к продажам с рекламы", "uk": "реклама SP+SB+SD+ManoMano до продажів з реклами", "en": "SP+SB+SD+ManoMano ad spend over ad sales"},

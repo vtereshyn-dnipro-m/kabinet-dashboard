@@ -16,6 +16,7 @@ import period as period_mod
 import plan_fact
 import ad_ratios
 import money_notes as mn
+import pbi
 
 init_lang()
 
@@ -192,6 +193,27 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
         return pd.DataFrame()
     finally:
         conn.close()
+
+
+@st.cache_data(ttl=300)
+def load_money_pbi(days: int = 30, _v: str = "") -> pd.DataFrame:
+    """Цифры как в Power BI (08.10.2026): день × рынок из реплики его витрины (pbi.py). Колонки названы так же,
+    как у load_money, чтобы граница периода, окна и графики работали без второй копии кода: revenue — продажи
+    без НДС (до возвратов, у Amazon — продажи с НДС, делённые на ставку страны), cp — Contribution Profit."""
+    try:
+        _to = datetime.now().date()
+        df = pbi.load_daily(_to - pd.Timedelta(days=days * 2 + 10).to_pytimedelta(), _to)
+    except Exception:
+        return pd.DataFrame()
+    if df.empty:
+        return df
+    df = df.rename(columns={"sales_vat_excl": "revenue"})
+    df["gross_revenue"] = df["revenue"]
+    # себестоимость в витрине есть у всех строк (пустая там — ноль), поэтому «маржа по части выручки» не бывает
+    df["revenue_known"] = df["revenue"]
+    df["ads"] = df["spend"]
+    df["cogs_credit"] = 0.0
+    return df
 
 
 @st.cache_data(ttl=300)
@@ -543,13 +565,27 @@ try:
                   else (today - date_from).days + DAYS + 10)
     # _v — отметка последней записи: входит в ключ кеша, чтобы Обзор и
     # Деньги обновлялись вместе, а не каждый по своему TTL
-    money = load_money(_load_days, data_version("economics_summary", "updated_at"))
-    ordered = load_ordered_sales(_load_days, data_version("sales_traffic_daily", "loaded_at"))
-    sales_all = load_sales_all_channels(_load_days, data_version("sales_traffic_daily", "loaded_at"))
-    # отдельно берём 90 дней: нужно понять, какие страны продавали раньше,
-    # но замолчали в выбранном периоде
-    money_wide = (load_money(90, data_version("economics_summary", "updated_at"))
-                  if DAYS < 90 else money)
+    if pbi.OWN_METHOD:
+        # наша методика маржи — для будущего документа (pbi.OWN_METHOD)
+        money = load_money(_load_days, data_version("economics_summary", "updated_at"))
+        ordered = load_ordered_sales(_load_days, data_version("sales_traffic_daily", "loaded_at"))
+        sales_all = load_sales_all_channels(_load_days, data_version("sales_traffic_daily", "loaded_at"))
+        # отдельно берём 90 дней: нужно понять, какие страны продавали раньше,
+        # но замолчали в выбранном периоде
+        money_wide = (load_money(90, data_version("economics_summary", "updated_at"))
+                      if DAYS < 90 else money)
+    else:
+        # цифры как в Power BI (08.10.2026): все карточки — из одной реплики его витрины. «Продажи Amazon» и
+        # «все каналы» — та же колонка sales_vat_incl, что у карточки Revenue VAT Incl в Power BI
+        _vp = data_version("pbi_spiderweb_report", "loaded_at")
+        money = load_money_pbi(_load_days, _vp)
+        _amz_rows = (money["platform"].astype(str) == "Amazon") if not money.empty else pd.Series(dtype=bool)
+        ordered = (money.loc[_amz_rows, ["sales_date", "marketplace", "sales_vat_incl", "units"]]
+                   .rename(columns={"sales_vat_incl": "ordered_sales", "units": "units_ordered"})
+                   if not money.empty else pd.DataFrame())
+        sales_all = (money[["sales_date", "marketplace", "sales_vat_incl"]].copy()
+                     if not money.empty else pd.DataFrame())
+        money_wide = load_money_pbi(90, _vp) if DAYS < 90 else money
     cov = load_coverage()
     inc = load_incidents()
     transfers = load_transfers()
@@ -648,7 +684,12 @@ else:
     # тот же периметр, что в «Деньгах»: только строки с себестоимостью; доля выручки без COGS — в подписи
     def _s(col):
         return float(pd.to_numeric(cur.get(col, pd.Series(dtype=float)), errors="coerce").fillna(0).sum())
-    cm_cur = _s("net_known") - _s("cogs") + _s("cogs_credit") - _s("ads_known") - _s("logistics_known")
+    if pbi.OWN_METHOD:
+        cm_cur = _s("net_known") - _s("cogs") + _s("cogs_credit") - _s("ads_known") - _s("logistics_known")
+    else:
+        # Contribution Profit Power BI: сумма колонки contribution_profit витрины (= profit − spend в каждой строке)
+        cm_cur = _s("cp")
+    # доля — к продажам без НДС, как «% Contribution Margin (VAT Excl)» в Power BI
     cm_pct = round(cm_cur / rev_cur * 100, 1) if rev_cur else 0.0
     _rev_known = _s("revenue_known")
     _no_cogs_rev = rev_cur - _rev_known
@@ -703,37 +744,47 @@ else:
 
     # пять карточек в ряд: шестая («Площадок») уходит во второй ряд к ACOS и TACOS — при шести названия обрезались
     s0, s0b, s1, s2, s3 = st.columns(5)
-    # под каждой денежной цифрой — видимая подпись: НДС · каналы · дата (money_notes, 06.10.2026)
+    # под каждой денежной цифрой — видимая подпись: НДС · каналы · дата (money_notes, 06.10.2026); с 08.10.2026 цифры
+    # те же, что в Power BI, и подпись говорит это словами «как в Power BI»
+    _pbi = not pbi.OWN_METHOD
+    _as = (lambda x: " · ".join(p for p in (x, t("mn.x.as_pbi")) if p)) if _pbi else (lambda x: x)
     mn.money_metric(s0, t("home.kpi.ordered"), fmt_money(ord_cur) if ord_cur else "—", delta=_ord_delta,
-                    vat=mn.VAT_INCL, channels="amazon", basis="order", extra=t("mn.x.before_cancel"),
+                    vat=mn.VAT_INCL, channels="amazon", basis="order", extra=_as(t("mn.x.before_cancel")),
                     help=passport.tip("home", "ordered",
                         (t("home.kpi.ordered_help_span",
                            of=_o_from.strftime("%d.%m"), ot=_o_to.strftime("%d.%m"),
                            mf=_m_from.strftime("%d.%m"), mt=_m_to.strftime("%d.%m"))
                          if _spans_differ else t("home.kpi.ordered_help"))))
     mn.money_metric(s0b, t("home.kpi.sales_all"), fmt_money(all_cur) if all_cur else "—", delta=_all_delta,
-                    vat=mn.VAT_INCL, channels="all", basis="order", extra=sales_all_extra(sales_all),
+                    vat=mn.VAT_INCL, channels="all", basis="order", extra=_as(sales_all_extra(sales_all)),
                     help=passport.tip("home", "ordered_all", t("home.kpi.sales_all_help")))
-    mn.money_metric(s1, t("home.kpi.revenue"), fmt_money(rev_cur), delta=_rev_delta,
-                    vat=mn.VAT_EXCL, channels="all", basis="order", extra=t("mn.x.after_returns"),
-                    help=passport.tip("home", "revenue", t("home.kpi.revenue_help_r",
-                        f=_w.cur_from.strftime("%d.%m"), to=_w.cur_to.strftime("%d.%m"),
-                        pf=_w.prev_from.strftime("%d.%m"), pt=_w.prev_to.strftime("%d.%m"))))
+    mn.money_metric(s1, t("home.kpi.revenue_pbi") if _pbi else t("home.kpi.revenue"), fmt_money(rev_cur),
+                    delta=_rev_delta, vat=mn.VAT_EXCL, channels="all", basis="order",
+                    extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns")),
+                    help=passport.tip("home", "revenue",
+                        t("home.kpi.revenue_help_pbi", f=_w.cur_from.strftime("%d.%m"), to=_w.cur_to.strftime("%d.%m"),
+                          pf=_w.prev_from.strftime("%d.%m"), pt=_w.prev_to.strftime("%d.%m")) if _pbi else
+                        t("home.kpi.revenue_help_r",
+                          f=_w.cur_from.strftime("%d.%m"), to=_w.cur_to.strftime("%d.%m"),
+                          pf=_w.prev_from.strftime("%d.%m"), pt=_w.prev_to.strftime("%d.%m"))))
     # У маржи процента изменения нет намеренно (07.10.2026): себестоимость возврата, принятого на склад брака,
     # возвращается в маржу датой возврата, но только когда склад его разберёт (в среднем 6–23 дня). Прошлый период
     # всегда «богаче» текущего: неделя 07.09 получила так +626 €, недели 21.09 и 28.09 — пока ноль, при марже около
-    # 800 € в неделю. Процент показывал бы падение, которого нет
-    mn.money_metric(s2, t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
-                    vat=mn.VAT_EXCL, channels="all", basis="order", extra=t("mn.x.after_costs"),
-                    help=passport.tip("home", "margin", t("home.kpi.margin_help") + " " + t("mn.margin_no_delta")))
+    # 800 € в неделю. Процент показывал бы падение, которого нет. У Contribution Profit Power BI то же самое:
+    # возвраты в его витрине идут по дате расчёта Amazon и приходят в прошлые недели задним числом
+    mn.money_metric(s2, t("home.kpi.margin_pbi") if _pbi else t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
+                    vat=mn.VAT_EXCL, channels="all", basis="order",
+                    extra=_as(t("mn.x.share_of_sales_excl") if _pbi else t("mn.x.after_costs")),
+                    help=passport.tip("home", "margin", (t("home.kpi.margin_help_pbi") if _pbi
+                                                         else t("home.kpi.margin_help") + " " + t("mn.margin_no_delta"))))
     _ref = int(cur.get("units_refunded", pd.Series(dtype=float)).sum() or 0)
     mn.money_metric(s3, t("home.kpi.units"), f"{units_cur:,}",
                     delta=(f"−{_ref} {t('home.kpi.refunded')}" if _ref else None),
                     delta_color="inverse" if _ref else "off",
                     # «возврат» — не изменение к прошлому периоду: стрелка «↑ −62» читалась как рост
                     delta_arrow="off",
-                    vat=mn.VAT_NONE, channels="all", basis="order",
-                    help=passport.tip("home", "units", t("home.kpi.units_help")))
+                    vat=mn.VAT_NONE, channels="all", basis="order", extra=_as(None),
+                    help=passport.tip("home", "units", t("home.kpi.units_help_pbi") if _pbi else t("home.kpi.units_help")))
     # площадка с продажами — где были штуки: строка одного возврата и «рекламный день» без продаж (05.10.2026) не в счёт
     _n_markets = cur.loc[pd.to_numeric(cur['units'], errors='coerce').fillna(0) > 0, 'marketplace'].nunique()
     # «По какое число» — подписью, а не только в подсказке ⓘ. Еженедельная сверка с внешним
@@ -755,17 +806,19 @@ else:
         _period_txt = mn.period_line(_dstat, _w.cur_from, _as_of, PERIOD.end, _loaded_last)
     if _period_txt:
         st.caption(_period_txt)
-    # ACOS и TACOS — по формулам Дарины (Power BI, 05.10.2026): весь расход на рекламу SP+SB+SD к продажам с
-    # рекламы и ко всем продажам с НДС. Окно — то же, что у выручки и маржи; каналы — все, как у неё
+    # ACOS и TACOS — формулы Power BI (05.10.2026): весь расход на рекламу к продажам с рекламы и ко всем продажам
+    # с НДС; с 08.10.2026 и числа те же — из реплики его витрины (ad_ratios). Окно — то же, что у выручки и маржи
     if pd.notna(_m_from) and pd.notna(_m_to):
-        _ar = load_ad_ratios(_m_from.date(), _m_to.date(), data_version("ads_market_daily", "updated_at"))
+        _ar = load_ad_ratios(_m_from.date(), _m_to.date(),
+                             data_version("ads_market_daily", "updated_at") if pbi.OWN_METHOD
+                             else data_version("pbi_spiderweb_report", "loaded_at"))
         _a1, _a2, _a3, _ = st.columns([1, 1, 1, 2])
         _a3.metric(t("home.kpi.markets"), f"{_n_markets}", help=passport.tip("home", "channels"))
         mn.money_metric(_a1, "ACOS", f"{_ar['acos']:.1f} %" if _ar.get("acos") is not None else "—",
-                        vat=mn.VAT_NONE, channels="all", basis=None, extra=t("mn.x.acos"),
+                        vat=mn.VAT_NONE, channels="all", basis=None, extra=_as(t("mn.x.acos_pbi") if _pbi else t("mn.x.acos")),
                         help=passport.tip("home", "acos", mn.help_with_vat(mn.VAT_INCL, t("home.kpi.acos_help"))))
         mn.money_metric(_a2, "TACOS", f"{_ar['tacos']:.1f} %" if _ar.get("tacos") is not None else "—",
-                        vat=mn.VAT_NONE, channels="all", basis="order", extra=t("mn.x.tacos"),
+                        vat=mn.VAT_NONE, channels="all", basis="order", extra=_as(t("mn.x.tacos")),
                         help=passport.tip("home", "tacos", mn.help_with_vat(mn.VAT_INCL, t("home.kpi.tacos_help"))))
     if rev_cur and _no_cogs_rev > 0.5:
         st.caption(t("home.kpi.margin_partial", rev=f"{_no_cogs_rev:,.0f}", pct=f"{_no_cogs_rev / rev_cur * 100:.0f}",
@@ -801,7 +854,7 @@ else:
         _holes = daily.loc[_empty & ~_zero, "sales_date"]
 
         mn.chart_note(t("mn.what.revenue_by_day"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
-                      extra=t("mn.x.after_returns"))
+                      extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns")))
         # линия с заливкой, а не px.area: у area пропуск складывается как НОЛЬ (stackgaps), и день, который
         # ещё не приехал (06.10 при данных по 05.10), рисовался обвалом выручки до нуля
         fig = px.line(daily, x="sales_date", y="revenue",
@@ -872,7 +925,7 @@ else:
         # возвратов — база маржи. Без подписи «Amazon · продажи в 6 странах» читалось как
         # то же число, что в карточке, и разница в 12 тыс. € выглядела ошибкой (20.09.2026)
         mn.chart_note(t("mn.what.revenue_by_channel"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
-                      extra=t("mn.x.after_returns"))
+                      extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns")))
         for _, r in by_ch.iterrows():
             share = r["revenue"] / rev_cur * 100 if rev_cur else 0
             codes = sorted(sold_mp.loc[sold_mp["channel"] == r["channel"],
@@ -943,7 +996,9 @@ else:
 
     if ord_cur and rev_cur and _o_clipped:
         st.caption(t("home.sales.ordered_clipped", d=_econ_first.strftime("%d.%m.%Y")))
-    if ord_cur and rev_cur:
+    # Разбор «почему две цифры разные» — про нашу методику (НДС по факту, отмены, возвраты, лаг экономики). В цифрах
+    # Power BI разница Amazon — ровно НДС по ставке страны, и подпись про отмены и возвраты была бы неправдой
+    if ord_cur and rev_cur and pbi.OWN_METHOD:
         # Разница карточки и выручки каналов — НДС, отмены, возвраты И лаг: за последний день
         # экономика обычно неполная (18.09.2026: 116 € против 1 753 € в витрине), а даты
         # у источников совпадают, поэтому проверка «окна разные» молчала и лаг читался как отмены.

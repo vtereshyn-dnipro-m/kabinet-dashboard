@@ -12,6 +12,7 @@ import streamlit as st
 from db.connection import get_connection
 import data_passport as passport
 from i18n import init_lang, t
+import pbi
 import period as period_mod
 from util import day_axis
 import catalog
@@ -147,6 +148,31 @@ def load_marketplaces() -> list:
 def load_sales(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     """Продажи по площадкам за период, SKU нормализован до базового кода.
     Даты передаются строками — так результат кешируется корректно."""
+    if not pbi.OWN_METHOD:
+        # цифры как в Power BI (08.10.2026): реплика его витрины. revenue — продажи без НДС, fees — комиссии,
+        # cogs_total — себестоимость витрины; net_proceeds = Contribution Profit + себестоимость, чтобы колонка
+        # «маржа» (net − COGS) ниже давала ровно Contribution Profit Power BI
+        _where = (f"date BETWEEN '{d_from}' AND '{d_to}'" if d_from
+                  else f"date >= CURRENT_DATE - INTERVAL '{days} days'")
+        conn = get_connection()
+        try:
+            return pd.read_sql(f"""
+                SELECT SUBSTRING(p.sku FROM '([0-9]{{5,}})') AS base_sku,
+                       p.marketplace,
+                       MAX(m.name)                                         AS product_name,
+                       SUM(p.units_sold)                                   AS units,
+                       SUM(p.sales_vat_excl)                               AS revenue,
+                       SUM(p.contribution_profit + p.cogs_total)           AS net_proceeds,
+                       SUM(p.commission_fee_vat_excl + p.cancel_commission_vat_excl) AS fees,
+                       SUM(p.cogs_total)                                   AS cogs_total
+                FROM {pbi.SOURCE} p
+                LEFT JOIN kabinet_data.sku_master m ON m.sku = p.sku
+                WHERE {_where}
+                  AND SUBSTRING(p.sku FROM '([0-9]{{5,}})') IS NOT NULL
+                GROUP BY 1, 2
+            """, conn)
+        finally:
+            conn.close()
     where = (f"sales_date BETWEEN '{d_from}' AND '{d_to}'" if d_from
              else f"sales_date >= CURRENT_DATE - INTERVAL '{days} days'")
     conn = get_connection()
@@ -304,6 +330,20 @@ def load_refunded(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     возвратах и по дате возврата — это разные события, и на коротком
     окне они расходятся по замыслу, а не по ошибке.
     """
+    if not pbi.OWN_METHOD:
+        # как в Power BI (08.10.2026): возвращённые деньги без НДС из его витрины (Refund Total VAT Excl) — у Amazon
+        # по дате расчёта settlement, у Mirakl по дате возврата
+        _where = (f"date BETWEEN '{d_from}' AND '{d_to}'" if d_from
+                  else f"date >= CURRENT_DATE - INTERVAL '{days} days'")
+        conn = get_connection()
+        try:
+            return pd.read_sql(f"""
+                SELECT marketplace, SUM(refund_total_vat_excl)::float AS refunded_eur
+                FROM {pbi.SOURCE} WHERE {_where} GROUP BY 1""", conn)
+        except Exception:
+            return pd.DataFrame(columns=["marketplace", "refunded_eur"])
+        finally:
+            conn.close()
     where = (f"sales_date BETWEEN '{d_from}' AND '{d_to}'" if d_from
              else f"sales_date >= CURRENT_DATE - INTERVAL '{days} days'")
     conn = get_connection()
@@ -1115,7 +1155,7 @@ with tab_amz:
         if not is_all and not _ref.empty:
             _ref = _ref[_ref["marketplace"].isin(mp_scope)]
         r2.metric(t("cm.amz.refunded"), fmt_money(_ref["refunded_eur"].sum()),
-                  help=t("cm.amz.refunded_help"))
+                  help=t("cm.amz.refunded_help") if pbi.OWN_METHOD else t("cm.amz.refunded_help_pbi"))
         r3.metric(t("cm.amz.return_skus"), f"{scoped_ret['base_sku'].nunique():,}")
 
         rc1, rc2 = st.columns([1, 1])
@@ -1170,7 +1210,7 @@ with tab_all:
             with cc[i % len(cc)]:
                 st.metric(r["marketplace"], fmt_money(r["revenue"]),
                           delta=f"{r['cm_pct']:.0f}%",
-                          help=t("cm.all.metric_help"))
+                          help=t("cm.all.metric_help") if pbi.OWN_METHOD else t("cm.all.metric_help_pbi"))
 
         fig = px.bar(by_mp, x="marketplace", y="revenue", color="platform",
                      title=t("cm.all.chart"), text="revenue",
@@ -1192,17 +1232,17 @@ with tab_all:
                 "skus": st.column_config.NumberColumn(t("cm.col.skus"), width="small"),
                 "units": st.column_config.NumberColumn(t("cm.col.units"), width="small"),
                 "revenue": st.column_config.NumberColumn(
-                    t("cm.col.revenue"), format="%.0f €"),
+                    t("cm.col.revenue") if pbi.OWN_METHOD else t("money.kpi.sales_excl_pbi"), format="%.0f €"),
                 "fees": st.column_config.NumberColumn(
                     t("cm.col.fees"), format="%.0f €"),
                 "fees_pct": st.column_config.NumberColumn(
                     t("cm.col.fees_pct"), format="%.0f%%"),
                 "cogs": st.column_config.NumberColumn("COGS", format="%.0f €"),
-                "cm": st.column_config.NumberColumn(t("cm.col.cm"), format="%.0f €"),
+                "cm": st.column_config.NumberColumn(t("cm.col.cm") if pbi.OWN_METHOD else t("money.kpi.cp_pbi"), format="%.0f €"),
                 "cm_pct": st.column_config.NumberColumn(
-                    t("cm.col.cm_pct"), format="%.1f%%"),
+                    t("cm.col.cm_pct") if pbi.OWN_METHOD else t("cm.col.cp_pct_pbi"), format="%.1f%%"),
             },
         )
-        st.caption(t("cm.all.note"))
+        st.caption(t("cm.all.note") if pbi.OWN_METHOD else t("cm.all.note_pbi"))
 
 passport.footer("cm")

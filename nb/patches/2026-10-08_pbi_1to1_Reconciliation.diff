@@ -1,0 +1,124 @@
+--- Kabinet - Reconciliation (до)
++++ Kabinet - Reconciliation (после)
+@@ -499,6 +499,110 @@
+     ("Power BI и settlement Amazon", _result))
+ pg.commit()
+ print(f"✅ паспорт: {_result}")
++
++# ─── POWER BI 1:1: Кабинет показывает ровно то, что Power BI ───
++# С 08.10.2026 (решение владельца) продажи, штуки, Contribution Profit, расходы и реклама на страницах Кабинета —
++# цифры Power BI из реплики его витрины (kabinet_data.pbi_spiderweb_report, джоба Kabinet - Power BI Replica 12:45).
++# Здесь реплика сверяется с ЖИВОЙ витриной: за последние два полных месяца и текущий, итог, по странам и по
++# площадкам, по каждой метрике. Разница больше 1 € (у штук — хоть одна штука) — строка 'off', и сторож заводит
++# тревогу: значит, Кабинет показывает не то, что Power BI (реплика отстала, упала или потеряла строки).
++# Объяснений у этой сверки нет и быть не должно: цифры обязаны совпадать до цента.
++PBI_TABLE = "kabinet_data.pbi_spiderweb_report"
++PBI_AGAINST = "Power BI 1:1"
++PBI_TOL_EUR = 1.0
++PBI_METRICS = [  # (подпись, выражение по колонкам витрины, выражение по колонкам реплики, штуки ли)
++    ("продажи с НДС", "sales_vat_incl", "sales_vat_incl", False),
++    ("продажи без НДС", "sales_vat_excl", "sales_vat_excl", False),
++    ("штуки", "units_sold", "units_sold", True),
++    ("Contribution Profit", "contribution_profit", "contribution_profit", False),
++    ("расходы", "expenses", "expenses", False),
++    ("возвраты (Expenses Refund)", "cogs_refund - shipping_cost_refund - expenses_refund",
++     "cogs_refund - shipping_cost_refund - expenses_refund", False),
++    ("компенсации", "reimbursment", "reimbursment", False),
++    ("реклама", "spend", "spend", False),
++    ("продажи с рекламы", "paidSales", "paid_sales", False),
++    ("возвращено штук", "quantity_refund", "quantity_refund", True),
++]
++_pbi_from = date(CALC.year, CALC.month, 1)
++for _ in range(2):
++    _pbi_from = date(_pbi_from.year - (_pbi_from.month == 1), 12 if _pbi_from.month == 1 else _pbi_from.month - 1, 1)
++
++
++def _pbi_rows(src):
++    """{(месяц, срез): {метрика: сумма}} — итог, страна, площадка; src = 'view' (Spark) или 'replica' (Lakebase)."""
++    out = {}
++    if src == "view":
++        sel = ", ".join(f"sum(CAST({e} AS double)) AS m{i}" for i, (_, e, _, _) in enumerate(PBI_METRICS))
++        data = [(str(r["mon"]), r["marketplace"], r["country"], [r[f"m{i}"] for i in range(len(PBI_METRICS))])
++                for r in spark.sql(f"""
++                    SELECT date_format(date, 'yyyy-MM') AS mon, marketplace, country, {sel}
++                    FROM {VIEW} WHERE date >= '{_pbi_from}' AND date < current_date()
++                    GROUP BY 1, 2, 3""").collect()]
++    else:
++        sel = ", ".join(f"sum({e})::float" for _, _, e, _ in PBI_METRICS)
++        data = [(r[0], r[1], r[2], list(r[3:])) for r in fetch(f"""
++                    SELECT to_char(date, 'YYYY-MM'), pbi_marketplace, pbi_country, {sel}
++                    FROM {PBI_TABLE} WHERE date >= %s AND date < current_date
++                    GROUP BY 1, 2, 3""", (_pbi_from,))]
++    for mon, mk, ctry, vals in data:
++        for scope in ("всего", f"страна {ctry}", f"площадка {mk}"):
++            acc = out.setdefault((mon, scope), [0.0] * len(PBI_METRICS))
++            for i, v in enumerate(vals):
++                acc[i] += float(v or 0.0)
++    return out
++
++
++try:
++    _pv, _pr = _pbi_rows("view"), _pbi_rows("replica")
++    _pbi_res = []
++    for key in sorted(set(_pv) | set(_pr)):
++        mon, scope = key
++        y, m = int(mon[:4]), int(mon[5:])
++        d0 = date(y, m, 1)
++        d1 = date(y + (m == 12), 1 if m == 12 else m + 1, 1)
++        d1 = date.fromordinal(min(d1.toordinal() - 1, CALC.toordinal() - 1))
++        tv, ov = _pv.get(key, [0.0] * len(PBI_METRICS)), _pr.get(key, [0.0] * len(PBI_METRICS))
++        for i, (name, _, _, is_units) in enumerate(PBI_METRICS):
++            theirs_v, ours_v = round(tv[i], 2), round(ov[i], 2)
++            if abs(theirs_v) < 0.005 and abs(ours_v) < 0.005:
++                continue
++            diff = ours_v - theirs_v
++            off = abs(diff) >= 0.5 if is_units else abs(diff) > PBI_TOL_EUR
++            unit = "шт" if is_units else "€"
++            _pbi_res.append((CALC, PBI_TABLE, PBI_AGAINST, name, f"{d0:%m.%Y} · {scope}", d0, d1,
++                             ours_v, theirs_v, (diff / theirs_v * 100) if theirs_v else None, 0,
++                             (d1 - d0).days + 1, None, "off" if off else "ok",
++                             f"разница {f'{diff:+,.2f}'.replace(',', ' ')} {unit}, допуск {'0 шт' if is_units else '1 €'}",
++                             False if off else None, None, None))
++    cur.execute("DELETE FROM kabinet_data.reconciliation_results WHERE calc_date = %s AND against = %s",
++                (CALC, PBI_AGAINST))
++    psycopg2.extras.execute_values(cur, """
++        INSERT INTO kabinet_data.reconciliation_results
++            (calc_date, source_table, against, metric, scope, period_start, period_end,
++             ours, theirs, diff_pct, tolerance_pct, days_total, days_off, verdict, note,
++             explained, explanation, components)
++        VALUES %s""", _pbi_res, page_size=500)
++    _pbi_off = [r for r in _pbi_res if r[13] == "off"]
++    cur.execute("""
++        UPDATE kabinet_data.data_source_origins
++           SET reconcile_with = %s, reconciled_at = now(), reconcile_result = %s
++         WHERE table_name = %s""",
++        ("Power BI: витрина v_all_marketplaces_spiderweb_report, до цента",
++         (f"расходится: {', '.join(sorted({f'{r[4]} {r[3]}' for r in _pbi_off})[:6])}"
++          + (f" и ещё {len(_pbi_off) - 6}" if len(_pbi_off) > 6 else "")) if _pbi_off
++         else f"сошлось до цента ({len(_pbi_res)} сравнений, {_pbi_from:%m.%Y} — по вчера)",
++         PBI_TABLE))
++    pg.commit()
++    PBI_NOTE = f"Power BI 1:1: сравнений {len(_pbi_res)}, расходится {len(_pbi_off)}"
++    print(f"✅ {PBI_NOTE}")
++    for r in _pbi_off[:20]:
++        print(f"   ✗ {r[4]} {r[3]}: Кабинет {r[7]:,.2f}, Power BI {r[8]:,.2f} — {r[14]}")
++except Exception as e:
++    pg.rollback()
++    # проглотить нельзя: молчание этой сверки выглядело бы как «Кабинет и Power BI сходятся». Пульс пишем, потом падаем
++    PBI_NOTE = f"Power BI 1:1 упала: {type(e).__name__}: {str(e)[:160]}"
++    PBI_ERROR = e
++    print(f"❌ {PBI_NOTE}")
+ 
+ # ─── SYSTEM PULSE: безусловная метка завершения ───
+ cur.execute("""
+@@ -507,7 +611,9 @@
+     ON CONFLICT (job_name) DO UPDATE SET last_success_at = now(), note = EXCLUDED.note
+ """, (PULSE, f"строк {len(rows)}; не объяснено {sum(1 for r in rows if r[13]=='off' and r[15] is False)}, "
+              f"объяснимых {sum(1 for r in rows if r[13]=='off' and r[15] is True)}, "
+-             f"без данных {sum(1 for r in rows if r[13]=='no_data')}"))
++             f"без данных {sum(1 for r in rows if r[13]=='no_data')}; {PBI_NOTE}"))
+ pg.commit()
+ pg.close()
+ print("✅ System pulse записан")
++if "PBI_ERROR" in globals():
++    raise PBI_ERROR

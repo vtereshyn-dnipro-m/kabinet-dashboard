@@ -20,8 +20,19 @@ from datetime import date
 import pandas as pd
 
 from db.connection import get_connection
+import pbi
 
-SQL = """
+# С 08.10.2026 (решение владельца: цифры как в Power BI) расход, продажи с рекламы и продажи с НДС берутся из
+# реплики витрины Power BI — те же колонки, что у его карточек Spend, Paid Sales и Revenue VAT Incl. Разница с прежним
+# источником — реклама Leroy Merlin: в витрине она есть за август (из таблиц кабинета LM), у нас её не было.
+# Прежний источник (наша методика) — SQL_OWN, включается pbi.OWN_METHOD
+SQL_PBI = f"""
+    SELECT SUM(spend)::float, SUM(paid_sales)::float, SUM(sales_vat_incl)::float
+    FROM {pbi.SOURCE}
+    WHERE date BETWEEN %(a)s AND %(b)s {{mk}}
+"""
+
+SQL_OWN = """
     WITH a AS (SELECT SUM(spend) AS spend, SUM(ad_sales) AS ad_sales
                FROM kabinet_data.v_ads_market_daily_eur
                WHERE date BETWEEN %(a)s AND %(b)s {mk}),
@@ -39,7 +50,7 @@ def load(d_from: date, d_to: date, markets: tuple = ()) -> dict:
     mk = "AND marketplace = ANY(%(mk)s)" if markets else ""
     conn = get_connection()
     try:
-        df = pd.read_sql(SQL.format(mk=mk), conn,
+        df = pd.read_sql((SQL_OWN if pbi.OWN_METHOD else SQL_PBI).format(mk=mk), conn,
                          params={"a": d_from, "b": d_to, "mk": list(markets)})
     finally:
         conn.close()
