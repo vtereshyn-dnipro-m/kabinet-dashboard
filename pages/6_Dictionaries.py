@@ -2462,6 +2462,8 @@ for _lg, _d in _NORM_TR.items():
 _MPT_TR = {
     "ru": {
         "mp_data_trial": "пробный период до {d}", "mp_trial_short": "пробный период",
+        "mp_src_offers": "офферы", "mp_src_orders": "заказы", "mp_src_stock": "остатки", "mp_src_ads": "реклама",
+        "mp_src_sales_traffic": "продажи витрины", "mp_data_last": "{src} {d}",
         "mp_trial_info": "заказов ещё не было, поэтому отсутствие данных о продажах не тревога. Первый заказ или конец периода вернут обычную проверку.",
         "mp_trial_h": "Пробный период",
         "mp_trial_hint": "Отметьте, если площадка дала пробный период (например, тариф на 30 дней) и заказов пока нет. Пока он идёт и заказов не было, сторож не пишет «нет данных».",
@@ -2473,6 +2475,8 @@ _MPT_TR = {
     },
     "uk": {
         "mp_data_trial": "пробний період до {d}", "mp_trial_short": "пробний період",
+        "mp_src_offers": "офери", "mp_src_orders": "замовлення", "mp_src_stock": "залишки", "mp_src_ads": "реклама",
+        "mp_src_sales_traffic": "продажі вітрини", "mp_data_last": "{src} {d}",
         "mp_trial_info": "замовлень ще не було, тож відсутність даних про продажі не тривога. Перше замовлення або кінець періоду повернуть звичайну перевірку.",
         "mp_trial_h": "Пробний період",
         "mp_trial_hint": "Позначте, якщо площадка дала пробний період (наприклад, тариф на 30 днів) і замовлень поки немає. Поки він триває і замовлень не було, сторож не пише «немає даних».",
@@ -2484,6 +2488,8 @@ _MPT_TR = {
     },
     "en": {
         "mp_data_trial": "trial until {d}", "mp_trial_short": "trial period",
+        "mp_src_offers": "offers", "mp_src_orders": "orders", "mp_src_stock": "stock", "mp_src_ads": "ads",
+        "mp_src_sales_traffic": "storefront sales", "mp_data_last": "{src} {d}",
         "mp_trial_info": "there have been no orders yet, so missing sales data is not an alarm. The first order or the end of the period brings back the usual check.",
         "mp_trial_h": "Trial period",
         "mp_trial_hint": "Tick it if the platform gave a trial period (e.g. a 30-day plan) and there are no orders yet. While it runs and there are no orders, the watchdog doesn't report «no data».",
@@ -4074,13 +4080,13 @@ def _mp_with_data_status(mps: pd.DataFrame) -> pd.DataFrame:
     оно не прочиталось — колонка пустая, а не «всё в порядке»."""
     try:
         ds = q("""SELECT marketplace_id AS id, status AS data_status, config_missing, last_data_at, window_days,
-                         trial_until
+                         trial_until, last_source
                   FROM kabinet_data.v_marketplace_data_status""")
         return mps.merge(ds, on="id", how="left")
     except Exception:
         out = mps.copy()
         out["data_status"], out["config_missing"], out["last_data_at"], out["window_days"] = None, None, None, None
-        out["trial_until"] = None
+        out["trial_until"], out["last_source"] = None, None
         return out
 
 
@@ -4089,8 +4095,17 @@ def _mp_data_label(r) -> str:
     быть, поэтому это не тревога, а пометка с датой окончания (07.10.2026, ManoMano Pro)."""
     st_ = r.get("data_status")
     if st_ == "trial":
+        # пробный период — пометка, но не замена факта: рядом дата последней загрузки и из какого источника, иначе по
+        # строке не понять, приходят ли офферы вообще (08.10.2026, проверка веб-агентом)
         tu = r.get("trial_until")
-        return _trf("mp_data_trial", d=pd.to_datetime(tu).strftime("%d.%m.%Y")) if not pd.isna(tu) else _tr("mp_trial_short")
+        out = _trf("mp_data_trial", d=pd.to_datetime(tu).strftime("%d.%m")) if not pd.isna(tu) else _tr("mp_trial_short")
+        last, src = r.get("last_data_at"), as_text(r.get("last_source"))
+        if last is not None and not pd.isna(last):
+            ts = pd.Timestamp(last)
+            ts = (ts.tz_localize("UTC") if ts.tzinfo is None else ts).tz_convert("Europe/Kyiv")
+            word = _tr("mp_src_" + src) if src else ""
+            out += " · " + _trf("mp_data_last", src=word if word != "mp_src_" + src else src, d=ts.strftime("%d.%m")).strip()
+        return out
     return _tr("mp_data_" + st_) if st_ in ("no_config", "no_data", "ok") else ""
 
 
