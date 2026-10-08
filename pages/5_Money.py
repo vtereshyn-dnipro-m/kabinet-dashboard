@@ -48,10 +48,14 @@ WINDOW_DEFAULT = 30
 
 @st.cache_data(ttl=600)
 def load_marketplaces() -> list:
-    """Список рынков для фильтра — из фактических данных, а не из справочника.
+    """Список рынков для фильтра — из фактических данных И из справочника.
     Каналы вне Amazon (LM) в v_marketplace_map отсутствуют, и построенный
     по нему фильтр их бы не показал. DISTINCT по двум таблицам берёт всё,
-    что реально продавалось, включая Mirakl."""
+    что реально продавалось, включая Mirakl. Активные рынки справочника
+    (`v_marketplaces`, тот же список, что у каналов на «Обзоре») добавлены
+    с 08.10.2026: рынок без единой продажи — ManoMano Pro в пробный период —
+    иначе пропадал из фильтра и из вкладки «По маркетплейсам» целиком, хотя
+    «Обзор» показывает его каналом с «нет продаж»."""
     conn = get_connection()
     try:
         r = pd.read_sql("""
@@ -60,6 +64,9 @@ def load_marketplaces() -> list:
             UNION
             SELECT DISTINCT marketplace FROM kabinet_data.v_sales_traffic_daily_eur
             WHERE marketplace IS NOT NULL
+            UNION
+            SELECT DISTINCT upper(marketplace_code) FROM kabinet_data.v_marketplaces
+            WHERE is_active AND marketplace_code IS NOT NULL
         """, conn)
         return sorted(r["marketplace"].dropna().astype(str).str.strip().unique())
     except Exception:
@@ -392,7 +399,9 @@ df = (load_pnl(0, d_from, d_to, MK, _ver_econ) if PERIOD.is_range
       else load_pnl(WINDOW + 7, markets=MK, _v=_ver_econ))
 
 if df.empty:
-    st.info(t("money.empty"))
+    # выбраны только рынки без продаж за период (ManoMano Pro в пробный период) — это «нет продаж», а не «экономика не
+    # рассчитана»: прежняя фраза отправляла запускать агрегатор там, где всё посчитано (08.10.2026)
+    st.info(t("money.empty_filtered", mk=", ".join(MK)) if MK else t("money.empty"))
     st.stop()
 
 # подпись периода — как на Обзоре: показываем выбранный диапазон,
@@ -970,7 +979,8 @@ with tab_country:
         by_c = pd.concat([by_c, pd.DataFrame({
             "marketplace": _idle, "units": 0, "revenue": 0.0,
             "net_proceeds": 0.0, "cogs": 0.0, "commission": 0.0,
-            "ads": 0.0, "cm": 0.0, "cm_pct": 0.0})], ignore_index=True)
+            "ads": 0.0, "cm": 0.0, "cm_pct": 0.0, "idle": True})], ignore_index=True)
+    by_c["idle"] = by_c["idle"].fillna(False).astype(bool) if "idle" in by_c.columns else False
 
     by_c = by_c.sort_values("cm", ascending=False)
 
@@ -979,7 +989,9 @@ with tab_country:
     cc = st.columns(min(len(by_c), 5) or 1)
     for i, (_, r) in enumerate(by_c.iterrows()):
         with cc[i % len(cc)]:
+            # рынок без продаж — словом, как канал на «Обзоре»: «0 € · 0%» читалось как нулевая маржа на продажах
             st.metric(r["marketplace"],
+                      t("home.sales.silent") if bool(r["idle"]) else
                       "—" if pd.isna(r["cm"]) else f"{r['cm']:,.0f} € · {r['cm_pct']:.0f}%",
                       help=mn.help_with_vat(mn.VAT_EXCL, t("money.kpi.cogs_missing") if pd.isna(r["cm"])
                                             else t("money.country_metric_help")))

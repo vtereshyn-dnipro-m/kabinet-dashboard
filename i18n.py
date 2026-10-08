@@ -2041,6 +2041,11 @@ TRANSLATIONS = {
               "({k:.1f}× higher). {rows} rows after joins against {ctrl_rows} in the table — "
               "rows were multiplied by a JOIN. The deployed version is likely behind the repo.",
     },
+    "money.empty_filtered": {
+        "ru": "За выбранный период по {mk} нет продаж. Уберите фильтр, чтобы увидеть остальные маркетплейсы.",
+        "uk": "За вибраний період по {mk} немає продажів. Приберіть фільтр, щоб побачити інші маркетплейси.",
+        "en": "No sales for {mk} in the selected period. Clear the filter to see other marketplaces.",
+    },
     "money.empty": {
         "ru": "Данные экономики ещё не рассчитаны. Запусти агрегатор в пайплайне.",
         "uk": "Дані економіки ще не розраховані. Запусти агрегатор.",
@@ -3518,6 +3523,27 @@ TRANSLATIONS = {
     "cm.par.kpi_avg": {"ru": "Средний разброс", "uk": "Середній розкид", "en": "Average spread"},
     "cm.par.col_spread": {"ru": "Разброс", "uk": "Розкид", "en": "Spread"},
     "cm.par.col_spread_help": {"ru": "На сколько процентов самая высокая цена выше самой низкой среди каналов, где она известна. Считается от минимума, а не от среднего: вопрос в том, насколько дороже там, где дороже всего.", "uk": "На скільки відсотків найвища ціна вища за найнижчу серед каналів, де вона відома. Рахується від мінімуму, а не від середнього: питання в тому, наскільки дорожче там, де найдорожче.", "en": "How many percent the highest price exceeds the lowest across the channels where it is known. Measured from the minimum, not the average: the question is how much dearer it is where it is dearest."},
+    # ManoMano Pro (B2B) против ManoMano (B2C) на вкладке паритета (08.10.2026)
+    "cm.mmb.title": {"ru": "ManoMano Pro (B2B) и ManoMano (B2C): цены офферов", "uk": "ManoMano Pro (B2B) і ManoMano (B2C): ціни оферів", "en": "ManoMano Pro (B2B) vs ManoMano (B2C): offer prices"},
+    "cm.mmb.no_data": {"ru": "Офферы ManoMano не прочитались: {e}", "uk": "Офери ManoMano не прочиталися: {e}", "en": "ManoMano offers could not be read: {e}"},
+    "cm.mmb.empty": {"ru": "Офферов ManoMano Pro в выгрузке пока нет.", "uk": "Оферів ManoMano Pro у вивантаженні поки немає.", "en": "No ManoMano Pro offers in the export yet."},
+    "cm.mmb.online": {"ru": "в продаже", "uk": "у продажу", "en": "online"},
+    "cm.mmb.offline": {"ru": "выключен", "uk": "вимкнено", "en": "offline"},
+    "cm.mmb.kpi_common": {"ru": "SKU в обоих договорах", "uk": "SKU в обох договорах", "en": "SKUs on both contracts"},
+    "cm.mmb.kpi_price": {"ru": "Цена отличается", "uk": "Ціна відрізняється", "en": "Different price"},
+    "cm.mmb.kpi_price_help": {"ru": "В B2B дороже: {up}, дешевле: {down}.", "uk": "У B2B дорожче: {up}, дешевше: {down}.", "en": "Higher in B2B: {up}, lower: {down}."},
+    "cm.mmb.kpi_state": {"ru": "Разный статус (в продаже / выключен)", "uk": "Різний статус (у продажу / вимкнено)", "en": "Different status (online / offline)"},
+    "cm.mmb.only_diff": {"ru": "Только с разной ценой или статусом", "uk": "Лише з різною ціною або статусом", "en": "Only with a different price or status"},
+    "cm.mmb.col_b2c": {"ru": "ManoMano · цена", "uk": "ManoMano · ціна", "en": "ManoMano · price"},
+    "cm.mmb.col_b2c_state": {"ru": "ManoMano · статус", "uk": "ManoMano · статус", "en": "ManoMano · status"},
+    "cm.mmb.col_b2b": {"ru": "ManoMano Pro · цена", "uk": "ManoMano Pro · ціна", "en": "ManoMano Pro · price"},
+    "cm.mmb.col_b2b_state": {"ru": "ManoMano Pro · статус", "uk": "ManoMano Pro · статус", "en": "ManoMano Pro · status"},
+    "cm.mmb.col_diff": {"ru": "Разница, €", "uk": "Різниця, €", "en": "Difference, €"},
+    "cm.mmb.col_diff_pct": {"ru": "Разница, %", "uk": "Різниця, %", "en": "Difference, %"},
+    "cm.mmb.note": {
+        "ru": "Показано {n} из {total}. Цены офферов с НДС, Испания; разница — B2B минус B2C. Выгрузка ManoMano Pro {at}. В разброс паритета выше ManoMano Pro не входит: это другой договор со своими ценами.",
+        "uk": "Показано {n} з {total}. Ціни оферів з ПДВ, Іспанія; різниця — B2B мінус B2C. Вивантаження ManoMano Pro {at}. До розкиду паритету вище ManoMano Pro не входить: це інший договір зі своїми цінами.",
+        "en": "Showing {n} of {total}. Offer prices incl. VAT, Spain; difference is B2B minus B2C. ManoMano Pro export {at}. ManoMano Pro is not part of the parity spread above: it is a separate contract with its own prices."},
     "cm.par.note": {
         "ru": "Отклонение считает загрузчик, страница берёт готовое и не пересчитывает: свой расчёт рядом с чужим однажды разойдётся. В сравнение входят восемь каналов в евро; британская цена в фунтах стоит последней колонкой и в разброс не попадает — рядом с евро она задрала бы его на ровном месте.",
         "uk": "Відхилення рахує завантажувач, сторінка бере готове і не перераховує: власний розрахунок поряд із чужим колись розійдеться. У порівняння входять вісім каналів у євро; британська ціна у фунтах стоїть останньою колонкою і в розкид не потрапляє — поряд з євро вона задерла б його на рівному місці.",

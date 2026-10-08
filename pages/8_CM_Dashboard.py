@@ -444,6 +444,42 @@ def load_price_parity() -> tuple:
         conn.close()
 
 
+@st.cache_data(ttl=600)
+def load_mm_b2b_vs_b2c() -> tuple:
+    """Цены и статус офферов ManoMano Pro (B2B, MMB-ES) рядом с обычным ManoMano Испании (MM-ES), по SKU.
+
+    Отдельно от паритета: паритет строит загрузчик по онлайн-офферам площадок для покупателя, а B2B — другой договор
+    со своими ценами, и в разброс каналов он не входит (вопрос бизнесу «цены B2B намеренно другие?» открыт, 08.10.2026).
+    Читаем последний срез каждого договора и все офферы, включая выключенные: «выключен в B2B, включён в B2C» — тоже
+    разница. Цены с НДС, как в кабинете ManoMano. Возвращает (таблица, время выгрузки B2B, текст ошибки)."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("""
+            WITH o AS (
+                SELECT sku, marketplace_code, price::float AS price, offer_is_online, loaded_at
+                FROM kabinet_data.raw_mm_offers x
+                WHERE marketplace_code IN ('MM-ES', 'MMB-ES')
+                  AND snapshot_date = (SELECT max(snapshot_date) FROM kabinet_data.raw_mm_offers y
+                                       WHERE y.marketplace_code = x.marketplace_code))
+            SELECT k.sku,
+                   COALESCE(m.name, m2.name) AS product_name,
+                   c.price AS b2c_price, c.offer_is_online AS b2c_online,
+                   b.price AS b2b_price, b.offer_is_online AS b2b_online,
+                   (SELECT max(loaded_at) FROM o WHERE marketplace_code = 'MMB-ES') AS b2b_loaded_at
+            FROM (SELECT DISTINCT sku FROM o) k
+            LEFT JOIN o c ON c.sku = k.sku AND c.marketplace_code = 'MM-ES'
+            LEFT JOIN o b ON b.sku = k.sku AND b.marketplace_code = 'MMB-ES'
+            LEFT JOIN kabinet_data.sku_master m  ON m.sku  = k.sku
+            LEFT JOIN kabinet_data.sku_master m2 ON m2.sku = kabinet_data.sku_cogs_key(k.sku)
+        """, conn)
+        loaded = df["b2b_loaded_at"].dropna().max() if not df.empty else None
+        return df.drop(columns=["b2b_loaded_at"]), loaded, ""
+    except Exception as e:
+        return pd.DataFrame(), None, f"{type(e).__name__}: {e}".strip()
+    finally:
+        conn.close()
+
+
 # ═══════════════════════════════════════════════════════════════════
 # СВОД ПО ТОВАРАМ: AMAZON ПРОТИВ LEROY MERLIN
 # ═══════════════════════════════════════════════════════════════════
@@ -802,6 +838,53 @@ with tab_par:
                 P[show].to_csv(index=False).encode("utf-8-sig"),
                 file_name="price_parity.csv", mime="text/csv",
                 key="dl_parity")
+
+    # ── ManoMano Pro (B2B) против ManoMano (B2C) ──
+    # Отдельной таблицей, а не колонкой паритета: B2B — другой договор с другими ценами, и в разброс каналов для
+    # покупателя он не входит. Нужно видеть разницу прямо в Кабинете, без выгрузки (08.10.2026)
+    st.divider()
+    st.markdown("**" + t("cm.mmb.title") + "**")
+    mmb, mmb_at, mmb_err = load_mm_b2b_vs_b2c()
+    if mmb_err:
+        st.error(t("cm.mmb.no_data", e=mmb_err))
+    elif mmb.empty or mmb["b2b_price"].isna().all():
+        st.info(t("cm.mmb.empty"))
+    else:
+        B = mmb.copy()
+        both = B["b2c_price"].notna() & B["b2b_price"].notna()
+        B["diff_eur"] = np.where(both, B["b2b_price"] - B["b2c_price"], np.nan)
+        B["diff_pct"] = np.where(both & (B["b2c_price"] > 0),
+                                 (B["b2b_price"] / B["b2c_price"].where(B["b2c_price"] > 0) - 1) * 100, np.nan)
+        _on = lambda v: "" if pd.isna(v) else (t("cm.mmb.online") if bool(v) else t("cm.mmb.offline"))
+        B["b2c_state"] = B["b2c_online"].map(_on)
+        B["b2b_state"] = B["b2b_online"].map(_on)
+        differs = (B["diff_eur"].abs() > 0.004) | (B["b2c_state"] != B["b2b_state"])
+        m1, m2, m3 = st.columns(3)
+        m1.metric(t("cm.mmb.kpi_common"), f"{int(both.sum()):,}")
+        m2.metric(t("cm.mmb.kpi_price"), f"{int((both & (B['diff_eur'].abs() > 0.004)).sum()):,}",
+                  help=t("cm.mmb.kpi_price_help",
+                         up=int((B["diff_eur"] > 0.004).sum()), down=int((B["diff_eur"] < -0.004).sum())))
+        m3.metric(t("cm.mmb.kpi_state"), f"{int((both & (B['b2c_state'] != B['b2b_state'])).sum()):,}")
+        only_diff = st.toggle(t("cm.mmb.only_diff"), value=True, key="mmb_only_diff")
+        V = B[differs] if only_diff else B
+        V = V.assign(_a=V["diff_pct"].abs()).sort_values(["_a", "sku"], ascending=[False, True], na_position="last")
+        V["product_name"] = V["product_name"].map(lambda x: "" if pd.isna(x) else str(x))
+        cols = ["sku", "product_name", "b2c_price", "b2c_state", "b2b_price", "b2b_state", "diff_eur", "diff_pct"]
+        st.dataframe(V[cols], use_container_width=True, hide_index=True, height=420, column_config={
+            "sku": st.column_config.TextColumn("SKU", width="small"),
+            "product_name": st.column_config.TextColumn(t("cm.col.product"), width="medium"),
+            "b2c_price": st.column_config.NumberColumn(t("cm.mmb.col_b2c"), format="%.2f €"),
+            "b2c_state": st.column_config.TextColumn(t("cm.mmb.col_b2c_state"), width="small"),
+            "b2b_price": st.column_config.NumberColumn(t("cm.mmb.col_b2b"), format="%.2f €"),
+            "b2b_state": st.column_config.TextColumn(t("cm.mmb.col_b2b_state"), width="small"),
+            "diff_eur": st.column_config.NumberColumn(t("cm.mmb.col_diff"), format="%+.2f €"),
+            "diff_pct": st.column_config.NumberColumn(t("cm.mmb.col_diff_pct"), format="%+.1f%%"),
+        })
+        _at = ""
+        if mmb_at is not None and not pd.isna(mmb_at):
+            _ts = pd.Timestamp(mmb_at)
+            _at = (_ts.tz_localize("UTC") if _ts.tzinfo is None else _ts).tz_convert("Europe/Kyiv").strftime("%d.%m %H:%M")
+        st.caption(t("cm.mmb.note", n=len(V), total=len(B), at=_at or "—"))
 
 
 
