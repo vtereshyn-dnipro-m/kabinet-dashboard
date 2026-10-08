@@ -14,6 +14,7 @@ from links import AMAZON_DOMAIN, amazon_url
 import period as period_mod
 import money_notes as mn
 import plan_fact
+import pbi
 
 init_lang()
 
@@ -232,6 +233,62 @@ def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = "
 
 
 @st.cache_data(ttl=600)
+def load_pnl_pbi(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
+    """Цифры как в Power BI (08.10.2026): SKU × рынок × день из реплики его витрины (pbi.py). Колонки — те же, что
+    у load_pnl, чтобы таблицы, графики и фильтры страницы работали без второй копии кода:
+
+        revenue / gross_revenue  продажи без НДС (до возвратов; у Amazon — с НДС, делённые на ставку страны)
+        fees, commission         комиссии витрины (Commission Fee + Cancel Commission)
+        cogs_pbi                 себестоимость витрины — сумма, а не цена за штуку
+        logistics                доставка + упаковка
+        ads, ads_total           расход на рекламу (Spend)
+        net_proceeds             прибыль витрины + себестоимость + логистика — так, что «чистыми − себестоимость −
+                                 реклама − логистика» даёт ровно Contribution Profit, как в Power BI
+    """
+    if not (d_from and d_to):
+        _last = pbi.last_date()
+        if pd.isna(_last):
+            return pd.DataFrame()
+        d_to = _last.date()
+        # окно из {days} дней, как у load_pnl (строго больше «последний день − days»)
+        d_from = (_last - pd.Timedelta(days=days - 1)).date()
+    df = pbi.load_sku(d_from, d_to, markets)
+    if df.empty:
+        return df
+    conn = get_connection()
+    try:
+        names = pd.read_sql("SELECT sku, name FROM kabinet_data.sku_master", conn)
+        asins = pd.read_sql("""SELECT sku_group, MAX(asin) AS asin FROM kabinet_data.sku_asin_map
+                               WHERE asin IS NOT NULL GROUP BY sku_group""", conn)
+    except Exception:
+        names = pd.DataFrame(columns=["sku", "name"]); asins = pd.DataFrame(columns=["sku_group", "asin"])
+    finally:
+        conn.close()
+    df = df.rename(columns={"sku": "norm_sku", "cogs": "cogs_pbi"})
+    df["product_name"] = df["norm_sku"].map(dict(zip(names["sku"], names["name"])))
+    df["asin"] = (df["norm_sku"].astype(str).str.extract(r"([0-9]{5,})", expand=False)
+                  .map(dict(zip(asins["sku_group"], asins["asin"]))))
+    df["revenue"] = df["sales_vat_excl"]
+    df["gross_revenue"] = df["sales_vat_excl"]
+    df["fees"] = df["commission"]
+    df["net_proceeds"] = df["profit"] + df["cogs_pbi"] + df["logistics"]
+    # цена за штуку — только для подсказок; сумма себестоимости берётся из витрины как есть (cogs_pbi)
+    df["cogs_unit"] = np.where(df["units"] > 0, df["cogs_pbi"] / df["units"].where(df["units"] > 0, 1), np.nan)
+    df["ads"] = df["spend"]
+    df["ads_total"] = df["spend"]
+    return df
+
+
+@st.cache_data(ttl=600)
+def load_pbi_totals(d_from, d_to, markets: tuple = (), _v: str = "") -> dict:
+    """Карточки Power BI за период (pbi.totals) — для сравнения с прошлым периодом."""
+    df = pbi.load_daily(d_from, d_to, markets)
+    out = pbi.totals(df)
+    out["days"] = int(df["sales_date"].nunique()) if not df.empty else 0
+    return out
+
+
+@st.cache_data(ttl=600)
 def load_bsr(days: int) -> pd.DataFrame:
     """Позиция товара в категории Amazon и её изменение за период.
     Ранг зависит не только от наших продаж: конкурент вырос — мы опустились
@@ -395,8 +452,14 @@ _ver_econ = data_version("economics_summary", "updated_at")
 _ver_std = data_version("sales_traffic_daily", "loaded_at")
 # у пресета грузим с запасом в неделю: окно режется ниже по границе ПОЛНЫХ дней (money_notes.day_status), и без
 # запаса оно вышло бы короче выбранного, как только последний день Amazon ещё догружается
-df = (load_pnl(0, d_from, d_to, MK, _ver_econ) if PERIOD.is_range
-      else load_pnl(WINDOW + 7, markets=MK, _v=_ver_econ))
+if pbi.OWN_METHOD:
+    df = (load_pnl(0, d_from, d_to, MK, _ver_econ) if PERIOD.is_range
+          else load_pnl(WINDOW + 7, markets=MK, _v=_ver_econ))
+else:
+    # цифры как в Power BI (08.10.2026): одна реплика его витрины на все карточки и таблицы страницы
+    _ver_pbi = data_version("pbi_spiderweb_report", "loaded_at")
+    df = (load_pnl_pbi(0, d_from, d_to, MK, _ver_pbi) if PERIOD.is_range
+          else load_pnl_pbi(WINDOW + 7, markets=MK, _v=_ver_pbi))
 
 if df.empty:
     # выбраны только рынки без продаж за период (ManoMano Pro в пробный период) — это «нет продаж», а не «экономика не
@@ -472,8 +535,9 @@ if pd.notna(_last):
 # сверяем с контрольной суммой: расхождение означает размножение строк
 # Контрольную сумму просим за то же окно, что осталось после обрезки,
 # иначе сверка сравнит обрезанное с необрезанным и поднимет ложную тревогу
-_ctrl = (load_control_total(0, _w.cur_from.date(), _w.cur_to.date(), MK, _ver_econ) if pd.notna(_last)
-         else {})
+# у цифр Power BI соединений нет вовсе (одна таблица, прямые суммы) — размножаться строкам негде
+_ctrl = (load_control_total(0, _w.cur_from.date(), _w.cur_to.date(), MK, _ver_econ)
+         if (pd.notna(_last) and pbi.OWN_METHOD) else {})
 if _ctrl and _ctrl.get("rows"):
     _mine = float(pd.to_numeric(df["revenue"], errors="coerce").fillna(0).sum())
     _real = float(_ctrl["revenue"])
@@ -493,6 +557,9 @@ for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "ads", "a
 for c in ["cogs_unit", "commission"]:
     df[c] = pd.to_numeric(df[c], errors="coerce")
 df["cogs_total"] = df["cogs_unit"] * df["units"]
+if "cogs_pbi" in df.columns:
+    # витрина Power BI отдаёт себестоимость суммой: цена × штуки потеряла бы строки, где штук ноль, а сумма есть
+    df["cogs_total"] = pd.to_numeric(df["cogs_pbi"], errors="coerce").fillna(0.0)
 
 # рынок уже отфильтрован в SQL, здесь остаётся только поиск по SKU
 f = df.copy()
@@ -518,12 +585,19 @@ tot_comm = f["commission"].sum(min_count=1)
 known = f[pd.notna(f["cogs_total"])]
 # себестоимость годных возвратов за тот же период и с тем же отбором SKU
 _p0, _p1 = f["sales_date"].min(), f["sales_date"].max()
+# себестоимость годных возвратов — наша методика; в цифрах Power BI возвраты уже внутри его прибыли
 credit = (load_returns_credit(str(pd.Timestamp(_p0).date()), str(pd.Timestamp(_p1).date()), MK)
-          if pd.notna(_p0) and pd.notna(_p1) else pd.DataFrame(columns=["marketplace", "norm_sku", "cogs_credit", "units"]))
+          if pd.notna(_p0) and pd.notna(_p1) and pbi.OWN_METHOD
+          else pd.DataFrame(columns=["marketplace", "norm_sku", "cogs_credit", "units"]))
 if search and not credit.empty:
     credit = credit[credit["norm_sku"].apply(clean_sku).str.contains(search, case=False, na=False)]
-sku_ads = (load_sku_ad_ratios(str(pd.Timestamp(_p0).date()), str(pd.Timestamp(_p1).date()), MK)
-           if pd.notna(_p0) and pd.notna(_p1) else pd.DataFrame(columns=["norm_sku", "ad_spend_all", "ad_sales", "sales_vat"]))
+if pbi.OWN_METHOD:
+    sku_ads = (load_sku_ad_ratios(str(pd.Timestamp(_p0).date()), str(pd.Timestamp(_p1).date()), MK)
+               if pd.notna(_p0) and pd.notna(_p1) else pd.DataFrame(columns=["norm_sku", "ad_spend_all", "ad_sales", "sales_vat"]))
+else:
+    # ACOS и TACOS по SKU — из тех же колонок витрины, что у карточек Power BI: Spend, Paid Sales, Revenue VAT Incl
+    sku_ads = (f.groupby("norm_sku", as_index=False)
+                .agg(ad_spend_all=("spend", "sum"), ad_sales=("paid_sales", "sum"), sales_vat=("sales_vat_incl", "sum")))
 credit_total = float(credit["cogs_credit"].sum()) if not credit.empty else 0.0
 credit_units = int(credit["units"].sum()) if not credit.empty else 0
 sp_in_net = float(f["ads_total"].sum() - f["ads"].sum())    # SP, уже удержанный Amazon внутри «Чистыми»
@@ -539,8 +613,9 @@ cm_pct = (cm / tot_rev * 100) if tot_rev > 0 else 0
 # по Испании за июль–август 2026 это 5,5 тыс. € на 69 тыс. выручки —
 # восемь пунктов маржи. Берём их из расчётных отчётов и показываем
 # второй строкой, не подменяя первую: источники разные по датам и по SKU
+# поправки из расчётных отчётов — наша методика; в цифрах Power BI их нет
 adj = (load_adjustments(str(pd.Timestamp(_p0).date()), str(pd.Timestamp(_p1).date()), MK)
-       if pd.notna(_p0) and pd.notna(_p1) else pd.DataFrame(
+       if pd.notna(_p0) and pd.notna(_p1) and pbi.OWN_METHOD else pd.DataFrame(
            columns=["marketplace", "base_sku", "bucket", "attributable", "amount"]))
 adj_attr = adj[adj["attributable"] == True]      # noqa: E712 — из БД приходит object
 adj_free = adj[adj["attributable"] != True]      # noqa: E712
@@ -568,106 +643,160 @@ rev_share = (rev_known / tot_rev * 100) if tot_rev > 0 else 0.0
 # и «выбран только LM» = амазоновских строк в выборке нет вовсе. Раньше оба
 # сводились к пустой строке, WHERE не доходил до запроса, и карточка
 # показывала сумму по всем странам при любом фильтре
-_amz_all = load_amazon_codes()
-if _amz_all:
-    _amz = tuple(sorted({m.upper() for m in mp_filter if m.upper() in _amz_all}))
-    _no_amazon = bool(mp_filter) and not _amz
-else:
-    # справочник недоступен — не выдумываем состав каналов, отдаём выбор
-    # как есть. Лучше прежнее поведение, чем прочерк на каждом фильтре
-    _amz = tuple(sorted({m.upper() for m in mp_filter}))
-    _no_amazon = False
-
-_ord_delta = None
-if _no_amazon:
-    _ordered = None
-else:
-    # те же даты, что у остальных карточек: витрина опережает экономику, и без общего окна «Продажи по заказам»
-    # считались бы за другие дни, чем «Выручка» рядом
-    _b0, _b1 = (_w.cur_from.date(), _w.cur_to.date()) if pd.notna(_last) else (None, None)
-    # витрину не считаем раньше первого дня экономики (15.05.2026): иначе на годовом периоде 549 тыс. против 256 тыс.
-    _econ_first = pd.Timestamp(df["sales_date"].min()).date() if len(df) else None
-    _b0c = max(_b0, _econ_first) if (_b0 and _econ_first) else _b0
-    _ordered = (load_ordered_sales(0, _b0c, _b1, _amz, _ver_std) if (_b0c and _b1)
-                else load_ordered_sales(WINDOW, markets=_amz, _v=_ver_std))
-    if _b0 and _econ_first and _b0 < _econ_first:
-        st.caption(t("home.sales.ordered_clipped", d=_econ_first.strftime("%d.%m.%Y")))
-    # процент — к тем же датам прошлого окна, что у «Выручки»; урезанное окно не сравниваем
-    _ord_prev = (load_ordered_sales(0, _w.prev_from.date(), _w.prev_to.date(), _amz, _ver_std)
-                 if (_b0 and _econ_first and _b0 >= _econ_first and pd.notna(_last)) else None)
-    _ord_delta = (mn.delta_text(_ordered, _ord_prev, _w) if (_ordered is not None and _ord_prev) else None)
-
-# семь метрик в одном ряду: на ~1100 px с раскрытым меню на карточку остаётся 120 px,
-# заголовки складываются в столбик по букве, а суммы режутся до «7…». Два ряда: 4 + 3
-_r1 = st.columns(4)
-_r2 = st.columns(3)
-k0, k1, k2, k3 = _r1
-k3b, k4, k5 = _r2
-# под каждой денежной карточкой — НДС · каналы · дата (money_notes, как на «Обзоре»). Каналы — выбранные рынки,
-# если фильтр задан: иначе «все каналы» под отфильтрованной цифрой читались бы неправдой
 _ch = ("=" + t("mn.ch.selected", m=", ".join(sorted(mp_filter)))) if mp_filter else "all"
-_ch_amz = ("=" + t("mn.ch.selected", m=", ".join(_amz))) if mp_filter and _amz else "amazon"
-# процент «Выручки» — к тем же датам прошлого окна; при поиске по SKU контрольной суммы на него нет
-_rev_prev = (load_control_total(0, _w.prev_from.date(), _w.prev_to.date(), MK, _ver_econ)
-             if (pd.notna(_last) and not search) else {})
-_rev_delta = (mn.delta_text(tot_rev, float(_rev_prev.get("revenue") or 0), _w, int(_rev_prev.get("days") or 0))
-              if _rev_prev else None)
-mn.money_metric(k0, t("money.kpi.ordered"), "—" if pd.isna(_ordered) else f"{_ordered:,.0f} €",
-                delta=_ord_delta, vat=mn.VAT_INCL, channels=_ch_amz, basis="order", extra=t("mn.x.before_cancel"),
-                help=t("money.kpi.ordered_help"))
-mn.money_metric(k1, t("money.kpi.revenue", d=_w.days), f"{tot_rev:,.0f} €", delta=_rev_delta,
-                vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.after_returns"),
-                help=t("money.kpi.revenue_help"))
-mn.money_metric(k2, t("money.kpi.net"), f"{tot_net:,.0f} €",
-                vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.after_fees"),
-                help=t("money.kpi.net_help"))
-mn.money_metric(k3, t("money.kpi.cogs"), "—" if pd.isna(tot_cogs) else f"−{tot_cogs:,.0f} €",
-                vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.cogs_net_credit"),
-                help=(t("money.kpi.cogs_missing") if pd.isna(tot_cogs)
-                      else t("money.kpi.cogs_help") + (" " + t("money.kpi.cogs_returns", eur=f"{credit_total:,.0f}",
-                                                                  n=credit_units) if credit_total else "")))
-mn.money_metric(k3b, t("money.kpi.logistics"), f"−{tot_log:,.0f} €",
-                vat=mn.VAT_EXCL, channels=_ch, basis="order", help=t("money.kpi.logistics_help"))
-mn.money_metric(k4, t("money.kpi.ads"), f"−{tot_ads:,.0f} €",
-                vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.ads_margin"),
-                help=t("money.kpi.ads_help", sp=f"{sp_in_net:,.0f}", total=f"{f['ads_total'].sum():,.0f}"))
-# Период уезжает вместе с переходом: он общий для Кабинета и лежит в
-# session_state, отдельно передавать нечего
-with k4:
-    st.page_link("pages/9_Ads.py", label=t("money.kpi.ads_link"),
-                 icon=":material/arrow_forward:")
-# доля маржи — в самом значении, а не дельтой: дельта читается как изменение к прошлому периоду, а у маржи его
-# нет намеренно (себестоимость возвратов с брака приходит после разбора склада — см. «Обзор»)
-mn.money_metric(k5, t("money.kpi.cm"), "—" if pd.isna(tot_cogs) else f"{cm:,.0f} € · {cm_pct:.1f}%",
-                vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.share_of_revenue"),
-                help=t("money.kpi.cm_help") + " " + t("mn.margin_no_delta"))
 
-# «По какое число», каких дней ещё нет и что предварительно — одной строкой периода, как на «Обзоре»
-_period_txt = (mn.period_line(_dstat, _w.cur_from, _w.cur_to, PERIOD.end, _loaded_last)
-               if pd.notna(_last) else "")
-if _period_txt:
-    st.caption(_period_txt)
+if pbi.OWN_METHOD:
+    _amz_all = load_amazon_codes()
+    if _amz_all:
+        _amz = tuple(sorted({m.upper() for m in mp_filter if m.upper() in _amz_all}))
+        _no_amazon = bool(mp_filter) and not _amz
+    else:
+        # справочник недоступен — не выдумываем состав каналов, отдаём выбор
+        # как есть. Лучше прежнее поведение, чем прочерк на каждом фильтре
+        _amz = tuple(sorted({m.upper() for m in mp_filter}))
+        _no_amazon = False
 
-m1, m2, _ = st.columns([1, 1, 4])
-mn.money_metric(m1, t("money.kpi.cm_dk"), "—" if pd.isna(tot_cogs) else f"{cm:,.0f} € · {cm_pct:.1f}%",
-                vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.share_of_revenue"),
-                help=t("money.kpi.cm_help") + " " + t("mn.margin_no_delta"))
-mn.money_metric(m2, t("money.kpi.cm_settle"),
-                "—" if pd.isna(tot_cogs) else f"{cm_settle:,.0f} € · {cm_settle_pct:.1f}%",
-                vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.after_settlement"),
-                help=t("money.kpi.cm_settle_help"))
-if adj.empty:
-    st.caption(t("money.settle.none"))
+    _ord_delta = None
+    if _no_amazon:
+        _ordered = None
+    else:
+        # те же даты, что у остальных карточек: витрина опережает экономику, и без общего окна «Продажи по заказам»
+        # считались бы за другие дни, чем «Выручка» рядом
+        _b0, _b1 = (_w.cur_from.date(), _w.cur_to.date()) if pd.notna(_last) else (None, None)
+        # витрину не считаем раньше первого дня экономики (15.05.2026): иначе на годовом периоде 549 тыс. против 256 тыс.
+        _econ_first = pd.Timestamp(df["sales_date"].min()).date() if len(df) else None
+        _b0c = max(_b0, _econ_first) if (_b0 and _econ_first) else _b0
+        _ordered = (load_ordered_sales(0, _b0c, _b1, _amz, _ver_std) if (_b0c and _b1)
+                    else load_ordered_sales(WINDOW, markets=_amz, _v=_ver_std))
+        if _b0 and _econ_first and _b0 < _econ_first:
+            st.caption(t("home.sales.ordered_clipped", d=_econ_first.strftime("%d.%m.%Y")))
+        # процент — к тем же датам прошлого окна, что у «Выручки»; урезанное окно не сравниваем
+        _ord_prev = (load_ordered_sales(0, _w.prev_from.date(), _w.prev_to.date(), _amz, _ver_std)
+                     if (_b0 and _econ_first and _b0 >= _econ_first and pd.notna(_last)) else None)
+        _ord_delta = (mn.delta_text(_ordered, _ord_prev, _w) if (_ordered is not None and _ord_prev) else None)
+
+    # семь метрик в одном ряду: на ~1100 px с раскрытым меню на карточку остаётся 120 px,
+    # заголовки складываются в столбик по букве, а суммы режутся до «7…». Два ряда: 4 + 3
+    _r1 = st.columns(4)
+    _r2 = st.columns(3)
+    k0, k1, k2, k3 = _r1
+    k3b, k4, k5 = _r2
+    # под каждой денежной карточкой — НДС · каналы · дата (money_notes, как на «Обзоре»). Каналы — выбранные рынки,
+    # если фильтр задан: иначе «все каналы» под отфильтрованной цифрой читались бы неправдой
+    _ch_amz = ("=" + t("mn.ch.selected", m=", ".join(_amz))) if mp_filter and _amz else "amazon"
+    # процент «Выручки» — к тем же датам прошлого окна; при поиске по SKU контрольной суммы на него нет
+    _rev_prev = (load_control_total(0, _w.prev_from.date(), _w.prev_to.date(), MK, _ver_econ)
+                 if (pd.notna(_last) and not search) else {})
+    _rev_delta = (mn.delta_text(tot_rev, float(_rev_prev.get("revenue") or 0), _w, int(_rev_prev.get("days") or 0))
+                  if _rev_prev else None)
+    mn.money_metric(k0, t("money.kpi.ordered"), "—" if pd.isna(_ordered) else f"{_ordered:,.0f} €",
+                    delta=_ord_delta, vat=mn.VAT_INCL, channels=_ch_amz, basis="order", extra=t("mn.x.before_cancel"),
+                    help=t("money.kpi.ordered_help"))
+    mn.money_metric(k1, t("money.kpi.revenue", d=_w.days), f"{tot_rev:,.0f} €", delta=_rev_delta,
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.after_returns"),
+                    help=t("money.kpi.revenue_help"))
+    mn.money_metric(k2, t("money.kpi.net"), f"{tot_net:,.0f} €",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.after_fees"),
+                    help=t("money.kpi.net_help"))
+    mn.money_metric(k3, t("money.kpi.cogs"), "—" if pd.isna(tot_cogs) else f"−{tot_cogs:,.0f} €",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.cogs_net_credit"),
+                    help=(t("money.kpi.cogs_missing") if pd.isna(tot_cogs)
+                          else t("money.kpi.cogs_help") + (" " + t("money.kpi.cogs_returns", eur=f"{credit_total:,.0f}",
+                                                                      n=credit_units) if credit_total else "")))
+    mn.money_metric(k3b, t("money.kpi.logistics"), f"−{tot_log:,.0f} €",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", help=t("money.kpi.logistics_help"))
+    mn.money_metric(k4, t("money.kpi.ads"), f"−{tot_ads:,.0f} €",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.ads_margin"),
+                    help=t("money.kpi.ads_help", sp=f"{sp_in_net:,.0f}", total=f"{f['ads_total'].sum():,.0f}"))
+    # Период уезжает вместе с переходом: он общий для Кабинета и лежит в
+    # session_state, отдельно передавать нечего
+    with k4:
+        st.page_link("pages/9_Ads.py", label=t("money.kpi.ads_link"),
+                     icon=":material/arrow_forward:")
+    # доля маржи — в самом значении, а не дельтой: дельта читается как изменение к прошлому периоду, а у маржи его
+    # нет намеренно (себестоимость возвратов с брака приходит после разбора склада — см. «Обзор»)
+    mn.money_metric(k5, t("money.kpi.cm"), "—" if pd.isna(tot_cogs) else f"{cm:,.0f} € · {cm_pct:.1f}%",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.share_of_revenue"),
+                    help=t("money.kpi.cm_help") + " " + t("mn.margin_no_delta"))
+
+    # «По какое число», каких дней ещё нет и что предварительно — одной строкой периода, как на «Обзоре»
+    _period_txt = (mn.period_line(_dstat, _w.cur_from, _w.cur_to, PERIOD.end, _loaded_last)
+                   if pd.notna(_last) else "")
+    if _period_txt:
+        st.caption(_period_txt)
+
+    m1, m2, _ = st.columns([1, 1, 4])
+    mn.money_metric(m1, t("money.kpi.cm_dk"), "—" if pd.isna(tot_cogs) else f"{cm:,.0f} € · {cm_pct:.1f}%",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.share_of_revenue"),
+                    help=t("money.kpi.cm_help") + " " + t("mn.margin_no_delta"))
+    mn.money_metric(m2, t("money.kpi.cm_settle"),
+                    "—" if pd.isna(tot_cogs) else f"{cm_settle:,.0f} € · {cm_settle_pct:.1f}%",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.after_settlement"),
+                    help=t("money.kpi.cm_settle_help"))
+    if adj.empty:
+        st.caption(t("money.settle.none"))
+    else:
+        _parts = adj.groupby("bucket")["amount"].sum().sort_values()
+        st.caption(t("money.settle.caption", 
+            amt=f"{adj_total:,.0f}",
+            parts=", ".join(f"{t('money.settle.b.' + b)} {v:,.0f}" for b, v in _parts.items())))
+
+    if sku_known < sku_all:
+        st.caption(t("money.cogs_partial", 
+            n=sku_known, total=sku_all, miss=sku_all - sku_known,
+            pct=f"{rev_share:.0f}", rev=f"{rev_known:,.0f}"))
+
 else:
-    _parts = adj.groupby("bucket")["amount"].sum().sort_values()
-    st.caption(t("money.settle.caption", 
-        amt=f"{adj_total:,.0f}",
-        parts=", ".join(f"{t('money.settle.b.' + b)} {v:,.0f}" for b, v in _parts.items())))
-
-if sku_known < sku_all:
-    st.caption(t("money.cogs_partial", 
-        n=sku_known, total=sku_all, miss=sku_all - sku_known,
-        pct=f"{rev_share:.0f}", rev=f"{rev_known:,.0f}"))
+    # ---------- карточки Power BI (08.10.2026) ----------
+    # те же карточки, что в отчёте Power BI «Marketplaces Report», и складываются они ровно в Contribution Profit:
+    # продажи без НДС − расходы + возвраты (Expenses Refund) + компенсации − реклама = Contribution Profit —
+    # тождество витрины, проверенное по всем строкам (pbi.py). Своей арифметики здесь нет — только суммы колонок
+    def _sum(c):
+        return float(pd.to_numeric(f[c], errors="coerce").fillna(0).sum()) if c in f.columns else 0.0
+    p_incl, p_excl, p_exp = _sum("sales_vat_incl"), _sum("sales_vat_excl"), _sum("expenses")
+    p_comm, p_cogs, p_log = _sum("commission"), _sum("cogs_pbi"), _sum("logistics")
+    p_ref, p_reimb, p_spend, p_cp = _sum("expenses_refund"), _sum("reimbursment"), _sum("spend"), _sum("cp")
+    p_other = p_exp - p_comm - p_cogs - p_log        # у ManoMano в расходах ещё скидки продавца
+    p_pct = (p_cp / p_excl * 100) if p_excl else 0.0
+    # прошлый период той же длины (money_notes.windows); при поиске по SKU сравнивать не с чем
+    _pp = (load_pbi_totals(_w.prev_from.date(), _w.prev_to.date(), MK, _ver_pbi)
+           if (pd.notna(_last) and not search) else {})
+    _d_incl = mn.delta_text(p_incl, _pp["sales_vat_incl"], _w, _pp["days"]) if _pp else None
+    _d_excl = mn.delta_text(p_excl, _pp["sales_vat_excl"], _w, _pp["days"]) if _pp else None
+    _as = lambda x=None: " · ".join(p for p in (x, t("mn.x.as_pbi")) if p)
+    _r1 = st.columns(4)
+    _r2 = st.columns(3)
+    k0, k1, k2, k3 = _r1
+    k3b, k4, k5 = _r2
+    mn.money_metric(k0, t("money.kpi.sales_incl_pbi"), f"{p_incl:,.0f} €", delta=_d_incl,
+                    vat=mn.VAT_INCL, channels=_ch, basis="order", extra=_as(t("mn.x.before_returns")),
+                    help=t("money.kpi.sales_incl_pbi_help"))
+    mn.money_metric(k1, t("money.kpi.sales_excl_pbi"), f"{p_excl:,.0f} €", delta=_d_excl,
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=_as(t("mn.x.before_returns")),
+                    help=t("money.kpi.sales_excl_pbi_help"))
+    mn.money_metric(k2, t("money.kpi.expenses_pbi"), f"−{p_exp:,.0f} €",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=_as(),
+                    help=t("money.kpi.expenses_pbi_help", comm=f"{p_comm:,.0f}", cogs=f"{p_cogs:,.0f}",
+                           log=f"{p_log:,.0f}", other=f"{p_other:,.0f}"))
+    mn.money_metric(k3, t("money.kpi.exp_refund_pbi"), f"{p_ref:,.0f} €",
+                    vat=mn.VAT_EXCL, channels=_ch, basis=None, extra=_as(t("mn.x.by_settlement")),
+                    help=t("money.kpi.exp_refund_pbi_help"))
+    mn.money_metric(k3b, t("money.kpi.reimb_pbi"), f"{p_reimb:,.0f} €",
+                    vat=mn.VAT_EXCL, channels=_ch, basis=None, extra=_as(),
+                    help=t("money.kpi.reimb_pbi_help"))
+    mn.money_metric(k4, t("money.kpi.spend_pbi"), f"−{p_spend:,.0f} €",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=_as(),
+                    help=t("money.kpi.spend_pbi_help"))
+    with k4:
+        st.page_link("pages/9_Ads.py", label=t("money.kpi.ads_link"),
+                     icon=":material/arrow_forward:")
+    mn.money_metric(k5, t("money.kpi.cp_pbi"), f"{p_cp:,.0f} € · {p_pct:.1f}%",
+                    vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=_as(t("mn.x.share_of_sales_excl")),
+                    help=t("money.kpi.cp_pbi_help"))
+    _period_txt = (mn.period_line(_dstat, _w.cur_from, _w.cur_to, PERIOD.end, _loaded_last)
+                   if pd.notna(_last) else "")
+    if _period_txt:
+        st.caption(_period_txt)
 
 st.divider()
 
@@ -856,29 +985,51 @@ with tab_pnl:
 
     # ---------- Waterfall: как выручка превращается в прибыль ----------
     st.markdown(f"**{t('money.waterfall_title')}**")
-    mn.chart_note(t("mn.what.waterfall"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to)
-    wf = go.Figure(go.Waterfall(
-        orientation="v",
-        measure=["absolute", "relative", "relative", "relative", "relative", "total"],
-        x=[t("money.wf.revenue"), t("money.wf.fees"), t("money.wf.cogs"),
-           t("money.wf.logistics"), t("money.wf.ads"), t("money.wf.cm")],
-        y=[tot_rev, -(tot_rev - tot_net), -tot_cogs, -tot_log, -tot_ads, 0],
-        text=[f"{tot_rev:,.0f}€", f"−{tot_rev - tot_net:,.0f}€",
-              f"−{tot_cogs:,.0f}€", f"−{tot_log:,.0f}€", f"−{tot_ads:,.0f}€", f"{cm:,.0f}€"],
-        textposition="outside",
-        connector={"line": {"color": "#9aa4b2"}},
-        decreasing={"marker": {"color": ACCENT}},
-        increasing={"marker": {"color": GREEN}},
-        totals={"marker": {"color": GREEN if cm >= 0 else ACCENT}},
-    ))
+    mn.chart_note(t("mn.what.waterfall"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to,
+                  extra=None if pbi.OWN_METHOD else t("mn.x.as_pbi"))
+    if pbi.OWN_METHOD:
+        wf = go.Figure(go.Waterfall(
+            orientation="v",
+            measure=["absolute", "relative", "relative", "relative", "relative", "total"],
+            x=[t("money.wf.revenue"), t("money.wf.fees"), t("money.wf.cogs"),
+               t("money.wf.logistics"), t("money.wf.ads"), t("money.wf.cm")],
+            y=[tot_rev, -(tot_rev - tot_net), -tot_cogs, -tot_log, -tot_ads, 0],
+            text=[f"{tot_rev:,.0f}€", f"−{tot_rev - tot_net:,.0f}€",
+                  f"−{tot_cogs:,.0f}€", f"−{tot_log:,.0f}€", f"−{tot_ads:,.0f}€", f"{cm:,.0f}€"],
+            textposition="outside",
+            connector={"line": {"color": "#9aa4b2"}},
+            decreasing={"marker": {"color": ACCENT}},
+            increasing={"marker": {"color": GREEN}},
+            totals={"marker": {"color": GREEN if cm >= 0 else ACCENT}},
+        ))
+    else:
+        def _wf_label(v: float, signed: bool) -> str:
+            txt = f"{abs(v):,.0f}€"
+            return (("−" if v < 0 else "+") + txt) if signed else (("−" if v < 0 else "") + txt)
+        # те же слагаемые, что у карточек сверху: продажи без НДС → Contribution Profit Power BI
+        _wf = [(t("money.wf.revenue_pbi"), p_excl, "absolute"), (t("money.wf.fees"), -p_comm, "relative"),
+               (t("money.wf.cogs"), -p_cogs, "relative"), (t("money.wf.logistics"), -p_log, "relative"),
+               (t("money.wf.other_pbi"), -p_other, "relative"), (t("money.kpi.exp_refund_pbi"), p_ref, "relative"),
+               (t("money.kpi.reimb_pbi"), p_reimb, "relative"), (t("money.wf.ads"), -p_spend, "relative"),
+               (t("money.kpi.cp_pbi"), 0, "total")]
+        _wf = [w for w in _wf if w[2] != "relative" or abs(w[1]) >= 0.5]
+        wf = go.Figure(go.Waterfall(
+            orientation="v", measure=[w[2] for w in _wf], x=[w[0] for w in _wf], y=[w[1] for w in _wf],
+            text=[_wf_label(p_cp if w[2] == "total" else w[1], w[2] == "relative") for w in _wf],
+            textposition="outside",
+            connector={"line": {"color": "#9aa4b2"}},
+            decreasing={"marker": {"color": ACCENT}},
+            increasing={"marker": {"color": GREEN}},
+            totals={"marker": {"color": GREEN if p_cp >= 0 else ACCENT}},
+        ))
     wf.update_layout(height=380, showlegend=False,
                      margin=dict(l=10, r=10, t=10, b=10),
                      yaxis_title="€")
     st.plotly_chart(wf, use_container_width=True)
-    st.caption(t("money.waterfall_caption"))
+    st.caption(t("money.waterfall_caption") if pbi.OWN_METHOD else t("money.waterfall_caption_pbi"))
 
     st.markdown(f"**{t('money.pnl_table')}**")
-    mn.chart_note(t("mn.what.pnl_by_sku"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to)
+    mn.chart_note(t("mn.what.pnl_by_sku"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to, extra=None if pbi.OWN_METHOD else t("mn.x.as_pbi"))
 
     _quick = st.session_state.pnl_quick
     if _quick == "losers":
@@ -888,12 +1039,17 @@ with tab_pnl:
         by_sku = by_sku[by_sku["sku_display"].isin(thin["sku_display"])]
         st.caption(t("money.alert.filtered_thin", n=len(by_sku)))
 
+    # в цифрах Power BI нет «Чистыми» и поправок settlement: таблица — его колонки, сложенные в Contribution Profit
+    _sku_cols = (["photo", "flag_col", "ann_col", "sku_display", "product_name",
+                  "markets_label", "units", "revenue",
+                  "net_proceeds", "cogs", "commission", "ads", "cm", "cm_pct",
+                  "settle_adj", "cm_settle", "ad_spend_all", "tacos_pct", "acos_pct",
+                  "rank_now", "rank_delta", "amazon_url"] if pbi.OWN_METHOD else
+                 ["photo", "flag_col", "ann_col", "sku_display", "product_name",
+                  "markets_label", "units", "revenue", "commission", "cogs", "logistics", "ads", "cm", "cm_pct",
+                  "tacos_pct", "acos_pct", "rank_now", "rank_delta", "amazon_url"])
     st.dataframe(
-        by_sku[["photo", "flag_col", "ann_col", "sku_display", "product_name",
-                "markets_label", "units", "revenue",
-                "net_proceeds", "cogs", "commission", "ads", "cm", "cm_pct",
-                "settle_adj", "cm_settle", "ad_spend_all", "tacos_pct", "acos_pct",
-                "rank_now", "rank_delta", "amazon_url"]],
+        by_sku[_sku_cols],
         use_container_width=True, height=480, hide_index=True,
         column_config={
             "photo": catalog.image_column(),
@@ -915,10 +1071,11 @@ with tab_pnl:
             "commission": st.column_config.NumberColumn(
                 t("money.col.commission"), format="%.0f €",
                 help=t("money.col.commission_help")),
-            "ads": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €",
-                help=t("money.col.ads_help")),
-            "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €",
-                help=t("money.col.cm_help")),
+            "ads": st.column_config.NumberColumn(t("money.col.ads") if pbi.OWN_METHOD else t("money.kpi.spend_pbi"),
+                format="%.0f €", help=t("money.col.ads_help") if pbi.OWN_METHOD else t("money.kpi.spend_pbi_help")),
+            "logistics": st.column_config.NumberColumn(t("money.wf.logistics"), format="%.0f €"),
+            "cm": st.column_config.NumberColumn(t("money.col.cm") if pbi.OWN_METHOD else t("money.kpi.cp_pbi"),
+                format="%.0f €", help=t("money.col.cm_help") if pbi.OWN_METHOD else t("money.kpi.cp_pbi_help")),
             "cm_pct": st.column_config.NumberColumn(t("money.col.cm_pct"), format="%.1f%%"),
             "settle_adj": st.column_config.NumberColumn(t("money.col.settle_adj"), format="%.0f €",
                 help=t("money.col.settle_adj_help")),
@@ -985,7 +1142,7 @@ with tab_country:
     by_c = by_c.sort_values("cm", ascending=False)
 
     # доля — в значении, а не дельтой: дельта читается как изменение к прошлому периоду
-    mn.chart_note(t("mn.what.cm_by_marketplace"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to)
+    mn.chart_note(t("mn.what.cm_by_marketplace"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to, extra=None if pbi.OWN_METHOD else t("mn.x.as_pbi"))
     cc = st.columns(min(len(by_c), 5) or 1)
     for i, (_, r) in enumerate(by_c.iterrows()):
         with cc[i % len(cc)]:
@@ -999,9 +1156,11 @@ with tab_country:
     melt = by_c.melt(id_vars="marketplace",
                      value_vars=["cm", "cogs", "logistics", "ads"],
                      var_name="part", value_name="eur")
-    part_names = {"cm": t("money.col.cm"), "cogs": "COGS", "logistics": t("money.wf.logistics"), "ads": t("money.col.ads")}
+    part_names = {"cm": t("money.col.cm") if pbi.OWN_METHOD else t("money.kpi.cp_pbi"), "cogs": "COGS",
+                  "logistics": t("money.wf.logistics"),
+                  "ads": t("money.col.ads") if pbi.OWN_METHOD else t("money.kpi.spend_pbi")}
     melt["part"] = melt["part"].map(part_names)
-    mn.chart_note(t("mn.what.by_marketplace"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to)
+    mn.chart_note(t("mn.what.by_marketplace"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to, extra=None if pbi.OWN_METHOD else t("mn.x.as_pbi"))
     fig = px.bar(melt, x="marketplace", y="eur", color="part",
                  color_discrete_sequence=[GREEN, "#9aa4b2", ACCENT])
     fig.update_layout(height=380, xaxis_title=None, yaxis_title="€",
@@ -1009,8 +1168,9 @@ with tab_country:
     st.plotly_chart(fig, use_container_width=True)
 
     st.dataframe(
-        by_c[["marketplace", "units", "revenue", "net_proceeds", "cogs",
-              "commission", "ads", "cm", "cm_pct"]],
+        by_c[["marketplace", "units", "revenue", "net_proceeds", "cogs", "commission", "ads", "cm", "cm_pct"]
+             if pbi.OWN_METHOD else
+             ["marketplace", "units", "revenue", "commission", "cogs", "logistics", "ads", "cm", "cm_pct"]],
         use_container_width=True, hide_index=True,
         column_config={
             "marketplace": st.column_config.TextColumn(t("money.col.marketplace")),
@@ -1021,9 +1181,11 @@ with tab_country:
             "commission": st.column_config.NumberColumn(
                 t("money.col.commission"), format="%.0f €",
                 help=t("money.col.commission_help")),
-            "ads": st.column_config.NumberColumn(t("money.col.ads"), format="%.0f €",
-                help=t("money.col.ads_help")),
-            "cm": st.column_config.NumberColumn(t("money.col.cm"), format="%.0f €"),
+            "ads": st.column_config.NumberColumn(t("money.col.ads") if pbi.OWN_METHOD else t("money.kpi.spend_pbi"),
+                format="%.0f €", help=t("money.col.ads_help") if pbi.OWN_METHOD else t("money.kpi.spend_pbi_help")),
+            "logistics": st.column_config.NumberColumn(t("money.wf.logistics"), format="%.0f €"),
+            "cm": st.column_config.NumberColumn(t("money.col.cm") if pbi.OWN_METHOD else t("money.kpi.cp_pbi"),
+                                                format="%.0f €"),
             "cm_pct": st.column_config.NumberColumn(t("money.col.cm_pct"), format="%.1f%%"),
         },
     )
@@ -1079,7 +1241,7 @@ with tab_fees:
                   f["fees"].sum()],
     })
     parts = parts[parts["value"] > 0]
-    mn.chart_note(t("mn.what.revenue_split"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to)
+    mn.chart_note(t("mn.what.revenue_split"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to, extra=None if pbi.OWN_METHOD else t("mn.x.as_pbi"))
     fig = px.pie(parts, names="part", values="value", hole=0.5,
                  color_discrete_sequence=[GREEN, "#9aa4b2", ACCENT, "#f2b134"])
     fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10))
@@ -1094,7 +1256,7 @@ with tab_fees:
     fee_share = (f.groupby("marketplace", as_index=False)
                    .agg(revenue=("revenue", "sum"), fees=("fees", "sum")))
     fee_share["fees_pct"] = np.round(safe_div(fee_share["fees"], fee_share["revenue"]) * 100, 1)
-    mn.chart_note(t("mn.what.fees_share"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to)
+    mn.chart_note(t("mn.what.fees_share"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to, extra=None if pbi.OWN_METHOD else t("mn.x.as_pbi"))
     fig = px.bar(fee_share.sort_values("fees_pct", ascending=False),
                  x="marketplace", y="fees_pct", text="fees_pct",
                  color_discrete_sequence=["#f2b134"])
@@ -1161,6 +1323,10 @@ with tab_alerts:
             ad_days=_n(row.get("days_ads_only")))
 
     alerts = load_ads_alerts()
+    # «отрицательная маржа» и колонка маржи в этих предупреждениях — наша методика (Economics Loader, ячейка 4).
+    # Пока страница показывает цифры Power BI, их не показываем: маржа рядом разошлась бы с Contribution Profit
+    if not pbi.OWN_METHOD and not alerts.empty:
+        alerts = alerts[alerts["alert_type"] != "negative_cm"]
 
     # ---- окно ----
     # Список окон берём из данных, а не из кода: загрузчик заведёт
@@ -1215,15 +1381,18 @@ with tab_alerts:
 
         # сумма под числом — не изменение к прошлому периоду, поэтому без стрелки
         mn.chart_note(t("mn.what.ads_alerts"), mn.VAT_EXCL, "", None)
-        a1, a2, a3 = st.columns(3)
+        a1, a2, a3 = st.columns(3) if pbi.OWN_METHOD else (*st.columns(2), None)
         a1.metric(t("money.alerts.zero"), len(z),
                   delta=f"−{z['ads_spend'].sum():,.0f} €" if len(z) else None,
                   delta_color="inverse", delta_arrow="off",
                   help=mn.help_with_vat(mn.VAT_EXCL, t("money.alerts.zero_help")))
-        a2.metric(t("money.alerts.negcm"), len(n),
-                  delta=f"{n['cm'].sum():,.0f} €" if len(n) else None,
-                  delta_color="inverse", delta_arrow="off")
-        a3.metric(t("money.alerts.wasted"), len(w))
+        if pbi.OWN_METHOD:
+            a2.metric(t("money.alerts.negcm"), len(n),
+                      delta=f"{n['cm'].sum():,.0f} €" if len(n) else None,
+                      delta_color="inverse", delta_arrow="off")
+            a3.metric(t("money.alerts.wasted"), len(w))
+        else:
+            a2.metric(t("money.alerts.wasted"), len(w))
 
         alerts = alerts.copy()
         alerts["details"] = [alert_details(r) for _, r in alerts.iterrows()]
@@ -1232,9 +1401,8 @@ with tab_alerts:
         alerts["photo"] = catalog.image_series(
             skus=alerts["sku_display"], markets=alerts["marketplace"])
         st.dataframe(
-            alerts[["photo", "type_label", "sku_display", "asin_url",
-                    "marketplace",
-                    "units", "ads_spend", "cm", "details"]],
+            alerts[["photo", "type_label", "sku_display", "asin_url", "marketplace", "units", "ads_spend",
+                    *(["cm"] if pbi.OWN_METHOD else []), "details"]],
             use_container_width=True, height=480, hide_index=True,
             column_config={
                 "photo": catalog.image_column(),

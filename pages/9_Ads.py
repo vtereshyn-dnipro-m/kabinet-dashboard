@@ -26,6 +26,7 @@ import catalog
 import ads_api
 import ad_ratios
 import money_notes as mn
+import pbi
 from links import MARKETPLACE_ID, amazon_url, market_name
 
 init_lang()
@@ -409,17 +410,19 @@ _ch_ar = "=" + (t("ads.card.acos_all_base") if _all_markets
                 else t("mn.ch.selected", m=", ".join(market_name(m) for m in (_mk or _markets)) or "—"))
 _ch_amc = "=" + t("mn.ch.amc_es")
 _per = f"{_from.strftime('%d.%m')}–{_to.strftime('%d.%m')}"
+# с 08.10.2026 расход, продажи с рекламы, ACOS и TACOS — те же цифры, что в Power BI (реплика его витрины, ad_ratios)
+_per_ar = _per if pbi.OWN_METHOD else _per + " · " + t("mn.x.as_pbi")
 card(c1, "ACOS", _base, "—" if _acos is None else ("∞" if np.isinf(_acos) else f"{_acos:.1f} %"), _tone,
-     note=mn.note(None, _ch_ar, "ad_day", t("mn.x.ratio_vat") + " · " + _per))
+     note=mn.note(None, _ch_ar, "ad_day", t("mn.x.ratio_vat") + " · " + _per_ar))
 card(c2, "TACOS", t("ads.card.tacos_base"),
      "—" if _ar.get("tacos") is None else f"{_ar['tacos']:.1f} %",
-     note=mn.note(None, _ch_ar, "ad_day", t("mn.x.ratio_vat") + " · " + _per))
+     note=mn.note(None, _ch_ar, "ad_day", t("mn.x.ratio_vat") + " · " + _per_ar))
 card(c3, t("ads.card.spend"), t("ads.card.spend_base_all", n=_days),
      "—" if _ar.get("spend") is None else money(_ar["spend"]),
-     note=mn.note(mn.VAT_EXCL, _ch_ar, "ad_day", _per))
+     note=mn.note(mn.VAT_EXCL, _ch_ar, "ad_day", _per_ar))
 card(c4, t("ads.card.sales"), t("ads.card.sales_base_all"),
      "—" if _ar.get("ad_sales") is None else money(_ar["ad_sales"]),
-     note=mn.note(mn.VAT_INCL, _ch_ar, "ad_day", _per))
+     note=mn.note(mn.VAT_INCL, _ch_ar, "ad_day", _per_ar))
 card(c5, t("ads.card.ntb"), t("ads.card.ntb_base"),
      "—" if pd.isna(_ntb_share) else f"{_ntb_share:.0f} %",
      note=mn.note(None, _ch_amc, "ad_day", _per))
