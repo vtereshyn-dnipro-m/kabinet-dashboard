@@ -263,11 +263,28 @@ def load_ordered_sales(days: int = 30, _v: str = "") -> pd.DataFrame:
 _PENDING_CHANNELS = (("wallapop", ("WALLAPOP", "WP_", "WLP")), ("site", ("WEB", "SITE")))
 
 
+@st.cache_data(ttl=3600)
+def connected_sales_channels() -> list:
+    """Коды рынков, по которым продажи с НДС есть хоть когда-нибудь — не только в окне страницы. У сайта бывают
+    недели без заказов, и проверка по окну вернула бы «без сайта — подключаем» к уже подключённому каналу."""
+    if not table_exists("v_sales_vat_incl_daily"):
+        return []
+    conn = get_connection()
+    try:
+        return pd.read_sql("SELECT DISTINCT upper(marketplace) AS m FROM kabinet_data.v_sales_vat_incl_daily", conn)["m"].tolist()
+    except Exception:
+        return []
+    finally:
+        conn.close()
+
+
 def sales_all_extra(sales_all: pd.DataFrame) -> str:
     """Подпись под «Продажи с НДС, все каналы»: «до возвратов» и, пока Wallapop или сайта нет в данных, —
-    «без … — подключаем». Имён людей в подписи нет: источник называем системой (правило 08.10.2026)."""
-    codes = ([str(c).upper() for c in sales_all["marketplace"].dropna().unique()]
-             if not sales_all.empty and "marketplace" in sales_all else [])
+    «без … — подключаем». Имён людей в подписи нет: источник называем системой (правило 08.10.2026).
+    Подключён ли канал — по всей истории продаж, а не по окну страницы (08.10.2026)."""
+    codes = connected_sales_channels() or (
+        [str(c).upper() for c in sales_all["marketplace"].dropna().unique()]
+        if not sales_all.empty and "marketplace" in sales_all else [])
     missing = [k for k, marks in _PENDING_CHANNELS if not any(c.startswith(m) for c in codes for m in marks)]
     out = t("home.kpi.sales_all_extra")
     if missing:
