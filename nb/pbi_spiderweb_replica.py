@@ -94,7 +94,90 @@ print("   продажи с НДС: " + ", ".join(f"{k} {v:,.0f}" for k, v in so
 
 # COMMAND ----------
 
-# DBTITLE 1,2. Пульс
+# DBTITLE 1,2. Заказы → kabinet_data.pbi_orders_report
+# Вторая таблица модели Power BI: строка на заказ. Из неё его карточки Orders Count (число строк), Average Order Value
+# (сумма order_total_amount_eur / число строк) и Average Basket Depth (среднее unique_sku_ordered). Связана в модели
+# с продажами только через календарь (дата × страна × площадка), поэтому разреза по категории и SKU у заказов нет.
+import psycopg2, psycopg2.extras
+from databricks.sdk import WorkspaceClient
+
+ORDERS_VIEW = "dnipro_m.dnipro_m.v_all_marketplaces_orders_enriched"
+AMAZON = {"Spain": "ES", "Italy": "IT", "France": "FR", "Germany": "DE", "Belgium": "BE", "Netherlands": "NL",
+          "United Kingdom": "GB", "Sweden": "SE", "Poland": "PL", "Ireland": "IE"}
+OTHER = {("Leroy Merlin", "Spain"): "LM", ("ManoMano", "Spain"): "MM_ES", ("ManoMano", "France"): "MM_FR",
+         ("ManoMano", "ES_B2B"): "MMB_ES", ("ManoMano Pro", "Spain"): "MMB_ES", ("ManoMano Pro", "ES_B2B"): "MMB_ES",
+         ("Carrefour", "Spain"): "CF_ES", ("Wallapop", "Spain"): "WP_ES", ("Website", "Spain"): "WEB_ES"}
+
+
+def code_of(mk, country):
+    if mk == "Amazon" and country in AMAZON:
+        return AMAZON[country]
+    return OTHER.get((mk, country)) or f"?{mk}/{country}"
+
+
+src = spark.sql(f"""SELECT source, order_id, purchase_date, marketplace, country,
+                           CAST(order_total_amount_eur AS double) AS amt, CAST(items_quantity_ordered AS double) AS items,
+                           CAST(unique_sku_ordered AS bigint) AS uniq
+                    FROM {ORDERS_VIEW}""").collect()
+if not src:
+    raise RuntimeError(f"{ORDERS_VIEW} не отдала ни одной строки — заказы не переписываю")
+rows = {}
+for r in src:
+    # ключ витрины — заказ внутри источника; повтор (если появится) не множит заказ, а заменяет строку
+    rows[(r["source"], r["order_id"])] = (r["order_id"], r["source"], r["purchase_date"], code_of(r["marketplace"], r["country"]),
+                                          r["marketplace"], r["country"], r["amt"], r["items"], r["uniq"])
+_w = WorkspaceClient()
+_cred = _w.postgres.generate_database_credential(
+    endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary")
+pg = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com",
+                      port=5432, dbname="databricks_postgres",
+                      user=_w.current_user.me().user_name, password=_cred.token, sslmode="require")
+with pg, pg.cursor() as cur:
+    cur.execute("DELETE FROM kabinet_data.pbi_orders_report")
+    psycopg2.extras.execute_values(cur, """
+        INSERT INTO kabinet_data.pbi_orders_report
+            (order_id, source, purchase_date, marketplace, pbi_marketplace, pbi_country,
+             order_total_amount_eur, items_quantity_ordered, unique_sku_ordered)
+        VALUES %s""", list(rows.values()), page_size=2000)
+pg.close()
+ORDERS_NOTE = f"заказов {len(rows)}" + (f" (повторов в витрине {len(src) - len(rows)})" if len(src) != len(rows) else "")
+print("✅", ORDERS_NOTE)
+
+# COMMAND ----------
+
+# DBTITLE 1,3. Категории и названия SKU → kabinet_data.pbi_sku_categories
+# Справочник Power BI: название и три уровня категорий по SKU. У SKU без кода в дереве ERP витрина ставит название
+# «Need to Name» и категорию «Set» — копируем как есть, иначе разрез по категориям разошёлся бы с Power BI.
+import psycopg2, psycopg2.extras
+from databricks.sdk import WorkspaceClient
+
+CAT_VIEW = "dnipro_m.dnipro_m.v_sku_names_categories"
+src = spark.sql(f"""SELECT sku, name_en, name_ukr, category_level1_en, category_level2_en, category_level3_en,
+                           category_level1_ukr, category_level2_ukr, category_level3_ukr
+                    FROM {CAT_VIEW} WHERE sku IS NOT NULL""").collect()
+if not src:
+    raise RuntimeError(f"{CAT_VIEW} не отдала ни одной строки — справочник не переписываю")
+cats = {r["sku"]: tuple(r) for r in src}
+_w = WorkspaceClient()
+_cred = _w.postgres.generate_database_credential(
+    endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary")
+pg = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com",
+                      port=5432, dbname="databricks_postgres",
+                      user=_w.current_user.me().user_name, password=_cred.token, sslmode="require")
+with pg, pg.cursor() as cur:
+    cur.execute("DELETE FROM kabinet_data.pbi_sku_categories")
+    psycopg2.extras.execute_values(cur, """
+        INSERT INTO kabinet_data.pbi_sku_categories
+            (sku, name_en, name_ukr, category_level1_en, category_level2_en, category_level3_en,
+             category_level1_ukr, category_level2_ukr, category_level3_ukr)
+        VALUES %s""", list(cats.values()), page_size=1000)
+pg.close()
+CATS_NOTE = f"SKU в справочнике {len(cats)}"
+print("✅", CATS_NOTE)
+
+# COMMAND ----------
+
+# DBTITLE 1,4. Пульс
 # Последней операцией, безусловно: «ячейки доработали до конца», а не «всё внутри было без замечаний»
 import psycopg2
 from databricks.sdk import WorkspaceClient
@@ -104,10 +187,9 @@ _cred = _w.postgres.generate_database_credential(
 _pg = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com",
                        port=5432, dbname="databricks_postgres",
                        user=_w.current_user.me().user_name, password=_cred.token, sslmode="require")
-try:
-    _note = REPLICA_NOTE
-except NameError:      # ячейку пульса запустили отдельно
-    _note = "реплика витрины Power BI"
+_parts = [globals().get(k) for k in ("REPLICA_NOTE", "ORDERS_NOTE", "CATS_NOTE")]
+# ячейку пульса могли запустить отдельно — тогда заметок нет
+_note = "; ".join(p for p in _parts if p) or "реплика витрины Power BI"
 with _pg, _pg.cursor() as _c:
     _c.execute("""
         INSERT INTO kabinet_data.system_pulse (job_name, last_success_at, note, expected_interval_hours)

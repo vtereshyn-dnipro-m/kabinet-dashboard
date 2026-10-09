@@ -266,6 +266,13 @@ def load_pnl_pbi(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str
         conn.close()
     df = df.rename(columns={"sku": "norm_sku", "cogs": "cogs_pbi"})
     df["product_name"] = df["norm_sku"].map(dict(zip(names["sku"], names["name"])))
+    try:
+        _cat = pbi.load_categories()
+    except Exception:
+        _cat = pd.DataFrame(columns=["sku", "name_en", "category_level1_en"])
+    # категория — как в Power BI (его справочник): SKU без кода в дереве ERP у него в «Set»
+    df["category"] = df["norm_sku"].map(dict(zip(_cat["sku"], _cat["category_level1_en"]))).fillna("Set")
+    df["product_name"] = df["product_name"].fillna(df["norm_sku"].map(dict(zip(_cat["sku"], _cat["name_en"]))))
     df["asin"] = (df["norm_sku"].astype(str).str.extract(r"([0-9]{5,})", expand=False)
                   .map(dict(zip(asins["sku_group"], asins["asin"]))))
     df["revenue"] = df["sales_vat_excl"]
@@ -277,6 +284,12 @@ def load_pnl_pbi(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str
     df["ads"] = df["spend"]
     df["ads_total"] = df["spend"]
     return df
+
+
+@st.cache_data(ttl=600)
+def load_pbi_orders(d_from, d_to, markets: tuple = (), _v: str = "") -> pd.DataFrame:
+    """Заказы Power BI за период — день × рынок (pbi.load_orders)."""
+    return pbi.load_orders(d_from, d_to, markets)
 
 
 @st.cache_data(ttl=600)
@@ -547,7 +560,9 @@ if _ctrl and _ctrl.get("rows"):
             k=(_mine / _real if _real else 0),
             rows=int(len(df)), ctrl_rows=int(_ctrl["rows"])))
 
-df["sku_display"] = df["norm_sku"].apply(clean_sku)
+# в цифрах Power BI — артикул как есть: варианты набора (99601000-A…-D) отдельными строками, как у него. clean_sku
+# срезал «-B», и строка варианта подписывалась базовым кодом — 4 017 € «99601000» были на деле только 99601000-B
+df["sku_display"] = df["norm_sku"].apply(clean_sku) if pbi.OWN_METHOD else df["norm_sku"].astype(str)
 # ключ для стыковки с settlement: там SKU с суффиксами (-FBA, -A_), у нас базовый код
 df["base_sku"] = df["norm_sku"].astype(str).str.extract(r"([0-9]{5,})", expand=False)
 for c in ["units", "gross_revenue", "revenue", "fees", "net_proceeds", "ads", "ads_total", "logistics"]:
@@ -793,6 +808,33 @@ else:
     mn.money_metric(k5, t("money.kpi.cp_pbi"), f"{p_cp:,.0f} € · {p_pct:.1f}%",
                     vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=_as(t("mn.x.share_of_sales_excl")),
                     help=t("money.kpi.cp_pbi_help"))
+    # третий ряд — остальные карточки отчёта Power BI (09.10.2026): заказы и средний чек — из его таблицы заказов,
+    # остальное — из витрины. Заказы в модели Power BI не связаны с SKU, поэтому при поиске по SKU их нет
+    _po = (load_pbi_orders(_w.cur_from.date(), _w.cur_to.date(), MK, _ver_pbi)
+           if pd.notna(_last) and not search else pd.DataFrame())
+    _ot = pbi.order_totals(_po) if not _po.empty else {"orders": None, "aov": None, "basket_depth": None}
+    p_tax, p_units, p_paid, p_paid_u = _sum("tax"), _sum("units"), _sum("paid_sales"), _sum("paid_units")
+    _r3 = st.columns(4)
+    _r4 = st.columns(4)
+    _fmt = lambda v, f: "—" if v is None else f.format(v).replace(",", " ")
+    mn.money_metric(_r3[0], t("money.kpi.orders_pbi"), _fmt(_ot["orders"], "{:,.0f}"),
+                    vat=mn.VAT_NONE, channels=_ch, basis="order", extra=_as(),
+                    help=t("money.kpi.orders_pbi_help") if not search else t("money.kpi.orders_pbi_search"))
+    mn.money_metric(_r3[1], t("money.kpi.aov_pbi"), _fmt(_ot["aov"], "{:,.2f} €"),
+                    vat=mn.VAT_INCL, channels=_ch, basis="order", extra=_as(),
+                    help=t("money.kpi.aov_pbi_help", d=_fmt(_ot["basket_depth"], "{:.2f}")))
+    mn.money_metric(_r3[2], t("money.kpi.avg_price_pbi"), _fmt(p_incl / p_units if p_units else None, "{:,.2f} €"),
+                    vat=mn.VAT_INCL, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.avg_price_pbi_help"))
+    mn.money_metric(_r3[3], t("money.kpi.tax_pbi"), f"{p_tax:,.0f} €",
+                    vat=None, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.tax_pbi_help"))
+    mn.money_metric(_r4[0], t("money.kpi.paid_sales_pbi"), f"{p_paid:,.0f} €",
+                    vat=mn.VAT_INCL, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.paid_sales_pbi_help"))
+    mn.money_metric(_r4[1], t("money.kpi.paid_units_pbi"), f"{p_paid_u:,.0f}",
+                    vat=mn.VAT_NONE, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.paid_units_pbi_help"))
+    mn.money_metric(_r4[2], t("money.kpi.cm_incl_pbi"), _fmt(p_cp / p_incl * 100 if p_incl else None, "{:.2f} %"),
+                    vat=mn.VAT_NONE, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.cm_incl_pbi_help"))
+    mn.money_metric(_r4[3], t("money.kpi.cm_excl_pbi"), _fmt(p_cp / p_excl * 100 if p_excl else None, "{:.2f} %"),
+                    vat=mn.VAT_NONE, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.cm_excl_pbi_help"))
     _period_txt = (mn.period_line(_dstat, _w.cur_from, _w.cur_to, PERIOD.end, _loaded_last)
                    if pd.notna(_last) else "")
     if _period_txt:
@@ -800,10 +842,18 @@ else:
 
 st.divider()
 
-tab_pnl, tab_country, tab_fees, tab_alerts = st.tabs(
-    [t("money.tab.pnl"), t("money.tab.by_marketplace"), t("money.tab.fees"),
-     t("money.tab.alerts")]
-)
+if pbi.OWN_METHOD:
+    tab_pnl, tab_country, tab_fees, tab_alerts = st.tabs(
+        [t("money.tab.pnl"), t("money.tab.by_marketplace"), t("money.tab.fees"),
+         t("money.tab.alerts")]
+    )
+    tab_cat = tab_matrix = None
+else:
+    # как в Power BI: разрез по категориям и матрица «страна → площадка → категория → SKU» (09.10.2026)
+    tab_pnl, tab_country, tab_cat, tab_matrix, tab_fees, tab_alerts = st.tabs(
+        [t("money.tab.pnl"), t("money.tab.by_marketplace"), t("money.tab.by_category"), t("money.tab.matrix"),
+         t("money.tab.fees"), t("money.tab.alerts")]
+    )
 
 BLUE = "#1f77b4"
 ACCENT = "#e8484d"
@@ -1225,6 +1275,90 @@ with tab_country:
             _fu = float(pf["fact_units"].sum())
             st.caption(t("plan.unpriced", n=f"{_unp:,.0f}".replace(",", " "),
                          p=f"{(_unp / _fu * 100) if _fu else 0:.1f}"))
+
+# ---------- как в Power BI: категории и матрица (09.10.2026) ----------
+def _pbi_agg(frame: pd.DataFrame, keys: list) -> pd.DataFrame:
+    """Колонки матрицы Power BI по выбранным уровням: суммы колонок витрины и отношения сумм — как у его мер."""
+    g = (frame.groupby(keys, as_index=False, dropna=False)
+              .agg(sales_vat_incl=("sales_vat_incl", "sum"), revenue=("sales_vat_excl", "sum"), tax=("tax", "sum"),
+                   units=("units", "sum"), cp=("cp", "sum")))
+    g["cm_pct_incl"] = np.round(safe_div(g["cp"], g["sales_vat_incl"]) * 100, 2)
+    g["cm_pct_excl"] = np.round(safe_div(g["cp"], g["revenue"]) * 100, 2)
+    g["avg_price"] = np.round(safe_div(g["sales_vat_incl"], g["units"]), 2)
+    return g
+
+
+_PBI_COLS = {
+    "cm_pct_incl": st.column_config.NumberColumn("% CM (VAT Incl)", format="%.2f%%"),
+    "cm_pct_excl": st.column_config.NumberColumn("% CM (VAT Excl)", format="%.2f%%"),
+    "cp": st.column_config.NumberColumn("Contribution Profit", format="%.2f €"),
+    "sales_vat_incl": st.column_config.NumberColumn("Revenue VAT Incl", format="%.2f €"),
+    "revenue": st.column_config.NumberColumn("Revenue VAT Excl", format="%.2f €"),
+    "tax": st.column_config.NumberColumn("Revenue Tax Amount", format="%.2f €"),
+    "units": st.column_config.NumberColumn("Units Sold", format="%d"),
+    "avg_price": st.column_config.NumberColumn("Avg Price VAT Incl", format="%.2f €"),
+    "orders": st.column_config.NumberColumn("Orders Count", format="%d"),
+    "aov": st.column_config.NumberColumn("Average Order Value", format="%.2f €"),
+}
+
+if tab_cat is not None:
+    with tab_cat:
+        mn.chart_note(t("mn.what.by_category"), None, _ch, "order", _w.cur_from, _w.cur_to, extra=t("mn.x.as_pbi"))
+        by_cat = _pbi_agg(f, ["category"]).sort_values("sales_vat_incl", ascending=False)
+        st.dataframe(by_cat[["category", "sales_vat_incl", "revenue", "cp", "cm_pct_excl", "units"]],
+                     use_container_width=True, hide_index=True,
+                     column_config={"category": st.column_config.TextColumn(t("money.col.category")), **_PBI_COLS})
+        st.caption(t("money.cat.note", n=int(by_cat["category"].nunique()),
+                     s=f"{by_cat['sales_vat_incl'].sum():,.2f}".replace(",", " ")))
+
+if tab_matrix is not None:
+    with tab_matrix:
+        _levels = {"country": t("money.mx.country"), "platform": t("money.mx.platform"),
+                   "category": t("money.mx.category"), "norm_sku": "SKU"}
+        mc1, mc2, mc3 = st.columns([1.2, 1.5, 1.3])
+        _depth = mc1.selectbox(t("money.mx.depth"), [1, 2, 3, 4], index=1,
+                               format_func=lambda n: " → ".join(list(_levels.values())[:n]), key="mx_depth")
+        _cats = mc2.multiselect("Category", sorted(f["category"].dropna().unique()), key="mx_cat",
+                                placeholder=t("money.filter.marketplace_ph"))
+        _sku_q = mc3.text_input("SKU", key="mx_sku", placeholder=t("money.mx.sku_ph"))
+        fm = f
+        if _cats:
+            fm = fm[fm["category"].isin(_cats)]
+        if _sku_q:
+            fm = fm[fm["norm_sku"].astype(str).str.contains(_sku_q, case=False, na=False)]
+        keys = list(_levels)[:_depth]
+        mx = _pbi_agg(fm, keys)
+        # заказы и средний чек — только на уровнях страна / площадка и без фильтров по категории и SKU: в модели Power
+        # BI заказы связаны с продажами через календарь (дата × страна × площадка), а не через товар
+        _orders_ok = _depth <= 2 and not _cats and not _sku_q and not search
+        if _orders_ok:
+            _po_m = load_pbi_orders(_w.cur_from.date(), _w.cur_to.date(), MK, _ver_pbi)
+            if not _po_m.empty:
+                _og = _po_m.groupby(keys, as_index=False).agg(orders=("orders", "sum"), order_total=("order_total", "sum"))
+                mx = mx.merge(_og, on=keys, how="outer").fillna({"orders": 0, "order_total": 0})
+                mx["aov"] = np.round(safe_div(mx["order_total"], mx["orders"]), 2)
+        for c in ("orders", "aov"):
+            if c not in mx.columns:
+                mx[c] = np.nan
+        if "norm_sku" in keys:
+            mx["product_name"] = mx["norm_sku"].map(f.drop_duplicates("norm_sku").set_index("norm_sku")["product_name"])
+        mx = mx.sort_values(keys[:-1] + ["sales_vat_incl"], ascending=[True] * (len(keys) - 1) + [False])
+        mn.chart_note(t("mn.what.matrix"), None, _ch, "order", _w.cur_from, _w.cur_to, extra=t("mn.x.as_pbi"))
+        st.dataframe(
+            mx[keys + (["product_name"] if "norm_sku" in keys else [])
+               + ["cm_pct_incl", "cm_pct_excl", "cp", "sales_vat_incl", "revenue", "tax", "units", "avg_price",
+                  "orders", "aov"]],
+            use_container_width=True, hide_index=True, height=520,
+            column_config={"country": st.column_config.TextColumn(t("money.mx.country")),
+                           "platform": st.column_config.TextColumn(t("money.mx.platform")),
+                           "category": st.column_config.TextColumn(t("money.mx.category")),
+                           "norm_sku": st.column_config.TextColumn("SKU"),
+                           "product_name": st.column_config.TextColumn(t("money.col.product"), width="medium"),
+                           **_PBI_COLS})
+        _tot = _pbi_agg(fm.assign(_all=1), ["_all"]).iloc[0]
+        st.caption(t("money.mx.total", s=f"{_tot['sales_vat_incl']:,.2f}".replace(",", " "),
+                     cp=f"{_tot['cp']:,.2f}".replace(",", " "), u=f"{_tot['units']:,.0f}".replace(",", " "))
+                   + " " + (t("money.mx.orders_note") if not _orders_ok else ""))
 
 # ---------- комиссии/структура ----------
 with tab_fees:

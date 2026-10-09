@@ -1,0 +1,97 @@
+--- Kabinet - Reconciliation (до)
++++ Kabinet - Reconciliation (после)
+@@ -503,8 +503,8 @@
+ # ─── POWER BI 1:1: Кабинет показывает ровно то, что Power BI ───
+ # С 08.10.2026 (решение владельца) продажи, штуки, Contribution Profit, расходы и реклама на страницах Кабинета —
+ # цифры Power BI из реплики его витрины (kabinet_data.pbi_spiderweb_report, джоба Kabinet - Power BI Replica 12:45).
+-# Здесь реплика сверяется с ЖИВОЙ витриной: за последние два полных месяца и текущий, итог, по странам и по
+-# площадкам, по каждой метрике. Разница больше 1 € (у штук — хоть одна штука) — строка 'off', и сторож заводит
++# Здесь реплика сверяется с ЖИВОЙ витриной: за последние два полных месяца и текущий, итог, по странам, по
++# площадкам и по категориям (с 09.10.2026), по каждой метрике; отдельно — заказы и средний чек из таблицы заказов. Разница больше 1 € (у штук — хоть одна штука) — строка 'off', и сторож заводит
+ # тревогу: значит, Кабинет показывает не то, что Power BI (реплика отстала, упала или потеряла строки).
+ # Объяснений у этой сверки нет и быть не должно: цифры обязаны совпадать до цента.
+ PBI_TABLE = "kabinet_data.pbi_spiderweb_report"
+@@ -533,19 +533,23 @@
+     out = {}
+     if src == "view":
+         sel = ", ".join(f"sum(CAST({e} AS double)) AS m{i}" for i, (_, e, _, _) in enumerate(PBI_METRICS))
+-        data = [(str(r["mon"]), r["marketplace"], r["country"], [r[f"m{i}"] for i in range(len(PBI_METRICS))])
++        data = [(str(r["mon"]), r["marketplace"], r["country"], r["cat"], [r[f"m{i}"] for i in range(len(PBI_METRICS))])
+                 for r in spark.sql(f"""
+-                    SELECT date_format(date, 'yyyy-MM') AS mon, marketplace, country, {sel}
+-                    FROM {VIEW} WHERE date >= '{_pbi_from}' AND date < current_date()
+-                    GROUP BY 1, 2, 3""").collect()]
++                    SELECT date_format(v.date, 'yyyy-MM') AS mon, v.marketplace, v.country,
++                           coalesce(c.category_level1_en, 'Set') AS cat, {sel}
++                    FROM {VIEW} v LEFT JOIN dnipro_m.v_sku_names_categories c ON c.sku = v.sku
++                    WHERE v.date >= '{_pbi_from}' AND v.date < current_date()
++                    GROUP BY 1, 2, 3, 4""").collect()]
+     else:
+-        sel = ", ".join(f"sum({e})::float" for _, _, e, _ in PBI_METRICS)
+-        data = [(r[0], r[1], r[2], list(r[3:])) for r in fetch(f"""
+-                    SELECT to_char(date, 'YYYY-MM'), pbi_marketplace, pbi_country, {sel}
+-                    FROM {PBI_TABLE} WHERE date >= %s AND date < current_date
+-                    GROUP BY 1, 2, 3""", (_pbi_from,))]
+-    for mon, mk, ctry, vals in data:
+-        for scope in ("всего", f"страна {ctry}", f"площадка {mk}"):
++        sel = ", ".join(f"sum(p.{e})::float" if " " not in e else f"sum({e})::float" for _, _, e, _ in PBI_METRICS)
++        data = [(r[0], r[1], r[2], r[3], list(r[4:])) for r in fetch(f"""
++                    SELECT to_char(p.date, 'YYYY-MM'), p.pbi_marketplace, p.pbi_country,
++                           coalesce(c.category_level1_en, 'Set'), {sel}
++                    FROM {PBI_TABLE} p LEFT JOIN kabinet_data.pbi_sku_categories c ON c.sku = p.sku
++                    WHERE p.date >= %s AND p.date < current_date
++                    GROUP BY 1, 2, 3, 4""", (_pbi_from,))]
++    for mon, mk, ctry, cat, vals in data:
++        for scope in ("всего", f"страна {ctry}", f"площадка {mk}", f"категория {cat}"):
+             acc = out.setdefault((mon, scope), [0.0] * len(PBI_METRICS))
+             for i, v in enumerate(vals):
+                 acc[i] += float(v or 0.0)
+@@ -573,6 +577,48 @@
+                              ours_v, theirs_v, (diff / theirs_v * 100) if theirs_v else None, 0,
+                              (d1 - d0).days + 1, None, "off" if off else "ok",
+                              f"разница {f'{diff:+,.2f}'.replace(',', ' ')} {unit}, допуск {'0 шт' if is_units else '1 €'}",
++                             False if off else None, None, None))
++    # заказы и средний чек — вторая таблица модели Power BI (заказ, без товара): итог, страна, площадка.
++    # Средний чек — отношение, поэтому допуск у него в цент, а не в евро
++    def _orders(src):
++        out = {}
++        if src == "view":
++            data = [(str(r["mon"]), r["marketplace"], r["country"], float(r["n"]), float(r["amt"] or 0))
++                    for r in spark.sql(f"""
++                        SELECT date_format(purchase_date, 'yyyy-MM') AS mon, marketplace, country,
++                               count(*) AS n, sum(CAST(order_total_amount_eur AS double)) AS amt
++                        FROM dnipro_m.v_all_marketplaces_orders_enriched
++                        WHERE purchase_date >= '{_pbi_from}' AND purchase_date < current_date()
++                        GROUP BY 1, 2, 3""").collect()]
++        else:
++            data = [(r[0], r[1], r[2], float(r[3]), float(r[4] or 0)) for r in fetch("""
++                        SELECT to_char(purchase_date, 'YYYY-MM'), pbi_marketplace, pbi_country,
++                               count(*), sum(order_total_amount_eur)::float
++                        FROM kabinet_data.pbi_orders_report
++                        WHERE purchase_date >= %s AND purchase_date < current_date GROUP BY 1, 2, 3""", (_pbi_from,))]
++        for mon, mk, ctry, n, amt in data:
++            for scope in ("всего", f"страна {ctry}", f"площадка {mk}"):
++                acc = out.setdefault((mon, scope), [0.0, 0.0])
++                acc[0] += n; acc[1] += amt
++        return out
++
++    _ov, _orp = _orders("view"), _orders("replica")
++    for key in sorted(set(_ov) | set(_orp)):
++        mon, scope = key
++        y, m = int(mon[:4]), int(mon[5:])
++        d0 = date(y, m, 1)
++        d1 = date(y + (m == 12), 1 if m == 12 else m + 1, 1)
++        d1 = date.fromordinal(min(d1.toordinal() - 1, CALC.toordinal() - 1))
++        tn, ta = _ov.get(key, [0.0, 0.0]); on, oa = _orp.get(key, [0.0, 0.0])
++        for name, theirs_v, ours_v, tol, unit in (
++                ("заказы", tn, on, 0.5, "шт"),
++                ("средний чек", round(ta / tn, 2) if tn else 0.0, round(oa / on, 2) if on else 0.0, 0.005, "€")):
++            diff = ours_v - theirs_v
++            off = abs(diff) >= tol if unit == "шт" else abs(diff) > tol
++            _pbi_res.append((CALC, "kabinet_data.pbi_orders_report", PBI_AGAINST, name, f"{d0:%m.%Y} · {scope}", d0, d1,
++                             ours_v, theirs_v, (diff / theirs_v * 100) if theirs_v else None, 0,
++                             (d1 - d0).days + 1, None, "off" if off else "ok",
++                             f"разница {f'{diff:+,.2f}'.replace(',', ' ')} {unit}, допуск {'0 шт' if unit == 'шт' else '0,01 €'}",
+                              False if off else None, None, None))
+     cur.execute("DELETE FROM kabinet_data.reconciliation_results WHERE calc_date = %s AND against = %s",
+                 (CALC, PBI_AGAINST))
