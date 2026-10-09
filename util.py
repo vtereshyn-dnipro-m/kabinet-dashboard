@@ -10,6 +10,7 @@
 Правильная проверка одна — pd.isna, и она должна быть в одном месте, а не
 переписываться на каждой странице.
 """
+import re
 from typing import NamedTuple
 
 import pandas as pd
@@ -113,3 +114,48 @@ def data_boundary(df: pd.DataFrame, date_col: str, group_col: str,
         last = per.max()
 
     return Boundary(last, per[per > last], anchored)
+
+
+# ── таблицы без длинных хвостов (09.10.2026) ──────────────────────────────────────────────────────────────────────
+# Формат колонки (`NumberColumn(format="%.0f €")`) меняет только рисунок: в данных таблицы остаётся 7702.636060606062,
+# и его видят все, кто читает таблицу не глазами — копирование, дерево доступности, проверяющий робот. Поэтому значения
+# округляются до того же числа знаков, что у формата: € без копеек, проценты с одним знаком, штуки целыми.
+_FMT_DECIMALS = re.compile(r"%[^a-zA-Z%]*?\.(\d+)f")
+_PCT_WORDS = ("pct", "acos", "tacos", "share", "rate", "ctr", "cvr", "_%")
+
+
+def _decimals_of(cfg) -> int | None:
+    """Сколько знаков после запятой показывает колонка, по её формату; None — формата нет."""
+    if not isinstance(cfg, dict):
+        return None
+    fmt = (cfg.get("type_config") or {}).get("format")
+    if not fmt or not isinstance(fmt, str):
+        return None
+    if "%d" in fmt or "%i" in fmt:
+        return 0
+    m = _FMT_DECIMALS.search(fmt)
+    return int(m.group(1)) if m else None
+
+
+def tidy_numbers(df: pd.DataFrame, column_config: dict | None = None) -> pd.DataFrame:
+    """Копия таблицы, где дробные колонки округлены так, как их показывает формат. Без формата: доли и проценты —
+    один знак, остальное — два. Пустые значения остаются пустыми: подставлять ноль вместо «нет данных» нельзя."""
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return df
+    cc = column_config or {}
+    out = df.copy()
+    for col in out.columns:
+        if not pd.api.types.is_float_dtype(out[col]):
+            continue
+        n = _decimals_of(cc.get(col))
+        if n is None:
+            n = 1 if any(w in str(col).lower() for w in _PCT_WORDS) else 2
+        out[col] = out[col].round(n)
+    return out
+
+
+def show_df(data, *args, column_config: dict | None = None, **kwargs):
+    """`st.dataframe` с округлением по формату колонок (tidy_numbers). Всё остальное — как у st.dataframe."""
+    import streamlit as st
+    return st.dataframe(tidy_numbers(data, column_config) if isinstance(data, pd.DataFrame) else data,
+                        *args, column_config=column_config, **kwargs)

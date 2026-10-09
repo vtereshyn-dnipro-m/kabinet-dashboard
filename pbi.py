@@ -35,7 +35,7 @@ SOURCE = "kabinet_data.pbi_spiderweb_report"
 
 # суммы по дню × рынку: всё, что нужно карточкам и графикам
 DAILY_SQL = f"""
-    SELECT date AS sales_date, marketplace, pbi_marketplace AS platform,
+    SELECT date AS sales_date, marketplace, pbi_marketplace AS platform, pbi_country AS country,
            SUM(units_sold)                                   AS units,
            SUM(quantity_refund)                              AS units_refunded,
            SUM(sales_vat_incl)                               AS sales_vat_incl,
@@ -55,7 +55,7 @@ DAILY_SQL = f"""
            SUM(contribution_profit)                          AS cp
     FROM {SOURCE}
     WHERE date BETWEEN %(a)s AND %(b)s {{mk}}
-    GROUP BY 1, 2, 3
+    GROUP BY 1, 2, 3, 4
 """
 
 
@@ -165,6 +165,47 @@ def load_categories() -> pd.DataFrame:
                               FROM kabinet_data.pbi_sku_categories""", conn)
     finally:
         conn.close()
+
+
+COUNTRY_SQL = f"""
+    SELECT pbi_country AS country, pbi_marketplace AS platform,
+           SUM(units_sold) AS units, SUM(sales_vat_incl) AS sales_vat_incl, SUM(sales_vat_excl) AS sales_vat_excl,
+           SUM(contribution_profit) AS cp
+    FROM {SOURCE}
+    WHERE date BETWEEN %(a)s AND %(b)s
+    GROUP BY 1, 2
+"""
+
+
+def load_countries(d_from: date, d_to: date) -> pd.DataFrame:
+    """Страна × площадка за период — таблица стран Power BI («Spain» = Amazon, Leroy Merlin, ManoMano, Carrefour,
+    Wallapop и сайт вместе). Страна — как в витрине, по-английски; подпись на языке интерфейса — `country_names`."""
+    conn = get_connection()
+    try:
+        return pd.read_sql(COUNTRY_SQL, conn, params={"a": d_from, "b": d_to})
+    finally:
+        conn.close()
+
+
+def country_names() -> dict:
+    """Страна витрины (английское название) → {"code": alpha2, "ru": …, "uk": …, "en": …}. Витрина пишет страну
+    словом, а подписи на трёх языках лежат в country_names по коду — связываем через справочник стран."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("""SELECT c.name, c.alpha2, n.name_ru, n.name_uk, n.name_en
+                            FROM kabinet_data.countries c
+                            LEFT JOIN kabinet_data.country_names n ON n.alpha2 = c.alpha2""", conn)
+    finally:
+        conn.close()
+    return {str(r["name"]).strip().lower(): {"code": r["alpha2"], "ru": r["name_ru"], "uk": r["name_uk"],
+                                             "en": r["name_en"]} for _, r in df.iterrows()}
+
+
+def country_label(name, lang: str, names: dict) -> str:
+    """Подпись страны витрины на языке интерфейса; не нашлась в справочнике — как в витрине."""
+    raw = "" if name is None or (isinstance(name, float) and pd.isna(name)) else str(name).strip()
+    v = names.get(raw.lower(), {}).get(lang)
+    return v if isinstance(v, str) and v else raw
 
 
 def last_date() -> pd.Timestamp:

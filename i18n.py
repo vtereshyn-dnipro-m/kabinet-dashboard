@@ -1091,6 +1091,28 @@ TRANSLATIONS = {
     "money.kpi.cm_excl_pbi_help": {"ru": '% Contribution Margin (VAT Excl) отчёта Power BI: Contribution Profit / продажи без НДС.', "uk": '% Contribution Margin (VAT Excl) звіту Power BI: Contribution Profit / продажі без ПДВ.', "en": '% Contribution Margin (VAT Excl) in the Power BI report: Contribution Profit / sales excl. VAT.'},
     # ── цифры как в Power BI (08.10.2026) ──
     "mn.x.as_pbi": {"ru": "как в Power BI", "uk": "як у Power BI", "en": "as in Power BI"},
+    "home.geo.label": {"ru": "Разрез", "uk": "Розріз", "en": "Breakdown"},
+    "home.geo.by_country": {"ru": "Страны · все каналы, с НДС", "uk": "Країни · усі канали, з ПДВ",
+                            "en": "Countries · all channels, incl. VAT"},
+    "home.geo.by_market": {"ru": "Маркетплейсы · без НДС", "uk": "Маркетплейси · без ПДВ",
+                           "en": "Marketplaces · excl. VAT"},
+    "mn.what.sales_by_country": {"ru": "Продажи по странам", "uk": "Продажі за країнами", "en": "Sales by country"},
+    "mn.what.sales_by_market": {"ru": "Продажи по маркетплейсам", "uk": "Продажі за маркетплейсами",
+                                "en": "Sales by marketplace"},
+    "cm.all.chart_country": {"ru": "Продажи с НДС по странам — все каналы", "uk": "Продажі з ПДВ за країнами — усі канали",
+                             "en": "Sales incl. VAT by country — all channels"},
+    "cm.all.col_country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
+    "cm.all.col_platforms": {"ru": "Площадки", "uk": "Майданчики", "en": "Platforms"},
+    "cm.all.note_country": {
+        "ru": "Как в Power BI: страна — все каналы в ней (Amazon, Leroy Merlin, ManoMano, Carrefour, Wallapop, сайт), "
+              "продажи с НДС и без, Contribution Profit и его доля от продаж с НДС. Разрез по маркетплейсам без НДС — "
+              "вторым вариантом переключателя.",
+        "uk": "Як у Power BI: країна — усі канали в ній (Amazon, Leroy Merlin, ManoMano, Carrefour, Wallapop, сайт), "
+              "продажі з ПДВ і без, Contribution Profit і його частка від продажів з ПДВ. Розріз за маркетплейсами без "
+              "ПДВ — другим варіантом перемикача.",
+        "en": "As in Power BI: a country is all its channels (Amazon, Leroy Merlin, ManoMano, Carrefour, Wallapop, "
+              "website), sales incl. and excl. VAT, Contribution Profit and its share of sales incl. VAT. The breakdown "
+              "by marketplace excl. VAT is the other option of the switch."},
     "mn.x.before_returns": {"ru": "до возвратов", "uk": "до повернень", "en": "before returns"},
     "mn.x.share_of_sales_excl": {"ru": "доля — от продаж без НДС", "uk": "частка — від продажів без ПДВ", "en": "share of sales excl. VAT"},
     "mn.x.acos_pbi": {"ru": "вся реклама к продажам с рекламы", "uk": "уся реклама до продажів з реклами", "en": "all ad spend over ad sales"},

@@ -89,6 +89,11 @@ st.markdown(
     "position:absolute !important;left:-99999px !important;top:0 !important;"
     "width:100% !important;visibility:hidden !important;"
     "pointer-events:none !important;}"
+    # Пока страница пересчитывается после смены периода, Streamlit держит
+    # прежний график на экране полупрозрачным (data-stale) — водопад в
+    # «Деньгах» секунду показывал цифры прошлого периода. Устаревший водопад
+    # прячем, место под ним остаётся — страница не прыгает.
+    '.st-key-money_wf [data-stale="true"]{visibility:hidden !important;}'
     "</style>",
     unsafe_allow_html=True,
 )
