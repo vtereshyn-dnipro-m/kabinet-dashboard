@@ -899,11 +899,6 @@ else:
         # справочника — следующая появится сама
         ch_map = load_channels()
         _ch_lookup = dict(zip(ch_map["marketplace_code"], ch_map["channel"]))
-        if not pbi.OWN_METHOD and "platform" in money.columns:
-            # площадка — как в Power BI, из самой витрины: Wallapop и сайт до 09.10.2026 сливались в «Прочие» одной
-            # суммой, потому что их кодов нет в справочнике маркетплейсов
-            _ch_lookup.update({str(k).upper(): v for k, v in
-                               money[["marketplace", "platform"]].dropna().drop_duplicates().values})
         _label_of = dict(zip(ch_map["marketplace_code"], ch_map.get("label", ch_map["marketplace_code"])))
         def _lbl(code) -> str:
             c = as_text(code).strip().upper()
