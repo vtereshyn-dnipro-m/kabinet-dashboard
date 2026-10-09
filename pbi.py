@@ -50,6 +50,7 @@ DAILY_SQL = f"""
            SUM(spend)                                        AS spend,
            SUM(paid_sales)                                   AS paid_sales,
            SUM(paid_units)                                   AS paid_units,
+           SUM(tax_amount)                                   AS tax,
            SUM(profit)                                       AS profit,
            SUM(contribution_profit)                          AS cp
     FROM {SOURCE}
@@ -80,9 +81,10 @@ def totals(df: pd.DataFrame) -> dict:
     s = {c: float(pd.to_numeric(df[c], errors="coerce").fillna(0).sum()) if c in df else 0.0
          for c in ("units", "units_refunded", "sales_vat_incl", "sales_vat_excl", "commission", "cogs", "logistics",
                    "expenses", "expenses_refund", "reimbursment", "refund_vat_excl", "spend", "paid_sales",
-                   "paid_units", "profit", "cp")}
+                   "paid_units", "tax", "profit", "cp")}
     s["cm_pct_incl"] = s["cp"] / s["sales_vat_incl"] * 100 if s["sales_vat_incl"] else None
     s["cm_pct_excl"] = s["cp"] / s["sales_vat_excl"] * 100 if s["sales_vat_excl"] else None
+    s["avg_price_incl"] = s["sales_vat_incl"] / s["units"] if s["units"] else None
     s["acos"] = s["spend"] / s["paid_sales"] * 100 if s["paid_sales"] else None
     s["tacos"] = s["spend"] / s["sales_vat_incl"] * 100 if s["sales_vat_incl"] else None
     # всё, что витрина добавляет к прибыли сверх «выручка − расходы»: себестоимость и доставка возвратов, их
@@ -92,8 +94,8 @@ def totals(df: pd.DataFrame) -> dict:
 
 
 SKU_SQL = f"""
-    SELECT sku, marketplace, date AS sales_date,
-           SUM(units_sold) AS units, SUM(quantity_refund) AS units_refunded,
+    SELECT sku, marketplace, pbi_marketplace AS platform, pbi_country AS country, date AS sales_date,
+           SUM(units_sold) AS units, SUM(quantity_refund) AS units_refunded, SUM(tax_amount) AS tax,
            SUM(sales_vat_incl) AS sales_vat_incl, SUM(sales_vat_excl) AS sales_vat_excl,
            SUM(commission_fee_vat_excl + cancel_commission_vat_excl) AS commission,
            SUM(cogs_total) AS cogs, SUM(shipping_cost_total + packing_cost_total) AS logistics,
@@ -104,7 +106,7 @@ SKU_SQL = f"""
            SUM(profit) AS profit, SUM(contribution_profit) AS cp
     FROM {SOURCE}
     WHERE date BETWEEN %(a)s AND %(b)s {{mk}}
-    GROUP BY 1, 2, 3
+    GROUP BY 1, 2, 3, 4, 5
 """
 
 
@@ -119,6 +121,50 @@ def load_sku(d_from: date, d_to: date, markets: tuple = ()) -> pd.DataFrame:
     if not df.empty:
         df["sales_date"] = pd.to_datetime(df["sales_date"])
     return df
+
+
+ORDERS_SQL = """
+    SELECT purchase_date AS sales_date, marketplace, pbi_marketplace AS platform, pbi_country AS country,
+           COUNT(*)                     AS orders,
+           SUM(order_total_amount_eur)  AS order_total,
+           SUM(unique_sku_ordered)      AS unique_skus
+    FROM kabinet_data.pbi_orders_report
+    WHERE purchase_date BETWEEN %(a)s AND %(b)s {mk}
+    GROUP BY 1, 2, 3, 4
+"""
+
+
+def load_orders(d_from: date, d_to: date, markets: tuple = ()) -> pd.DataFrame:
+    """Заказы как в Power BI (его таблица заказов): Orders Count = число заказов, Average Order Value = сумма заказов /
+    их число, Average Basket Depth = среднее число разных SKU в заказе. В модели Power BI заказы связаны с продажами
+    только через календарь (дата × страна × площадка) — разреза по категории и SKU у них нет."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql(ORDERS_SQL.format(mk=_mk(markets)), conn,
+                         params={"a": d_from, "b": d_to, "mk": list(markets)})
+    finally:
+        conn.close()
+    if not df.empty:
+        df["sales_date"] = pd.to_datetime(df["sales_date"])
+    return df
+
+
+def order_totals(df: pd.DataFrame) -> dict:
+    n = float(df["orders"].sum()) if not df.empty else 0.0
+    return {"orders": n,
+            "aov": float(df["order_total"].sum()) / n if n else None,
+            "basket_depth": float(df["unique_skus"].sum()) / n if n else None}
+
+
+def load_categories() -> pd.DataFrame:
+    """SKU → название и категории, как в Power BI (его справочник v_sku_names_categories). SKU без кода в дереве ERP
+    там получает название «Need to Name» и категорию «Set» — так и показываем, чтобы разрез сходился с Power BI."""
+    conn = get_connection()
+    try:
+        return pd.read_sql("""SELECT sku, name_en, name_ukr, category_level1_en, category_level2_en, category_level3_en
+                              FROM kabinet_data.pbi_sku_categories""", conn)
+    finally:
+        conn.close()
 
 
 def last_date() -> pd.Timestamp:
