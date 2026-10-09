@@ -1,0 +1,141 @@
+--- Kabinet - Weekly Report (до)
++++ Kabinet - Weekly Report (после)
+@@ -14,16 +14,18 @@
+ #
+ # Определения, которые надо держать в голове, потому что с отчётом Романа они расходятся:
+ #   • неделя — с воскресенья по субботу, как у Amazon и у Романа; номер — ISO-неделя её понедельника;
+-#   • продажи — с НДС, по дате ЗАКАЗА (`sales_traffic_daily`, как карточка «Продажи по заказам»).
++#   • с 08.10.2026 все денежные цифры — те же, что в Power BI «Marketplaces Report» (решение владельца: везде одна
++#     цифра): продажи с НДС, штуки, Contribution Profit, реклама, ACOS и TACOS берутся из реплики его витрины
++#     `kabinet_data.pbi_spiderweb_report` (джоба Kabinet - Power BI Replica), ровно как на страницах Кабинета;
++#   • продажи — с НДС, по дате ЗАКАЗА (у Amazon это витрина Sales & Traffic в Power BI).
+ #     Блок «План месяца» на Обзоре считает факт по дате ОТГРУЗКИ — числа не обязаны совпадать;
+ #   • план — ДЕЙСТВУЮЩИЙ прогноз Кабинета (`v_forecast_current`), а не лист Дарины. Пока черновики
+ #     из листа не проведены, план здесь и у Романа разный — отчёт пишет об этом строкой;
+-#   • прибыль — наша маржа ПОСЛЕ возвратов (как на Обзоре: по SKU с себестоимостью, минус
+-#     логистика и реклама); у Дарины и Романа — до возвратов. Это разные определения;
++#   • прибыль — Contribution Profit Power BI (прибыль витрины минус реклама), доля — к продажам без НДС,
++#     как «% Contribution Margin (VAT Excl)». Наша методика маржи в отчёт не выводится (pbi.OWN_METHOD в Кабинете);
+ #   • плана маржи в реестре нет вовсе — колонки «план маржи» нет, и это сказано в отчёте;
+-#   • ACOS и TACOS — по формулам Дарины (Power BI, с 05.10.2026): ACOS = расход на всю рекламу (SP+SB+SD) /
+-#     продажи с рекламы (SP+SB+SD, у SB — по купленным ASIN), TACOS = весь расход / все продажи с НДС;
+-#     источник — kabinet_data.v_ads_market_daily_eur; CVR кликов — заказанные с рекламы штуки / клики.
++#   • ACOS = Spend / Paid Sales, TACOS = Spend / продажи с НДС — колонки витрины Power BI; CVR кликов — Paid Units /
++#     Clicks той же витрины. CVR листинга — штуки / сессии карточек (sales_traffic_asin): сессий в Power BI нет.
+ #   • каждая денежная строка говорит, с НДС она или без (правило Кабинета с 06.10.2026, money_notes.py);
+ #     неделя к неделе — только равные полные дни: если последняя неделя ещё не догружена, обе недели
+ #     режутся до одинаковых дней недели; день, который Amazon ещё перечитывает, назван предварительным
+@@ -90,10 +92,9 @@
+ 
+     # общий якорь: последний день, за который есть И витрина, И экономика — иначе «месяц по вчера»
+     # у одной цифры и «по позавчера» у другой рядом в одной строке
+-    cur.execute("""SELECT LEAST((SELECT max(snapshot_date) FROM kabinet_data.sales_traffic_daily
+-                                  WHERE ordered_sales > 0 AND snapshot_date < %s),
+-                                 (SELECT max(sales_date) FROM kabinet_data.economics_summary
+-                                  WHERE sales_date < %s))""", (today, today))
++    # с 08.10.2026 — последний день Amazon в реплике витрины Power BI (до вчера)
++    cur.execute("""SELECT max(date) FROM kabinet_data.pbi_spiderweb_report
++                   WHERE pbi_marketplace = 'Amazon' AND sales_vat_incl > 0 AND date < %s""", (today,))
+     anchor = cur.fetchone()[0]
+ 
+     # Полон ли день — по последней загрузке Amazon, тот же расчёт, что `money_notes.day_status` на страницах
+@@ -147,43 +148,28 @@
+             d = last + timedelta(days=1)
+         return total
+ 
+-    # ── продажи: витрина Sales & Traffic, с НДС, по дате заказа ──
++    # ── продажи: как в Power BI — Revenue VAT Incl и Units Sold его витрины, по дате заказа ──
+     def sales(d1, d2):
+-        cur.execute("""SELECT marketplace, sum(ordered_sales)::float, sum(units_ordered)::int
+-                       FROM kabinet_data.v_sales_traffic_daily_eur
+-                       WHERE snapshot_date BETWEEN %s AND %s GROUP BY 1""", (d1, d2))
++        cur.execute("""SELECT marketplace, sum(sales_vat_incl)::float, sum(units_sold)::int
++                       FROM kabinet_data.pbi_spiderweb_report
++                       WHERE pbi_marketplace = 'Amazon' AND date BETWEEN %s AND %s GROUP BY 1""", (d1, d2))
+         return {mk: (s or 0.0, u or 0) for mk, s, u in cur.fetchall()}
+ 
+-    # ── прибыль: как на Обзоре — по SKU с себестоимостью, после возвратов, минус логистика и реклама SB/SD ──
+-    # (с 05.10.2026) Sponsored Products Amazon уже удержал внутри net_proceeds_total — вычитаем только SB и SD
+-    # (v_ads_spend_margin.margin_ads); себестоимость годных FBA-возвратов возвращается (v_returns_cogs_credit)
++    # ── прибыль: Contribution Profit Power BI и продажи без НДС (для доли) — колонки его витрины ──
+     def profit(d1, d2):
+-        cur.execute("""
+-            WITH sku AS (
+-                SELECT e.marketplace, e.net_product_sales, e.net_proceeds_total, e.cogs, e.units_ordered,
+-                       COALESCE(a.ads, 0) AS ads, COALESCE(l.packing_cost + l.shipping_cost, 0) AS logistics
+-                FROM kabinet_data.v_economics_with_ad_days e   -- + «рекламные дни» без строки экономики (05.10.2026)
+-                LEFT JOIN (SELECT date, marketplace, norm_sku, margin_ads AS ads FROM kabinet_data.v_ads_spend_margin
+-                           WHERE date BETWEEN %(a)s AND %(b)s) a
+-                       ON a.date = e.sales_date AND a.marketplace = e.marketplace AND a.norm_sku = e.norm_sku
+-                LEFT JOIN kabinet_data.economics_logistics l
+-                       ON l.sales_date = e.sales_date AND l.marketplace = e.marketplace AND l.norm_sku = e.norm_sku
+-                WHERE e.sales_date BETWEEN %(a)s AND %(b)s AND e.cogs IS NOT NULL),
+-            m AS (SELECT marketplace, sum(net_proceeds_total - cogs * units_ordered - logistics - ads) AS p,
+-                         sum(net_product_sales) AS r FROM sku GROUP BY 1),
+-            c AS (SELECT marketplace, sum(cogs_credit) AS credit FROM kabinet_data.v_returns_cogs_credit
+-                  WHERE return_date BETWEEN %(a)s AND %(b)s GROUP BY 1)
+-            SELECT m.marketplace, (m.p + COALESCE(c.credit, 0))::float, m.r::float
+-            FROM m LEFT JOIN c USING (marketplace)""", {"a": d1, "b": d2})
++        cur.execute("""SELECT marketplace, sum(contribution_profit)::float, sum(sales_vat_excl)::float
++                       FROM kabinet_data.pbi_spiderweb_report
++                       WHERE pbi_marketplace = 'Amazon' AND date BETWEEN %s AND %s GROUP BY 1""", (d1, d2))
+         return {mk: (p, r) for mk, p, r in cur.fetchall()}
+ 
+     # ── реклама и конверсия ──
+-    # ACOS/TACOS по формулам Дарины: расход и продажи с рекламы — SP+SB+SD (у SB продажи по купленным ASIN),
+-    # день × рынок из v_ads_market_daily_eur (пишет Economics Loader, ячейка 3b)
++    # ACOS / TACOS как в Power BI: Spend, Paid Sales, Paid Units и Clicks его витрины
+     def ads(d1, d2):
+         cur.execute("""SELECT marketplace, sum(spend)::float, sum(spend)::float,
+-                              sum(ad_sales)::float, sum(ad_units)::float, sum(clicks)::float
+-                       FROM kabinet_data.v_ads_market_daily_eur WHERE date BETWEEN %s AND %s GROUP BY 1""", (d1, d2))
++                              sum(paid_sales)::float, sum(paid_units)::float, sum(clicks)::float
++                       FROM kabinet_data.pbi_spiderweb_report
++                       WHERE pbi_marketplace = 'Amazon' AND date BETWEEN %s AND %s GROUP BY 1
++                       HAVING sum(spend) <> 0 OR sum(paid_sales) <> 0 OR sum(clicks) <> 0""", (d1, d2))
+         return {mk: r for mk, *r in cur.fetchall()}
+ 
+     def traffic(d1, d2):
+@@ -211,7 +197,7 @@
+              "октябрь", "ноябрь", "декабрь"][anchor.month - 1]
+     out = [f"<b>Dnipro-M Amazon — итоги прошлой недели</b>",
+            f"Неделя {wn}: {span(w1, w2)}.{w2:%Y} · сравнение с неделей {pn}: {span(p1, p2)}",
+-           "Продажи и план — с НДС, по дате заказа · прибыль и маржа — без НДС, после возвратов (Кабинет)",
++           "Цифры как в Power BI · продажи и план — с НДС, по дате заказа · прибыль — Contribution Profit, без НДС",
+            "",
+            f"<b>1. План / факт — {mname} {anchor.year}, с НДС</b> (факт за {done} из {dim} дн. = {done / dim * 100:.0f} % месяца)"]
+     rows = []
+@@ -231,7 +217,7 @@
+                 line += f" · перевыполнен (+{eur(-ост)})"
+         else:
+             line += f"плана нет · факт {eur(f)} · прогноз {eur(prog)}"
+-        line += f"\n     маржа без НДС {pct(mg, 2)}"
++        line += f"\n     Contribution Profit {eur(pr)} · {pct(mg, 2)} от продаж без НДС"
+         rows.append(line)
+     if прочие:
+         s = sum(m_sales.get(k, (0, 0))[0] for k in прочие)
+@@ -299,7 +285,7 @@
+ 
+         tab = [f"{'Метрика':<13}{'W' + str(pn):>8}{'W' + str(wn):>8}  Δ",
+                r("Продажи¹", s0, s1, "eur"),
+-               r("Прибыль²", pr0, pr1, "eur"),
++               r("Contr.Prof²", pr0, pr1, "eur"),
+                r("Штуки", u0, u1, "n"),
+                r("Прод.рекл.¹", ad(a0, 2), ad(a1, 2), "eur"),
+                r("Расход²", ad(a0, 0), ad(a1, 0), "eur"),
+@@ -309,11 +295,10 @@
+                r("CVR кликов", cvr_c(a0), cvr_c(a1), "pct2")]
+         out.append(f"\n{ФЛАГ.get(k, '')} <b>{ИМЯ.get(k, k)}</b>")
+         out.append("<pre>" + html.escape("\n".join(tab)) + "</pre>")
+-    out.append("<i>¹ с НДС · ² без НДС. Прибыль — после возвратов, по товарам с себестоимостью, за вычетом логистики и рекламы "
+-               "(Sponsored Products Amazon уже удержал в выплате там, где она есть, — в остальные дни SP вычтен; SB, SD "
+-               "и ManoMano вычтены отдельно; себестоимость годных возвратов возвращена — FBA по оценке Amazon, Мадрид по Odoo: годный запас сразу или после проверки на складе брака, либо продажа с него польской компании). Продажи с рекламы — SP+SB+SD, атрибуция 14 дней; "
+-               "ACOS — весь расход на рекламу к ним; TACOS — весь расход к продажам с НДС (формулы Power BI). "
+-               "CVR листинга — штуки / сессии карточек, CVR кликов — штуки с рекламы / клики.</i>")
++    out.append("<i>¹ с НДС · ² без НДС. Цифры как в Power BI: Contr.Prof — Contribution Profit (продажи без НДС − "
++               "расходы + возвраты + компенсации − реклама), продажи с рекламы — Paid Sales, расход — Spend; ACOS — "
++               "расход к продажам с рекламы, TACOS — расход к продажам с НДС. CVR листинга — штуки / сессии карточек, "
++               "CVR кликов — штуки с рекламы / клики.</i>")
+     msg2 = "\n".join(out)
+ 
+     # ── 3. План на текущую неделю ──
