@@ -130,27 +130,6 @@ def load_market_map() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_pbi_market_map() -> pd.DataFrame:
-    """Рынок → площадка и страна из витрины Power BI (09.10.2026). Нужен потому, что Wallapop и сайта (WP_ES, WEB_ES)
-    в справочнике маркетплейсов может не быть — и тогда выбор Испании их не подтягивал, а площадка подписывалась
-    запасным «Amazon». Страна витрины — словом («Spain»), код берётся через справочник стран."""
-    conn = get_connection()
-    try:
-        df = pd.read_sql(f"SELECT DISTINCT marketplace, pbi_marketplace AS channel, pbi_country FROM {pbi.SOURCE}", conn)
-    except Exception:
-        return pd.DataFrame(columns=["marketplace_code", "channel", "country"])
-    finally:
-        conn.close()
-    try:
-        names = pbi.country_names()
-    except Exception:
-        names = {}
-    df["country"] = df["pbi_country"].map(lambda c: (names.get(str(c).strip().lower()) or {}).get("code") or "")
-    return pd.DataFrame({"marketplace_code": df["marketplace"].astype(str).str.upper(), "channel": df["channel"],
-                         "country": df["country"].astype(str).str.upper()}).drop_duplicates()
-
-
-@st.cache_data(ttl=600)
 def load_marketplaces() -> list:
     conn = get_connection()
     try:
@@ -428,15 +407,6 @@ if not _mkt.empty:
     _code2channel = dict(zip(_mkt["marketplace_code"], _mkt["channel"]))
     _code2country = {c: v for c, v in zip(_mkt["marketplace_code"], _mkt["country"])
                      if v}
-if not pbi.OWN_METHOD:
-    # рынки, которых нет в справочнике (Wallapop, сайт), — площадкой и страной из витрины Power BI; справочник главнее
-    _pm = load_pbi_market_map()
-    for c, ch, ctry in _pm[["marketplace_code", "channel", "country"]].itertuples(index=False):
-        _code2channel.setdefault(c, ch)
-        if ctry:
-            _code2country.setdefault(c, ctry)
-    all_mp = sorted(set(all_mp) | set(_pm["marketplace_code"]))
-
 if _code2country:
     countries = sorted({_code2country.get(str(m).upper(), "")
                         for m in all_mp} - {""})
@@ -581,11 +551,6 @@ with tab_sum:
         # каналов меняется без нас
         scoped["channel"] = scoped["marketplace"].map(
             lambda m: _code2channel.get(str(m).upper(), DEFAULT_CHANNEL))
-        if "platform" in scoped.columns:
-            # рынка нет в справочнике каналов (Wallapop, сайт) — площадка из витрины Power BI, а не запасная:
-            # иначе их продажи ложились в колонку Amazon (09.10.2026)
-            _known = scoped["marketplace"].astype(str).str.upper().isin(_code2channel.keys())
-            scoped.loc[~_known & scoped["platform"].notna(), "channel"] = scoped["platform"]
         # Колонки идут по убыванию выручки: крупный канал слева, где на
         # него смотрят. Порядок считается по данным, а не задан списком
         chans = (scoped.groupby("channel")["revenue"].sum()

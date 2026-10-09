@@ -437,23 +437,14 @@ def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = (), _
 @st.cache_data(ttl=600)
 def load_mp_labels() -> dict:
     """Подписи рынков для фильтра: «Amazon ES», «Leroy Merlin ES», «Wallapop ES» вместо голых кодов (09.10.2026).
-    Площадка и страна — из справочника маркетплейсов, а для рынков, которых там нет (Wallapop, сайт), — из витрины
-    Power BI. Код рынка остаётся значением: по нему режутся запросы."""
+    Площадка и страна — из справочника маркетплейсов. Wallapop и сайт в нём с 09.10.2026 (технические коды wp_es,
+    web_es), поэтому подписи из витрины Power BI больше не нужны. Код рынка остаётся значением: по нему режутся запросы."""
     out = {}
     conn = get_connection()
     try:
         m = pd.read_sql("SELECT upper(marketplace_code) AS code, channel, upper(country) AS country "
                         "FROM kabinet_data.v_marketplaces", conn)
         out.update({r.code: f"{r.channel} {r.country}".strip() for r in m.itertuples() if as_text(r.channel)})
-        p = pd.read_sql(f"SELECT DISTINCT upper(marketplace) AS code, pbi_marketplace AS channel, pbi_country "
-                        f"FROM {pbi.SOURCE}", conn)
-        try:
-            names = pbi.country_names()
-        except Exception:
-            names = {}
-        for r in p.itertuples():
-            cc = (names.get(as_text(r.pbi_country).lower()) or {}).get("code") or as_text(r.pbi_country)
-            out.setdefault(r.code, f"{r.channel} {cc}".strip())
     except Exception:
         pass
     finally:
