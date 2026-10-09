@@ -157,5 +157,15 @@ def tidy_numbers(df: pd.DataFrame, column_config: dict | None = None) -> pd.Data
 def show_df(data, *args, column_config: dict | None = None, **kwargs):
     """`st.dataframe` с округлением по формату колонок (tidy_numbers). Всё остальное — как у st.dataframe."""
     import streamlit as st
+    if isinstance(data, pd.DataFrame) and kwargs.get("height") is None:
+        kwargs["height"] = grid_height(len(data))   # целые строки, без обрезанной последней (grid_height)
     return st.dataframe(tidy_numbers(data, column_config) if isinstance(data, pd.DataFrame) else data,
                         *args, column_config=column_config, **kwargs)
+
+
+def grid_height(n_rows: int, max_rows: int = 15) -> int:
+    """Высота st.dataframe ровно под целое число строк (09.10.2026). Строка и шапка в Streamlit — по 35 px плюс 3 px
+    рамки; «круглая» высота вроде 420 px вмещала 11 строк и кусок двенадцатой, и последняя видимая строка выглядела
+    обрезанной. Таблица длиннее `max_rows` прокручивается, но видимые строки всегда целые."""
+    n = min(max(int(n_rows), 1), max_rows)
+    return 35 * (n + 1) + 3

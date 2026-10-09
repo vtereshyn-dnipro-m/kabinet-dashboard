@@ -19,6 +19,8 @@ import re
 import pandas as pd
 import streamlit as st
 
+from util import grid_height
+
 
 @dataclass
 class Field:
@@ -184,7 +186,7 @@ def table_pick(df: pd.DataFrame, ids: list, key: str, fsig, column_config: dict,
     иначе однажды выбранная строка перебивала бы каждый следующий выбор в поле карточки."""
     fkey = abs(hash(fsig)) % 10 ** 8
     ev = st.dataframe(df, key=f"{key}_{fkey}", use_container_width=True, hide_index=True,
-                      height=height or min(420, 38 + 35 * max(len(df), 1)),
+                      height=height or grid_height(len(df), 11),
                       on_select="rerun", selection_mode="single-cell", column_config=column_config)
     sel = ev.selection if ev is not None and hasattr(ev, "selection") else {}
     cells = list(sel.get("cells", []) or [])
