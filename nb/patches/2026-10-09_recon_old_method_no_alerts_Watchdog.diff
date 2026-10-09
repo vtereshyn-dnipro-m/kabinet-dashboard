@@ -1,0 +1,27 @@
+--- Kabinet - Watchdog (до)
++++ Kabinet - Watchdog (после)
+@@ -1776,7 +1776,11 @@
+             SELECT against, metric, scope, period_start, period_end, ours, theirs, diff_pct,
+                    tolerance_pct, days_total, days_off, note, explanation
+             FROM kabinet_data.reconciliation_results
+-            WHERE calc_date = %s AND verdict = 'off' AND explained IS NOT TRUE""", (_rc_last,))
++            WHERE calc_date = %s AND verdict = 'off' AND explained IS NOT TRUE
++              -- с 09.10.2026 сверка НАШЕЙ методики маржи с Power BI тревог не заводит (решение владельца): Кабинет
++              -- показывает цифры Power BI, и расхождение нашей методики с ним теперь ожидаемое. Сам расчёт остаётся в
++              -- reconciliation_results для будущего документа; Кабинет против Power BI проверяет «Power BI 1:1»
++              AND against <> 'Power BI'""", (_rc_last,))
+         _rc_want = {}
+         for (_ag, _mt, _sc, _d0, _d1, _o, _t, _dp, _tol, _dt, _do, _note, _expl) in pg_cur.fetchall():
+             _tok = f"RECON:{_ag}/{_mt}/{_sc}"
+@@ -1820,8 +1824,10 @@
+         for _tok, (_id, _msg) in _rc_open.items():
+             if _tok not in _rc_want:
+                 # сошлось, либо расхождение получило объяснение — в обоих случаях тревоги больше нет
++                _why = ("watchdog-autoclose: сверка нашей методики с Power BI тревог больше не заводит (решение владельца 09.10.2026)"
++                        if _tok.startswith("RECON:Power BI/") else "watchdog-autoclose: сверка сошлась или объяснена")
+                 pg_cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
+-                                  resolved_by = 'watchdog-autoclose: сверка сошлась или объяснена' WHERE id = %s""", (_id,))
++                                  resolved_by = %s WHERE id = %s""", (_why, _id))
+                 _rc_closed += 1
+         pg_conn.commit()
+         print(f"\n🧮 Сверка {_rc_last}: {_rc_new} новых, {_rc_upd} обновлено, {_rc_closed} закрыто; "

@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 from db.connection import get_connection, data_version
 import data_passport as passport
 from i18n import init_lang, t
-from util import as_text, data_boundary
+from util import as_text, data_boundary, show_df
 import catalog
 from links import AMAZON_DOMAIN, amazon_url
 import period as period_mod
@@ -1075,7 +1075,9 @@ with tab_pnl:
     wf.update_layout(height=380, showlegend=False,
                      margin=dict(l=10, r=10, t=10, b=10),
                      yaxis_title="€")
-    st.plotly_chart(wf, use_container_width=True)
+    # контейнер с ключом — чтобы глобальный CSS прятал устаревший водопад, пока считается новый (app.py)
+    with st.container(key="money_wf"):
+        st.plotly_chart(wf, use_container_width=True)
     st.caption(t("money.waterfall_caption") if pbi.OWN_METHOD else t("money.waterfall_caption_pbi"))
 
     st.markdown(f"**{t('money.pnl_table')}**")
@@ -1098,7 +1100,7 @@ with tab_pnl:
                  ["photo", "flag_col", "ann_col", "sku_display", "product_name",
                   "markets_label", "units", "revenue", "commission", "cogs", "logistics", "ads", "cm", "cm_pct",
                   "tacos_pct", "acos_pct", "rank_now", "rank_delta", "amazon_url"])
-    st.dataframe(
+    show_df(
         by_sku[_sku_cols],
         use_container_width=True, height=480, hide_index=True,
         column_config={
@@ -1217,7 +1219,7 @@ with tab_country:
                       margin=dict(l=10, r=10, t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
-    st.dataframe(
+    show_df(
         by_c[["marketplace", "units", "revenue", "net_proceeds", "cogs", "commission", "ads", "cm", "cm_pct"]
              if pbi.OWN_METHOD else
              ["marketplace", "units", "revenue", "commission", "cogs", "logistics", "ads", "cm", "cm_pct"]],
@@ -1256,7 +1258,7 @@ with tab_country:
         # текстом, как на Обзоре: см. home.py — виджет прогресса показывал неокруглённое число
         _pf["done"] = [("—" if pd.isna(v) else f"{float(v):.0f} %") for v in _pf["done"]]
         _pf["plan"] = _pf["expected"].round(0); _pf["fact"] = _pf["fact"].round(0)
-        st.dataframe(_pf[["obj", "unit", "plan", "fact", "done", "pace", "skus"]], hide_index=True,
+        show_df(_pf[["obj", "unit", "plan", "fact", "done", "pace", "skus"]], hide_index=True,
                      use_container_width=True, column_config={
             "obj": st.column_config.TextColumn(t("home.plan.col_obj"), width="small"),
             "unit": st.column_config.TextColumn(t("home.plan.col_unit"), width="small"),
@@ -1289,12 +1291,13 @@ def _pbi_agg(frame: pd.DataFrame, keys: list) -> pd.DataFrame:
 
 
 _PBI_COLS = {
-    "cm_pct_incl": st.column_config.NumberColumn("% CM (VAT Incl)", format="%.2f%%"),
-    "cm_pct_excl": st.column_config.NumberColumn("% CM (VAT Excl)", format="%.2f%%"),
-    "cp": st.column_config.NumberColumn("Contribution Profit", format="%.2f €"),
-    "sales_vat_incl": st.column_config.NumberColumn("Revenue VAT Incl", format="%.2f €"),
-    "revenue": st.column_config.NumberColumn("Revenue VAT Excl", format="%.2f €"),
-    "tax": st.column_config.NumberColumn("Revenue Tax Amount", format="%.2f €"),
+    # итоги в евро — без копеек, проценты — с одним знаком, штуки — целые; средняя цена и чек — с центами, как в Power BI
+    "cm_pct_incl": st.column_config.NumberColumn("% CM (VAT Incl)", format="%.1f%%"),
+    "cm_pct_excl": st.column_config.NumberColumn("% CM (VAT Excl)", format="%.1f%%"),
+    "cp": st.column_config.NumberColumn("Contribution Profit", format="%.0f €"),
+    "sales_vat_incl": st.column_config.NumberColumn("Revenue VAT Incl", format="%.0f €"),
+    "revenue": st.column_config.NumberColumn("Revenue VAT Excl", format="%.0f €"),
+    "tax": st.column_config.NumberColumn("Revenue Tax Amount", format="%.0f €"),
     "units": st.column_config.NumberColumn("Units Sold", format="%d"),
     "avg_price": st.column_config.NumberColumn("Avg Price VAT Incl", format="%.2f €"),
     "orders": st.column_config.NumberColumn("Orders Count", format="%d"),
@@ -1305,7 +1308,7 @@ if tab_cat is not None:
     with tab_cat:
         mn.chart_note(t("mn.what.by_category"), None, _ch, "order", _w.cur_from, _w.cur_to, extra=t("mn.x.as_pbi"))
         by_cat = _pbi_agg(f, ["category"]).sort_values("sales_vat_incl", ascending=False)
-        st.dataframe(by_cat[["category", "sales_vat_incl", "revenue", "cp", "cm_pct_excl", "units"]],
+        show_df(by_cat[["category", "sales_vat_incl", "revenue", "cp", "cm_pct_excl", "units"]],
                      use_container_width=True, hide_index=True,
                      column_config={"category": st.column_config.TextColumn(t("money.col.category")), **_PBI_COLS})
         st.caption(t("money.cat.note", n=int(by_cat["category"].nunique()),
@@ -1344,7 +1347,7 @@ if tab_matrix is not None:
             mx["product_name"] = mx["norm_sku"].map(f.drop_duplicates("norm_sku").set_index("norm_sku")["product_name"])
         mx = mx.sort_values(keys[:-1] + ["sales_vat_incl"], ascending=[True] * (len(keys) - 1) + [False])
         mn.chart_note(t("mn.what.matrix"), None, _ch, "order", _w.cur_from, _w.cur_to, extra=t("mn.x.as_pbi"))
-        st.dataframe(
+        show_df(
             mx[keys + (["product_name"] if "norm_sku" in keys else [])
                + ["cm_pct_incl", "cm_pct_excl", "cp", "sales_vat_incl", "revenue", "tax", "units", "avg_price",
                   "orders", "aov"]],
@@ -1534,7 +1537,7 @@ with tab_alerts:
             skus=alerts["sku_display"], markets=alerts["marketplace"])
         alerts["photo"] = catalog.image_series(
             skus=alerts["sku_display"], markets=alerts["marketplace"])
-        st.dataframe(
+        show_df(
             alerts[["photo", "type_label", "sku_display", "asin_url", "marketplace", "units", "ads_spend",
                     *(["cm"] if pbi.OWN_METHOD else []), "details"]],
             use_container_width=True, height=480, hide_index=True,

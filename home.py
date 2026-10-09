@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from db.connection import get_connection, data_version
-from i18n import init_lang, t, incident_type_label
+from i18n import get_lang, init_lang, t, incident_type_label
 from util import as_text, data_boundary, day_axis
 import period as period_mod
 import plan_fact
@@ -502,6 +502,16 @@ def load_reviews(d_from, d_to) -> dict:
     return out
 
 
+@st.cache_data(ttl=3600)
+def load_country_names() -> dict:
+    """Подписи стран витрины Power BI на трёх языках (pbi.country_names); не прочиталось — пусто, подписи останутся
+    английскими, как в витрине."""
+    try:
+        return pbi.country_names()
+    except Exception:
+        return {}
+
+
 @st.cache_data(ttl=600)
 def load_channels() -> pd.DataFrame:
     """Справочник рынков: код рынка и канал, к которому он относится.
@@ -985,15 +995,45 @@ else:
             for code in sorted(had - set(sold_mp["marketplace"])):
                 silent_by_ch.setdefault(_channel_of(code), []).append(code)
 
-        # плашки идут в том же порядке, что и строки каналов выше
+        # Таблица стран — по умолчанию как в Power BI (09.10.2026, решение владельца): страна = ВСЕ каналы в ней,
+        # с НДС («Spain» = Amazon, Leroy Merlin, ManoMano, Carrefour, Wallapop и сайт — 60 388 € за сентябрь).
+        # Прежний вид — плашка на маркетплейс без НДС, где «ES» было одним Amazon (40 528 €), — остался вторым
+        # вариантом переключателя: по нему видно, какая площадка дала страну
+        _geo_opts = {"country": t("home.geo.by_country"), "market": t("home.geo.by_market")}
+        _geo = "market"
+        if _pbi and "country" in cur.columns:
+            _geo = st.segmented_control(t("home.geo.label"), list(_geo_opts), format_func=_geo_opts.get,
+                                        default="country", key="home_geo_mode", label_visibility="collapsed")
+            if _geo is None:   # повторный клик по выбранному сегменту снимает выбор — оставляем прежний вид
+                _geo = st.session_state.get("_home_geo_last", "country")
+            st.session_state["_home_geo_last"] = _geo
+
         chips = ""
-        for _, r in by_ch.iterrows():
-            col = color_of[r["channel"]]
-            mine = sold_mp[sold_mp["channel"] == r["channel"]]
-            for _, m in mine.sort_values("revenue", ascending=False).iterrows():
-                chips += _chip(_lbl(m["marketplace"]), m["revenue"], col)
-            for code in silent_by_ch.get(r["channel"], []):
-                chips += _chip(_lbl(code), 0.0, ACCENT, muted=True)
+        if _geo == "country":
+            mn.chart_note(t("mn.what.sales_by_country"), mn.VAT_INCL, "all", "order", _w.cur_from, _w.cur_to,
+                          extra=t("mn.x.as_pbi"))
+            _names, _lang = load_country_names(), get_lang()
+            by_cn = (cur.groupby("country", as_index=False)["sales_vat_incl"].sum()
+                        .sort_values("sales_vat_incl", ascending=False))
+            for _, r in by_cn[by_cn["sales_vat_incl"] > 0].iterrows():
+                chips += _chip(pbi.country_label(r["country"], _lang, _names), r["sales_vat_incl"], BLUE)
+            # страна, продававшая за 90 дней и молчащая в периоде, — сигнал, а не пустое место
+            if not money_wide.empty and "country" in money_wide.columns:
+                _had = set(money_wide.loc[money_wide["sales_vat_incl"] > 0, "country"].dropna())
+                for c in sorted(_had - set(by_cn.loc[by_cn["sales_vat_incl"] > 0, "country"])):
+                    chips += _chip(pbi.country_label(c, _lang, _names), 0.0, ACCENT, muted=True)
+        else:
+            if _pbi:
+                mn.chart_note(t("mn.what.sales_by_market"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
+                              extra=t("mn.x.as_pbi"))
+            # плашки идут в том же порядке, что и строки каналов выше
+            for _, r in by_ch.iterrows():
+                col = color_of[r["channel"]]
+                mine = sold_mp[sold_mp["channel"] == r["channel"]]
+                for _, m in mine.sort_values("revenue", ascending=False).iterrows():
+                    chips += _chip(_lbl(m["marketplace"]), m["revenue"], col)
+                for code in silent_by_ch.get(r["channel"], []):
+                    chips += _chip(_lbl(code), 0.0, ACCENT, muted=True)
 
         st.markdown(
             f'<div style="margin-top:6px;line-height:2">{chips}</div>',

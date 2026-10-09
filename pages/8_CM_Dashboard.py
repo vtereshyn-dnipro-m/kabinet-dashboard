@@ -11,10 +11,10 @@ import streamlit as st
 
 from db.connection import get_connection
 import data_passport as passport
-from i18n import init_lang, t
+from i18n import get_lang, init_lang, t
 import pbi
 import period as period_mod
-from util import day_axis
+from util import day_axis, show_df
 import catalog
 
 init_lang()
@@ -159,6 +159,7 @@ def load_sales(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
             return pd.read_sql(f"""
                 SELECT SUBSTRING(p.sku FROM '([0-9]{{5,}})') AS base_sku,
                        p.marketplace,
+                       MAX(p.pbi_marketplace)                              AS platform,
                        MAX(m.name)                                         AS product_name,
                        SUM(p.units_sold)                                   AS units,
                        SUM(p.sales_vat_excl)                               AS revenue,
@@ -193,6 +194,22 @@ def load_sales(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
         """, conn)
     finally:
         conn.close()
+
+
+@st.cache_data(ttl=600)
+def load_countries(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
+    """Страна × площадка за период — таблица стран Power BI (pbi.load_countries)."""
+    _to = pd.Timestamp(d_to).date() if d_to else pd.Timestamp.now().date()
+    _from = pd.Timestamp(d_from).date() if d_from else _to - pd.Timedelta(days=days).to_pytimedelta()
+    return pbi.load_countries(_from, _to)
+
+
+@st.cache_data(ttl=3600)
+def load_country_names() -> dict:
+    try:
+        return pbi.country_names()
+    except Exception:
+        return {}
 
 
 @st.cache_data(ttl=600)
@@ -535,6 +552,11 @@ with tab_sum:
         # каналов меняется без нас
         scoped["channel"] = scoped["marketplace"].map(
             lambda m: _code2channel.get(str(m).upper(), DEFAULT_CHANNEL))
+        if "platform" in scoped.columns:
+            # рынка нет в справочнике каналов (Wallapop, сайт) — площадка из витрины Power BI, а не запасная:
+            # иначе их продажи ложились в колонку Amazon (09.10.2026)
+            _known = scoped["marketplace"].astype(str).str.upper().isin(_code2channel.keys())
+            scoped.loc[~_known & scoped["platform"].notna(), "channel"] = scoped["platform"]
         # Колонки идут по убыванию выручки: крупный канал слева, где на
         # него смотрят. Порядок считается по данным, а не задан списком
         chans = (scoped.groupby("channel")["revenue"].sum()
@@ -767,7 +789,7 @@ with tab_sum:
                 t("cm.col.returns_pct"), format="%.0f%%",
                 help=t("cm.col.returns_pct_help"))
 
-            st.dataframe(view[show], use_container_width=True, height=560,
+            show_df(view[show], use_container_width=True, height=560,
                          hide_index=True, column_config=conf)
             st.caption(t("cm.summary.shown", 
                 n=len(view), total=_total_all))
@@ -869,7 +891,7 @@ with tab_par:
             for c in _eur:
                 conf[c] = st.column_config.NumberColumn(
                     str(c).upper().replace("_", " · "), format="%.2f €")
-            st.dataframe(P[show], use_container_width=True, height=560,
+            show_df(P[show], use_container_width=True, height=560,
                          hide_index=True, column_config=conf)
             st.caption(t("cm.summary.shown", n=len(P), total=_total))
             st.caption(t("cm.par.note"))
@@ -910,7 +932,7 @@ with tab_par:
         V = V.assign(_a=V["diff_pct"].abs()).sort_values(["_a", "sku"], ascending=[False, True], na_position="last")
         V["product_name"] = V["product_name"].map(lambda x: "" if pd.isna(x) else str(x))
         cols = ["sku", "product_name", "b2c_price", "b2c_state", "b2b_price", "b2b_state", "diff_eur", "diff_pct"]
-        st.dataframe(V[cols], use_container_width=True, hide_index=True, height=420, column_config={
+        show_df(V[cols], use_container_width=True, hide_index=True, height=420, column_config={
             "sku": st.column_config.TextColumn("SKU", width="small"),
             "product_name": st.column_config.TextColumn(t("cm.col.product"), width="medium"),
             "b2c_price": st.column_config.NumberColumn(t("cm.mmb.col_b2c"), format="%.2f €"),
@@ -1027,7 +1049,7 @@ with tab_lm:
                                "WAITING_DEBIT": t("cm.state.waiting_debit")}
                 waiting["order_state"] = waiting["order_state"].map(
                     lambda v: STATE_LABEL.get(v, v))
-                st.dataframe(
+                show_df(
                     waiting[["order_id", "created_date", "order_state",
                              "total_price", "hours_open"]],
                     use_container_width=True, hide_index=True,
@@ -1110,7 +1132,7 @@ with tab_amz:
         view["created_at"] = pd.to_datetime(view["created_at"]).dt.strftime("%d.%m.%Y")
         view["asin_url"] = catalog.url_series(skus=view["sku"])
         view["photo"] = catalog.image_series(skus=view["sku"])
-        st.dataframe(
+        show_df(
             view[["photo", "created_at", "days_open", "sev_label",
                   "type_label", "sku", "asin_url", "warehouse_name",
                   "message"]],
@@ -1187,8 +1209,68 @@ with tab_amz:
 # СВОД ПО ВСЕМ СТРАНАМ
 # ═══════════════════════════════════════════════════════════════════
 
+def _countries_view() -> None:
+    """Таблица стран как в Power BI (09.10.2026, решение владельца): страна — все каналы в ней, продажи с НДС."""
+    try:
+        cn = load_countries(DAYS, D_FROM, D_TO)
+    except Exception as e:
+        st.error(f"{t('common.no_data')}: {e}")
+        return
+    if cn.empty:
+        st.info(t("common.no_data"))
+        return
+    names, lang = load_country_names(), get_lang()
+    cn["label"] = cn["country"].map(lambda c: pbi.country_label(c, lang, names))
+    by_c = (cn.groupby("label", as_index=False)
+              .agg(units=("units", "sum"), sales_vat_incl=("sales_vat_incl", "sum"),
+                   sales_vat_excl=("sales_vat_excl", "sum"), cp=("cp", "sum"),
+                   platforms=("platform", lambda x: ", ".join(sorted(set(x))))))
+    by_c = by_c[(by_c["sales_vat_incl"] != 0) | (by_c["units"] != 0)]
+    by_c["cp_pct"] = np.round(safe_div(by_c["cp"], by_c["sales_vat_incl"]) * 100, 1)
+    by_c = by_c.sort_values("sales_vat_incl", ascending=False)
+
+    cc = st.columns(min(len(by_c), 5) or 1)
+    for i, (_, r) in enumerate(by_c.iterrows()):
+        with cc[i % len(cc)]:
+            st.metric(r["label"], fmt_money(r["sales_vat_incl"]), delta=f"{r['cp_pct']:.0f}%",
+                      help=t("cm.all.metric_help_pbi"))
+
+    _by_cp = (cn.groupby(["label", "platform"], as_index=False)["sales_vat_incl"].sum())
+    fig = px.bar(_by_cp, x="label", y="sales_vat_incl", color="platform", title=t("cm.all.chart_country"),
+                 category_orders={"label": list(by_c["label"])},
+                 color_discrete_sequence=[BLUE, GREEN, AMBER, "#7e57c2", "#26a69a", "#ef6c00"])
+    fig.update_layout(height=360, xaxis_title=None, yaxis_title="€", margin=dict(l=10, r=10, t=50, b=10),
+                      legend=dict(orientation="h", y=1.12, title_text=""))
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
+
+    show_df(
+        by_c[["label", "platforms", "units", "sales_vat_incl", "sales_vat_excl", "cp", "cp_pct"]],
+        use_container_width=True, hide_index=True,
+        column_config={
+            "label": st.column_config.TextColumn(t("cm.all.col_country")),
+            "platforms": st.column_config.TextColumn(t("cm.all.col_platforms")),
+            "units": st.column_config.NumberColumn(t("cm.col.units"), format="%d", width="small"),
+            "sales_vat_incl": st.column_config.NumberColumn(t("money.kpi.sales_incl_pbi"), format="%.0f €"),
+            "sales_vat_excl": st.column_config.NumberColumn(t("money.kpi.sales_excl_pbi"), format="%.0f €"),
+            "cp": st.column_config.NumberColumn(t("money.kpi.cp_pbi"), format="%.0f €"),
+            "cp_pct": st.column_config.NumberColumn(t("cm.col.cp_pct_pbi"), format="%.1f%%"),
+        },
+    )
+    st.caption(t("cm.all.note_country"))
+
+
 with tab_all:
-    if sales.empty:
+    _geo = "market"
+    if not pbi.OWN_METHOD:
+        _geo_opts = {"country": t("home.geo.by_country"), "market": t("home.geo.by_market")}
+        _geo = st.segmented_control(t("home.geo.label"), list(_geo_opts), format_func=_geo_opts.get,
+                                    default="country", key="cm_geo_mode", label_visibility="collapsed")
+        if _geo is None:   # повторный клик по выбранному сегменту снимает выбор — оставляем прежний вид
+            _geo = st.session_state.get("_cm_geo_last", "country")
+        st.session_state["_cm_geo_last"] = _geo
+    if _geo == "country":
+        _countries_view()
+    elif sales.empty:
         st.info(t("common.no_data"))
     else:
         by_mp = (sales.groupby("marketplace", as_index=False)
@@ -1203,6 +1285,11 @@ with tab_all:
         by_mp["platform"] = by_mp["marketplace"].map(
             lambda m: _code2channel.get(str(m).upper(),
                                         t("cm.platform.amazon")))
+        if "platform" in sales.columns:
+            # в цифрах Power BI площадка — из самой витрины: у Wallapop и сайта нет строки в справочнике каналов,
+            # и запасное «Amazon» подписывало их чужой площадкой (09.10.2026)
+            _pl = sales.dropna(subset=["platform"]).drop_duplicates("marketplace").set_index("marketplace")["platform"]
+            by_mp["platform"] = by_mp["marketplace"].map(_pl).fillna(by_mp["platform"])
         by_mp = by_mp.sort_values("revenue", ascending=False)
 
         cc = st.columns(min(len(by_mp), 5) or 1)
@@ -1222,7 +1309,7 @@ with tab_all:
                           legend=dict(orientation="h", y=1.12, title_text=""))
         st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
-        st.dataframe(
+        show_df(
             by_mp[["marketplace", "platform", "skus", "units", "revenue",
                    "fees", "fees_pct", "cogs", "cm", "cm_pct"]],
             use_container_width=True, hide_index=True,

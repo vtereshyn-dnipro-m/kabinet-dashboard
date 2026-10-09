@@ -20,7 +20,7 @@ from db.connection import get_connection
 import data_passport as passport
 from i18n import init_lang, t
 import auth
-from util import as_text
+from util import as_text, show_df
 import period as period_mod
 import catalog
 import ads_api
@@ -794,7 +794,7 @@ else:
                     st.warning(t("ads.act.no_groups"))
                 else:
                     st.markdown(t("ads.act.confirm_bid", n=_lbl[_cid], p=int(_pct), g=len(_plan)))
-                    st.dataframe(
+                    show_df(
                         pd.DataFrame([{"group": g["name"], "before": g["defaultBid"], "after": b}
                                       for g, b in _plan]),
                         hide_index=True, use_container_width=True,
@@ -854,7 +854,7 @@ else:
                 t("ads.act.log_now"): [ads_state_text(a) for a in _log["after_state"]],
                 t("ads.act.log_status"): _log["api_status"],
             })
-            st.dataframe(_view, hide_index=True, use_container_width=True)
+            show_df(_view, hide_index=True, use_container_width=True)
             _undoable = _log[(_log["action"] != "rollback") & _log["rolled_back_at"].isna()
                              & (_log["api_status"] != "error")]
             if _undoable.empty:
@@ -907,13 +907,13 @@ else:
 if not _quiet.empty:
     with st.expander(t("ads.camp.quiet", 
             n=len(_quiet), s=money(_quiet["spend"].sum()))):
-        st.dataframe(_quiet[["campaign_name", "spend", "clicks"]],
+        show_df(_quiet[["campaign_name", "spend", "clicks"]],
                      use_container_width=True, hide_index=True,
                      column_config={
                          "campaign_name": st.column_config.TextColumn(
                              t("ads.camp.col_name"), width="large"),
                          "spend": st.column_config.NumberColumn(
-                             t("ads.camp.col_spend"), format="%.2f €"),
+                             t("ads.camp.col_spend"), format="%.0f €"),
                          "clicks": st.column_config.NumberColumn(
                              t("ads.camp.col_clicks"), width="small"),
                      })
@@ -941,7 +941,7 @@ elif not contract_error(ntb, "amc_ntb_by_asin"):
         G["url"] = catalog.url_series(asins=G["asin"], markets=_markets[:1] * len(G)
                                       if _markets else None)
         G["photo"] = catalog.image_series(asins=G["asin"])
-        st.dataframe(
+        show_df(
             G[["photo", "url", "orders", "ntb", "sales"]],
             use_container_width=True, hide_index=True,
             column_config={
@@ -953,7 +953,7 @@ elif not contract_error(ntb, "amc_ntb_by_asin"):
                     t("ads.asin.col_ntb"), format="%.0f%%",
                     help=t("ads.asin.col_ntb_help")),
                 "sales": st.column_config.NumberColumn(
-                    t("ads.asin.col_sales"), format="%.2f €"),
+                    t("ads.asin.col_sales"), format="%.0f €"),
             })
         # Скрытые заказы — не шум, а большинство: по первому прогону 39
         # из 49. Без этой строки сумма по таблице вдвое меньше реальной
@@ -1000,7 +1000,7 @@ with st.expander(t("ads.ref.dayparting"), expanded=True):
         st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
         st.caption(t("ads.ref.hours_local"))
         if st.toggle(t("ads.ref.numbers"), key="amc_hours_tbl"):
-            st.dataframe(_d.drop(columns=["hour"], errors="ignore"),
+            show_df(_d.drop(columns=["hour"], errors="ignore"),
                          use_container_width=True, hide_index=True)
 
 with st.expander(t("ads.ref.terms"), expanded=True):
@@ -1055,7 +1055,7 @@ with st.expander(t("ads.ref.terms"), expanded=True):
                 _code = MARKETPLACE_ID.get(_markets[0]) if _markets else None
                 top["search_term"] = [
                     amazon_url(_code or "ES", a) for a in top["search_term"]]
-            st.dataframe(
+            show_df(
                 top[["search_term", "customers", "sales", "avg"]],
                 use_container_width=True, hide_index=True,
                 column_config={
@@ -1111,6 +1111,6 @@ with st.expander(t("ads.ref.overlap"), expanded=True):
                 a=r["ad_type_1"], b=r["ad_type_2"]))
         st.caption(t("ads.ref.overlap_note"))
         if st.toggle(t("ads.ref.numbers"), key="amc_overlap_tbl"):
-            st.dataframe(_o, use_container_width=True, hide_index=True)
+            show_df(_o, use_container_width=True, hide_index=True)
 
 passport.footer("ads")
