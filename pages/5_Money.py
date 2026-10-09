@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 from db.connection import get_connection, data_version
 import data_passport as passport
 from i18n import init_lang, t
-from util import as_text, data_boundary, show_df
+from util import as_text, data_boundary, grid_height, show_df, tidy_numbers
 import catalog
 from links import AMAZON_DOMAIN, amazon_url
 import period as period_mod
@@ -272,6 +272,9 @@ def load_pnl_pbi(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str
         _cat = pd.DataFrame(columns=["sku", "name_en", "category_level1_en"])
     # категория — как в Power BI (его справочник): SKU без кода в дереве ERP у него в «Set»
     df["category"] = df["norm_sku"].map(dict(zip(_cat["sku"], _cat["category_level1_en"]))).fillna("Set")
+    # подкатегория — второй уровень того же справочника Power BI (Welding equipment → Inverters); без кода в ERP — «Set»
+    _lvl2 = dict(zip(_cat["sku"], _cat["category_level2_en"])) if "category_level2_en" in _cat else {}
+    df["subcategory"] = df["norm_sku"].map(_lvl2).fillna("Set")
     df["product_name"] = df["product_name"].fillna(df["norm_sku"].map(dict(zip(_cat["sku"], _cat["name_en"]))))
     df["asin"] = (df["norm_sku"].astype(str).str.extract(r"([0-9]{5,})", expand=False)
                   .map(dict(zip(asins["sku_group"], asins["asin"]))))
@@ -431,6 +434,33 @@ def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = (), _
         conn.close()
 
 
+@st.cache_data(ttl=600)
+def load_mp_labels() -> dict:
+    """Подписи рынков для фильтра: «Amazon ES», «Leroy Merlin ES», «Wallapop ES» вместо голых кодов (09.10.2026).
+    Площадка и страна — из справочника маркетплейсов, а для рынков, которых там нет (Wallapop, сайт), — из витрины
+    Power BI. Код рынка остаётся значением: по нему режутся запросы."""
+    out = {}
+    conn = get_connection()
+    try:
+        m = pd.read_sql("SELECT upper(marketplace_code) AS code, channel, upper(country) AS country "
+                        "FROM kabinet_data.v_marketplaces", conn)
+        out.update({r.code: f"{r.channel} {r.country}".strip() for r in m.itertuples() if as_text(r.channel)})
+        p = pd.read_sql(f"SELECT DISTINCT upper(marketplace) AS code, pbi_marketplace AS channel, pbi_country "
+                        f"FROM {pbi.SOURCE}", conn)
+        try:
+            names = pbi.country_names()
+        except Exception:
+            names = {}
+        for r in p.itertuples():
+            cc = (names.get(as_text(r.pbi_country).lower()) or {}).get("code") or as_text(r.pbi_country)
+            out.setdefault(r.code, f"{r.channel} {cc}".strip())
+    except Exception:
+        pass
+    finally:
+        conn.close()
+    return out
+
+
 # ---------- выбор периода ----------
 # Набор вариантов и память о выборе — общие для Кабинета, см. period.py
 pc1, pc2 = st.columns([2, 2])
@@ -446,10 +476,17 @@ d_to = PERIOD.d_to.date() if PERIOD.is_range else None
 # нельзя было выйти, не перезагрузив страницу
 c1, c2 = st.columns([1, 2])
 with c1:
+    # Ключ постоянный, а выбранное значение всегда остаётся среди вариантов: без ключа Streamlit пересоздавал поле,
+    # как только список рынков менялся (кеш списка живёт 10 минут), и выбор молча сбрасывался (09.10.2026)
+    _mp_lbl = load_mp_labels()
+    _mp_opts = sorted(set(load_marketplaces()) | set(st.session_state.get("money_mk") or []),
+                      key=lambda c: (_mp_lbl.get(c, c).split(" ")[0] != "Amazon", _mp_lbl.get(c, c)))
     mp_filter = st.multiselect(
         t("money.filter.marketplace"),
-        load_marketplaces(),
+        _mp_opts,
+        format_func=lambda c: _mp_lbl.get(c, c),
         placeholder=t("money.filter.marketplace_ph"),
+        key="money_mk",
     )
 with c2:
     search = st.text_input(t("money.filter.search"),
@@ -996,89 +1033,91 @@ with tab_pnl:
     # способно увести его в минус, а Data Kiosk этого не покажет
     losers_settle = by_sku[(by_sku["cm_settle"] < 0) & (by_sku["units"] > 0)
                            & (by_sku["revenue"] >= MIN_REV_ALERT)]
-    if not adj.empty and not (losers.empty and losers_settle.empty):
-        st.caption(t("money.alert.losers_settle", 
-            n=len(losers_settle), dk=len(losers),
-            new=len(set(losers_settle["sku_display"]) - set(losers["sku_display"]))))
-
-    # предупреждения работают как фильтр: нажал — в таблице остались
-    # только проблемные позиции, искать их глазами не нужно
-    if "pnl_quick" not in st.session_state:
-        st.session_state.pnl_quick = None
-
-    def _pnl_toggle(key: str):
-        st.session_state.pnl_quick = (
-            None if st.session_state.pnl_quick == key else key)
-
-    if not losers.empty or not thin.empty:
-        al, ar = st.columns(2)
-        if not losers.empty:
-            with al:
-                st.warning(t("money.alert.losers", 
-                    n=len(losers), skus=", ".join(losers["sku_display"].head(5))))
-                st.button(
-                    t("money.alert.show_losers", n=len(losers)),
-                    key="btn_losers", use_container_width=True,
-                    type=("primary" if st.session_state.pnl_quick == "losers"
-                          else "secondary"),
-                    on_click=_pnl_toggle, args=("losers",))
-        if not thin.empty:
-            with ar:
-                st.warning(t("money.alert.thin", 
-                    n=len(thin), skus=", ".join(thin["sku_display"].head(5))))
-                st.button(
-                    t("money.alert.show_thin", n=len(thin)),
-                    key="btn_thin", use_container_width=True,
-                    type=("primary" if st.session_state.pnl_quick == "thin"
-                          else "secondary"),
-                    on_click=_pnl_toggle, args=("thin",))
-
-    # ---------- Waterfall: как выручка превращается в прибыль ----------
-    st.markdown(f"**{t('money.waterfall_title')}**")
-    mn.chart_note(t("mn.what.waterfall"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to,
-                  extra=None if pbi.OWN_METHOD else t("mn.x.as_pbi"))
-    if pbi.OWN_METHOD:
-        wf = go.Figure(go.Waterfall(
-            orientation="v",
-            measure=["absolute", "relative", "relative", "relative", "relative", "total"],
-            x=[t("money.wf.revenue"), t("money.wf.fees"), t("money.wf.cogs"),
-               t("money.wf.logistics"), t("money.wf.ads"), t("money.wf.cm")],
-            y=[tot_rev, -(tot_rev - tot_net), -tot_cogs, -tot_log, -tot_ads, 0],
-            text=[f"{tot_rev:,.0f}€", f"−{tot_rev - tot_net:,.0f}€",
-                  f"−{tot_cogs:,.0f}€", f"−{tot_log:,.0f}€", f"−{tot_ads:,.0f}€", f"{cm:,.0f}€"],
-            textposition="outside",
-            connector={"line": {"color": "#9aa4b2"}},
-            decreasing={"marker": {"color": ACCENT}},
-            increasing={"marker": {"color": GREEN}},
-            totals={"marker": {"color": GREEN if cm >= 0 else ACCENT}},
-        ))
-    else:
-        def _wf_label(v: float, signed: bool) -> str:
-            txt = f"{abs(v):,.0f}€"
-            return (("−" if v < 0 else "+") + txt) if signed else (("−" if v < 0 else "") + txt)
-        # те же слагаемые, что у карточек сверху: продажи без НДС → Contribution Profit Power BI
-        _wf = [(t("money.wf.revenue_pbi"), p_excl, "absolute"), (t("money.wf.fees"), -p_comm, "relative"),
-               (t("money.wf.cogs"), -p_cogs, "relative"), (t("money.wf.logistics"), -p_log, "relative"),
-               (t("money.wf.other_pbi"), -p_other, "relative"), (t("money.kpi.exp_refund_pbi"), p_ref, "relative"),
-               (t("money.kpi.reimb_pbi"), p_reimb, "relative"), (t("money.wf.ads"), -p_spend, "relative"),
-               (t("money.kpi.cp_pbi"), 0, "total")]
-        _wf = [w for w in _wf if w[2] != "relative" or abs(w[1]) >= 0.5]
-        wf = go.Figure(go.Waterfall(
-            orientation="v", measure=[w[2] for w in _wf], x=[w[0] for w in _wf], y=[w[1] for w in _wf],
-            text=[_wf_label(p_cp if w[2] == "total" else w[1], w[2] == "relative") for w in _wf],
-            textposition="outside",
-            connector={"line": {"color": "#9aa4b2"}},
-            decreasing={"marker": {"color": ACCENT}},
-            increasing={"marker": {"color": GREEN}},
-            totals={"marker": {"color": GREEN if p_cp >= 0 else ACCENT}},
-        ))
-    wf.update_layout(height=380, showlegend=False,
-                     margin=dict(l=10, r=10, t=10, b=10),
-                     yaxis_title="€")
-    # контейнер с ключом — чтобы глобальный CSS прятал устаревший водопад, пока считается новый (app.py)
+    # Плашки «в убытке / тонкая маржа», заголовок с периодом и сам водопад — в одном контейнере с ключом: пока
+    # страница пересчитывается после смены периода, глобальный CSS (app.py) прячет их, а не показывает цифры
+    # прошлого периода полупрозрачными (09.10.2026)
     with st.container(key="money_wf"):
+        if not adj.empty and not (losers.empty and losers_settle.empty):
+            st.caption(t("money.alert.losers_settle", 
+                n=len(losers_settle), dk=len(losers),
+                new=len(set(losers_settle["sku_display"]) - set(losers["sku_display"]))))
+
+        # предупреждения работают как фильтр: нажал — в таблице остались
+        # только проблемные позиции, искать их глазами не нужно
+        if "pnl_quick" not in st.session_state:
+            st.session_state.pnl_quick = None
+
+        def _pnl_toggle(key: str):
+            st.session_state.pnl_quick = (
+                None if st.session_state.pnl_quick == key else key)
+
+        if not losers.empty or not thin.empty:
+            al, ar = st.columns(2)
+            if not losers.empty:
+                with al:
+                    st.warning(t("money.alert.losers", 
+                        n=len(losers), skus=", ".join(losers["sku_display"].head(5))))
+                    st.button(
+                        t("money.alert.show_losers", n=len(losers)),
+                        key="btn_losers", use_container_width=True,
+                        type=("primary" if st.session_state.pnl_quick == "losers"
+                              else "secondary"),
+                        on_click=_pnl_toggle, args=("losers",))
+            if not thin.empty:
+                with ar:
+                    st.warning(t("money.alert.thin", 
+                        n=len(thin), skus=", ".join(thin["sku_display"].head(5))))
+                    st.button(
+                        t("money.alert.show_thin", n=len(thin)),
+                        key="btn_thin", use_container_width=True,
+                        type=("primary" if st.session_state.pnl_quick == "thin"
+                              else "secondary"),
+                        on_click=_pnl_toggle, args=("thin",))
+
+        # ---------- Waterfall: как выручка превращается в прибыль ----------
+        st.markdown(f"**{t('money.waterfall_title')}**")
+        mn.chart_note(t("mn.what.waterfall"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to,
+                      extra=None if pbi.OWN_METHOD else t("mn.x.as_pbi"))
+        if pbi.OWN_METHOD:
+            wf = go.Figure(go.Waterfall(
+                orientation="v",
+                measure=["absolute", "relative", "relative", "relative", "relative", "total"],
+                x=[t("money.wf.revenue"), t("money.wf.fees"), t("money.wf.cogs"),
+                   t("money.wf.logistics"), t("money.wf.ads"), t("money.wf.cm")],
+                y=[tot_rev, -(tot_rev - tot_net), -tot_cogs, -tot_log, -tot_ads, 0],
+                text=[f"{tot_rev:,.0f}€", f"−{tot_rev - tot_net:,.0f}€",
+                      f"−{tot_cogs:,.0f}€", f"−{tot_log:,.0f}€", f"−{tot_ads:,.0f}€", f"{cm:,.0f}€"],
+                textposition="outside",
+                connector={"line": {"color": "#9aa4b2"}},
+                decreasing={"marker": {"color": ACCENT}},
+                increasing={"marker": {"color": GREEN}},
+                totals={"marker": {"color": GREEN if cm >= 0 else ACCENT}},
+            ))
+        else:
+            def _wf_label(v: float, signed: bool) -> str:
+                txt = f"{abs(v):,.0f}€"
+                return (("−" if v < 0 else "+") + txt) if signed else (("−" if v < 0 else "") + txt)
+            # те же слагаемые, что у карточек сверху: продажи без НДС → Contribution Profit Power BI
+            _wf = [(t("money.wf.revenue_pbi"), p_excl, "absolute"), (t("money.wf.fees"), -p_comm, "relative"),
+                   (t("money.wf.cogs"), -p_cogs, "relative"), (t("money.wf.logistics"), -p_log, "relative"),
+                   (t("money.wf.other_pbi"), -p_other, "relative"), (t("money.kpi.exp_refund_pbi"), p_ref, "relative"),
+                   (t("money.kpi.reimb_pbi"), p_reimb, "relative"), (t("money.wf.ads"), -p_spend, "relative"),
+                   (t("money.kpi.cp_pbi"), 0, "total")]
+            _wf = [w for w in _wf if w[2] != "relative" or abs(w[1]) >= 0.5]
+            wf = go.Figure(go.Waterfall(
+                orientation="v", measure=[w[2] for w in _wf], x=[w[0] for w in _wf], y=[w[1] for w in _wf],
+                text=[_wf_label(p_cp if w[2] == "total" else w[1], w[2] == "relative") for w in _wf],
+                textposition="outside",
+                connector={"line": {"color": "#9aa4b2"}},
+                decreasing={"marker": {"color": ACCENT}},
+                increasing={"marker": {"color": GREEN}},
+                totals={"marker": {"color": GREEN if p_cp >= 0 else ACCENT}},
+            ))
+        wf.update_layout(height=380, showlegend=False,
+                         margin=dict(l=10, r=10, t=10, b=10),
+                         yaxis_title="€")
         st.plotly_chart(wf, use_container_width=True)
-    st.caption(t("money.waterfall_caption") if pbi.OWN_METHOD else t("money.waterfall_caption_pbi"))
+        st.caption(t("money.waterfall_caption") if pbi.OWN_METHOD else t("money.waterfall_caption_pbi"))
 
     st.markdown(f"**{t('money.pnl_table')}**")
     mn.chart_note(t("mn.what.pnl_by_sku"), mn.VAT_EXCL, _ch, "order", _w.cur_from, _w.cur_to, extra=None if pbi.OWN_METHOD else t("mn.x.as_pbi"))
@@ -1314,54 +1353,116 @@ if tab_cat is not None:
         st.caption(t("money.cat.note", n=int(by_cat["category"].nunique()),
                      s=f"{by_cat['sales_vat_incl'].sum():,.2f}".replace(",", " ")))
 
+@st.fragment
+def _matrix_tab():
+    """Матрица во фрагменте: клик по строке пересчитывает только её, а не всю страницу (≈6 с на клик и
+    затемнённая страница, 09.10.2026). Данные (f, _w, MK) — те, что посчитал последний полный прогон страницы."""
+    # Раскрывающаяся матрица, как в Power BI (09.10.2026): страна → площадка → категория → подкатегория → SKU.
+    # Клик по строке раскрывает или сворачивает её; суммы каждого уровня — те же суммы колонок витрины по своему
+    # срезу, что и раньше (_pbi_agg), то есть итог строки всегда равен сумме её детей.
+    _LV = ["country", "platform", "category", "subcategory", "norm_sku"]
+    _LV_NAME = {"country": t("money.mx.country"), "platform": t("money.mx.platform"),
+                "category": t("money.mx.category"), "subcategory": t("money.mx.subcategory"), "norm_sku": "SKU"}
+    mc1, mc2, mc3 = st.columns([1.6, 1.5, 1.2])
+    _cats = mc2.multiselect("Category", sorted(f["category"].dropna().unique()), key="mx_cat",
+                            placeholder=t("money.filter.marketplace_ph"))
+    _sku_q = mc3.text_input("SKU", key="mx_sku", placeholder=t("money.mx.sku_ph"))
+    fm = f
+    if _cats:
+        fm = fm[fm["category"].isin(_cats)]
+    if _sku_q:
+        fm = fm[fm["norm_sku"].astype(str).str.contains(_sku_q, case=False, na=False)]
+    # «Раскрыть всё до уровня» — раскрытые узлы хранятся путями; кнопки уровня заменяют набор целиком
+    _exp = st.session_state.setdefault("mx_expanded", set())
+    _to = mc1.segmented_control(t("money.mx.expand_to"), list(range(len(_LV))),
+                                format_func=lambda n: t("money.mx.collapse") if n == 0 else _LV_NAME[_LV[n]],
+                                key="mx_expand_to")
+    if _to is not None and st.session_state.get("_mx_expand_last") != (_to, len(fm)):
+        _exp = {tuple(r) for n in range(1, _to + 1)
+                for r in fm[_LV[:n]].drop_duplicates().astype(str).itertuples(index=False)}
+        st.session_state["mx_expanded"] = _exp
+    st.session_state["_mx_expand_last"] = (_to, len(fm))
+    if _sku_q and not st.session_state.get("_mx_sku_expanded") == _sku_q:
+        # поиск по артикулу показывает найденные SKU сразу, а не свёрнутыми под страной
+        _exp = {tuple(r) for n in range(1, len(_LV))
+                for r in fm[_LV[:n]].drop_duplicates().astype(str).itertuples(index=False)}
+        st.session_state["mx_expanded"] = _exp
+        st.session_state["_mx_sku_expanded"] = _sku_q
+
+    # заказы и средний чек — только у строк страны и площадки и без фильтров по категории и SKU: в модели Power
+    # BI заказы связаны с продажами через календарь (дата × страна × площадка), а не через товар
+    _orders_ok = not _cats and not _sku_q and not search
+    _ord = {}
+    if _orders_ok:
+        _po_m = load_pbi_orders(_w.cur_from.date(), _w.cur_to.date(), MK, _ver_pbi)
+        if not _po_m.empty:
+            for n in (1, 2):
+                g = _po_m.groupby(_LV[:n]).agg(o=("orders", "sum"), s=("order_total", "sum"))
+                for k, r in g.iterrows():
+                    _ord[tuple(map(str, k if isinstance(k, tuple) else (k,)))] = (r["o"], r["s"])
+
+    _aggs = {n: _pbi_agg(fm, _LV[:n]) for n in range(1, len(_LV) + 1)}
+    for n, a in _aggs.items():
+        a["_path"] = [tuple(map(str, r)) for r in a[_LV[:n]].itertuples(index=False)]
+    _names = fm.drop_duplicates("norm_sku").set_index("norm_sku")["product_name"].to_dict()
+    rows, paths = [], []
+
+    def _walk(level: int, parent: tuple):
+        a = _aggs[level]
+        kids = a[[p[:level - 1] == parent for p in a["_path"]]].sort_values("sales_vat_incl", ascending=False)
+        for _, r in kids.iterrows():
+            path = r["_path"]
+            leaf = level == len(_LV)
+            opened = path in _exp
+            mark = "" if leaf else ("▾ " if opened else "▸ ")
+            label = path[-1]
+            if leaf and as_text(_names.get(label)):
+                label = f"{label} · {as_text(_names.get(label))}"
+            row = {"row": "\u2003" * (level - 1) + mark + label, "level": _LV_NAME[_LV[level - 1]]}
+            for c in ("cm_pct_incl", "cm_pct_excl", "cp", "sales_vat_incl", "revenue", "tax", "units", "avg_price"):
+                row[c] = r[c]
+            o = _ord.get(path) if level <= 2 else None
+            row["orders"] = o[0] if o else np.nan
+            row["aov"] = (o[1] / o[0]) if o and o[0] else np.nan
+            rows.append(row); paths.append(path)
+            if opened and not leaf:
+                _walk(level + 1, path)
+
+    _walk(1, tuple())
+    tree = pd.DataFrame(rows)
+    mn.chart_note(t("mn.what.matrix"), None, _ch, "order", _w.cur_from, _w.cur_to, extra=t("mn.x.as_pbi"))
+    st.caption(t("money.mx.hint"))
+    if tree.empty:
+        st.info(t("common.no_data"))
+    else:
+        _gen = st.session_state.get("mx_tbl_gen", 0)
+        _cfg = {"row": st.column_config.TextColumn(t("money.mx.col_row"), width="large"),
+                "level": st.column_config.TextColumn(t("money.mx.col_level"), width="small"), **_PBI_COLS}
+        ev = st.dataframe(tidy_numbers(tree, _cfg), key=f"mx_tbl_{_gen}", use_container_width=True,
+                          hide_index=True, height=grid_height(len(tree), 17),
+                          on_select="rerun", selection_mode="single-cell", column_config=_cfg)
+        _cells = list((ev.selection or {}).get("cells", []) or []) if ev is not None else []
+        if _cells:
+            _pos = int(_cells[0][0])
+            if _pos < len(paths) and len(paths[_pos]) < len(_LV):
+                _p = paths[_pos]
+                if _p in _exp:   # свернуть узел вместе со всем, что под ним раскрыто
+                    _exp = {x for x in _exp if x[:len(_p)] != _p}
+                else:
+                    _exp = _exp | {_p}
+                st.session_state["mx_expanded"] = _exp
+            # новая таблица с чистым выбором: иначе тот же клик повторно не сработает
+            st.session_state["mx_tbl_gen"] = _gen + 1
+            st.rerun(scope="fragment")
+    _tot = _pbi_agg(fm.assign(_all=1), ["_all"]).iloc[0]
+    st.caption(t("money.mx.total", s=f"{_tot['sales_vat_incl']:,.2f}".replace(",", " "),
+                 cp=f"{_tot['cp']:,.2f}".replace(",", " "), u=f"{_tot['units']:,.0f}".replace(",", " "))
+               + " " + t("money.mx.orders_note"))
+
+
 if tab_matrix is not None:
     with tab_matrix:
-        _levels = {"country": t("money.mx.country"), "platform": t("money.mx.platform"),
-                   "category": t("money.mx.category"), "norm_sku": "SKU"}
-        mc1, mc2, mc3 = st.columns([1.2, 1.5, 1.3])
-        _depth = mc1.selectbox(t("money.mx.depth"), [1, 2, 3, 4], index=1,
-                               format_func=lambda n: " → ".join(list(_levels.values())[:n]), key="mx_depth")
-        _cats = mc2.multiselect("Category", sorted(f["category"].dropna().unique()), key="mx_cat",
-                                placeholder=t("money.filter.marketplace_ph"))
-        _sku_q = mc3.text_input("SKU", key="mx_sku", placeholder=t("money.mx.sku_ph"))
-        fm = f
-        if _cats:
-            fm = fm[fm["category"].isin(_cats)]
-        if _sku_q:
-            fm = fm[fm["norm_sku"].astype(str).str.contains(_sku_q, case=False, na=False)]
-        keys = list(_levels)[:_depth]
-        mx = _pbi_agg(fm, keys)
-        # заказы и средний чек — только на уровнях страна / площадка и без фильтров по категории и SKU: в модели Power
-        # BI заказы связаны с продажами через календарь (дата × страна × площадка), а не через товар
-        _orders_ok = _depth <= 2 and not _cats and not _sku_q and not search
-        if _orders_ok:
-            _po_m = load_pbi_orders(_w.cur_from.date(), _w.cur_to.date(), MK, _ver_pbi)
-            if not _po_m.empty:
-                _og = _po_m.groupby(keys, as_index=False).agg(orders=("orders", "sum"), order_total=("order_total", "sum"))
-                mx = mx.merge(_og, on=keys, how="outer").fillna({"orders": 0, "order_total": 0})
-                mx["aov"] = np.round(safe_div(mx["order_total"], mx["orders"]), 2)
-        for c in ("orders", "aov"):
-            if c not in mx.columns:
-                mx[c] = np.nan
-        if "norm_sku" in keys:
-            mx["product_name"] = mx["norm_sku"].map(f.drop_duplicates("norm_sku").set_index("norm_sku")["product_name"])
-        mx = mx.sort_values(keys[:-1] + ["sales_vat_incl"], ascending=[True] * (len(keys) - 1) + [False])
-        mn.chart_note(t("mn.what.matrix"), None, _ch, "order", _w.cur_from, _w.cur_to, extra=t("mn.x.as_pbi"))
-        show_df(
-            mx[keys + (["product_name"] if "norm_sku" in keys else [])
-               + ["cm_pct_incl", "cm_pct_excl", "cp", "sales_vat_incl", "revenue", "tax", "units", "avg_price",
-                  "orders", "aov"]],
-            use_container_width=True, hide_index=True, height=520,
-            column_config={"country": st.column_config.TextColumn(t("money.mx.country")),
-                           "platform": st.column_config.TextColumn(t("money.mx.platform")),
-                           "category": st.column_config.TextColumn(t("money.mx.category")),
-                           "norm_sku": st.column_config.TextColumn("SKU"),
-                           "product_name": st.column_config.TextColumn(t("money.col.product"), width="medium"),
-                           **_PBI_COLS})
-        _tot = _pbi_agg(fm.assign(_all=1), ["_all"]).iloc[0]
-        st.caption(t("money.mx.total", s=f"{_tot['sales_vat_incl']:,.2f}".replace(",", " "),
-                     cp=f"{_tot['cp']:,.2f}".replace(",", " "), u=f"{_tot['units']:,.0f}".replace(",", " "))
-                   + " " + (t("money.mx.orders_note") if not _orders_ok else ""))
+        _matrix_tab()
 
 # ---------- комиссии/структура ----------
 with tab_fees:

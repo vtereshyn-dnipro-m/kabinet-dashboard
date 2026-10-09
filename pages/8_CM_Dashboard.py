@@ -14,7 +14,7 @@ import data_passport as passport
 from i18n import get_lang, init_lang, t
 import pbi
 import period as period_mod
-from util import day_axis, show_df
+from util import day_axis, grid_height, show_df
 import catalog
 
 init_lang()
@@ -127,6 +127,27 @@ def load_market_map() -> pd.DataFrame:
                     if "country" in df.columns else ""),
     })
     return out[out["channel"].ne("") & out["channel"].ne("None")].drop_duplicates()
+
+
+@st.cache_data(ttl=600)
+def load_pbi_market_map() -> pd.DataFrame:
+    """Рынок → площадка и страна из витрины Power BI (09.10.2026). Нужен потому, что Wallapop и сайта (WP_ES, WEB_ES)
+    в справочнике маркетплейсов может не быть — и тогда выбор Испании их не подтягивал, а площадка подписывалась
+    запасным «Amazon». Страна витрины — словом («Spain»), код берётся через справочник стран."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql(f"SELECT DISTINCT marketplace, pbi_marketplace AS channel, pbi_country FROM {pbi.SOURCE}", conn)
+    except Exception:
+        return pd.DataFrame(columns=["marketplace_code", "channel", "country"])
+    finally:
+        conn.close()
+    try:
+        names = pbi.country_names()
+    except Exception:
+        names = {}
+    df["country"] = df["pbi_country"].map(lambda c: (names.get(str(c).strip().lower()) or {}).get("code") or "")
+    return pd.DataFrame({"marketplace_code": df["marketplace"].astype(str).str.upper(), "channel": df["channel"],
+                         "country": df["country"].astype(str).str.upper()}).drop_duplicates()
 
 
 @st.cache_data(ttl=600)
@@ -407,6 +428,14 @@ if not _mkt.empty:
     _code2channel = dict(zip(_mkt["marketplace_code"], _mkt["channel"]))
     _code2country = {c: v for c, v in zip(_mkt["marketplace_code"], _mkt["country"])
                      if v}
+if not pbi.OWN_METHOD:
+    # рынки, которых нет в справочнике (Wallapop, сайт), — площадкой и страной из витрины Power BI; справочник главнее
+    _pm = load_pbi_market_map()
+    for c, ch, ctry in _pm[["marketplace_code", "channel", "country"]].itertuples(index=False):
+        _code2channel.setdefault(c, ch)
+        if ctry:
+            _code2country.setdefault(c, ctry)
+    all_mp = sorted(set(all_mp) | set(_pm["marketplace_code"]))
 
 if _code2country:
     countries = sorted({_code2country.get(str(m).upper(), "")
@@ -789,7 +818,7 @@ with tab_sum:
                 t("cm.col.returns_pct"), format="%.0f%%",
                 help=t("cm.col.returns_pct_help"))
 
-            show_df(view[show], use_container_width=True, height=560,
+            show_df(view[show], use_container_width=True, height=grid_height(len(view)),
                          hide_index=True, column_config=conf)
             st.caption(t("cm.summary.shown", 
                 n=len(view), total=_total_all))
@@ -891,7 +920,7 @@ with tab_par:
             for c in _eur:
                 conf[c] = st.column_config.NumberColumn(
                     str(c).upper().replace("_", " · "), format="%.2f €")
-            show_df(P[show], use_container_width=True, height=560,
+            show_df(P[show], use_container_width=True, height=grid_height(len(P)),
                          hide_index=True, column_config=conf)
             st.caption(t("cm.summary.shown", n=len(P), total=_total))
             st.caption(t("cm.par.note"))
@@ -932,7 +961,7 @@ with tab_par:
         V = V.assign(_a=V["diff_pct"].abs()).sort_values(["_a", "sku"], ascending=[False, True], na_position="last")
         V["product_name"] = V["product_name"].map(lambda x: "" if pd.isna(x) else str(x))
         cols = ["sku", "product_name", "b2c_price", "b2c_state", "b2b_price", "b2b_state", "diff_eur", "diff_pct"]
-        show_df(V[cols], use_container_width=True, hide_index=True, height=420, column_config={
+        show_df(V[cols], use_container_width=True, hide_index=True, height=grid_height(len(V), 11), column_config={
             "sku": st.column_config.TextColumn("SKU", width="small"),
             "product_name": st.column_config.TextColumn(t("cm.col.product"), width="medium"),
             "b2c_price": st.column_config.NumberColumn(t("cm.mmb.col_b2c"), format="%.2f €"),
@@ -1136,7 +1165,7 @@ with tab_amz:
             view[["photo", "created_at", "days_open", "sev_label",
                   "type_label", "sku", "asin_url", "warehouse_name",
                   "message"]],
-            use_container_width=True, height=420, hide_index=True,
+            use_container_width=True, height=grid_height(len(view), 11), hide_index=True,
             column_config={
                 "photo": catalog.image_column(),
                 "created_at": st.column_config.TextColumn(
