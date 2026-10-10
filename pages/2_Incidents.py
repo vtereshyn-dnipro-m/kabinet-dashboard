@@ -7,7 +7,7 @@ from db.connection import get_connection
 import data_passport as passport
 from i18n import init_lang, t, incident_type_label
 import auth
-from util import as_text
+from util import as_text, grid_height
 import catalog
 
 init_lang()
@@ -332,7 +332,7 @@ event = st.dataframe(
     show[["photo", "created_str", "severity_icon", "incident_type", "channel", "sku",
           "asin_url", "warehouse_name", "current_qty", "message", "age_days",
           "status"]],
-    use_container_width=True, height=480, hide_index=True,
+    use_container_width=True, height=grid_height(len(show), 13), hide_index=True,
     on_select="rerun", selection_mode="multi-row",
     column_config={
         "photo": catalog.image_column(),
