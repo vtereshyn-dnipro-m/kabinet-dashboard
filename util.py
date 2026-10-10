@@ -154,13 +154,46 @@ def tidy_numbers(df: pd.DataFrame, column_config: dict | None = None) -> pd.Data
     return out
 
 
-def show_df(data, *args, column_config: dict | None = None, **kwargs):
-    """`st.dataframe` с округлением по формату колонок (tidy_numbers). Всё остальное — как у st.dataframe."""
+def _na_as_text(df: pd.DataFrame, column_config: dict | None, na_text: str):
+    """Числовые колонки С ПРОПУСКАМИ — текстом по формату колонки, пропуск — `na_text`. NumberColumn в Streamlit 1.64
+    рисует пустое число словом «None» при любом типе (AGENTS.md), и другого способа показать пустоту нет. Колонка
+    становится текстовой, поэтому её конфиг меняется на TextColumn с той же подписью и правым выравниванием."""
+    import streamlit as st
+    cfg = dict(column_config or {})
+    out = df.copy()
+    for c in out.columns:
+        if not pd.api.types.is_numeric_dtype(out[c]) or not out[c].isna().any():
+            continue
+        cc = cfg.get(c) or {}
+        fmt = ((cc.get("type_config") or {}).get("format") or "") if isinstance(cc, dict) else ""
+        def _f(v, fmt=fmt):
+            if pd.isna(v):
+                return na_text
+            if fmt == "%d":
+                return f"{int(round(float(v)))}"
+            try:
+                return fmt % float(v) if fmt and "%" in fmt else f"{float(v):g}"
+            except (TypeError, ValueError):
+                return f"{float(v):g}"
+        out[c] = out[c].map(_f)
+        if isinstance(cc, dict) and cc:
+            cfg[c] = st.column_config.TextColumn(cc.get("label"), width=cc.get("width"), help=cc.get("help"),
+                                                 alignment="right")
+    return out, cfg
+
+
+def show_df(data, *args, column_config: dict | None = None, na_text: str | None = None, **kwargs):
+    """`st.dataframe` с округлением по формату колонок (tidy_numbers). `na_text` — чем рисовать пустое число вместо
+    «None» (колонка с пропусками становится текстовой, сортировка по ней — как по тексту). Остальное — как у
+    st.dataframe."""
     import streamlit as st
     if isinstance(data, pd.DataFrame) and kwargs.get("height") is None:
         kwargs["height"] = grid_height(len(data))   # целые строки, без обрезанной последней (grid_height)
-    return st.dataframe(tidy_numbers(data, column_config) if isinstance(data, pd.DataFrame) else data,
-                        *args, column_config=column_config, **kwargs)
+    if isinstance(data, pd.DataFrame):
+        data = tidy_numbers(data, column_config)
+        if na_text is not None:
+            data, column_config = _na_as_text(data, column_config, na_text)
+    return st.dataframe(data, *args, column_config=column_config, **kwargs)
 
 
 def grid_height(n_rows: int, max_rows: int = 15) -> int:
@@ -169,3 +202,22 @@ def grid_height(n_rows: int, max_rows: int = 15) -> int:
     обрезанной. Таблица длиннее `max_rows` прокручивается, но видимые строки всегда целые."""
     n = min(max(int(n_rows), 1), max_rows)
     return 35 * (n + 1) + 3
+
+
+def eur(v, neg: bool = False, nd: int = 0, sep: str = ",") -> str:
+    """Сумма в евро для карточек (10.10.2026). То, что округляется до нуля, пишется «0 €» без знака: «−0 €» у Wallapop
+    читалось как расход, которого не было, а «-0 €» получалось и само — из суммы вроде −0,3 €. `neg` — расход,
+    показанный со знаком минус (передаётся положительным); пусто или нечисло — «—»."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return "—"
+    if pd.isna(x):
+        return "—"
+    if round(x, nd) == 0:
+        txt = f"{0:,.{nd}f} €"
+    elif neg:
+        txt = f"−{abs(x):,.{nd}f} €"
+    else:
+        txt = f"{x:,.{nd}f} €".replace("-", "−")
+    return txt if sep == "," else txt.replace(",", sep)

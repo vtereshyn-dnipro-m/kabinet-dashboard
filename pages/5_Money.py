@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 from db.connection import get_connection, data_version
 import data_passport as passport
 from i18n import init_lang, t
-from util import as_text, data_boundary, grid_height, show_df, tidy_numbers
+from util import as_text, data_boundary, eur, grid_height, show_df, tidy_numbers
 import catalog
 from links import AMAZON_DOMAIN, amazon_url
 import period as period_mod
@@ -27,6 +27,11 @@ st.markdown("""
 /* значение ужимается, а не режется многоточием: на ноутбуке с сайдбаром
    шесть колонок — узкие, и «−45 203 €» в 1.9rem не влезает */
 [data-testid="stMetricValue"] { font-size: clamp(1.15rem, 1.75vw, 1.9rem); }
+/* Пока страница пересчитывается после смены периода, Streamlit держит прежние элементы полупрозрачными, и подписи
+   с датами («03.10–09.10.2026») и заголовок периода несколько секунд называли старый период (10.10.2026). Даты
+   прячем, пока прогон до них не дошёл: место остаётся, страница не прыгает */
+[data-stale="true"] [data-testid="stCaptionContainer"],
+.st-key-money_hdr [data-stale="true"] { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -275,6 +280,12 @@ def load_pnl_pbi(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str
     # подкатегория — второй уровень того же справочника Power BI (Welding equipment → Inverters); без кода в ERP — «Set»
     _lvl2 = dict(zip(_cat["sku"], _cat["category_level2_en"])) if "category_level2_en" in _cat else {}
     df["subcategory"] = df["norm_sku"].map(_lvl2).fillna("Set")
+    # третий уровень и название товара — тоже из справочника Power BI, как в его матрице (10.10.2026); у SKU без кода
+    # в ERP там «Set» и «Need to Name», и так же здесь — иначе строки матрицы не сошлись бы с Power BI
+    _lvl3 = dict(zip(_cat["sku"], _cat["category_level3_en"])) if "category_level3_en" in _cat else {}
+    df["category3"] = df["norm_sku"].map(_lvl3).fillna("Set")
+    _nm = dict(zip(_cat["sku"], _cat["name_en"])) if "name_en" in _cat else {}
+    df["pbi_name"] = df["norm_sku"].map(_nm).fillna("Need to Name")
     df["product_name"] = df["product_name"].fillna(df["norm_sku"].map(dict(zip(_cat["sku"], _cat["name_en"]))))
     df["asin"] = (df["norm_sku"].astype(str).str.extract(r"([0-9]{5,})", expand=False)
                   .map(dict(zip(asins["sku_group"], asins["asin"]))))
@@ -469,6 +480,10 @@ c1, c2 = st.columns([1, 2])
 with c1:
     # Ключ постоянный, а выбранное значение всегда остаётся среди вариантов: без ключа Streamlit пересоздавал поле,
     # как только список рынков менялся (кеш списка живёт 10 минут), и выбор молча сбрасывался (09.10.2026)
+    # Выбор живёт ещё и в своём ключе сессии (`money_mk_saved`): состояние виджета Streamlit удаляет, как только
+    # страница не отрисована, и после ухода на «Обзор» и возврата фильтр открывался пустым (10.10.2026)
+    if "money_mk" not in st.session_state and st.session_state.get("money_mk_saved"):
+        st.session_state["money_mk"] = list(st.session_state["money_mk_saved"])
     _mp_lbl = load_mp_labels()
     _mp_opts = sorted(set(load_marketplaces()) | set(st.session_state.get("money_mk") or []),
                       key=lambda c: (_mp_lbl.get(c, c).split(" ")[0] != "Amazon", _mp_lbl.get(c, c)))
@@ -479,6 +494,7 @@ with c1:
         placeholder=t("money.filter.marketplace_ph"),
         key="money_mk",
     )
+    st.session_state["money_mk_saved"] = list(mp_filter)
 with c2:
     search = st.text_input(t("money.filter.search"),
                            placeholder=t("money.filter.search_ph"))
@@ -561,7 +577,8 @@ if d_from and d_to:
         to=_to_eff.strftime("%d.%m.%Y"))
 else:
     _ptitle = t("money.period_days", d=WINDOW)
-st.markdown(f"##### {_ptitle}")
+with st.container(key="money_hdr"):   # заголовок периода прячется на время пересчёта (CSS выше)
+    st.markdown(f"##### {_ptitle}")
 
 if pd.notna(_last):
     if len(_ahead):
@@ -741,14 +758,14 @@ if pbi.OWN_METHOD:
     mn.money_metric(k2, t("money.kpi.net"), f"{tot_net:,.0f} €",
                     vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.after_fees"),
                     help=t("money.kpi.net_help"))
-    mn.money_metric(k3, t("money.kpi.cogs"), "—" if pd.isna(tot_cogs) else f"−{tot_cogs:,.0f} €",
+    mn.money_metric(k3, t("money.kpi.cogs"), "—" if pd.isna(tot_cogs) else eur(tot_cogs, neg=True),
                     vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.cogs_net_credit"),
                     help=(t("money.kpi.cogs_missing") if pd.isna(tot_cogs)
                           else t("money.kpi.cogs_help") + (" " + t("money.kpi.cogs_returns", eur=f"{credit_total:,.0f}",
                                                                       n=credit_units) if credit_total else "")))
-    mn.money_metric(k3b, t("money.kpi.logistics"), f"−{tot_log:,.0f} €",
+    mn.money_metric(k3b, t("money.kpi.logistics"), eur(tot_log, neg=True),
                     vat=mn.VAT_EXCL, channels=_ch, basis="order", help=t("money.kpi.logistics_help"))
-    mn.money_metric(k4, t("money.kpi.ads"), f"−{tot_ads:,.0f} €",
+    mn.money_metric(k4, t("money.kpi.ads"), eur(tot_ads, neg=True),
                     vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=t("mn.x.ads_margin"),
                     help=t("money.kpi.ads_help", sp=f"{sp_in_net:,.0f}", total=f"{f['ads_total'].sum():,.0f}"))
     # Период уезжает вместе с переходом: он общий для Кабинета и лежит в
@@ -811,29 +828,29 @@ else:
     _r2 = st.columns(3)
     k0, k1, k2, k3 = _r1
     k3b, k4, k5 = _r2
-    mn.money_metric(k0, t("money.kpi.sales_incl_pbi"), f"{p_incl:,.0f} €", delta=_d_incl,
+    mn.money_metric(k0, t("money.kpi.sales_incl_pbi"), eur(p_incl), delta=_d_incl,
                     vat=mn.VAT_INCL, channels=_ch, basis="order", extra=_as(t("mn.x.before_returns")),
                     help=t("money.kpi.sales_incl_pbi_help"))
-    mn.money_metric(k1, t("money.kpi.sales_excl_pbi"), f"{p_excl:,.0f} €", delta=_d_excl,
+    mn.money_metric(k1, t("money.kpi.sales_excl_pbi"), eur(p_excl), delta=_d_excl,
                     vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=_as(t("mn.x.before_returns")),
                     help=t("money.kpi.sales_excl_pbi_help"))
-    mn.money_metric(k2, t("money.kpi.expenses_pbi"), f"−{p_exp:,.0f} €",
+    mn.money_metric(k2, t("money.kpi.expenses_pbi"), eur(p_exp, neg=True),
                     vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=_as(),
                     help=t("money.kpi.expenses_pbi_help", comm=f"{p_comm:,.0f}", cogs=f"{p_cogs:,.0f}",
                            log=f"{p_log:,.0f}", other=f"{p_other:,.0f}"))
-    mn.money_metric(k3, t("money.kpi.exp_refund_pbi"), f"{p_ref:,.0f} €",
+    mn.money_metric(k3, t("money.kpi.exp_refund_pbi"), eur(p_ref),
                     vat=mn.VAT_EXCL, channels=_ch, basis=None, extra=_as(t("mn.x.by_settlement")),
                     help=t("money.kpi.exp_refund_pbi_help"))
-    mn.money_metric(k3b, t("money.kpi.reimb_pbi"), f"{p_reimb:,.0f} €",
+    mn.money_metric(k3b, t("money.kpi.reimb_pbi"), eur(p_reimb),
                     vat=mn.VAT_EXCL, channels=_ch, basis=None, extra=_as(),
                     help=t("money.kpi.reimb_pbi_help"))
-    mn.money_metric(k4, t("money.kpi.spend_pbi"), f"−{p_spend:,.0f} €",
+    mn.money_metric(k4, t("money.kpi.spend_pbi"), eur(p_spend, neg=True),
                     vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=_as(),
                     help=t("money.kpi.spend_pbi_help"))
     with k4:
         st.page_link("pages/9_Ads.py", label=t("money.kpi.ads_link"),
                      icon=":material/arrow_forward:")
-    mn.money_metric(k5, t("money.kpi.cp_pbi"), f"{p_cp:,.0f} € · {p_pct:.1f}%",
+    mn.money_metric(k5, t("money.kpi.cp_pbi"), f"{eur(p_cp)} · {p_pct:.1f}%",
                     vat=mn.VAT_EXCL, channels=_ch, basis="order", extra=_as(t("mn.x.share_of_sales_excl")),
                     help=t("money.kpi.cp_pbi_help"))
     # третий ряд — остальные карточки отчёта Power BI (09.10.2026): заказы и средний чек — из его таблицы заказов,
@@ -853,9 +870,9 @@ else:
                     help=t("money.kpi.aov_pbi_help", d=_fmt(_ot["basket_depth"], "{:.2f}")))
     mn.money_metric(_r3[2], t("money.kpi.avg_price_pbi"), _fmt(p_incl / p_units if p_units else None, "{:,.2f} €"),
                     vat=mn.VAT_INCL, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.avg_price_pbi_help"))
-    mn.money_metric(_r3[3], t("money.kpi.tax_pbi"), f"{p_tax:,.0f} €",
+    mn.money_metric(_r3[3], t("money.kpi.tax_pbi"), eur(p_tax),
                     vat=None, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.tax_pbi_help"))
-    mn.money_metric(_r4[0], t("money.kpi.paid_sales_pbi"), f"{p_paid:,.0f} €",
+    mn.money_metric(_r4[0], t("money.kpi.paid_sales_pbi"), eur(p_paid),
                     vat=mn.VAT_INCL, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.paid_sales_pbi_help"))
     mn.money_metric(_r4[1], t("money.kpi.paid_units_pbi"), f"{p_paid_u:,.0f}",
                     vat=mn.VAT_NONE, channels=_ch, basis="order", extra=_as(), help=t("money.kpi.paid_units_pbi_help"))
@@ -1132,7 +1149,7 @@ with tab_pnl:
                   "tacos_pct", "acos_pct", "rank_now", "rank_delta", "amazon_url"])
     show_df(
         by_sku[_sku_cols],
-        use_container_width=True, height=480, hide_index=True,
+        use_container_width=True, height=grid_height(len(by_sku), 13), hide_index=True,
         column_config={
             "photo": catalog.image_column(),
             "flag_col": st.column_config.TextColumn(t("money.col.flag"), width="small",
@@ -1351,9 +1368,10 @@ def _matrix_tab():
     # Раскрывающаяся матрица, как в Power BI (09.10.2026): страна → площадка → категория → подкатегория → SKU.
     # Клик по строке раскрывает или сворачивает её; суммы каждого уровня — те же суммы колонок витрины по своему
     # срезу, что и раньше (_pbi_agg), то есть итог строки всегда равен сумме её детей.
-    _LV = ["country", "platform", "category", "subcategory", "norm_sku"]
+    _LV = ["country", "platform", "category", "subcategory", "category3", "pbi_name", "norm_sku"]
     _LV_NAME = {"country": t("money.mx.country"), "platform": t("money.mx.platform"),
-                "category": t("money.mx.category"), "subcategory": t("money.mx.subcategory"), "norm_sku": "SKU"}
+                "category": t("money.mx.category"), "subcategory": t("money.mx.subcategory"),
+                "category3": t("money.mx.category3"), "pbi_name": t("money.mx.product"), "norm_sku": "SKU"}
     mc1, mc2, mc3 = st.columns([1.6, 1.5, 1.2])
     _cats = mc2.multiselect("Category", sorted(f["category"].dropna().unique()), key="mx_cat",
                             placeholder=t("money.filter.marketplace_ph"))
@@ -1395,7 +1413,6 @@ def _matrix_tab():
     _aggs = {n: _pbi_agg(fm, _LV[:n]) for n in range(1, len(_LV) + 1)}
     for n, a in _aggs.items():
         a["_path"] = [tuple(map(str, r)) for r in a[_LV[:n]].itertuples(index=False)]
-    _names = fm.drop_duplicates("norm_sku").set_index("norm_sku")["product_name"].to_dict()
     rows, paths = [], []
 
     def _walk(level: int, parent: tuple):
@@ -1407,8 +1424,6 @@ def _matrix_tab():
             opened = path in _exp
             mark = "" if leaf else ("▾ " if opened else "▸ ")
             label = path[-1]
-            if leaf and as_text(_names.get(label)):
-                label = f"{label} · {as_text(_names.get(label))}"
             row = {"row": "\u2003" * (level - 1) + mark + label, "level": _LV_NAME[_LV[level - 1]]}
             for c in ("cm_pct_incl", "cm_pct_excl", "cp", "sales_vat_incl", "revenue", "tax", "units", "avg_price"):
                 row[c] = r[c]
@@ -1612,7 +1627,7 @@ with tab_alerts:
         mn.chart_note(t("mn.what.ads_alerts"), mn.VAT_EXCL, "", None)
         a1, a2, a3 = st.columns(3) if pbi.OWN_METHOD else (*st.columns(2), None)
         a1.metric(t("money.alerts.zero"), len(z),
-                  delta=f"−{z['ads_spend'].sum():,.0f} €" if len(z) else None,
+                  delta=eur(z['ads_spend'].sum(), neg=True) if len(z) else None,
                   delta_color="inverse", delta_arrow="off",
                   help=mn.help_with_vat(mn.VAT_EXCL, t("money.alerts.zero_help")))
         if pbi.OWN_METHOD:
@@ -1632,7 +1647,7 @@ with tab_alerts:
         show_df(
             alerts[["photo", "type_label", "sku_display", "asin_url", "marketplace", "units", "ads_spend",
                     *(["cm"] if pbi.OWN_METHOD else []), "details"]],
-            use_container_width=True, height=480, hide_index=True,
+            use_container_width=True, height=grid_height(len(alerts), 13), hide_index=True,
             column_config={
                 "photo": catalog.image_column(),
                 "type_label": st.column_config.TextColumn(t("money.alerts.col_type"), width="small"),
