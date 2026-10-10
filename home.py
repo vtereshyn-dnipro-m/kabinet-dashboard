@@ -11,7 +11,7 @@ import streamlit as st
 
 from db.connection import get_connection, data_version
 from i18n import get_lang, init_lang, t, incident_type_label
-from util import as_text, data_boundary, day_axis
+from util import as_text, data_boundary, day_axis, eur
 import period as period_mod
 import plan_fact
 import ad_ratios
@@ -552,7 +552,7 @@ def safe_div(a, b):
 
 
 def fmt_money(v) -> str:
-    return "—" if v is None or pd.isna(v) else f"{v:,.0f} €"
+    return eur(v)   # ноль без знака, «—» на пустом (util.eur)
 
 
 # ═══════════════════════════════════════════════════════════════════

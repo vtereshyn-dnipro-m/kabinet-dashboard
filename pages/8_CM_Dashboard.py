@@ -14,7 +14,7 @@ import data_passport as passport
 from i18n import get_lang, init_lang, t
 import pbi
 import period as period_mod
-from util import day_axis, grid_height, show_df
+from util import as_text, day_axis, eur, grid_height, show_df
 import catalog
 
 init_lang()
@@ -205,6 +205,19 @@ def load_countries(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=3600)
+def load_pbi_country_platforms() -> pd.DataFrame:
+    """Пары «страна × площадка», которые вообще бывают в витрине Power BI (вся история). Нужны таблице стран: площадка,
+    у которой в периоде нет продаж, остаётся колонкой с нулём (сайт), а там, где её в стране нет вовсе, — «—»."""
+    conn = get_connection()
+    try:
+        return pd.read_sql(f"SELECT DISTINCT pbi_country AS country, pbi_marketplace AS platform FROM {pbi.SOURCE}", conn)
+    except Exception:
+        return pd.DataFrame(columns=["country", "platform"])
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=3600)
 def load_country_names() -> dict:
     try:
         return pbi.country_names()
@@ -389,7 +402,7 @@ def safe_div(a, b):
 
 
 def fmt_money(v) -> str:
-    return "—" if v is None or pd.isna(v) else f"{v:,.0f} €"
+    return eur(v)   # ноль без знака, «—» на пустом (util.eur)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -555,6 +568,11 @@ with tab_sum:
         # него смотрят. Порядок считается по данным, а не задан списком
         chans = (scoped.groupby("channel")["revenue"].sum()
                        .sort_values(ascending=False).index.tolist())
+        # каналы страны из справочника, у которых за период нет продаж (у сайта бывают недели без заказов), — тоже
+        # колонкой и карточкой с нулём, в конце: иначе канал пропадал с экрана, и «продаж не было» читалось как «канала
+        # нет» (10.10.2026)
+        chans += sorted({_code2channel[str(m).upper()] for m in mp_scope
+                         if str(m).upper() in _code2channel} - set(chans))
         # Внутренние имена колонок — по номеру канала: в названии канала
         # бывают пробелы и точки, а pivot из них делает ключи
         slug = {ch: f"c{i}" for i, ch in enumerate(chans)}
@@ -569,6 +587,10 @@ with tab_sum:
                          values=["units", "revenue", "avg_price", "net"])
         wide.columns = [f"{a}_{slug.get(b, b)}" for a, b in wide.columns]
         wide = wide.reset_index()
+        for ch in chans:   # каналы без продаж за период: нули в штуках и деньгах, цены нет
+            for pref in ("units", "revenue", "avg_price", "net"):
+                if f"{pref}_{slug[ch]}" not in wide.columns:
+                    wide[f"{pref}_{slug[ch]}"] = np.nan if pref == "avg_price" else 0.0
         # Ноль ставим только там, где он означает «не продавалось».
         # Цену не заполняем: неизвестная цена и цена ноль — разные вещи,
         # и от этого зависит расхождение ниже
@@ -784,7 +806,7 @@ with tab_sum:
                 help=t("cm.col.returns_pct_help"))
 
             show_df(view[show], use_container_width=True, height=grid_height(len(view)),
-                         hide_index=True, column_config=conf)
+                    hide_index=True, column_config=conf, na_text="—")
             st.caption(t("cm.summary.shown", 
                 n=len(view), total=_total_all))
             st.caption(t("cm.summary.note"))
@@ -1215,10 +1237,26 @@ def _countries_view() -> None:
         return
     names, lang = load_country_names(), get_lang()
     cn["label"] = cn["country"].map(lambda c: pbi.country_label(c, lang, names))
+    # «Website» витрины — «Сайт», как в справочнике маркетплейсов (тот же канал на «Обзоре» и в «Деньгах»)
+    cn["platform"] = cn["platform"].map(lambda p: t("cm.platform.website") if as_text(p) == "Website" else p)
     by_c = (cn.groupby("label", as_index=False)
               .agg(units=("units", "sum"), sales_vat_incl=("sales_vat_incl", "sum"),
-                   sales_vat_excl=("sales_vat_excl", "sum"), cp=("cp", "sum"),
-                   platforms=("platform", lambda x: ", ".join(sorted(set(x))))))
+                   sales_vat_excl=("sales_vat_excl", "sum"), cp=("cp", "sum")))
+    # продажи с НДС каждой площадки — своей колонкой (10.10.2026): Wallapop и сайт отдельно, а не строкой «площадки».
+    # Пусто — площадки в стране нет (на экране «—»), ноль — площадка есть, продаж за период не было
+    _plat = cn.pivot_table(index="label", columns="platform", values="sales_vat_incl", aggfunc="sum")
+    _pairs = load_pbi_country_platforms()
+    if not _pairs.empty:
+        _pairs["label"] = _pairs["country"].map(lambda c: pbi.country_label(c, lang, names))
+        _pairs["platform"] = _pairs["platform"].map(lambda p: t("cm.platform.website") if as_text(p) == "Website" else p)
+        for pl in sorted(set(_pairs["platform"]) - set(_plat.columns)):
+            _plat[pl] = np.nan
+        for lb, pl in _pairs[["label", "platform"]].itertuples(index=False):
+            if lb in _plat.index and pd.isna(_plat.at[lb, pl]):
+                _plat.at[lb, pl] = 0.0   # площадка в стране есть, продаж за период не было
+    _porder = list(_plat.sum().sort_values(ascending=False).index)
+    _pcols = {pl: f"plat_{i}" for i, pl in enumerate(_porder)}
+    by_c = by_c.merge(_plat[_porder].rename(columns=_pcols).reset_index(), on="label", how="left")
     by_c = by_c[(by_c["sales_vat_incl"] != 0) | (by_c["units"] != 0)]
     by_c["cp_pct"] = np.round(safe_div(by_c["cp"], by_c["sales_vat_incl"]) * 100, 1)
     by_c = by_c.sort_values("sales_vat_incl", ascending=False)
@@ -1238,11 +1276,12 @@ def _countries_view() -> None:
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
     show_df(
-        by_c[["label", "platforms", "units", "sales_vat_incl", "sales_vat_excl", "cp", "cp_pct"]],
-        use_container_width=True, hide_index=True,
+        by_c[["label", "units", "sales_vat_incl", "sales_vat_excl", "cp", "cp_pct"] + list(_pcols.values())],
+        use_container_width=True, hide_index=True, na_text="—",
         column_config={
             "label": st.column_config.TextColumn(t("cm.all.col_country")),
-            "platforms": st.column_config.TextColumn(t("cm.all.col_platforms")),
+            **{c: st.column_config.NumberColumn(t("cm.all.col_platform_sales", p=pl), format="%.0f €")
+               for pl, c in _pcols.items()},
             "units": st.column_config.NumberColumn(t("cm.col.units"), format="%d", width="small"),
             "sales_vat_incl": st.column_config.NumberColumn(t("money.kpi.sales_incl_pbi"), format="%.0f €"),
             "sales_vat_excl": st.column_config.NumberColumn(t("money.kpi.sales_excl_pbi"), format="%.0f €"),

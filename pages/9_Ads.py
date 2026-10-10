@@ -20,7 +20,7 @@ from db.connection import get_connection
 import data_passport as passport
 from i18n import init_lang, t
 import auth
-from util import as_text, show_df
+from util import as_text, eur, show_df
 import period as period_mod
 import catalog
 import ads_api
@@ -207,8 +207,7 @@ def listing_url(campaign_name) -> str:
 
 
 def money(v, dec=0) -> str:
-    v = pd.to_numeric(v, errors="coerce")
-    return "—" if pd.isna(v) else f"{v:,.{dec}f}".replace(",", " ") + " €"
+    return eur(pd.to_numeric(v, errors="coerce"), nd=dec, sep="\u00a0")   # ноль без знака (util.eur)
 
 
 def card(col, label: str, base: str, value: str, tone: str = "", note: str = "") -> None:
