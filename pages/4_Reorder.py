@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from db.connection import get_connection
 from i18n import init_lang, t
 import auth
-from util import as_text
+from util import as_text, grid_height
 import catalog
 
 init_lang()
@@ -363,7 +363,7 @@ if not active_tr.empty:
     tr_edited = st.data_editor(
         tr_sorted[["✓", "sku_display", "product_name", "Источник", "Срок", "Куда",
                    "transfer_qty", "Хватит(получатель)", "Едет в Мадрид"]],
-        use_container_width=True, hide_index=True, height=400,
+        use_container_width=True, hide_index=True, height=grid_height(len(tr_sorted), 11),
         column_config={
             "✓": st.column_config.CheckboxColumn(t("ro.tr.col_do"), width="small"),
             "sku_display": st.column_config.TextColumn("SKU", width="small", disabled=True),
@@ -496,7 +496,7 @@ edited = st.data_editor(
          + (["reserve_note"] if "reserve_note" in edit.columns else [])
          + ["in_transit_qty", "quarantine_qty", "planned_qty",
             "daily_velocity", "kit", "days_of_cover", "lead", "suggested_qty", "Переброска"]],
-    use_container_width=True, height=440, hide_index=True,
+    use_container_width=True, height=grid_height(len(edit), 12), hide_index=True,
     column_config={
         "✓": st.column_config.CheckboxColumn(t("ro.order.col_do"), width="small"),
         "Срочность": st.column_config.TextColumn(t("ro.order.col_urgency"), width="small", disabled=True),

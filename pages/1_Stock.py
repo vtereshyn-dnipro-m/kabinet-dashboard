@@ -13,7 +13,7 @@ from i18n import init_lang, t
 import catalog
 import period as period_mod
 import money_notes as mn
-from util import as_text
+from util import as_text, grid_height
 
 init_lang()
 
@@ -674,7 +674,7 @@ if not reserve_df.empty:
                                      as_index=False)["quantity"].sum()
                             .sort_values("quantity", ascending=False))
         st.dataframe(
-            ch_tbl, use_container_width=True, height=320, hide_index=True,
+            ch_tbl, use_container_width=True, height=grid_height(len(ch_tbl), 9), hide_index=True,
             column_config={
                 "warehouse_name": st.column_config.TextColumn(
                     t("stock.channels.col_channel"), width="medium"),
@@ -1160,7 +1160,7 @@ with tab_cov:
             _cov_cols = [c for c in _cov_cols if c in cview.columns]
             st.dataframe(
                 cview[_cov_cols],
-                use_container_width=True, height=460, hide_index=True,
+                use_container_width=True, height=grid_height(len(cview), 13), hide_index=True,
                 column_config={
                     "photo": catalog.image_column(),
                     "sku": st.column_config.TextColumn("SKU", width="small"),
@@ -1382,7 +1382,7 @@ with tab_cov:
                 st.dataframe(
                     ptbl[["week_num", "week_start", "stock_begin", "incoming",
                           "forecast", "stock_end", "unmet_demand", "covered"]],
-                    use_container_width=True, height=360, hide_index=True,
+                    use_container_width=True, height=grid_height(len(ptbl), 10), hide_index=True,
                     column_config={
                         "week_num": st.column_config.NumberColumn(
                             t("stock.cov.p_week"), width="small"),
@@ -1637,7 +1637,7 @@ if SHOW_DRAFT_TABS:
 
         country_cols = [c for c in full_pivot.columns if c != total_col]
         st.dataframe(
-            table_view, use_container_width=True, height=520, hide_index=True,
+            table_view, use_container_width=True, height=grid_height(len(table_view), 14), hide_index=True,
             column_config={
                 "photo": catalog.image_column(),
                 "sku_display": st.column_config.TextColumn(t("stock.ctr.col_sku"), width="small"),
@@ -1677,7 +1677,7 @@ if SHOW_DRAFT_TABS:
             st.dataframe(
                 dfx[["photo", "sku", "asin_url", "product_name", "quantity",
                      "countries"]],
-                use_container_width=True, height=280, hide_index=True,
+                use_container_width=True, height=grid_height(len(dfx), 7), hide_index=True,
                 column_config={
                     "photo": catalog.image_column(),
                     "sku": st.column_config.TextColumn(t("stock.ctr.col_sku"), width="medium"),
@@ -1722,7 +1722,7 @@ if SHOW_DRAFT_TABS:
             st.dataframe(
                 tbl[["photo", "sku_display", "product_name", "quantity",
                      "countries", "category", "amazon_url"]],
-                use_container_width=True, height=560, hide_index=True,
+                use_container_width=True, height=grid_height(len(tbl), 15), hide_index=True,
                 column_config={
                     "photo": catalog.image_column(),
                     "sku_display": st.column_config.TextColumn(t("stock.ctr.col_sku"), width="small"),
@@ -1751,7 +1751,7 @@ if SHOW_DRAFT_TABS:
                 tbl[["photo", "sku_display", "product_name", "location",
                      "quantity", "availability_status", "category",
                      "amazon_url", "snapshot_date"]],
-                use_container_width=True, height=560, hide_index=True,
+                use_container_width=True, height=grid_height(len(tbl), 15), hide_index=True,
                 column_config={
                     "photo": catalog.image_column(),
                     "sku_display": st.column_config.TextColumn(t("stock.ctr.col_sku"), width="small"),
