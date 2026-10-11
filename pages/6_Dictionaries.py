@@ -2472,6 +2472,8 @@ _MPT_TR = {
         "mp_trial_until_help": "Дата из кабинета площадки. После неё проверка данных снова обычная, даже если заказов так и не было.",
         "mp_trial_note": "Пояснение", "mp_trial_note_ph": "например: тариф Booster, бесплатно 30 дней",
         "mp_trial_save": "Сохранить пробный период",
+        "mp_data_no_loader": "загрузчика нет",
+        "mp_no_loader_info": "проверка данных выключена, пока загрузчика нет: сторож не пишет «нет данных». Первая загрузка вернёт обычную проверку.",
     },
     "uk": {
         "mp_data_trial": "пробний період до {d}", "mp_trial_short": "пробний період",
@@ -2485,6 +2487,8 @@ _MPT_TR = {
         "mp_trial_until_help": "Дата з кабінету площадки. Після неї перевірка даних знову звичайна, навіть якщо замовлень так і не було.",
         "mp_trial_note": "Пояснення", "mp_trial_note_ph": "наприклад: тариф Booster, безкоштовно 30 днів",
         "mp_trial_save": "Зберегти пробний період",
+        "mp_data_no_loader": "завантажувача немає",
+        "mp_no_loader_info": "перевірку даних вимкнено, поки завантажувача немає: сторож не пише «немає даних». Перше завантаження поверне звичайну перевірку.",
     },
     "en": {
         "mp_data_trial": "trial until {d}", "mp_trial_short": "trial period",
@@ -2498,6 +2502,8 @@ _MPT_TR = {
         "mp_trial_until_help": "The date from the platform's seller account. After it the data check is normal again, even if there were no orders.",
         "mp_trial_note": "Note", "mp_trial_note_ph": "e.g. Booster plan, free for 30 days",
         "mp_trial_save": "Save trial period",
+        "mp_data_no_loader": "no loader",
+        "mp_no_loader_info": "the data check is off while there is no loader: the watchdog doesn't report «no data». The first load brings back the usual check.",
     },
 }
 for _lg, _d in _MPT_TR.items():
@@ -4079,14 +4085,19 @@ def _mp_with_data_status(mps: pd.DataFrame) -> pd.DataFrame:
     «данные не загружаются» живёт в одном месте (sql/marketplace_data_status_2026-10-06.sql). Вью нет или
     оно не прочиталось — колонка пустая, а не «всё в порядке»."""
     try:
-        ds = q("""SELECT marketplace_id AS id, status AS data_status, config_missing, last_data_at, window_days,
-                         trial_until, last_source
-                  FROM kabinet_data.v_marketplace_data_status""")
-        return mps.merge(ds, on="id", how="left")
+        # SELECT *, а не список колонок: no_loader_note появилась во вью 11.10.2026, и страница не должна терять все
+        # статусы, если код выложен раньше SQL — недостающая колонка просто пустая
+        ds = q("SELECT * FROM kabinet_data.v_marketplace_data_status").rename(
+            columns={"marketplace_id": "id", "status": "data_status"})
+        for col in ("config_missing", "last_data_at", "window_days", "trial_until", "last_source", "no_loader_note"):
+            if col not in ds.columns:
+                ds[col] = None
+        return mps.merge(ds[["id", "data_status", "config_missing", "last_data_at", "window_days", "trial_until",
+                             "last_source", "no_loader_note"]], on="id", how="left")
     except Exception:
         out = mps.copy()
         out["data_status"], out["config_missing"], out["last_data_at"], out["window_days"] = None, None, None, None
-        out["trial_until"], out["last_source"] = None, None
+        out["trial_until"], out["last_source"], out["no_loader_note"] = None, None, None
         return out
 
 
@@ -4106,7 +4117,8 @@ def _mp_data_label(r) -> str:
             word = _tr("mp_src_" + src) if src else ""
             out += " · " + _trf("mp_data_last", src=word if word != "mp_src_" + src else src, d=ts.strftime("%d.%m")).strip()
         return out
-    return _tr("mp_data_" + st_) if st_ in ("no_config", "no_data", "ok") else ""
+    # 'no_loader' — загрузчика по маркетплейсу нет (TikTok Shop, 11.10.2026): данных и не должно быть, это не тревога
+    return _tr("mp_data_" + st_) if st_ in ("no_config", "no_data", "ok", "no_loader") else ""
 
 
 def _mp_nodata_reason(row) -> str:
@@ -4147,6 +4159,10 @@ def _mp_card(row, sel: int, plats, countries, curr):
             st.warning("**" + _tr("mp_nodata_text") + "**  \n" + _mp_nodata_reason(row))
         elif row.get("data_status") == "trial":
             st.info(_mp_data_label(row) + " — " + _tr("mp_trial_info"))
+        elif row.get("data_status") == "no_loader":
+            note = as_text(row.get("no_loader_note"))
+            st.info(_tr("mp_data_no_loader").capitalize() + " — " + _tr("mp_no_loader_info")
+                    + (f"  \n{note}" if note else ""))
         if blockers:
             st.caption(_tr("mp_deps_head") + " " + "; ".join(blockers))
         else:

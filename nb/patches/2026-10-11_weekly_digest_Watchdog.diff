@@ -1,0 +1,247 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -2073,6 +2073,8 @@
+ # Тишина = ничего не случилось.
+ # ─────────────────────────────────────────────────────────────
+ import requests as _tg_req
++import re
++from zoneinfo import ZoneInfo
+ # incidents.created_at — timestamp БЕЗ зоны (сессия GMT), а now и resolved_at — с зоной.
+ # Голое created_at приезжает naive-датой, вычитание падает TypeError, и except ниже
+ # глотает ВСЁ сообщение: с 01.09 по 13.09 в Telegram не ушло ни одного алерта.
+@@ -2086,6 +2088,7 @@
+ if not REPORT_ONLY:
+     _tg_lines = []
+     new_incidents, resolved_incidents, stale_open, should_remind, _recon11 = [], [], [], False, []
++    _weekly_open, _weekly_due = [], False
+     try:
+         import html as _html
+         # ── 0. 🔴 Сверка 1:1 с Power BI — первой строкой и каждым прогоном (решение владельца 10.10.2026) ──
+@@ -2114,7 +2117,72 @@
+                     _tg_lines.append(f"   {_html.escape(body[:300])}")
+             _tg_lines.append("Что делать: проверить джобу Kabinet - Power BI Replica и перезапустить её, "
+                              "затем Kabinet - Reconciliation.")
++
++        # ── Ежедневно или раз в неделю (решение владельца 11.10.2026) ──
++        # 10.10 в «висит» было 126 тревог, и поимённо шли пять самых старых — всегда блокировки листингов по 20+ дней;
++        # дефицит раньше поставки и Buy Box тонули под ними. Теперь у ТИПА тревоги в справочнике есть
++        # telegram_digest: daily — напоминает каждый день, weekly — в понедельничной сводке; у weekly-типа тревога с
++        # важностью не ниже telegram_daily_min_severity остаётся ежедневной (здоровье аккаунта critical/high).
++        # Новые и устранённые идут в ежедневное сообщение всегда. Правило в базе, а не списком здесь: колонок нет
++        # (SQL ещё не применён) — все типы ежедневные, то есть поведение прежнее.
++        _SEV_RANK = {"low": 1, "medium": 2, "high": 3, "critical": 4}
++        _digest, _type_title = {}, {}
++        try:
++            pg_cur.execute("""SELECT incident_type, telegram_digest, telegram_daily_min_severity,
++                                     coalesce(nullif(title, ''), incident_type)
++                              FROM kabinet_data.incident_types""")
++            for _it, _dg, _dmin, _ttl in pg_cur.fetchall():
++                _digest[_it] = (_dg, _dmin)
++                _type_title[_it] = _ttl
++        except Exception as e:
++            print(f"\n⚠️ incident_types.telegram_digest не прочитался — все тревоги ежедневные: {type(e).__name__}: {e}")
++            pg_cur.execute("SELECT incident_type, coalesce(nullif(title, ''), incident_type) FROM kabinet_data.incident_types")
++            _type_title = dict(pg_cur.fetchall())
++
++        def _is_weekly(itype, sev):
++            dg, dmin = _digest.get(itype, ("daily", None))
++            if dg != "weekly":
++                return False
++            return not (dmin and _SEV_RANK.get(str(sev).lower(), 0) >= _SEV_RANK.get(dmin, 9))
+ 
++        def _tok(msg):
++            return msg.split(']')[0].replace('[', '') if msg and msg.startswith('[') else (msg or '')[:50]
++
++        # Блокировка листинга без причины не говорит, кому действовать: причину берём из проблем листинга
++        # (Listing Issues Loader), группируем «рынок × причина». Подпись — словами для частых кодов Amazon, иначе код;
++        # проблемы нет вовсе — так и пишем: Amazon её не отдал.
++        _PAIR_CAUSE = {"100530": "нужен номер ERN (EPR)", "100632": "нужны данные о соответствии (ERN/GPSR)",
++                       "100527": "нет данных производителя", "100907": "нужны права доступа",
++                       "18448": "не хватает атрибутов", "18616": "требование Account Health",
++                       "18146": "товарный знак"}
++
++        def _pair_groups(msgs):
++            """[(рынок, причина, число ASIN)] для сообщений listing_pair_blocked, крупные группы первыми."""
++            pairs = []
++            for m in msgs:
++                a, _, mk = _tok(m).replace("PAIR:", "").partition("/")
++                pairs.append((a, mk.lower()))
++            causes = {}
++            if pairs:
++                try:
++                    pg_cur.execute("""
++                        SELECT DISTINCT ON (asin, lower(marketplace)) asin, lower(marketplace), issue_code
++                        FROM kabinet_data.listing_issues
++                        WHERE resolved_at IS NULL AND asin = ANY(%s)
++                        ORDER BY asin, lower(marketplace), (severity = 'ERROR') DESC, last_seen DESC""",
++                                   ([a for a, _ in pairs],))
++                    causes = {(a, mk): code for a, mk, code in pg_cur.fetchall()}
++                except Exception as e:
++                    print(f"\n⚠️ причины блокировок не прочитались: {type(e).__name__}: {e}")
++            cnt = {}
++            for a, mk in pairs:
++                code = causes.get((a, mk))
++                why = (f"{_PAIR_CAUSE[code]} · код {code}" if code in _PAIR_CAUSE
++                       else f"код {code}" if code else "Amazon причину не отдал")
++                key = (mk.upper(), why)
++                cnt[key] = cnt.get(key, 0) + 1
++            return sorted(((mk, why, n) for (mk, why), n in cnt.items()), key=lambda x: (-x[2], x[0]))
++
+         # ── 1. 🚨 Новые нарушения (созданы в этом прогоне = last 5 min) ──
+         pg_cur.execute("""
+             SELECT incident_type, message, created_at AT TIME ZONE 'UTC' AS created_at
+@@ -2130,10 +2198,12 @@
+             if _tg_lines:
+                 _tg_lines.append("")
+             _tg_lines.append(f"🚨 <b>Watchdog: {len(new_incidents)} новых</b>")
++            _new_pairs = [msg for itype, msg, created in new_incidents if itype == "listing_pair_blocked"]
+             for itype, msg, created in new_incidents:
+-                # Извлекаем короткое имя из [XXX:yyy]
+-                short = msg.split(']')[0].replace('[', '') if '[' in msg else msg[:50]
+-                _tg_lines.append(f"• <code>{short}</code>")
++                if itype != "listing_pair_blocked":
++                    _tg_lines.append(f"• <code>{_tok(msg)}</code>")
++            for mk, why, n in _pair_groups(_new_pairs):
++                _tg_lines.append(f"• листинг заблокирован {mk} · {why} — {n} ASIN")
+ 
+         # ── 2. ✅ Устранено в этом прогоне (автозакрыто last 5 min) ──
+         pg_cur.execute("""
+@@ -2165,7 +2235,7 @@
+ 
+         # ── 3. ⏳ Напоминание: открытые инциденты >24h, макс раз в сутки ──
+         pg_cur.execute("""
+-            SELECT incident_type, message, created_at AT TIME ZONE 'UTC' AS created_at
++            SELECT incident_type, message, created_at AT TIME ZONE 'UTC' AS created_at, severity
+             FROM kabinet_data.incidents
+             WHERE source IN ('watchdog', 'listing_pairs')
+               AND resolved_at IS NULL
+@@ -2173,39 +2243,87 @@
+               AND NOT starts_with(message, %s)
+             ORDER BY created_at
+         """, (_RECON11,))
+-        stale_open = pg_cur.fetchall()
+-        if stale_open:
+-            pg_cur.execute("SELECT last_reminder_at FROM kabinet_data.watchdog_heartbeat WHERE id = 1")
+-            row = pg_cur.fetchone()
+-            last_reminder = row[0] if row else None
+-            # Один раз в сутки: если не напоминали сегодня
+-            should_remind = (last_reminder is None) or (last_reminder.date() < now.date())
+-            if should_remind:
+-                if _tg_lines:
+-                    _tg_lines.append("")
+-                # 51 строка «висит» читается как шум и приучает не читать.
+-                # Поимённо — только то, что старше трёх дней (это уже не
+-                # «загрузчик опоздал», а «никто не занимается»); моложе —
+-                # одной строкой суммой по типам.
+-                _old = [r for r in stale_open if (now - r[2]).total_seconds() >= 3 * 86400]
+-                _young = [r for r in stale_open if (now - r[2]).total_seconds() < 3 * 86400]
+-                _tg_lines.append(f"⏳ <b>Всё ещё висит ({len(stale_open)})</b>")
+-                if _old:
+-                    _tg_lines.append(f"старше 3 дней — {len(_old)}:")
+-                    for itype, msg, created in _old[:5]:
+-                        short = msg.split(']')[0].replace('[', '') if '[' in msg else msg[:50]
+-                        age_d = (now - created).total_seconds() / 86400
+-                        _tg_lines.append(f"• <code>{short}</code> — {age_d:.0f}д")
+-                    if len(_old) > 5:
+-                        _tg_lines.append(f"  <i>...+{len(_old)-5} ещё</i>")
+-                if _young:
+-                    _by_type = {}
+-                    for itype, _m, _c in _young:
+-                        _by_type[itype] = _by_type.get(itype, 0) + 1
+-                    _tg_lines.append("от 1 до 3 дней — " + str(len(_young)) + ": " + ", ".join(
+-                        f"{k} {v}" for k, v in sorted(_by_type.items(), key=lambda kv: -kv[1])))
+-                # Отмечаем что напомнили
+-                pg_cur.execute("UPDATE kabinet_data.watchdog_heartbeat SET last_reminder_at = now() WHERE id = 1")
++        _stale_all = pg_cur.fetchall()
++        stale_open = [r for r in _stale_all if not _is_weekly(r[0], r[3])]
++        _weekly_open = [r for r in _stale_all if _is_weekly(r[0], r[3])]
++        pg_cur.execute("ALTER TABLE kabinet_data.watchdog_heartbeat ADD COLUMN IF NOT EXISTS last_weekly_digest_at TIMESTAMPTZ")
++        pg_cur.execute("SELECT last_reminder_at, last_weekly_digest_at FROM kabinet_data.watchdog_heartbeat WHERE id = 1")
++        row = pg_cur.fetchone()
++        last_reminder, last_weekly = (row[0], row[1]) if row else (None, None)
++        # Один раз в сутки: если не напоминали сегодня
++        should_remind = (last_reminder is None) or (last_reminder.date() < now.date())
++        pg_cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'watchdog_weekly_digest_dow'")
++        _dow_row = pg_cur.fetchone()
++        _digest_dow = int(_dow_row[0]) if _dow_row else 1
++        _today_kyiv = now.astimezone(ZoneInfo("Europe/Kyiv")).date()
++        _weekly_due = (_today_kyiv.isoweekday() == _digest_dow
++                       and (last_weekly is None or last_weekly.astimezone(ZoneInfo("Europe/Kyiv")).date() < _today_kyiv))
++        if should_remind and stale_open:
++            if _tg_lines:
++                _tg_lines.append("")
++            # Поимённо — только то, что старше трёх дней (это уже не «загрузчик опоздал», а «никто не занимается»),
++            # сначала самое важное; моложе — одной строкой суммой по типам.
++            _old = sorted([r for r in stale_open if (now - r[2]).total_seconds() >= 3 * 86400],
++                          key=lambda r: (-_SEV_RANK.get(str(r[3]).lower(), 0), r[2]))
++            _young = [r for r in stale_open if (now - r[2]).total_seconds() < 3 * 86400]
++            _tg_lines.append(f"⏳ <b>Всё ещё висит ({len(stale_open)})</b>")
++            if _old:
++                _tg_lines.append(f"старше 3 дней — {len(_old)}:")
++                for itype, msg, created, sev in _old[:5]:
++                    age_d = (now - created).total_seconds() / 86400
++                    _tg_lines.append(f"• <code>{_tok(msg)}</code> — {age_d:.0f}д")
++                if len(_old) > 5:
++                    _tg_lines.append(f"  <i>...+{len(_old)-5} ещё</i>")
++            if _young:
++                _by_type = {}
++                for itype, _m, _c, _s in _young:
++                    _by_type[itype] = _by_type.get(itype, 0) + 1
++                _tg_lines.append("от 1 до 3 дней — " + str(len(_young)) + ": " + ", ".join(
++                    f"{k} {v}" for k, v in sorted(_by_type.items(), key=lambda kv: -kv[1])))
++        if _weekly_open and _weekly_due:
++            # ── 3b. 📅 Понедельничная сводка: долгие тревоги, по которым действует человек вне Кабинета ──
++            if _tg_lines:
++                _tg_lines.append("")
++            _tg_lines.append(f"📅 <b>Недельная сводка: висит {len(_weekly_open)}</b>")
++            _by_t = {}
++            for r in _weekly_open:
++                _by_t.setdefault(r[0], []).append(r)
++            for itype, rows in sorted(_by_t.items(), key=lambda kv: -len(kv[1])):
++                oldest = max((now - r[2]).total_seconds() / 86400 for r in rows)
++                _tg_lines.append(f"<b>{_html.escape(str(_type_title.get(itype, itype)))}</b> — {len(rows)}, "
++                                 f"самая старая {oldest:.0f}д:")
++                if itype == "listing_pair_blocked":
++                    for mk, why, n in _pair_groups([r[1] for r in rows]):
++                        _tg_lines.append(f"• {mk} · {why} — {n} ASIN")
++                elif itype in ("missing_forecast", "partial_forecast"):
++                    # [MISSING:AMZ-IT/78065000] → по объекту прогноза, число SKU
++                    _obj = {}
++                    for r in rows:
++                        o = _tok(r[1]).split(":", 1)[-1].split("/")[0]
++                        _obj[o] = _obj.get(o, 0) + 1
++                    _tg_lines.append("• " + ", ".join(f"{o} — {n} SKU" for o, n in
++                                                      sorted(_obj.items(), key=lambda kv: -kv[1])))
++                elif itype == "buybox_no_offers":
++                    # [BBNO:IE] Нельзя купить: у 143 ASIN … → рынок и число ASIN из текста
++                    _parts = []
++                    for r in rows:
++                        mk = _tok(r[1]).split(":", 1)[-1]
++                        n_asin = re.search(r"у (\d+) ASIN", r[1])
++                        _parts.append((int(n_asin.group(1)) if n_asin else 0, mk))
++                    _tg_lines.append("• " + ", ".join(f"{mk} — {n} ASIN" if n else mk
++                                                      for n, mk in sorted(_parts, reverse=True)))
++                else:
++                    _tg_lines.append("• " + ", ".join(f"{_tok(r[1])} ({r[3]})" for r in rows[:12])
++                                     + (f" …+{len(rows) - 12}" if len(rows) > 12 else ""))
++            pg_cur.execute("UPDATE kabinet_data.watchdog_heartbeat SET last_weekly_digest_at = now() WHERE id = 1")
++        elif _weekly_open and should_remind:
++            # не понедельник — одной строкой, чтобы было видно, что они не потерялись
++            if _tg_lines:
++                _tg_lines.append("")
++            _tg_lines.append(f"📅 ещё {len(_weekly_open)} долгих тревог — в понедельничной сводке")
++        if should_remind and (stale_open or _weekly_open):
++            # Отмечаем что напомнили
++            pg_cur.execute("UPDATE kabinet_data.watchdog_heartbeat SET last_reminder_at = now() WHERE id = 1")
+ 
+         # ── 4. 📝 Uncovered jobs (понедельник) ──
+         if _uncovered_jobs_msg:
+@@ -2246,7 +2364,7 @@
+                 "chat_id": _tg_chat, "text": _tg_msg, "parse_mode": "HTML"
+             }, timeout=15)
+             if resp.ok:
+-                print(f"\n📩 Telegram: 🔴{len(_recon11)} 🚨{len(new_incidents)} ✅{len(resolved_incidents)} ⏳{len(stale_open) if stale_open and should_remind else 0} ⚙️{len(_soft_errors)}")
++                print(f"\n📩 Telegram: 🔴{len(_recon11)} 🚨{len(new_incidents)} ✅{len(resolved_incidents)} ⏳{len(stale_open) if stale_open and should_remind else 0} 📅{len(_weekly_open) if _weekly_due else 0} ⚙️{len(_soft_errors)}")
+             else:
+                 _tg_failed = f"HTTP {resp.status_code} {resp.text[:200]}"
+         except Exception as e:
