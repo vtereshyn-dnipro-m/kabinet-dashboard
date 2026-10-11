@@ -1,0 +1,45 @@
+--- a/Kabinet - FBA Charges Loader
++++ b/Kabinet - FBA Charges Loader
+@@ -108,6 +108,10 @@
+         if st["processingStatus"] in ("DONE", "FATAL", "CANCELLED"): break
+         if time.time() - t0 > 900: raise RuntimeError(f"{rtype} {rid}: не готов за 15 минут")
+         time.sleep(15)
++    if st["processingStatus"] == "CANCELLED":
++        # CANCELLED у Amazon — «за этот период данных нет» (хранение за прошлый месяц публикуется около 7–15 числа),
++        # а не сбой: 05.10.2026 такой ответ ронял весь прогон, и возмещения с пульсом не записывались (10.10.2026)
++        return rid, None
+     if st["processingStatus"] != "DONE":
+         raise RuntimeError(f"{rtype} {rid}: {st['processingStatus']}")
+     doc = api("get", f"/reports/2021-06-30/documents/{st['reportDocumentId']}")
+@@ -141,7 +145,9 @@
+ 
+ def replicate(table, cols, rows, key):
+     if not rows: return
+-    upd = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in key)
++    # loaded_at — время ЗАПИСИ этим прогоном, и у уже бывших строк тоже: по нему правило свежести судит, жив ли
++    # загрузчик, а без этого оно показывало «последняя новая строка» и тревожило в тихие недели (10.10.2026)
++    upd = ", ".join([f"{c} = EXCLUDED.{c}" for c in cols if c not in key] + ["loaded_at = now()"])
+     with _pg.cursor() as cur:
+         psycopg2.extras.execute_values(cur,
+             f"INSERT INTO kabinet_data.{table} ({','.join(cols)}) VALUES %s "
+@@ -196,6 +202,10 @@
+     last_day = calendar.monthrange(y, m)[1]
+     rid, rows = fetch_report("GET_FBA_STORAGE_FEE_CHARGES_DATA",
+                              f"{ym}-01T00:00:00Z", f"{ym}-{last_day:02d}T23:59:59Z")
++    if rows is None:
++        storage_months_done.append((ym, "нет данных"))
++        print(f"  {ym}: Amazon ответил CANCELLED — за месяц данных пока нет, report {rid}")
++        continue
+     hdr = [norm_header(h) for h in rows[0]]; idx = {h: i for i, h in enumerate(hdr)}
+     seen = set(); n = 0; month_rows = []
+     for r in rows[1:]:
+@@ -235,6 +245,9 @@
+     cur_to = min(cur_from + timedelta(days=170), today)
+     rid, rows = fetch_report("GET_FBA_REIMBURSEMENTS_DATA",
+                              f"{cur_from.isoformat()}T00:00:00Z", f"{cur_to.isoformat()}T23:59:59Z")
++    if rows is None:   # CANCELLED — возмещений за окно нет
++        print(f"  возмещения {cur_from}–{cur_to}: CANCELLED, данных нет, report {rid}")
++        cur_from = cur_to + timedelta(days=1); continue
+     hdr = [norm_header(h) for h in rows[0]]; idx = {h: i for i, h in enumerate(hdr)}
+     seen = set(); n = 0
+     for r in rows[1:]:

@@ -1,0 +1,15 @@
+--- a/Kabinet - Unified Pricing Loader
++++ b/Kabinet - Unified Pricing Loader
+@@ -211,7 +211,11 @@
+ """)
+ weights = {r["sku"]: float(r["weight_kg"]) for r in cur.fetchall() if r["weight_kg"] is not None}
+ 
+-rate_card = [(float(r["min_weight"]), float(r["max_weight"]), float(r["cost"])) for r in spark.sql("""
++# С 04.10.2026 сетка помесячная, и у части диапазонов веса в месяце нет тарифа (cost пуст: в ES за август — 60–85 кг).
++# Пустой тариф — не ноль: товар этого веса получает прочерк доставки и прибыли, как товар без веса. До 10.10 float(None)
++# ронял весь прогон, и лист не обновлялся с 05.10.
++rate_card = [(float(r["min_weight"]), float(r["max_weight"]),
++              None if r["cost"] is None else float(r["cost"])) for r in spark.sql("""
+     SELECT min_weight, max_weight, cost FROM dnipro_m.raw_delivery_costs
+     WHERE country = 'ES' AND effective_date = (SELECT max(effective_date) FROM dnipro_m.raw_delivery_costs
+                                                WHERE country = 'ES' AND effective_date <= current_date)

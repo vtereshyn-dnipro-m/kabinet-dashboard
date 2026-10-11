@@ -1,0 +1,86 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -2085,8 +2085,35 @@
+ _tg_failed = None          # причина, если сообщение не ушло — в конце поднимаем
+ if not REPORT_ONLY:
+     _tg_lines = []
+-    new_incidents, resolved_incidents, stale_open, should_remind = [], [], [], False
++    new_incidents, resolved_incidents, stale_open, should_remind, _recon11 = [], [], [], False, []
+     try:
++        import html as _html
++        # ── 0. 🔴 Сверка 1:1 с Power BI — первой строкой и каждым прогоном (решение владельца 10.10.2026) ──
++        # Кабинет показывает цифры Power BI, и расхождение больше 1 € значит, что на экране не то, что в Power BI.
++        # Среди 59 PAIR такие тревоги терялись: в «висит» поимённо шли пять самых старых, а это всегда PAIR.
++        # Поэтому открытые тревоги 1:1 — отдельным блоком наверху, все, с текстом расхождения, и в списки
++        # «новых» и «висит» ниже они уже не входят.
++        _RECON11 = "[RECON:Power BI 1:1/"
++        pg_cur.execute("""
++            SELECT message, created_at AT TIME ZONE 'UTC' AS created_at
++            FROM kabinet_data.incidents
++            WHERE source = 'watchdog' AND incident_type = 'reconciliation'
++              AND resolved_at IS NULL AND starts_with(message, %s)
++            ORDER BY created_at
++        """, (_RECON11,))
++        _recon11 = pg_cur.fetchall()
++        if _recon11:
++            _tg_lines.append(f"🔴 <b>Сверка 1:1 с Power BI: {len(_recon11)} расхождений</b>")
++            for msg, created in _recon11:
++                short = msg.split(']')[0].replace('[', '')
++                body = msg.split('] ', 1)[1].split(' Реплика витрины')[0] if '] ' in msg else ''
++                age_d = (now - created).total_seconds() / 86400
++                when = "новое" if age_d < 5 / 1440 else (f"висит {age_d:.0f}д" if age_d >= 1 else "сегодня")
++                _tg_lines.append(f"🔴 <code>{_html.escape(short)}</code> — {when}")
++                if body:
++                    _tg_lines.append(f"   {_html.escape(body[:300])}")
++            _tg_lines.append("Что делать: проверить джобу Kabinet - Power BI Replica и перезапустить её, "
++                             "затем Kabinet - Reconciliation.")
+ 
+         # ── 1. 🚨 Новые нарушения (созданы в этом прогоне = last 5 min) ──
+         pg_cur.execute("""
+@@ -2095,10 +2122,13 @@
+             WHERE source IN ('watchdog', 'listing_pairs')
+               AND resolved_at IS NULL
+               AND created_at > now() - interval '5 minutes'
++              AND NOT starts_with(message, %s)
+             ORDER BY created_at
+-        """)
++        """, (_RECON11,))
+         new_incidents = pg_cur.fetchall()
+         if new_incidents:
++            if _tg_lines:
++                _tg_lines.append("")
+             _tg_lines.append(f"🚨 <b>Watchdog: {len(new_incidents)} новых</b>")
+             for itype, msg, created in new_incidents:
+                 # Извлекаем короткое имя из [XXX:yyy]
+@@ -2110,7 +2140,10 @@
+             SELECT incident_type, message, created_at AT TIME ZONE 'UTC' AS created_at, resolved_at
+             FROM kabinet_data.incidents
+             WHERE source IN ('watchdog', 'listing_pairs')
+-              AND resolved_by = 'watchdog-autoclose'
++              -- LIKE, а не равенство: сверка, Account Health, Buy Box, остаток FBA, даты ledger и покрытие
++              -- закрывают с причиной после двоеточия («watchdog-autoclose: сверка сошлась…»), и до 10.10.2026
++              -- их закрытие в «✅ Устранено» не попадало вовсе
++              AND resolved_by LIKE 'watchdog-autoclose%'
+               AND resolved_at > now() - interval '5 minutes'
+             ORDER BY resolved_at
+         """)
+@@ -2137,8 +2170,9 @@
+             WHERE source IN ('watchdog', 'listing_pairs')
+               AND resolved_at IS NULL
+               AND created_at < now() - interval '24 hours'
++              AND NOT starts_with(message, %s)
+             ORDER BY created_at
+-        """)
++        """, (_RECON11,))
+         stale_open = pg_cur.fetchall()
+         if stale_open:
+             pg_cur.execute("SELECT last_reminder_at FROM kabinet_data.watchdog_heartbeat WHERE id = 1")
+@@ -2212,7 +2246,7 @@
+                 "chat_id": _tg_chat, "text": _tg_msg, "parse_mode": "HTML"
+             }, timeout=15)
+             if resp.ok:
+-                print(f"\n📩 Telegram: 🚨{len(new_incidents)} ✅{len(resolved_incidents)} ⏳{len(stale_open) if stale_open and should_remind else 0} ⚙️{len(_soft_errors)}")
++                print(f"\n📩 Telegram: 🔴{len(_recon11)} 🚨{len(new_incidents)} ✅{len(resolved_incidents)} ⏳{len(stale_open) if stale_open and should_remind else 0} ⚙️{len(_soft_errors)}")
+             else:
+                 _tg_failed = f"HTTP {resp.status_code} {resp.text[:200]}"
+         except Exception as e:
