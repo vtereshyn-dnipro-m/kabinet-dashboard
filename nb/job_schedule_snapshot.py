@@ -648,6 +648,11 @@ if not LOCAL_OUT:
     with pg, pg.cursor() as cur:
         cur.execute("SELECT max(observed_at) FROM kabinet_data.job_schedule_snapshot")
         prev_run = cur.fetchone()[0]
+        # какие изменения уже известны: журнал аудита отдаёт события с задержкой (12.10.2026 — 25+ минут), и событие
+        # может появиться в нём ПОСЛЕ прогона, который по времени должен был его увидеть. Поэтому «новое» — то, чего
+        # ещё нет в таблице, а не то, что новее прошлого прогона: иначе опоздавшее событие не сообщалось бы никогда.
+        cur.execute("SELECT job_id, event_time FROM kabinet_data.job_schedule_changes")
+        known = {(int(a), b) for a, b in cur.fetchall()}
         if not DRY:
             cur.execute("DELETE FROM kabinet_data.job_schedule_snapshot")
             psycopg2.extras.execute_values(cur, """
@@ -694,7 +699,9 @@ if not LOCAL_OUT:
         dn = "" if len(days) == 7 else " " + ",".join(["пн", "вт", "ср", "чт", "пт", "сб", "вс"][d - 1] for d in days)
         return (", ".join(s["t"] for s in sch["slots"]) or sch["cron"]) + dn + (" (пауза)" if sch["paused"] else "")
 
-    fresh = [c for c in changes if c["affects_ours"] and prev_run is not None and c["event_time"] > prev_run]
+    fresh = [c for c in changes if c["affects_ours"] and prev_run is not None
+             and (int(c["job_id"]), c["event_time"]) not in known
+             and c["event_time"] > now - dt.timedelta(days=2)]
     if fresh and not DRY:
         import html as _html
         import requests
