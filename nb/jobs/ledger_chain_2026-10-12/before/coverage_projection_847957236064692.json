@@ -1,0 +1,49 @@
+{
+  "created_time": 1786606788196,
+  "creator_user_name": "v.tereshyn@dniprom.com",
+  "job_id": 847957236064692,
+  "run_as_user_name": "v.tereshyn@dniprom.com",
+  "settings": {
+    "description": "Ежедневная проекция покрытия (52 нед) с FBM fallback из Мадрида. Все разрывы + оверсток. Запуск после Stock Loader (12:00) и Availability History (12:30).",
+    "email_notifications": {},
+    "environments": [
+      {
+        "environment_key": "default",
+        "spec": {
+          "client": "2",
+          "dependencies": [
+            "psycopg2-binary",
+            "databricks-sdk\u003e=0.118.0"
+          ]
+        }
+      }
+    ],
+    "format": "MULTI_TASK",
+    "max_concurrent_runs": 1,
+    "name": "Kabinet - Coverage Projection",
+    "queue": {
+      "enabled": true
+    },
+    "schedule": {
+      "pause_status": "UNPAUSED",
+      "quartz_cron_expression": "0 30 15,17 * * ?",
+      "timezone_id": "Europe/Kyiv"
+    },
+    "tasks": [
+      {
+        "disabled": false,
+        "email_notifications": {},
+        "environment_key": "default",
+        "notebook_task": {
+          "notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Coverage Projection",
+          "source": "WORKSPACE"
+        },
+        "run_if": "ALL_SUCCESS",
+        "task_key": "notebook_task_Kabinet_-_Coverage_Projection",
+        "timeout_seconds": 0
+      }
+    ],
+    "timeout_seconds": 0,
+    "webhook_notifications": {}
+  }
+}

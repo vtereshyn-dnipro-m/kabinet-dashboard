@@ -1,0 +1,57 @@
+{
+  "created_time": 1783638898034,
+  "creator_user_name": "v.tereshyn@dniprom.com",
+  "job_id": 201160589560980,
+  "run_as_user_name": "v.tereshyn@dniprom.com",
+  "settings": {
+    "email_notifications": {
+      "on_failure": [
+        "v.tereshyn@dniprom.com"
+      ]
+    },
+    "environments": [
+      {
+        "environment_key": "default",
+        "spec": {
+          "client": "2",
+          "dependencies": [
+            "psycopg2-binary",
+            "databricks-sdk\u003e=0.118.0",
+            "gspread"
+          ]
+        }
+      }
+    ],
+    "format": "MULTI_TASK",
+    "max_concurrent_runs": 1,
+    "name": "Kabinet - Stock Loader",
+    "notification_settings": {
+      "no_alert_for_skipped_runs": true
+    },
+    "performance_target": "PERFORMANCE_OPTIMIZED",
+    "queue": {
+      "enabled": true
+    },
+    "schedule": {
+      "pause_status": "UNPAUSED",
+      "quartz_cron_expression": "0 0 12,15,17 * * ?",
+      "timezone_id": "Europe/Kyiv"
+    },
+    "tasks": [
+      {
+        "disabled": false,
+        "email_notifications": {},
+        "environment_key": "default",
+        "notebook_task": {
+          "notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Stock Loader",
+          "source": "WORKSPACE"
+        },
+        "run_if": "ALL_SUCCESS",
+        "task_key": "notebook_task_Kabinet_-_Stock_Loader",
+        "timeout_seconds": 0
+      }
+    ],
+    "timeout_seconds": 0,
+    "webhook_notifications": {}
+  }
+}
