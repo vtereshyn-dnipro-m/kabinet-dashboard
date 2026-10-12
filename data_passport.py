@@ -368,6 +368,14 @@ def footer(page: str) -> None:
     if st_.empty:
         return
     with st.expander(t("passport.title")):
+        # «Источники» и «Расписание» (12.10.2026) — сегменты, а не st.tabs: вкладки исполняются все разом, а расписание
+        # одно на весь Кабинет и нужно не на каждом открытии паспорта (тот же приём, что в «Справочниках»)
+        part = st.segmented_control(" ", ["sources", "schedule"], default="sources", key=f"passport_part_{page}",
+                                    format_func=lambda k: t(f"sched.tab_{k}"), label_visibility="collapsed")
+        if part == "schedule":
+            import schedule_view
+            schedule_view.render()
+            return
         if "error" in st_.columns:
             st.caption(t("passport.unavailable"))
             return

@@ -1,0 +1,114 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -2067,6 +2067,65 @@
+ except Exception as e:
+     print(f"\n⚠️ Access check failed: {type(e).__name__}: {e}")
+     _soft_errors.append(("access", f"{type(e).__name__}: {str(e)[:150]}"))
++
++# ─── ПОРЯДОК РАСПИСАНИЯ (с 12.10.2026) ──────────────────────────────
++# Снимок расписания (Kabinet - Job Schedule Snapshot, раз в час) знает, какая наша джоба читает таблицу, которую пишет
++# другая джоба, и когда та обычно заканчивает. Источник заканчивает позже нашего старта — наша джоба берёт вчерашние
++# или неполные данные: тревога schedule_order, high, красным блоком в Telegram. Одна тревога на наш запуск × источник
++# ([SCHED:наша джоба HH:MM ← источник]); закрывается сама, когда порядок восстановлен. По снимку старше трёх часов не
++# судим — живость самой джобы снимка проверяет её правило в job_health_rules.
++try:
++    pg_cur.execute("""SELECT our_job, our_time, source_job, source_system, source_start, source_end, margin_min, tables
++                      FROM kabinet_data.job_dependencies
++                      WHERE status = 'broken' AND observed_at > now() - interval '3 hours'""")
++    _so_rows = pg_cur.fetchall()
++    pg_cur.execute("SELECT count(*) FROM kabinet_data.job_dependencies WHERE observed_at > now() - interval '3 hours'")
++    _so_fresh = pg_cur.fetchone()[0] > 0
++    _so_sys = {"kabinet": "Кабинет", "powerbi": "витрина Power BI", "tableau": "Tableau",
++               "listing_suite": "Listing Suite", "other": "аналитика"}
++    _so_want = {}
++    for our, t_, src, ssys, s0, s1, m, tabs in _so_rows:
++        _tok = f"SCHED:{our} {t_} ← {src}"
++        _later = (datetime.strptime(s1, "%H:%M") + timedelta(minutes=15)).strftime("%H:%M")
++        _what = ("сдвинуть нашу джобу на " + _later + " или позже" if ssys == "kabinet" else
++                 f"сдвинуть нашу джобу на {_later} или позже — либо договориться с владельцем системы "
++                 f"«{_so_sys.get(ssys, ssys)}», чтобы источник заканчивал раньше {t_}")
++        _so_want[_tok] = (f"[{_tok}] {our} стартует в {t_}, а {src} ({_so_sys.get(ssys, ssys)}) стартует в {s0} и "
++                          f"по обычной длительности заканчивает в {s1} — запас {m} мин. {our} читает "
++                          f"{', '.join(x.split('.', 1)[-1] for x in tabs)} и возьмёт данные прошлого прогона источника или неполные. "
++                          f"Что делать: {_what}.")
++    pg_cur.execute("""SELECT id, message FROM kabinet_data.incidents
++                      WHERE incident_type = 'schedule_order' AND resolved_at IS NULL""")
++    _so_open = {}
++    for _id, _msg in pg_cur.fetchall():
++        _t = _msg.split("]")[0][1:] if _msg.startswith("[") else None
++        if _t:
++            _so_open[_t] = (_id, _msg)
++    _so_new = _so_upd = _so_closed = 0
++    if REPORT_ONLY or not _so_fresh:
++        print(f"\n🕒 Порядок расписания: нарушений {len(_so_want)}, снимок {'свежий' if _so_fresh else 'устарел'} — не пишем")
++        if not _so_fresh:
++            _soft_errors.append(("порядок расписания", "снимок расписания старше 3 ч — проверка не выполнялась"))
++        _so_want, _so_open = {}, {}
++    for _t, _msg in _so_want.items():
++        if _t in _so_open:
++            if _so_open[_t][1] != _msg:
++                pg_cur.execute("UPDATE kabinet_data.incidents SET message = %s WHERE id = %s", (_msg, _so_open[_t][0]))
++                _so_upd += 1
++        else:
++            pg_cur.execute("""INSERT INTO kabinet_data.incidents (incident_type, severity, source, sku, warehouse_name, message, status, created_at)
++                              VALUES ('schedule_order', 'high', 'watchdog', NULL, NULL, %s, 'open', now())""", (_msg,))
++            _so_new += 1
++    for _t, (_id, _msg) in _so_open.items():
++        if _t not in _so_want:
++            pg_cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
++                              resolved_by = 'watchdog-autoclose: порядок расписания восстановлен' WHERE id = %s""", (_id,))
++            _so_closed += 1
++    pg_conn.commit()
++    print(f"\n🕒 Порядок расписания: {_so_new} новых, {_so_upd} обновлено, {_so_closed} закрыто; нарушений {len(_so_want)}")
++except Exception as e:
++    print(f"\n⚠️ Schedule order check failed: {type(e).__name__}: {e}")
++    _soft_errors.append(("порядок расписания", f"{type(e).__name__}: {str(e)[:150]}"))
+ 
+ # ─── TELEGRAM LIFECYCLE ────────────────────────────────────────────
+ # 🚨 возник → (⏳ висит, раз в день) → ✅ закрыт с причиной
+@@ -2118,6 +2177,27 @@
+             _tg_lines.append("Что делать: проверить джобу Kabinet - Power BI Replica и перезапустить её, "
+                              "затем Kabinet - Reconciliation.")
+ 
++        # 🔴 порядок расписания: источник заканчивает позже старта нашей джобы — тем же красным блоком, каждым прогоном
++        _SCHED = "[SCHED:"
++        pg_cur.execute("""
++            SELECT message, created_at AT TIME ZONE 'UTC' AS created_at
++            FROM kabinet_data.incidents
++            WHERE source = 'watchdog' AND incident_type = 'schedule_order' AND resolved_at IS NULL
++            ORDER BY created_at
++        """)
++        _sched_red = pg_cur.fetchall()
++        _recon11 = list(_recon11) + _sched_red   # в счётчике отправки — все красные
++        if _sched_red:
++            if _tg_lines:
++                _tg_lines.append("")
++            _tg_lines.append(f"🔴 <b>Порядок расписания нарушен: {len(_sched_red)}</b>")
++            for msg, created in _sched_red:
++                short = msg.split(']')[0].replace('[', '')
++                body = msg.split('] ', 1)[1] if '] ' in msg else ''
++                _tg_lines.append(f"🔴 <code>{_html.escape(short)}</code>")
++                if body:
++                    _tg_lines.append(f"   {_html.escape(body[:450])}")
++
+         # ── Ежедневно или раз в неделю (решение владельца 11.10.2026) ──
+         # 10.10 в «висит» было 126 тревог, и поимённо шли пять самых старых — всегда блокировки листингов по 20+ дней;
+         # дефицит раньше поставки и Buy Box тонули под ними. Теперь у ТИПА тревоги в справочнике есть
+@@ -2190,7 +2270,7 @@
+             WHERE source IN ('watchdog', 'listing_pairs')
+               AND resolved_at IS NULL
+               AND created_at > now() - interval '5 minutes'
+-              AND NOT starts_with(message, %s)
++              AND NOT starts_with(message, %s) AND NOT starts_with(message, '[SCHED:')
+             ORDER BY created_at
+         """, (_RECON11,))
+         new_incidents = pg_cur.fetchall()
+@@ -2240,7 +2320,7 @@
+             WHERE source IN ('watchdog', 'listing_pairs')
+               AND resolved_at IS NULL
+               AND created_at < now() - interval '24 hours'
+-              AND NOT starts_with(message, %s)
++              AND NOT starts_with(message, %s) AND NOT starts_with(message, '[SCHED:')
+             ORDER BY created_at
+         """, (_RECON11,))
+         _stale_all = pg_cur.fetchall()
