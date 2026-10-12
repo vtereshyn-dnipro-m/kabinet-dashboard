@@ -4313,6 +4313,8 @@ TRANSLATIONS = {
     "sched.dow.7": {"ru": "вс", "uk": "нд", "en": "Sun"},
     "sched.kind.event": {"ru": "по событию", "uk": "за подією", "en": "on event"},
     "sched.kind.continuous": {"ru": "непрерывно", "uk": "безперервно", "en": "continuous"},
+    "sched.kind.chain": {"ru": "после {job} (~{t})", "uk": "після {job} (~{t})", "en": "after {job} (~{t})"},
+    "sched.st.chain": {"ru": "порядок задан цепочкой", "uk": "порядок задано ланцюжком", "en": "order set by the chain"},
     "sched.kind.manual": {"ru": "вручную", "uk": "вручну", "en": "manual"},
     "sched.monthly": {"ru": "по дням месяца", "uk": "за днями місяця", "en": "on days of month"},
     "sched.paused": {"ru": "на паузе", "uk": "на паузі", "en": "paused"},

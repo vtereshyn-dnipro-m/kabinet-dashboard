@@ -127,6 +127,13 @@ for j in w.jobs.list(expand_tasks=True):
     tasks = s.tasks or []
     paths = [t.notebook_task.notebook_path for t in tasks if t.notebook_task]
     run_jobs = [t.run_job_task.job_id for t in tasks if t.run_job_task]
+    task_meta = {}
+    for t in tasks:
+        cond = None
+        if t.condition_task and "job.start_time.hour" in (t.condition_task.left or ""):
+            cond = (str(getattr(t.condition_task.op, "value", t.condition_task.op)), t.condition_task.right)
+        task_meta[t.task_key] = dict(deps=[(d.task_key, d.outcome) for d in (t.depends_on or [])], cond=cond,
+                                     run_job=t.run_job_task.job_id if t.run_job_task else None)
     ecid = next((t.existing_cluster_id for t in tasks if t.existing_cluster_id), None)
     if ecid:
         ckind = "all_purpose"
@@ -153,7 +160,30 @@ for j in w.jobs.list(expand_tasks=True):
         kind, cron, tz, paused = "manual", None, None, False
     jobs[j.job_id] = dict(job_id=j.job_id, job_name=s.name or str(j.job_id), creator=j.creator_user_name or "",
                           kind=kind, cron=cron, tz=tz, paused=paused, paths=paths, run_jobs=run_jobs,
-                          cluster_kind=ckind, cluster_name=cname)
+                          task_meta=task_meta, cluster_kind=ckind, cluster_name=cname)
+
+
+# «Что если» (только локальная проба, переменная SCHEDULE_WHATIF = папка с payload'ами `jobs update`): изменения джоб
+# накладываются на прочитанные настройки в памяти — так порядок проверяется ДО выкладки, по тем же файлам, что пойдут
+# в Databricks. В джобе переменной нет, и блок ничего не делает.
+for _f in sorted(os.listdir(os.environ["SCHEDULE_WHATIF"])) if os.environ.get("SCHEDULE_WHATIF") else []:
+    _pl = json.load(open(os.path.join(os.environ["SCHEDULE_WHATIF"], _f)))
+    _J = jobs.get(_pl["job_id"])
+    if not _J:
+        continue
+    _ns = _pl.get("new_settings", {})
+    if "schedule" in (_pl.get("fields_to_remove") or []):
+        _J.update(kind="manual", cron=None, tz=None, paused=False)
+    if _ns.get("schedule"):
+        _J.update(kind="cron", cron=_ns["schedule"]["quartz_cron_expression"], tz=_ns["schedule"]["timezone_id"],
+                  paused=_ns["schedule"].get("pause_status") == "PAUSED")
+    for _t in _ns.get("tasks", []):
+        _c = _t.get("condition_task")
+        _J["task_meta"][_t["task_key"]] = dict(
+            deps=[(d["task_key"], d.get("outcome")) for d in _t.get("depends_on", [])],
+            cond=(_c["op"], _c["right"]) if _c and "job.start_time.hour" in _c.get("left", "") else None,
+            run_job=(_t.get("run_job_task") or {}).get("job_id"))
+    print("что если:", _f)
 
 
 def _p90(xs):
@@ -195,6 +225,108 @@ for jid, J in jobs.items():
                           p90_min=round(_p90(mine), 1) if mine else None, runs=len(mine)))
     J["slots"] = slots
     J["cron_unparsed"] = J["kind"] == "cron" and parsed is None
+
+# ── цепочки: задача «запустить другую джобу» (run_job_task) ───────────────────────────────────────────────────────
+# Дочерняя джоба стартует не по часам, а когда до её задачи дойдёт прогон родителя. Время её запуска = запуск
+# родителя + обычное смещение этой задачи от начала прогона (по истории задач); истории ещё нет — по окончанию задач,
+# от которых она зависит. Условие «по часу старта» ({{job.start_time.hour}}, UTC) отбирает запуски родителя: так
+# Unified Pricing идёт только после дневного прогона LM Offers, а не после утреннего.
+_OPS = {"GREATER_THAN": lambda a, b: a > b, "GREATER_THAN_OR_EQUAL": lambda a, b: a >= b,
+        "LESS_THAN": lambda a, b: a < b, "LESS_THAN_OR_EQUAL": lambda a, b: a <= b,
+        "EQUAL_TO": lambda a, b: a == b, "NOT_EQUAL": lambda a, b: a != b}
+
+
+def _task_offsets(jid):
+    """Медианы смещений начала и конца каждой задачи от начала прогона, минуты."""
+    st, en = {}, {}
+    try:
+        for r in w.jobs.list_runs(job_id=jid, start_time_from=since_ms, expand_tasks=True, completed_only=True):
+            for t in r.tasks or []:
+                if t.start_time and r.start_time:
+                    st.setdefault(t.task_key, []).append((t.start_time - r.start_time) / 60000)
+                if t.end_time and r.start_time:
+                    en.setdefault(t.task_key, []).append((t.end_time - r.start_time) / 60000)
+    except Exception:
+        pass
+    return ({k: statistics.median(v) for k, v in st.items()}, {k: statistics.median(v) for k, v in en.items()})
+
+
+for pid, P in jobs.items():
+    edges = [(k, m) for k, m in P["task_meta"].items() if m["run_job"] and m["run_job"] in jobs]
+    if not edges or P["paused"] or not P["slots"]:
+        continue
+    st_off, en_off = _task_offsets(pid)
+
+    def _start(k, seen=()):
+        if k in st_off:
+            return st_off[k]
+        deps_ = [d for d, _ in P["task_meta"].get(k, {}).get("deps", []) if d not in seen]
+        return max((_end(d, seen + (k,)) for d in deps_), default=0.0)
+
+    def _end(k, seen=()):
+        if k in en_off:
+            return en_off[k]
+        m = P["task_meta"].get(k, {})
+        if m.get("run_job") and jobs.get(m["run_job"], {}).get("median_min"):
+            return _start(k, seen) + jobs[m["run_job"]]["median_min"]
+        return _start(k, seen)
+
+    def _conds(k, seen=()):
+        """Условия по часу на пути к задаче: [(op, порог, нужный исход)]."""
+        out = []
+        for d, outcome in P["task_meta"].get(k, {}).get("deps", []):
+            if d in seen:
+                continue
+            c = P["task_meta"].get(d, {}).get("cond")
+            if c:
+                out.append((c[0], c[1], (outcome or "true").lower()))
+            out += _conds(d, seen + (k,))
+        return out
+
+    for k, m in edges:
+        C = jobs[m["run_job"]]
+        off = _start(k)
+        conds = _conds(k)
+        for ps in P["slots"]:
+            h, mi = map(int, ps["t"].split(":"))
+            hour_utc = dt.datetime(now.year, now.month, now.day, h, mi, tzinfo=KYIV).astimezone(dt.timezone.utc).hour
+            ok_ = True
+            for op, right, need in conds:
+                try:
+                    res = _OPS.get(op, lambda a, b: True)(hour_utc, int(float(right)))
+                except ValueError:
+                    res = True
+                ok_ = ok_ and (res == (need == "true"))
+            if not ok_:
+                continue
+            t_ = (h * 60 + mi + off) % (24 * 60)
+            C["slots"].append(dict(t=f"{int(t_) // 60:02d}:{int(t_) % 60:02d}", dows=ps["dows"], monthly=ps.get("monthly"),
+                                   median_min=C["median_min"], p90_min=None, runs=0,
+                                   after=P["job_name"], after_id=pid, after_task=k))
+        if C["kind"] == "manual":
+            C["kind"] = "chain"
+for J in jobs.values():
+    J["slots"].sort(key=lambda x: x["t"])
+
+
+def _ancestors(pid, k, seen=()):
+    """Задачи родителя, которые идут раньше задачи k в том же прогоне (по depends_on)."""
+    out = set()
+    for d, _ in jobs[pid]["task_meta"].get(k, {}).get("deps", []):
+        if d not in seen:
+            out |= {d} | _ancestors(pid, d, seen + (k,))
+    return out
+
+
+def _same_run_order(J, s, W):
+    """Порядок задан задачами одного прогона: наша джоба сама запускает источник раньше своих задач, или оба запущены
+    одним родителем и задача источника стоит раньше нашей (сверка → реплика Power BI → сверка → сторож)."""
+    if any(x.get("after_id") == J["job_id"] for x in W["slots"]):
+        return True
+    if s.get("after_id"):
+        anc = _ancestors(s["after_id"], s["after_task"])
+        return any(x.get("after_id") == s["after_id"] and x.get("after_task") in anc for x in W["slots"])
+    return False
 
 # ── код ноутбуков → какие таблицы джоба пишет и читает ───────────────────────────────────────────────────────────
 uc_tables = uc(f"""SELECT table_schema, table_name, table_type FROM dnipro_m.information_schema.tables
@@ -355,23 +487,29 @@ def _hhmm(x):
 
 deps = []
 for J in jobs.values():
-    if J["system"] != "kabinet" or J["kind"] == "manual" or J["paused"]:
+    if J["system"] != "kabinet" or J["kind"] == "manual" or (J["paused"] and J["kind"] != "chain"):
         continue
     src_tables = {}
     for tname in J["reads"]:
         for wid in writers.get(tname, ()):
-            if wid != J["job_id"] and jobs[wid]["kind"] != "manual" and not jobs[wid]["paused"]:
+            if wid != J["job_id"] and jobs[wid]["kind"] != "manual" and not (jobs[wid]["paused"]
+                                                                               and jobs[wid]["kind"] != "chain"):
                 src_tables.setdefault(wid, set()).add(tname)
     for wid, tabs in src_tables.items():
         W = jobs[wid]
         base = dict(our_job_id=J["job_id"], our_job=J["job_name"], source_job_id=wid, source_job=W["job_name"],
                     source_system=W["system"], tables=sorted(tabs))
-        if J["kind"] != "cron" or not J["slots"]:
+        if J["kind"] not in ("cron", "chain") or not J["slots"]:
             deps.append({**base, "our_time": "event", "source_start": None, "source_end": None,
                          "margin_min": None, "status": "event", "days": None})
             continue
         for s in J["slots"]:
-            if W["kind"] != "cron" or not W["slots"]:
+            if s.get("after_id") == wid or _same_run_order(J, s, W):
+                # наша джоба запускается задачей в прогоне самого источника — после его окончания по построению
+                deps.append({**base, "our_time": s["t"], "source_start": None, "source_end": None,
+                             "margin_min": None, "status": "chain", "days": None})
+                continue
+            if W["kind"] not in ("cron", "chain") or not W["slots"]:
                 deps.append({**base, "our_time": s["t"], "source_start": None, "source_end": None,
                              "margin_min": None, "status": "source_event", "days": None})
                 continue
@@ -403,7 +541,8 @@ audit = uc(f"""
     SELECT event_time, action_name,
            coalesce(request_params['job_id'], get_json_object(response.result, '$.job_id')) AS job_id,
            request_params['new_settings'] AS new_settings, request_params['schedule'] AS schedule_p,
-           request_params['trigger'] AS trigger_p, request_params['name'] AS name_p
+           request_params['trigger'] AS trigger_p, request_params['name'] AS name_p,
+           request_params['fields_to_remove'] AS removed_p
     FROM system.access.audit
     WHERE service_name = 'jobs' AND action_name IN ('create', 'update', 'reset')
       AND event_date >= current_date() - INTERVAL {AUDIT_DAYS} DAYS AND response.status_code = 200
@@ -441,6 +580,8 @@ for ev in audit:
         except Exception:
             settings = None
     new = _sched_of(settings)
+    if new is None and "schedule" in str(ev.get("removed_p") or ""):
+        new = dict(kind="manual", cron=None, timezone=None, paused=False, slots=[])
     if new is None:
         continue
     key = lambda x: (x["kind"], x["cron"], x["timezone"], x["paused"])  # noqa: E731
@@ -454,11 +595,16 @@ for ev in audit:
             changes.append(dict(job_id=jid, event_time=et, before=prev, after=new))
     state[jid] = new
 
+changes_last = {}
+for c in changes:
+    changes_last[c["job_id"]] = c       # последнее изменение джобы — его «стало» и есть текущее расписание
 ours_by_source = {}
 for d in deps:
     ours_by_source.setdefault(d["source_job_id"], set()).add(d["our_job"])
 for c in changes:
     J = jobs.get(c["job_id"])
+    if J and c["after"]["kind"] == "manual" and J["kind"] == "chain" and c is changes_last.get(c["job_id"]):
+        c["after"] = dict(c["after"], kind="chain", slots=[x for x in J["slots"] if x.get("after")])
     c["job_name"] = J["job_name"] if J else str(c["job_id"])
     c["system"] = J["system"] if J else "other"
     aff = set(ours_by_source.get(c["job_id"], set()))
@@ -540,6 +686,10 @@ if not LOCAL_OUT:
             return "—"
         if sch["kind"] == "event":
             return "по событию" + (" (пауза)" if sch["paused"] else "")
+        if sch["kind"] == "manual":
+            return "вручную"
+        if sch["kind"] == "chain":
+            return "; ".join(f"после {s['after']} (~{s['t']})" for s in sch["slots"] if s.get("after")) or "по цепочке"
         days = sorted({d for s in sch["slots"] for d in s["dows"]})
         dn = "" if len(days) == 7 else " " + ",".join(["пн", "вт", "ср", "чт", "пт", "сб", "вс"][d - 1] for d in days)
         return (", ".join(s["t"] for s in sch["slots"]) or sch["cron"]) + dn + (" (пауза)" if sch["paused"] else "")
@@ -553,7 +703,8 @@ if not LOCAL_OUT:
             lines.append(f"• <b>{_html.escape(c['job_name'])}</b> — было {_html.escape(_when(c['before']))} → стало "
                          f"{_html.escape(_when(c['after']))} ({c['event_time'].astimezone(KYIV):%d.%m %H:%M})")
             for d in deps:
-                if d["source_job_id"] == c["job_id"] and d["status"] in ("broken", "warn", "ok"):
+                if (d["source_job_id"] == c["job_id"] or d["our_job_id"] == c["job_id"]) \
+                        and d["status"] in ("broken", "warn", "ok"):
                     mark = {"broken": "🔴 порядок нарушен", "warn": "🟡 запас меньше нормы", "ok": "🟢 порядок соблюдён"}
                     lines.append(f"   {_html.escape(d['our_job'])} {d['our_time']}: источник заканчивает "
                                  f"{d['source_end']}, запас {d['margin_min']} мин — {mark[d['status']]}")

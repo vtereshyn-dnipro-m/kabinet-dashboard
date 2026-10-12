@@ -24,9 +24,10 @@ KYIV = ZoneInfo("Europe/Kyiv")
 # палитра Кабинета (home.py, 8_CM_Dashboard.py)
 RED, AMBER, GREEN, GREY, BLUE = "#e8484d", "#f2b134", "#2e9e5b", "#9aa4b2", "#1f77b4"
 SYSTEM_COLOR = {"kabinet": BLUE, "powerbi": AMBER, "tableau": "#7e57c2", "listing_suite": "#26a69a", "other": GREY}
-STATUS_COLOR = {"ok": GREEN, "warn": AMBER, "broken": RED, "prev_day": GREY, "event": GREY, "source_event": GREY,
+STATUS_COLOR = {"ok": GREEN, "chain": GREEN, "warn": AMBER, "broken": RED, "prev_day": GREY, "event": GREY,
+                "source_event": GREY,
                 "success": GREEN, "failed": RED, "running": AMBER, "canceled": GREY, "skipped": GREY}
-STATUS_RANK = {"broken": 0, "warn": 1, "ok": 2, "source_event": 3, "event": 4, "prev_day": 5}
+STATUS_RANK = {"broken": 0, "warn": 1, "ok": 2, "chain": 3, "source_event": 4, "event": 5, "prev_day": 6}
 
 
 @st.cache_data(ttl=300)
@@ -83,10 +84,13 @@ def when_text(kind, slots, paused, cron=None) -> str:
     elif not slots:
         txt = as_text(cron)
     else:
+        # запуск цепочкой — «после <джоба> (~HH:MM)»: время приблизительное, его задаёт окончание задач родителя
+        chain = [t("sched.kind.chain", job=s["after"], t=s["t"]) for s in slots if s.get("after")]
         by_days = {}
         for s in slots:
-            by_days.setdefault(tuple(sorted(s.get("dows") or [])), []).append(s["t"])
-        txt = "; ".join(f"{_days_text(d)} {', '.join(sorted(ts))}" for d, ts in by_days.items())
+            if not s.get("after"):
+                by_days.setdefault(tuple(sorted(s.get("dows") or [])), []).append(s["t"])
+        txt = "; ".join([f"{_days_text(d)} {', '.join(sorted(ts))}" for d, ts in by_days.items()] + chain)
         if any(s.get("monthly") for s in slots):
             txt += " · " + t("sched.monthly")
     return txt + (" · " + t("sched.paused") if bool(paused) else "")
@@ -198,7 +202,7 @@ def render() -> None:
     show_all = st.toggle(t("sched.deps.show_all"), value=False, key="sched_deps_all")
     d = deps.copy()
     if not show_all:
-        d = d[d["status"].isin(["broken", "warn", "ok"])]
+        d = d[d["status"].isin(["broken", "warn", "ok", "chain"])]
     d = d.assign(_r=d["status"].map(STATUS_RANK), _m=d["margin_min"].fillna(10 ** 6)).sort_values(
         ["_r", "_m", "our_job", "our_time"])
     if d.empty:
