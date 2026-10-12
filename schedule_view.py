@@ -27,7 +27,8 @@ SYSTEM_COLOR = {"kabinet": BLUE, "powerbi": AMBER, "tableau": "#7e57c2", "listin
 STATUS_COLOR = {"ok": GREEN, "chain": GREEN, "warn": AMBER, "broken": RED, "prev_day": GREY, "event": GREY,
                 "source_event": GREY,
                 "success": GREEN, "failed": RED, "running": AMBER, "canceled": GREY, "skipped": GREY}
-STATUS_RANK = {"broken": 0, "warn": 1, "ok": 2, "chain": 3, "source_event": 4, "event": 5, "prev_day": 6}
+# порядок в таблице зависимостей (решение владельца 12.10.2026): нарушения, жёлтые, цепочки, потом «порядок соблюдён»
+STATUS_RANK = {"broken": 0, "warn": 1, "chain": 2, "ok": 3, "source_event": 4, "event": 5, "prev_day": 6}
 
 
 @st.cache_data(ttl=300)
@@ -208,24 +209,16 @@ def render() -> None:
     if d.empty:
         st.info(t("sched.deps.none"))
     else:
-        kinds = d["status"].tolist()
-        dt_ = pd.DataFrame({
-            t("sched.col.our"): d["our_job"],
-            t("sched.col.waits"): [f"{r.source_job} · {t(f'sched.sys.{r.source_system}')}" for r in d.itertuples()],
-            t("sched.col.tables"): [", ".join(x.split(".", 1)[-1] for x in (r.tables or [])) for r in d.itertuples()],
-            t("sched.col.src_end"): [as_text(r.source_end, "—") for r in d.itertuples()],
-            t("sched.col.we_start"): [t("sched.kind.event") if r.our_time == "event" else r.our_time
-                                      for r in d.itertuples()],
-            t("sched.col.margin"): [("—" if pd.isna(r.margin_min) else t("sched.min", n=int(r.margin_min)))
-                                    for r in d.itertuples()],
-            t("sched.col.status"): [t(f"sched.st.{r.status}") + (
-                (" · " + _days_text([int(x) for x in str(r.days).split(",")])) if as_text(r.days) else "")
-                for r in d.itertuples()],
-        })
-        sty = _color_cells(dt_.style, t("sched.col.status"), kinds)
-        sty = _color_cells(sty, t("sched.col.margin"), kinds)
-        st.dataframe(sty, hide_index=True, use_container_width=True, height=grid_height(len(dt_), 12),
-                     column_config={t("sched.col.tables"): st.column_config.TextColumn(width="medium")})
+        # наверху — то, на что смотреть: нарушения, жёлтые, цепочки; обычные строки свёрнуты под «ещё N»
+        top = d[d["status"].isin(["broken", "warn", "chain"])]
+        rest = d[~d["status"].isin(["broken", "warn", "chain"])]
+        if top.empty:
+            st.caption(t("sched.deps.top_none"))
+        else:
+            _deps_table(top, "sched_deps_top")
+        if not rest.empty:
+            with st.expander(t("sched.deps.more_all" if show_all else "sched.deps.more", n=len(rest))):
+                _deps_table(rest, "sched_deps_rest")
 
     # ── 4. шкала дня ──
     st.markdown(f"#### {t('sched.gantt.title')}")
@@ -273,6 +266,28 @@ def render() -> None:
             t("sched.col.duration"): [_dur_text(r.slots, r.median_min) for r in ap.itertuples()],
         })
         st.dataframe(at, hide_index=True, use_container_width=True, height=grid_height(len(at), 12))
+
+
+def _deps_table(d: pd.DataFrame, key: str) -> None:
+    """Таблица зависимостей: статус и запас — цветом палитры."""
+    kinds = d["status"].tolist()
+    dt_ = pd.DataFrame({
+        t("sched.col.our"): d["our_job"],
+        t("sched.col.waits"): [f"{r.source_job} · {t(f'sched.sys.{r.source_system}')}" for r in d.itertuples()],
+        t("sched.col.tables"): [", ".join(x.split(".", 1)[-1] for x in (r.tables or [])) for r in d.itertuples()],
+        t("sched.col.src_end"): [as_text(r.source_end, "—") for r in d.itertuples()],
+        t("sched.col.we_start"): [t("sched.kind.event") if r.our_time == "event" else r.our_time
+                                  for r in d.itertuples()],
+        t("sched.col.margin"): [("—" if pd.isna(r.margin_min) else t("sched.min", n=int(r.margin_min)))
+                                for r in d.itertuples()],
+        t("sched.col.status"): [t(f"sched.st.{r.status}") + (
+            (" · " + _days_text([int(x) for x in str(r.days).split(",")])) if as_text(r.days) else "")
+            for r in d.itertuples()],
+    })
+    sty = _color_cells(dt_.style, t("sched.col.status"), kinds)
+    sty = _color_cells(sty, t("sched.col.margin"), kinds)
+    st.dataframe(sty, hide_index=True, use_container_width=True, height=grid_height(len(dt_), 12), key=key,
+                 column_config={t("sched.col.tables"): st.column_config.TextColumn(width="medium")})
 
 
 def _gantt(view: pd.DataFrame) -> None:
