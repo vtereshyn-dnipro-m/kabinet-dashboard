@@ -1,0 +1,63 @@
+--- a/Kabinet - Weekly Report
++++ b/Kabinet - Weekly Report
+@@ -25,7 +25,10 @@
+ #     как «% Contribution Margin (VAT Excl)». Наша методика маржи в отчёт не выводится (pbi.OWN_METHOD в Кабинете);
+ #   • плана маржи в реестре нет вовсе — колонки «план маржи» нет, и это сказано в отчёте;
+ #   • ACOS = Spend / Paid Sales, TACOS = Spend / продажи с НДС — колонки витрины Power BI; CVR кликов — Paid Units /
+-#     Clicks той же витрины. CVR листинга — штуки / сессии карточек (sales_traffic_asin): сессий в Power BI нет.
++#     Clicks той же витрины. CVR листинга — штуки / сессии рынка за день (sales_traffic_daily, как «Unit Session %»
++#     в Seller Central): сессий в Power BI нет. С 12.10.2026 сессии — из Seller Analytics (реплика S&T, ячейка 2); до
++#     этого считались по sales_traffic_asin, где строки есть только у ASIN с продажей, и CVR выходил примерно вдвое
++#     выше. Нет сессий хоть за один день недели — в строке «неполн.», а не число.
+ #   • каждая денежная строка говорит, с НДС она или без (правило Кабинета с 06.10.2026, money_notes.py);
+ #     неделя к неделе — только равные полные дни: если последняя неделя ещё не догружена, обе недели
+ #     режутся до одинаковых дней недели; день, который Amazon ещё перечитывает, назван предварительным
+@@ -173,10 +176,12 @@
+         return {mk: r for mk, *r in cur.fetchall()}
+ 
+     def traffic(d1, d2):
+-        cur.execute("""SELECT marketplace, sum(sessions)::float, sum(units_ordered)::float
+-                       FROM kabinet_data.sales_traffic_asin WHERE snapshot_date BETWEEN %s AND %s
++        # (сессии, штуки, сессии есть за каждый день периода)
++        cur.execute("""SELECT marketplace, sum(sessions)::float, sum(units_ordered)::float, count(sessions)::int
++                       FROM kabinet_data.sales_traffic_daily WHERE snapshot_date BETWEEN %s AND %s
+                        GROUP BY 1""", (d1, d2))
+-        return {mk: (s, u) for mk, s, u in cur.fetchall()}
++        n_days = (d2 - d1).days + 1
++        return {mk: (s, u, c == n_days) for mk, s, u, c in cur.fetchall()}
+ 
+     m_sales, m_prof = sales(m0, anchor), profit(m0, anchor)
+     # Неделя к неделе — только равные полные дни. Если последняя неделя ещё не догружена (суббота не прошла
+@@ -270,8 +275,14 @@
+             return ad(a, 0) / s * 100 if ad(a, 0) is not None and s else None
+ 
+         def cvr_l(tr):
+-            return tr[1] / tr[0] * 100 if tr and tr[0] else None
++            return tr[1] / tr[0] * 100 if tr and tr[2] and tr[0] else None
+ 
++        def cvr_row(t0, t1):
++            # неполные сессии — словом, без дельты: число по части дней читалось бы как настоящее
++            cell = lambda t: "неполн." if t and not t[2] else pct(cvr_l(t), 2)
++            full = all(not t or t[2] for t in (t0, t1))
++            return f"{'CVR листинга':<13}{cell(t0):>8}{cell(t1):>8}  {pp(cvr_l(t0), cvr_l(t1)) if full else ''}"
++
+         def cvr_c(a):
+             return ad(a, 3) / ad(a, 4) * 100 if ad(a, 4) else None
+ 
+@@ -291,13 +302,14 @@
+                r("Расход²", ad(a0, 0), ad(a1, 0), "eur"),
+                r("ACOS", acos(a0), acos(a1), "pct1"),
+                r("TACOS", tacos(a0, s0), tacos(a1, s1), "pct1"),
+-               r("CVR листинга", cvr_l(tr0), cvr_l(tr1), "pct2"),
++               cvr_row(tr0, tr1),
+                r("CVR кликов", cvr_c(a0), cvr_c(a1), "pct2")]
+         out.append(f"\n{ФЛАГ.get(k, '')} <b>{ИМЯ.get(k, k)}</b>")
+         out.append("<pre>" + html.escape("\n".join(tab)) + "</pre>")
+     out.append("<i>¹ с НДС · ² без НДС. Цифры как в Power BI: Contr.Prof — Contribution Profit (продажи без НДС − "
+                "расходы + возвраты + компенсации − реклама), продажи с рекламы — Paid Sales, расход — Spend; ACOS — "
+-               "расход к продажам с рекламы, TACOS — расход к продажам с НДС. CVR листинга — штуки / сессии карточек, "
++               "расход к продажам с рекламы, TACOS — расход к продажам с НДС. CVR листинга — штуки / сессии рынка (как в Seller Central), "
++               "«неполн.» — сессий нет хоть за один день недели; "
+                "CVR кликов — штуки с рекламы / клики.</i>")
+     msg2 = "\n".join(out)
+ 

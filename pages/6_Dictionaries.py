@@ -231,6 +231,8 @@ TR = {
         "am_hint_margin": "маржа {m} % против медианы группы {g} %",
         "am_hint_support": "ни по продажам, ни по трафику, ни по марже группу не ведёт",
         "am_hint_nodata": "нет данных за окно",
+        "am_hint_sess_incomplete": "неполные данные: сессий за окно нет целиком — «Traffic» не подсказываем",
+        "am_hint_sess_partial": "Сессии по ASIN за окно неполные (есть за {n} дн. из {m}) — подсказка «Traffic» не считается, у таких строк написано «неполные данные». HERO и MARGIN от сессий не зависят.",
         "am_role_none": "— без роли —",
         "am_role_help": "Hero / Traffic / Margin / Support — только для PeID в группе вариаций (ТЗ 009). Без группы поле пустое.",
         "am_view_empty": "В этом срезе записей нет — снимите фильтры или выберите другой срез.", "ph_pick_mp": "выберите маркетплейсы",
@@ -853,6 +855,8 @@ TR = {
         "am_hint_margin": "маржа {m} % проти медіани групи {g} %",
         "am_hint_support": "ні за продажами, ні за трафіком, ні за маржею групу не веде",
         "am_hint_nodata": "немає даних за вікно",
+        "am_hint_sess_incomplete": "неповні дані: сесій за вікно немає повністю — «Traffic» не підказуємо",
+        "am_hint_sess_partial": "Сесії за ASIN за вікно неповні (є за {n} дн. з {m}) — підказка «Traffic» не рахується, у таких рядків написано «неповні дані». HERO і MARGIN від сесій не залежать.",
         "am_role_none": "— без ролі —",
         "am_role_help": "Hero / Traffic / Margin / Support — лише для PeID у групі варіацій (ТЗ 009). Без групи поле порожнє.",
         "am_view_empty": "У цьому зрізі записів немає — зніміть фільтри або оберіть інший зріз.", "ph_pick_mp": "оберіть маркетплейси",
@@ -1474,6 +1478,8 @@ TR = {
         "am_hint_margin": "margin {m} % against the group median {g} %",
         "am_hint_support": "leads the group neither in sales, nor traffic, nor margin",
         "am_hint_nodata": "no data in the window",
+        "am_hint_sess_incomplete": "incomplete data: sessions for the window are not complete — no Traffic suggestion",
+        "am_hint_sess_partial": "ASIN sessions for the window are incomplete ({n} of {m} days) — the Traffic suggestion is not computed; such rows say «incomplete data». HERO and MARGIN do not depend on sessions.",
         "am_role_none": "— no role —",
         "am_role_help": "Hero / Traffic / Margin / Support — only for a PeID within a variation group (spec 009). Empty without a group.",
         "am_view_empty": "No records in this view — clear the filters or pick another view.", "ph_pick_mp": "pick marketplaces",
@@ -7395,10 +7401,36 @@ def _section_matrix():
             if row_mp.empty or row_mp["platform_short"].iloc[0] != "AMZ":
                 return {}                     # сессии по ASIN есть только у Amazon
             country = row_mp["country_alpha2"].iloc[0]
-            tr = q1("""SELECT asin, sum(sessions)::int AS sessions, sum(ordered_sales)::numeric AS sales
-                       FROM kabinet_data.sales_traffic_asin
-                       WHERE marketplace = %s AND snapshot_date > current_date - %s GROUP BY 1""",
-                    (country, HINT_WINDOW_DAYS))
+            # Сессии — только полные, из Seller Analytics (sessions_source). В сырье Sales & Traffic строка есть лишь
+            # у ASIN с продажей в этот день, и сумма по нему занижала сессии вдвое — подсказка «Traffic» на ней врала.
+            # Окно считается полным, если такие сессии есть за каждый день от его начала до последней загрузки.
+            try:
+                tr = q1("""SELECT asin, sum(sessions) FILTER (WHERE sessions_source = 'seller_analytics')::int AS sessions,
+                                  sum(ordered_sales)::numeric AS sales
+                           FROM kabinet_data.sales_traffic_asin
+                           WHERE marketplace = %s AND snapshot_date > current_date - %s GROUP BY 1""",
+                        (country, HINT_WINDOW_DAYS))
+                # полное окно = у каждого дня рынка с трафиком есть сессии по ASIN; дневные сессии рынка пусты —
+                # день не загружен. Последние три дня не требуем: Seller Analytics отдаёт вчера не сразу
+                cov = q1("""SELECT count(a.d)::int AS n,
+                                   count(a.d) > 0 AND count(*) FILTER (
+                                       WHERE d.snapshot_date <= current_date - 3
+                                         AND (d.sessions IS NULL OR (d.sessions > 0 AND a.d IS NULL))) = 0 AS ok
+                            FROM kabinet_data.sales_traffic_daily d
+                            LEFT JOIN (SELECT DISTINCT snapshot_date AS d FROM kabinet_data.sales_traffic_asin
+                                       WHERE marketplace = %s AND snapshot_date > current_date - %s
+                                         AND sessions_source = 'seller_analytics') a ON a.d = d.snapshot_date
+                            WHERE d.marketplace = %s AND d.snapshot_date > current_date - %s""",
+                         (country, HINT_WINDOW_DAYS, country, HINT_WINDOW_DAYS))
+                sess_days = int(cov["n"].iloc[0] or 0) if not cov.empty else 0
+                sess_ok = bool(cov["ok"].iloc[0]) if not cov.empty and pd.notna(cov["ok"].iloc[0]) else False
+            except Exception:
+                tr = q1("""SELECT asin, NULL::int AS sessions, sum(ordered_sales)::numeric AS sales
+                           FROM kabinet_data.sales_traffic_asin
+                           WHERE marketplace = %s AND snapshot_date > current_date - %s GROUP BY 1""",
+                        (country, HINT_WINDOW_DAYS))
+                sess_days, sess_ok = 0, False
+            hint_state["sess"] = (sess_ok, sess_days)
             mg = q1("""SELECT e.norm_sku,
                               sum(e.net_proceeds_total - e.cogs * e.net_units_sold
                                   - coalesce(l.packing_cost, 0) - coalesce(l.shipping_cost, 0))
@@ -7417,7 +7449,7 @@ def _section_matrix():
                 for r in grp.itertuples():
                     sess, sales = t.get(r.peid, (None, None))
                     rows_g.append({"id": r.id, "peid": r.peid,
-                                   "sessions": float(sess) if sess is not None else None,
+                                   "sessions": float(sess) if sess_ok and sess is not None and pd.notna(sess) else None,
                                    "sales": float(sales) if sales is not None else None,
                                    "margin": float(m[r.sku]) if r.sku in m and pd.notna(m.get(r.sku)) else None})
                 known = [x for x in rows_g if x["sales"] is not None or x["margin"] is not None]
@@ -7442,6 +7474,9 @@ def _section_matrix():
                                                         m=f"{x['margin']:.0f}", g=f"{med_marg:.0f}"))
                     elif x["margin"] is not None and med_marg is not None and x["margin"] >= med_marg:
                         out[x["id"]] = ("MARGIN", _trf("am_hint_margin", m=f"{x['margin']:.0f}", g=f"{med_marg:.0f}"))
+                    elif not sess_ok:
+                        # без полных сессий «Traffic» и «Support» не различить — пишем это, а не угадываем
+                        out[x["id"]] = ("", _tr("am_hint_sess_incomplete"))
                     else:
                         out[x["id"]] = ("SUPPORT", _tr("am_hint_support"))
             return out
@@ -7454,11 +7489,14 @@ def _section_matrix():
             rp["commercial_role"] = rp["commercial_role"].fillna("").replace("", _role_none)   # "" в selectbox рисуется как None
             rp["valid_from"] = pd.to_datetime(rp["valid_from"])
             rp["valid_to_lbl"] = ["" if pd.isna(d) else pd.Timestamp(d).strftime("%d.%m.%Y") for d in rp["valid_to"]]
+            hint_state = {}
             _hints = role_hints(rp_mp, rp)
             rp["hint"] = [(_hints.get(i, ("", ""))[0] or "") for i in rp["id"]]
             rp["hint_why"] = [(_hints.get(i, ("", ""))[1] or "") for i in rp["id"]]
             st.caption(_tr("am_role_help"))
             st.caption(_trf("am_hint_help", n=HINT_WINDOW_DAYS))
+            if "sess" in hint_state and not hint_state["sess"][0]:
+                st.caption(_trf("am_hint_sess_partial", n=hint_state["sess"][1], m=HINT_WINDOW_DAYS))
             ed_r = st.data_editor(
                 rp[["sku", "peid", "group_name", "commercial_role", "hint", "hint_why",
                     "valid_from", "valid_to_lbl", "source", "issues"]],
