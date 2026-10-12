@@ -61,6 +61,16 @@ print(("  ПРОВАЛ " if _копия_плохо else "    ок  ") + "вык�
       + ("".join("\n          " + x for x in _копия_плохо)))
 беда += bool(_копия_плохо)
 
+# ── у каждого типа инцидента есть подпись на трёх языках ─────────────────────
+# Без строки в словаре подпись берётся из справочника incident_types — она русская, и в EN/UK
+# на «Обзоре» висела «Дефицит наступит раньше поставки» (12.10.2026, ещё одиннадцать типов так же).
+import i18n as _i18n
+_типы = pd.read_sql("SELECT incident_type FROM kabinet_data.incident_types", psycopg2.connect(DSN))["incident_type"]
+_без_перевода = sorted(c for c in _типы if not all(_i18n.TRANSLATIONS.get(f"inc.type.{c}", {}).get(l) for l in ("ru", "uk", "en")))
+print(("  ПРОВАЛ " if _без_перевода else "    ок  ") + "переводы типов инцидентов"
+      + (f"\n          нет перевода: {', '.join(_без_перевода)}" if _без_перевода else ""))
+беда += bool(_без_перевода)
+
 for f in ("home.py", "pages/1_Stock.py", "pages/2_Incidents.py", "pages/3_Forecast.py",
           "pages/4_Reorder.py", "pages/5_Money.py", "pages/7_Reviews.py",
           "pages/8_CM_Dashboard.py", "pages/9_Ads.py", "pages/10_Access.py"):
@@ -73,4 +83,4 @@ for sec in ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f"Справочники → {sec}"
           + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
-print(f"\nс бедой: {беда} из 24")
+print(f"\nс бедой: {беда} из 25")

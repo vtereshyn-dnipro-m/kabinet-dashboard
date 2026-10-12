@@ -158,9 +158,12 @@ for j in w.jobs.list(expand_tasks=True):
         kind, cron, tz, paused = "continuous", None, None, False
     else:
         kind, cron, tz, paused = "manual", None, None, False
+    tu = getattr(trg, "table_update", None) if trg else None
     jobs[j.job_id] = dict(job_id=j.job_id, job_name=s.name or str(j.job_id), creator=j.creator_user_name or "",
                           kind=kind, cron=cron, tz=tz, paused=paused, paths=paths, run_jobs=run_jobs,
-                          task_meta=task_meta, cluster_kind=ckind, cluster_name=cname)
+                          task_meta=task_meta, cluster_kind=ckind, cluster_name=cname,
+                          trig_tables=list(getattr(tu, "table_names", None) or []) if tu else [],
+                          trig_wait_min=(getattr(tu, "wait_after_last_change_seconds", None) or 0) / 60 if tu else 0)
 
 
 # «Что если» (только локальная проба, переменная SCHEDULE_WHATIF = папка с payload'ами `jobs update`): изменения джоб
@@ -168,6 +171,17 @@ for j in w.jobs.list(expand_tasks=True):
 # в Databricks. В джобе переменной нет, и блок ничего не делает.
 for _f in sorted(os.listdir(os.environ["SCHEDULE_WHATIF"])) if os.environ.get("SCHEDULE_WHATIF") else []:
     _pl = json.load(open(os.path.join(os.environ["SCHEDULE_WHATIF"], _f)))
+    if "job_id" not in _pl and "tasks" in _pl:
+        # payload `jobs create`: новая джоба, номер условный
+        _tu = (_pl.get("trigger") or {}).get("table_update") or {}
+        _pl = {"job_id": -1 - len(jobs), "new_settings": {"tasks": _pl["tasks"]}, "_new": _pl}
+        _sc = _pl["_new"].get("schedule") or {}
+        jobs[_pl["job_id"]] = dict(job_id=_pl["job_id"], job_name=_pl["_new"]["name"], creator="",
+                                   kind="cron" if _sc else "event" if _tu else "manual",
+                                   cron=_sc.get("quartz_cron_expression"), tz=_sc.get("timezone_id"), paused=False,
+                                   paths=[], run_jobs=[], task_meta={},
+                                   cluster_kind="serverless", cluster_name=None, trig_tables=_tu.get("table_names", []),
+                                   trig_wait_min=(_tu.get("wait_after_last_change_seconds") or 0) / 60)
     _J = jobs.get(_pl["job_id"])
     if not _J:
         continue
@@ -251,10 +265,11 @@ def _task_offsets(jid):
     return ({k: statistics.median(v) for k, v in st.items()}, {k: statistics.median(v) for k, v in en.items()})
 
 
-for pid, P in jobs.items():
+def _chain(pid, P):
+    """Дочерние джобы родителя P получают запуски «после P» по его слотам."""
     edges = [(k, m) for k, m in P["task_meta"].items() if m["run_job"] and m["run_job"] in jobs]
     if not edges or P["paused"] or not P["slots"]:
-        continue
+        return
     st_off, en_off = _task_offsets(pid)
 
     def _start(k, seen=()):
@@ -305,6 +320,10 @@ for pid, P in jobs.items():
                                    after=P["job_name"], after_id=pid, after_task=k))
         if C["kind"] == "manual":
             C["kind"] = "chain"
+
+
+for pid, P in jobs.items():
+    _chain(pid, P)
 for J in jobs.values():
     J["slots"].sort(key=lambda x: x["t"])
 
@@ -322,6 +341,9 @@ def _same_run_order(J, s, W):
     """Порядок задан задачами одного прогона: наша джоба сама запускает источник раньше своих задач, или оба запущены
     одним родителем и задача источника стоит раньше нашей (сверка → реплика Power BI → сверка → сторож)."""
     if any(x.get("after_id") == J["job_id"] for x in W["slots"]):
+        return True
+    # нас запускает джоба, которая срабатывает на запись источника в таблицу, — после него по построению
+    if s.get("after_id") and W["job_id"] in jobs[s["after_id"]].get("trig_sources", set()):
         return True
     if s.get("after_id"):
         anc = _ancestors(s["after_id"], s["after_task"])
@@ -473,6 +495,29 @@ writers = {}
 for J in jobs.values():
     for tname in J["writes"]:
         writers.setdefault(tname, set()).add(J["job_id"])
+
+# ── цепочки от записи в таблицу (table update trigger) ───────────────────────────────────────────────────────────
+# Джоба с триггером на таблицу своих часов не имеет: она стартует, когда источник допишет таблицу, плюс пауза
+# тишины. Её «запуски» — запуски тех, кто пишет эту таблицу, со сдвигом на их обычную длительность и паузу; дальше
+# её задачи «запустить другую джобу» раскладываются так же, как у родителя по часам. Так вечерний Stock Loader
+# после Ledger Summary (с 12.10.2026) виден на вкладке, а не пропадает вместе со снятым часом 17:00.
+for pid, P in jobs.items():
+    if P["kind"] != "event" or P["paused"] or not P["trig_tables"]:
+        continue
+    srcs = set()
+    for tn in P["trig_tables"]:
+        srcs |= writers.get(_norm(tn), set())
+    P["trig_sources"] = srcs
+    for wid in srcs:
+        for ws in jobs[wid]["slots"]:
+            h, mi = map(int, ws["t"].split(":"))
+            t_ = (h * 60 + mi + (ws.get("median_min") or 0) + P["trig_wait_min"]) % (24 * 60)
+            P["slots"].append(dict(t=f"{int(t_) // 60:02d}:{int(t_) % 60:02d}", dows=ws["dows"], monthly=ws.get("monthly"),
+                                   median_min=P["median_min"], p90_min=None, runs=0,
+                                   after=jobs[wid]["job_name"], after_id=wid, after_task=None))
+    _chain(pid, P)
+for J in jobs.values():
+    J["slots"].sort(key=lambda x: x["t"])
 
 
 def _mins(t):
