@@ -1,0 +1,6 @@
+{
+  "job_id": 32157082853424,
+  "new_settings": {
+    "parameters": [{"name": "mode", "default": "main"}, {"name": "sessions_since", "default": ""}]
+  }
+}
