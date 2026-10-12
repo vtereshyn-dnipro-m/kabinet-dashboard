@@ -73,11 +73,25 @@ def _days_text(dows) -> str:
     return ", ".join(t(f"sched.dow.{d}") for d in dows)
 
 
+def _chain_text(s) -> str:
+    """Запуск цепочкой: «после X (~HH:MM)», «после источника (через джобу-триггер, ~HH:MM)», запасной — словом."""
+    key = "sched.kind.chain_if" if s.get("gated") else "sched.kind.chain_via" if s.get("via") else "sched.kind.chain"
+    return t(key, job=s["after"], via=s.get("via") or "", t=s["t"])
+
+
 def when_text(kind, slots, paused, cron=None) -> str:
     """«ежедневно 10:40, 16:40», «пн 07:30», «по событию», «вручную»; пауза — словом в конце."""
     slots = _js(slots) or []
     if kind == "event":
-        txt = t("sched.kind.event")
+        # запуск по записи в таблицу: слоты — запуски того, кто её пишет (снимок, с 12.10.2026)
+        # (у слота без after_task — это сам триггер; с after_task — запуск задачей другой джобы, обычная цепочка)
+        src = {}
+        for s in slots:
+            if s.get("after") and not s.get("after_task"):
+                src.setdefault(s["after"], []).append(s["t"])
+        parts = [t("sched.kind.event_after", job=j, t=", ".join(sorted(ts))) for j, ts in src.items()]
+        parts += [_chain_text(s) for s in slots if s.get("after") and s.get("after_task")]
+        txt = "; ".join(parts) if parts else t("sched.kind.event")
     elif kind == "continuous":
         txt = t("sched.kind.continuous")
     elif kind == "manual" or (kind == "cron" and not slots and not cron):
@@ -86,7 +100,7 @@ def when_text(kind, slots, paused, cron=None) -> str:
         txt = as_text(cron)
     else:
         # запуск цепочкой — «после <джоба> (~HH:MM)»: время приблизительное, его задаёт окончание задач родителя
-        chain = [t("sched.kind.chain", job=s["after"], t=s["t"]) for s in slots if s.get("after")]
+        chain = [_chain_text(s) for s in slots if s.get("after")]
         by_days = {}
         for s in slots:
             if not s.get("after"):
@@ -195,7 +209,8 @@ def render() -> None:
                     subset=[t("sched.col.changed")])
     st.dataframe(sty, hide_index=True, use_container_width=True, height=grid_height(len(tbl), 14),
                  column_config={t("sched.col.writes"): st.column_config.TextColumn(width="large"),
-                                t("sched.col.job"): st.column_config.TextColumn(width="medium")})
+                                t("sched.col.job"): st.column_config.TextColumn(width="large"),
+                                t("sched.col.when"): st.column_config.TextColumn(width="large")})
 
     # ── 3. зависимости ──
     st.markdown(f"#### {t('sched.deps.title')}")
@@ -287,7 +302,9 @@ def _deps_table(d: pd.DataFrame, key: str) -> None:
     sty = _color_cells(dt_.style, t("sched.col.status"), kinds)
     sty = _color_cells(sty, t("sched.col.margin"), kinds)
     st.dataframe(sty, hide_index=True, use_container_width=True, height=grid_height(len(dt_), 12), key=key,
-                 column_config={t("sched.col.tables"): st.column_config.TextColumn(width="medium")})
+                 column_config={t("sched.col.tables"): st.column_config.TextColumn(width="medium"),
+                                t("sched.col.our"): st.column_config.TextColumn(width="large"),
+                                t("sched.col.waits"): st.column_config.TextColumn(width="large")})
 
 
 def _gantt(view: pd.DataFrame) -> None:

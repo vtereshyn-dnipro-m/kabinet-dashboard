@@ -1,6 +1,6 @@
 # Databricks notebook source
-# DBTITLE 1,Kabinet - После Ledger Summary (запасной): страховка вечерней цепочки
-# Kabinet - После Ledger Summary (запасной) — 18:30 Kyiv (с 12.10.2026)
+# DBTITLE 1,Kabinet - Запасной прогон после Ledger Summary: страховка вечерней цепочки
+# Kabinet - Запасной прогон после Ledger Summary — 18:30 Kyiv (с 12.10.2026)
 #
 # Вечерние Stock Loader и Coverage Projection запускает джоба «Kabinet - После Ledger Summary» — по записи Дарины в
 # dnipro_m.raw_amazon_fba_inventory_ledger_summary (вечерний прогон её джобы, сейчас 16:40, длится 8–9 мин). Если
@@ -26,7 +26,7 @@ from zoneinfo import ZoneInfo
 import psycopg2, requests
 from databricks.sdk import WorkspaceClient
 
-JOB_NAME = "Kabinet - После Ledger Summary (запасной)"
+JOB_NAME = "Kabinet - Запасной прогон после Ledger Summary"
 CHAIN_JOB = "Kabinet - После Ledger Summary"
 LEDGER = "dnipro_m.dnipro_m.raw_amazon_fba_inventory_ledger_summary"
 EVENING_UTC_HOUR = 10

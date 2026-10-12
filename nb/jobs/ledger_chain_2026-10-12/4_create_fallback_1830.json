@@ -1,5 +1,5 @@
 {
-  "name": "Kabinet - После Ledger Summary (запасной)",
+  "name": "Kabinet - Запасной прогон после Ledger Summary",
   "description": "Страховка вечерней цепочки: в 18:30 проверяет, была ли сегодня вечерняя запись Ledger Summary и отработала ли цепочка «Kabinet - После Ledger Summary». Нет — запускает Stock Loader и Coverage на том, что есть, и шлёт тревогу в бот (инцидент ledger_evening).",
   "max_concurrent_runs": 1,
   "schedule": {"quartz_cron_expression": "0 30 18 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
@@ -7,7 +7,7 @@
                     "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
   "tasks": [
     {"task_key": "check", "environment_key": "default", "timeout_seconds": 1800,
-     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - После Ledger Summary (запасной)",
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Запасной прогон после Ledger Summary",
                        "source": "WORKSPACE"}},
     {"task_key": "need_run", "depends_on": [{"task_key": "check"}],
      "condition_task": {"op": "EQUAL_TO", "left": "{{tasks.check.values.need_run}}", "right": "true"}},
