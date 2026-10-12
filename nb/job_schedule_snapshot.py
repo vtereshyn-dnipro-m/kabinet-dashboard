@@ -133,6 +133,7 @@ for j in w.jobs.list(expand_tasks=True):
         if t.condition_task and "job.start_time.hour" in (t.condition_task.left or ""):
             cond = (str(getattr(t.condition_task.op, "value", t.condition_task.op)), t.condition_task.right)
         task_meta[t.task_key] = dict(deps=[(d.task_key, d.outcome) for d in (t.depends_on or [])], cond=cond,
+                                     gate=bool(t.condition_task) and cond is None,
                                      run_job=t.run_job_task.job_id if t.run_job_task else None)
     ecid = next((t.existing_cluster_id for t in tasks if t.existing_cluster_id), None)
     if ecid:
@@ -196,6 +197,7 @@ for _f in sorted(os.listdir(os.environ["SCHEDULE_WHATIF"])) if os.environ.get("S
         _J["task_meta"][_t["task_key"]] = dict(
             deps=[(d["task_key"], d.get("outcome")) for d in _t.get("depends_on", [])],
             cond=(_c["op"], _c["right"]) if _c and "job.start_time.hour" in _c.get("left", "") else None,
+            gate=bool(_c) and "job.start_time.hour" not in _c.get("left", ""),
             run_job=(_t.get("run_job_task") or {}).get("job_id"))
     print("что если:", _f)
 
@@ -298,10 +300,16 @@ def _chain(pid, P):
             out += _conds(d, seen + (k,))
         return out
 
+    def _gated(k, seen=()):
+        """На пути к задаче есть условие не по часу (например, task value «нужен ли запасной прогон»)."""
+        return any(P["task_meta"].get(d, {}).get("gate") or _gated(d, seen + (k,))
+                   for d, _ in P["task_meta"].get(k, {}).get("deps", []) if d not in seen)
+
     for k, m in edges:
         C = jobs[m["run_job"]]
         off = _start(k)
         conds = _conds(k)
+        gated = _gated(k)
         for ps in P["slots"]:
             h, mi = map(int, ps["t"].split(":"))
             hour_utc = dt.datetime(now.year, now.month, now.day, h, mi, tzinfo=KYIV).astimezone(dt.timezone.utc).hour
@@ -315,9 +323,13 @@ def _chain(pid, P):
             if not ok_:
                 continue
             t_ = (h * 60 + mi + off) % (24 * 60)
+            src = ps.get("after") if P["kind"] == "event" else None
             C["slots"].append(dict(t=f"{int(t_) // 60:02d}:{int(t_) % 60:02d}", dows=ps["dows"], monthly=ps.get("monthly"),
                                    median_min=C["median_min"], p90_min=None, runs=0,
-                                   after=P["job_name"], after_id=pid, after_task=k))
+                                   # родитель с триггером на таблицу: «после источника через родителя», а не «после
+                                   # родителя» — человеку важно, ЧЕГО мы ждём; after_id остаётся родителем (порядок)
+                                   after=src or P["job_name"], via=P["job_name"] if src else None,
+                                   gated=gated, after_id=pid, after_task=k))
         if C["kind"] == "manual":
             C["kind"] = "chain"
 

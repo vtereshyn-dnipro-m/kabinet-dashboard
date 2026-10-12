@@ -1,0 +1,17 @@
+{
+  "job_id": 936210060909607,
+  "new_settings": {
+    "name": "Kabinet - Запасной прогон после Ledger Summary",
+    "tasks": [
+      {"task_key": "check", "environment_key": "default", "timeout_seconds": 1800,
+       "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Запасной прогон после Ledger Summary",
+                         "source": "WORKSPACE"}},
+      {"task_key": "need_run", "depends_on": [{"task_key": "check"}],
+       "condition_task": {"op": "EQUAL_TO", "left": "{{tasks.check.values.need_run}}", "right": "true"}},
+      {"task_key": "stock_loader", "depends_on": [{"task_key": "need_run", "outcome": "true"}],
+       "run_job_task": {"job_id": 201160589560980}, "timeout_seconds": 3600},
+      {"task_key": "coverage_projection", "depends_on": [{"task_key": "stock_loader"}], "run_if": "ALL_SUCCESS",
+       "run_job_task": {"job_id": 847957236064692}, "timeout_seconds": 3600}
+    ]
+  }
+}
