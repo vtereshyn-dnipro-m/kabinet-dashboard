@@ -1,0 +1,9 @@
+{
+  "job_id": 801870810114047,
+  "new_settings": {
+    "tasks": [
+      {"task_key": "mm_competitiveness", "depends_on": [{"task_key": "notebook_task_Kabinet_-_MM_Offers_Loader"}],
+       "run_if": "ALL_DONE", "run_job_task": {"job_id": 772811628056364}, "timeout_seconds": 3600}
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -41,6 +41,31 @@
+ pg_cur = pg_conn.cursor()
+ print("✅ Lakebase connected (autocommit=True)")
+ 
++# ── Режим запуска (с 12.10.2026) ──
++# chain    — из джобы Kabinet - Reconciliation, сразу после сверки (задача watchdog, run_if ALL_DONE: и при упавшей
++#            сверке тоже — тогда сторож скажет, что сверки за сегодня нет). Так сторож видит сегодняшнюю сверку, а не
++#            вчерашнюю: до 12.10 оба шли в 13:00, и сверка 1:1 доходила до бота на день позже.
++# fallback — своё расписание (13:40) как страховка: если цепочка сегодня уже отработала (heartbeat за сегодня),
++#            выходим сразу; если нет — работаем как обычно и пишем в «сбои проверок», что цепочка не запустила сторожа.
++# manual   — ручной запуск, без проверок.
++try:
++    dbutils.widgets.text("mode", "manual")
++    RUN_MODE = (dbutils.widgets.get("mode") or "manual").strip()
++except Exception:
++    RUN_MODE = "manual"
++_CHAIN_MISSED = False
++if RUN_MODE == "fallback":
++    from datetime import datetime as _dt
++    from zoneinfo import ZoneInfo as _ZI
++    pg_cur.execute("SELECT last_success_at FROM kabinet_data.watchdog_heartbeat WHERE id = 1")
++    _hb = pg_cur.fetchone()
++    _today_k = _dt.now(_ZI("Europe/Kyiv")).date()
++    if _hb and _hb[0] and _hb[0].astimezone(_ZI("Europe/Kyiv")).date() == _today_k:
++        print(f"⏭️ fallback: сторож уже отработал сегодня по цепочке ({_hb[0].astimezone(_ZI('Europe/Kyiv')):%H:%M}) — выходим")
++        dbutils.notebook.exit("уже отработал сегодня по цепочке")
++    _CHAIN_MISSED = True
++print(f"▶ режим запуска: {RUN_MODE}")
++
+ # ── DDL: data_freshness_rules ──
+ pg_cur.execute("""
+     CREATE TABLE IF NOT EXISTS kabinet_data.data_freshness_rules (
+@@ -430,6 +455,9 @@
+ # список уходит в Telegram отдельным блоком, а если сам Telegram не доставлен —
+ # прогон в конце поднимает исключение и джоба становится красной.
+ _soft_errors = []   # (имя проверки, текст ошибки)
++if _CHAIN_MISSED:
++    _soft_errors.append(("запуск сторожа", "сегодня цепочка Kabinet - Reconciliation → сторож не отработала; "
++                                            "сторож запущен запасным расписанием 13:40 — проверьте джобу сверки"))
+ # сломанные правила свежести доезжают в Telegram тем же блоком «сбои проверок сторожа»
+ _soft_errors += [(f"правило свежести {t}", e) for t, e in broken_rules]
+ 
+@@ -1769,6 +1797,11 @@
+ try:
+     pg_cur.execute("SELECT max(calc_date), current_date FROM kabinet_data.reconciliation_results")
+     _rc_last, _rc_today = pg_cur.fetchone()
++    if _rc_last is None or _rc_last < _rc_today:
++        # с 12.10.2026 сторож идёт сразу после сверки — сегодняшний расчёт обязан быть; нет — сверка упала или не
++        # запускалась, и об этом надо сказать, а не молча сравнивать со вчерашним
++        _soft_errors.append(("сверка", f"за сегодня сверки нет — последний расчёт {_rc_last or 'не найден'}; "
++                                       "проверьте джобу Kabinet - Reconciliation"))
+     if _rc_last is None or (_rc_today - _rc_last).days > 1:
+         print(f"\n🧮 Сверка: последний расчёт {_rc_last} — несвежий, инциденты не трогаем")
+     else:

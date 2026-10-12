@@ -1,0 +1,9 @@
+{
+  "job_id": 453710724542368,
+  "new_settings": {
+    "tasks": [
+      {"task_key": "watchdog", "depends_on": [{"task_key": "reconciliation"}], "run_if": "ALL_DONE",
+       "run_job_task": {"job_id": 555949343425480, "job_parameters": {"mode": "chain"}}, "timeout_seconds": 3600}
+    ]
+  }
+}

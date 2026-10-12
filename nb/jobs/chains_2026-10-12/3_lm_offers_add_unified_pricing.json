@@ -1,0 +1,11 @@
+{
+  "job_id": 341438799740428,
+  "new_settings": {
+    "tasks": [
+      {"task_key": "afternoon_run", "depends_on": [{"task_key": "load_offers"}], "run_if": "ALL_DONE",
+       "condition_task": {"op": "GREATER_THAN_OR_EQUAL", "left": "{{job.start_time.hour}}", "right": "10"}},
+      {"task_key": "unified_pricing", "depends_on": [{"task_key": "afternoon_run", "outcome": "true"}],
+       "run_job_task": {"job_id": 840251218452465}, "timeout_seconds": 3600}
+    ]
+  }
+}
