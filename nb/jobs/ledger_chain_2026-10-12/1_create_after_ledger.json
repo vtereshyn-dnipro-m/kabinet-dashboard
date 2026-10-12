@@ -1,0 +1,22 @@
+{
+  "name": "Kabinet - После Ledger Summary",
+  "description": "Вечерний Stock Loader и Coverage Projection запускаются по записи в dnipro_m.raw_amazon_fba_inventory_ledger_summary (джоба «FBA Inventory Ledger Summary for Tableau», сейчас 16:40), а не по часам 17:00 / 17:30. Утренние записи (до 10 UTC) отсекает условие: утром свежего дня в отчёте ещё нет, а Stock Loader и так идёт в 12:00 и 15:00.",
+  "max_concurrent_runs": 1,
+  "trigger": {
+    "pause_status": "UNPAUSED",
+    "table_update": {
+      "table_names": ["dnipro_m.dnipro_m.raw_amazon_fba_inventory_ledger_summary"],
+      "condition": "ANY_UPDATED",
+      "wait_after_last_change_seconds": 300,
+      "min_time_between_triggers_seconds": 3600
+    }
+  },
+  "tasks": [
+    {"task_key": "evening_run",
+     "condition_task": {"op": "GREATER_THAN_OR_EQUAL", "left": "{{job.start_time.hour}}", "right": "10"}},
+    {"task_key": "stock_loader", "depends_on": [{"task_key": "evening_run", "outcome": "true"}],
+     "run_job_task": {"job_id": 201160589560980}, "timeout_seconds": 3600},
+    {"task_key": "coverage_projection", "depends_on": [{"task_key": "stock_loader"}], "run_if": "ALL_SUCCESS",
+     "run_job_task": {"job_id": 847957236064692}, "timeout_seconds": 3600}
+  ]
+}
