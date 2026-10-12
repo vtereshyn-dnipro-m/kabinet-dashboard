@@ -1678,6 +1678,7 @@ TRANSLATIONS = {
     "inc.type.reconciliation": {"ru": "Сверка: необъяснённое расхождение", "uk": "Звірка: непояснене розходження", "en": "Reconciliation: unexplained gap"},
     "inc.type.report_quota": {"ru": "Квота отчётов SP-API", "uk": "Квота звітів SP-API", "en": "SP-API report quota"},
     "inc.type.schedule_order": {"ru": "Порядок расписания нарушен", "uk": "Порядок розкладу порушено", "en": "Schedule order broken"},
+    "inc.type.ledger_evening": {"ru": "Вечерние остатки FBA не обновились", "uk": "Вечірні залишки FBA не оновилися", "en": "Evening FBA stock not refreshed"},
     "inc.status.open": {"ru": "Открыт", "uk": "Відкрито", "en": "Open"},
     "inc.status.acknowledged": {"ru": "В работе", "uk": "В роботі", "en": "In progress"},
     "inc.status.resolved": {"ru": "Закрыт", "uk": "Закрито", "en": "Resolved"},

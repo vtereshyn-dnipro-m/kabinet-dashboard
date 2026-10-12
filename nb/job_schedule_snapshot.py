@@ -175,8 +175,11 @@ for _f in sorted(os.listdir(os.environ["SCHEDULE_WHATIF"])) if os.environ.get("S
         # payload `jobs create`: новая джоба, номер условный
         _tu = (_pl.get("trigger") or {}).get("table_update") or {}
         _pl = {"job_id": -1 - len(jobs), "new_settings": {"tasks": _pl["tasks"]}, "_new": _pl}
-        jobs[_pl["job_id"]] = dict(job_id=_pl["job_id"], job_name=_pl["_new"]["name"], creator="", kind="event" if _tu else "manual",
-                                   cron=None, tz=None, paused=False, paths=[], run_jobs=[], task_meta={},
+        _sc = _pl["_new"].get("schedule") or {}
+        jobs[_pl["job_id"]] = dict(job_id=_pl["job_id"], job_name=_pl["_new"]["name"], creator="",
+                                   kind="cron" if _sc else "event" if _tu else "manual",
+                                   cron=_sc.get("quartz_cron_expression"), tz=_sc.get("timezone_id"), paused=False,
+                                   paths=[], run_jobs=[], task_meta={},
                                    cluster_kind="serverless", cluster_name=None, trig_tables=_tu.get("table_names", []),
                                    trig_wait_min=(_tu.get("wait_after_last_change_seconds") or 0) / 60)
     _J = jobs.get(_pl["job_id"])
