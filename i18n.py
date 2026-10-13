@@ -4535,6 +4535,21 @@ TRANSLATIONS = {
         "uk": "Частина цифр на сторінці спирається на застарілі дані — читайте їх з поправкою на дату:",
         "en": "Some numbers on this page rest on stale data — read them with the date in mind:",
     },
+    "passport.tip_line_pulse": {
+        "ru": "{src}: проверено {checked}, последнее изменение {changed}, ведёт «{loader}»",
+        "uk": "{src}: перевірено {checked}, остання зміна {changed}, веде «{loader}»",
+        "en": "{src}: checked {checked}, last change {changed}, maintained by “{loader}”",
+    },
+    "passport.stale_item_pulse": {
+        "ru": "{src}: «{loader}» не отрабатывал с {checked}, это {age} назад при пороге {limit} ч",
+        "uk": "{src}: «{loader}» не відпрацьовував з {checked}, це {age} тому за порогу {limit} год",
+        "en": "{src}: “{loader}” has not run since {checked}, that is {age} ago against a {limit} h limit",
+    },
+    "passport.as_of_pulse": {
+        "ru": "проверено {checked} · последнее изменение {changed}",
+        "uk": "перевірено {checked} · остання зміна {changed}",
+        "en": "checked {checked} · last change {changed}",
+    },
     "passport.stale_item": {
         "ru": "{src}: данные по {date}, это {age} назад при пороге {limit} ч",
         "uk": "{src}: дані по {date}, це {age} тому за порогу {limit} год",
