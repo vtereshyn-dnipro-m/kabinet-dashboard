@@ -323,7 +323,7 @@ TR = {
         "al_hint2": "Идентификатор алерта обязателен в задаче: в списке ClickUp должно быть текстовое поле "
                     "«Alert ID». Пока его нет, джоба задачи не создаёт — причина в колонке «Проверка списка».",
         "al_only_routed": "Только со списком", "al_search": "Тип",
-        "al_col_type": "Тип", "al_col_title": "Название", "al_col_descr": "Что означает",
+        "al_col_type": "Код типа", "al_col_title": "Название", "al_col_descr": "Что означает",
         "al_col_list": "Список ClickUp (id)", "al_col_list_name": "Путь списка",
         "al_risk_Critical": "критично", "al_risk_High": "высокий", "al_risk_Medium": "средний", "al_risk_Low": "низкий", "al_col_mode": "Режим", "al_col_watch": "Контроль закрытия", "al_col_risk": "Риск",
         "al_col_due": "Срок, дн", "al_col_role": "Роль ClickUp", "al_col_role_id": "id роли",
@@ -947,7 +947,7 @@ TR = {
         "al_hint2": "Ідентифікатор алерту обов'язковий у задачі: у списку ClickUp має бути текстове поле "
                     "«Alert ID». Поки його немає, джоба задач не створює — причина в колонці «Перевірка списку».",
         "al_only_routed": "Лише зі списком", "al_search": "Тип",
-        "al_col_type": "Тип", "al_col_title": "Назва", "al_col_descr": "Що означає",
+        "al_col_type": "Код типу", "al_col_title": "Назва", "al_col_descr": "Що означає",
         "al_col_list": "Список ClickUp (id)", "al_col_list_name": "Шлях списку",
         "al_risk_Critical": "критично", "al_risk_High": "високий", "al_risk_Medium": "середній", "al_risk_Low": "низький", "al_col_mode": "Режим", "al_col_watch": "Контроль закриття", "al_col_risk": "Ризик",
         "al_col_due": "Термін, дн", "al_col_role": "Роль ClickUp", "al_col_role_id": "id ролі",
@@ -1570,7 +1570,7 @@ TR = {
         "al_hint2": "The alert identifier is mandatory on the task: the ClickUp list must have a text field "
                     "«Alert ID». Until it exists the job creates no tasks — see the «List check» column.",
         "al_only_routed": "Only with a list", "al_search": "Type",
-        "al_col_type": "Type", "al_col_title": "Title", "al_col_descr": "Meaning",
+        "al_col_type": "Type code", "al_col_title": "Title", "al_col_descr": "Meaning",
         "al_col_list": "ClickUp list (id)", "al_col_list_name": "List path",
         "al_risk_Critical": "Critical", "al_risk_High": "High", "al_risk_Medium": "Medium", "al_risk_Low": "Low", "al_col_mode": "Mode", "al_col_watch": "Watch close", "al_col_risk": "Risk",
         "al_col_due": "Due, days", "al_col_role": "ClickUp role", "al_col_role_id": "role id",

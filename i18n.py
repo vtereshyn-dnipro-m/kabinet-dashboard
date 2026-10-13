@@ -1762,28 +1762,28 @@ TRANSLATIONS = {
         "ru": (
             "Инциденты создаются **автоматически** при каждом обновлении данных:\n\n"
             "| Тип | Правило | Источник | Статус |\n|---|---|---|---|\n"
-            "| 🔴 out_of_stock | остаток = 0 | Остатки | ✅ активно |\n"
-            "| 🟡 low_stock | остаток ≤ 3 шт | Остатки | ✅ активно |\n"
-            "| 🟠 stuck_shipment | поставка без движения | Поставки | 🔜 скоро |\n"
-            "| 🟣 sales_anomaly | резкий рост/падение продаж | Продажи | 🔜 скоро |\n\n"
+            "| 🔴 Нет в наличии | остаток = 0 | Остатки | ✅ активно |\n"
+            "| 🟡 Мало остатка | остаток ≤ 3 шт | Остатки | ✅ активно |\n"
+            "| 🟠 Поставка застряла | поставка без движения | Поставки | 🔜 скоро |\n"
+            "| 🟣 Аномалия продаж | резкий рост/падение продаж | Продажи | 🔜 скоро |\n\n"
             "Когда проблема исчезает (например, сток пополнен) — инцидент закрывается сам."
         ),
         "uk": (
             "Інциденти створюються **автоматично** під час кожного оновлення даних:\n\n"
             "| Тип | Правило | Джерело | Статус |\n|---|---|---|---|\n"
-            "| 🔴 out_of_stock | залишок = 0 | Залишки | ✅ активно |\n"
-            "| 🟡 low_stock | залишок ≤ 3 шт | Залишки | ✅ активно |\n"
-            "| 🟠 stuck_shipment | поставка без руху | Поставки | 🔜 скоро |\n"
-            "| 🟣 sales_anomaly | різке зростання/падіння продажів | Продажі | 🔜 скоро |\n\n"
+            "| 🔴 Немає в наявності | залишок = 0 | Залишки | ✅ активно |\n"
+            "| 🟡 Мало залишку | залишок ≤ 3 шт | Залишки | ✅ активно |\n"
+            "| 🟠 Поставка застрягла | поставка без руху | Поставки | 🔜 скоро |\n"
+            "| 🟣 Аномалія продажів | різке зростання/падіння продажів | Продажі | 🔜 скоро |\n\n"
             "Коли проблема зникає (наприклад, сток поповнено) — інцидент закривається сам."
         ),
         "en": (
             "Incidents are created **automatically** on every data update:\n\n"
             "| Type | Rule | Source | Status |\n|---|---|---|---|\n"
-            "| 🔴 out_of_stock | qty = 0 | Stock | ✅ active |\n"
-            "| 🟡 low_stock | qty ≤ 3 pcs | Stock | ✅ active |\n"
-            "| 🟠 stuck_shipment | shipment not moving | Shipments | 🔜 soon |\n"
-            "| 🟣 sales_anomaly | sharp sales rise/drop | Sales | 🔜 soon |\n\n"
+            "| 🔴 Out of stock | qty = 0 | Stock | ✅ active |\n"
+            "| 🟡 Low stock | qty ≤ 3 pcs | Stock | ✅ active |\n"
+            "| 🟠 Stuck shipment | shipment not moving | Shipments | 🔜 soon |\n"
+            "| 🟣 Sales anomaly | sharp sales rise/drop | Sales | 🔜 soon |\n\n"
             "When the problem disappears (e.g. stock replenished) — the incident closes itself."
         ),
     },
@@ -3952,16 +3952,6 @@ TRANSLATIONS = {
         "ru": "Ждёт акцепта", "uk": "Чекає акцепту", "en": "Awaiting acceptance"},
     "cm.state.waiting_debit": {
         "ru": "Ждёт оплаты", "uk": "Чекає оплати", "en": "Awaiting payment"},
-    "cm.inc.low_stock": {"ru": "Мало остатка", "uk": "Мало залишку", "en": "Low stock"},
-    "cm.inc.out_of_stock": {"ru": "Нет в наличии", "uk": "Немає в наявності", "en": "Out of stock"},
-    "cm.inc.stale_data": {"ru": "Данные устарели", "uk": "Дані застаріли", "en": "Stale data"},
-    "cm.inc.negative_stock": {"ru": "Отрицательный остаток", "uk": "Відʼємний залишок", "en": "Negative stock"},
-    "cm.inc.lm_not_accepted": {
-        "ru": "Заказ без акцепта", "uk": "Замовлення без акцепту", "en": "Order not accepted"},
-    "cm.inc.lm_offer_zero": {
-        "ru": "Оффер обнулён", "uk": "Оффер обнулено", "en": "Offer out of stock"},
-    "cm.inc.lm_degraded": {
-        "ru": "Показатели канала просели", "uk": "Показники каналу просіли", "en": "Channel health down"},
     "cm.sev.critical": {"ru": "Критично", "uk": "Критично", "en": "Critical"},
     "cm.sev.high": {"ru": "Высокий", "uk": "Високий", "en": "High"},
     "cm.sev.warning": {"ru": "Средний", "uk": "Середній", "en": "Medium"},
