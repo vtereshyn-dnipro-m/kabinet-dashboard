@@ -272,8 +272,8 @@ def _touch_login(email, name, first: bool):
         with conn.cursor() as cur:
             if first:
                 cur.execute("""
-                    INSERT INTO kabinet_data.app_users (email, role, note, created_by, first_login_at, last_login_at)
-                    VALUES (%s, 'viewer', %s, 'self:first-login', now(), now())
+                    INSERT INTO kabinet_data.app_users (email, role, ls_role, note, created_by, first_login_at, last_login_at)
+                    VALUES (%s, 'viewer', 'viewer', %s, 'self:first-login', now(), now())
                     ON CONFLICT (email) DO UPDATE SET last_login_at = now()
                 """, (email, f"первый вход: {name}" if name else None))
             else:
