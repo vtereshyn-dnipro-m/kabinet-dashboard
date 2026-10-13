@@ -24,7 +24,45 @@ from streamlit.testing.v1 import AppTest
 R = "/Users/vitter/Documents/Code/kabinet-dashboard"
 SQLISH = ("syntax", "column", "relation", "does not exist", "group by", "psycopg2",
           "operator", "не прочиталось", "undefined")
-def прогнать(f, ss=None):
+# Коды типов инцидентов на экране — признак того, что подпись взята мимо i18n.incident_type_label (своя копия
+# словаря, color = код в plotly). Так «Площадки → Здоровье · Amazon» показывали listing_pair_blocked и ещё девять
+# кодов (12.10.2026). Ищем во всём, что видит человек: тексты, метрики, таблицы, варианты фильтров, диаграммы.
+КОДЫ = []
+
+
+def видимый_текст(at):
+    out = []
+    for имя in ("title", "header", "subheader", "markdown", "caption", "info", "warning", "error", "success", "text"):
+        for e in getattr(at, имя, []):
+            out.append(str(getattr(e, "value", "")))
+    for e in at.metric:
+        out += [str(e.label), str(e.value)]
+    for e in at.dataframe:
+        try:
+            v = e.value
+            out += [str(c) for c in v.columns] + [v.to_string()]
+        except Exception:
+            pass
+    for e in list(at.selectbox) + list(at.multiselect) + list(at.radio):
+        try:
+            out += [str(o) for o in e.options]
+        except Exception:
+            pass
+    for e in at.get("plotly_chart"):
+        try:
+            out.append(e.proto.spec)
+        except Exception:
+            pass
+    return "\n".join(x for x in out if x)
+
+
+def сырые_коды(at):
+    import re as _re
+    txt = видимый_текст(at)
+    return sorted({k for k in КОДЫ if _re.search(rf"(?<![A-Za-z0-9_]){_re.escape(k)}(?![A-Za-z0-9_])", txt)})
+
+
+def прогнать(f, ss=None, коды_можно=False):
     путь = f"{R}/{f}"
     # компиляция — до запуска: см. пункт 3 в описании модуля
     try:
@@ -36,6 +74,10 @@ def прогнать(f, ss=None):
     at.run()
     exc = [str(e.value).strip().splitlines()[-1][:130] for e in at.exception]
     errs = [str(e.value)[:130] for e in at.error if any(w in str(e.value).lower() for w in SQLISH)]
+    if not коды_можно:
+        _к = сырые_коды(at)
+        if _к:
+            errs.append("на экране коды типов инцидентов вместо названий: " + ", ".join(_к))
     # прогон, не нарисовавший ни одного элемента, — это не «пустая страница», а
     # скрипт, который не доехал: у любой нашей страницы есть хотя бы заголовок
     # Список полный намеренно: в первой версии не было ни title, ни error, и страница
@@ -65,7 +107,9 @@ print(("  ПРОВАЛ " if _копия_плохо else "    ок  ") + "вык�
 # Без строки в словаре подпись берётся из справочника incident_types — она русская, и в EN/UK
 # на «Обзоре» висела «Дефицит наступит раньше поставки» (12.10.2026, ещё одиннадцать типов так же).
 import i18n as _i18n
-_типы = pd.read_sql("SELECT incident_type FROM kabinet_data.incident_types", psycopg2.connect(DSN))["incident_type"]
+_типы = pd.read_sql("""SELECT incident_type FROM kabinet_data.incident_types
+                        UNION SELECT DISTINCT incident_type FROM kabinet_data.incidents""", psycopg2.connect(DSN))["incident_type"]
+КОДЫ[:] = sorted(set(_типы.dropna()))
 _без_перевода = sorted(c for c in _типы if not all(_i18n.TRANSLATIONS.get(f"inc.type.{c}", {}).get(l) for l in ("ru", "uk", "en")))
 print(("  ПРОВАЛ " if _без_перевода else "    ок  ") + "переводы типов инцидентов"
       + (f"\n          нет перевода: {', '.join(_без_перевода)}" if _без_перевода else ""))
@@ -78,9 +122,15 @@ for f in ("home.py", "pages/1_Stock.py", "pages/2_Incidents.py", "pages/3_Foreca
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
 for sec in ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "cat", "peid", "vg", "matrix"]:
+    # в справочнике алертов код типа — это ключ записи (колонка «Код типа»), ему там место
     _, плохо = прогнать("pages/6_Dictionaries.py",
-                        {"dict_section": sec, "dict_section_last": sec})
+                        {"dict_section": sec, "dict_section_last": sec}, коды_можно=(sec == "alerts"))
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f"Справочники → {sec}"
           + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
-print(f"\nс бедой: {беда} из 25")
+# те же страницы с инцидентами — на английском: подпись типа не должна откатываться к коду и в другом языке
+for f in ("home.py", "pages/2_Incidents.py", "pages/8_CM_Dashboard.py"):
+    _, плохо = прогнать(f, {"lang": "en"})
+    print(("  ПРОВАЛ " if плохо else "    ок  ") + f + " (EN)" + ("".join("\n          " + x for x in плохо)))
+    беда += bool(плохо)
+print(f"\nс бедой: {беда} из 28")

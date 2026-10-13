@@ -11,7 +11,7 @@ import streamlit as st
 
 from db.connection import get_connection
 import data_passport as passport
-from i18n import get_lang, init_lang, t
+from i18n import get_lang, init_lang, t, incident_type_label
 import pbi
 import period as period_mod
 from util import as_text, day_axis, eur, grid_height, show_df
@@ -1099,21 +1099,12 @@ with tab_amz:
         # инциденты Leroy Merlin живут в общем журнале — здесь показываем
         # только амазоновские, чтобы вкладки не дублировали друг друга
         inc["source"] = inc["source"].fillna("amazon")
-        # в базе коды — на экране человеческие названия
-        TYPE_LABEL = {
-            "low_stock": t("cm.inc.low_stock"),
-            "out_of_stock": t("cm.inc.out_of_stock"),
-            "stale_data": t("cm.inc.stale_data"),
-            "negative_stock": t("cm.inc.negative_stock"),
-            "lm_order_not_accepted": t("cm.inc.lm_not_accepted"),
-            "lm_offer_out_of_stock": t("cm.inc.lm_offer_zero"),
-            "lm_health_degraded": t("cm.inc.lm_degraded"),
-        }
+        # в базе коды — на экране человеческие названия; подпись одна на весь Кабинет (i18n.incident_type_label):
+        # своя копия словаря здесь знала шесть типов, остальные выводились кодом (12.10.2026)
         SEV_LABEL = {"critical": t("cm.sev.critical"), "high": t("cm.sev.high"),
                      "warning": t("cm.sev.warning"), "low": t("cm.sev.low"),
                      "info": t("cm.sev.info")}
-        inc["type_label"] = inc["incident_type"].map(
-            lambda v: TYPE_LABEL.get(v, v))
+        inc["type_label"] = inc["incident_type"].map(incident_type_label)
         inc["sev_label"] = inc["severity"].map(lambda v: SEV_LABEL.get(v, v))
         amz = inc[~inc["source"].str.contains("leroy|lm", case=False, na=False)].copy()
 

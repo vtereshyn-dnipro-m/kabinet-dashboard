@@ -267,13 +267,12 @@ with left:
     by_type = open_df.groupby("incident_type").size().reset_index(name="count")
     by_type["type_label"] = by_type["incident_type"].map(incident_type_label)
     if not by_type.empty:
+        # цвет — по подписи, а не по коду: при color = код легенда и подсказка показывали бы код
+        _clr = {"out_of_stock": "#e24b4a", "low_stock": "#f2b134", "stuck_shipment": "#ef9f27", "sales_anomaly": "#7f77dd"}
         fig = px.pie(by_type, names="type_label", values="count",
                      hole=0.55, title=t("inc.chart.by_type_title"),
-                     color="incident_type",
-                     color_discrete_map={"out_of_stock": "#e24b4a",
-                                         "low_stock": "#f2b134",
-                                         "stuck_shipment": "#ef9f27",
-                                         "sales_anomaly": "#7f77dd"})
+                     color="type_label",
+                     color_discrete_map={incident_type_label(k): v for k, v in _clr.items()})
         fig.update_layout(height=300, margin=dict(l=10, r=10, t=50, b=10))
         st.plotly_chart(fig, use_container_width=True)
 
