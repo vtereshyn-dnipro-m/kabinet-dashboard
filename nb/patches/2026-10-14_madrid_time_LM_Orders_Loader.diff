@@ -1,0 +1,225 @@
+--- a/Kabinet - Leroy Merlin Orders Loader
++++ b/Kabinet - Leroy Merlin Orders Loader
+@@ -72,8 +72,10 @@
+     CREATE TABLE IF NOT EXISTS kabinet_data.raw_lm_orders (
+         order_id            TEXT PRIMARY KEY,
+         order_state         TEXT,
+-        created_date        TIMESTAMPTZ,
++        created_date        TIMESTAMPTZ,        -- часы Мадрида, записанные как UTC (с 14.10.2026); момент — *_utc
+         last_updated_date   TIMESTAMPTZ,
++        created_date_utc    TIMESTAMPTZ,
++        last_updated_date_utc TIMESTAMPTZ,
+         channel_code        TEXT,
+         channel_label       TEXT,
+         currency            TEXT,
+@@ -106,7 +108,8 @@
+         tax_amount          NUMERIC(12,2),
+         tax_code            TEXT,
+         category_code       TEXT,
+-        shipped_date        TIMESTAMPTZ,
++        shipped_date        TIMESTAMPTZ,        -- часы Мадрида, записанные как UTC; момент — shipped_date_utc
++        shipped_date_utc    TIMESTAMPTZ,
+         shipping_from_country TEXT,
+         raw                 JSONB,
+         loaded_at           TIMESTAMPTZ DEFAULT now()
+@@ -215,6 +218,15 @@
+ # ─── MERGE orders into UC ───
+ now_ts = dt.datetime.now(dt.timezone.utc).isoformat()
+ 
++# Время в рабочих колонках — Мадрида (с 14.10.2026, просьба Дарины: ночные продажи по UTC ложились во вчерашний
++# день). Mirakl отдаёт UTC («…Z»): исходное момент-время уходит в *_utc, в рабочую колонку — часы Мадрида через
++# часовой пояс (летом +2, зимой +1 — сдвиг выбирается по дате каждой строки), как date_order_madrid у Odoo.
++# Длительности («сколько часов ждёт») считать только по *_utc.
++def _madrid(df, cols):
++    for c in cols:
++        df = df.withColumn(c + "_utc", F.col(c)).withColumn(c, F.from_utc_timestamp(F.col(c), "Europe/Madrid"))
++    return df
++
+ o_schema = StructType([
+     StructField("order_id", StringType(), False),
+     StructField("order_state", StringType()), StructField("created_date", StringType()),
+@@ -238,12 +250,14 @@
+     .withColumn("total_commission", F.col("total_commission").cast("decimal(12,2)"))
+     .withColumn("loaded_at", F.to_timestamp("loaded_at"))
+ )
++df_o = _madrid(df_o, ["created_date", "last_updated_date"])
+ df_o.createOrReplaceTempView("_orders_staging")
+ spark.sql("""
+     MERGE INTO dnipro_m.kabinet_data.raw_lm_orders t
+     USING _orders_staging s ON t.order_id = s.order_id
+     WHEN MATCHED THEN UPDATE SET
+         order_state=s.order_state, created_date=s.created_date, last_updated_date=s.last_updated_date,
++        created_date_utc=s.created_date_utc, last_updated_date_utc=s.last_updated_date_utc,
+         channel_code=s.channel_code, channel_label=s.channel_label, currency=s.currency,
+         price=s.price, total_price=s.total_price, shipping_price=s.shipping_price,
+         total_commission=s.total_commission, customer_country=s.customer_country,
+@@ -253,10 +267,12 @@
+     WHEN NOT MATCHED THEN INSERT
+         (order_id, order_state, created_date, last_updated_date, channel_code, channel_label,
+          currency, price, total_price, shipping_price, total_commission, customer_country,
+-         customer_city, shipping_company, shipping_tracking, payment_workflow, client_type, raw, loaded_at)
++         customer_city, shipping_company, shipping_tracking, payment_workflow, client_type, raw, loaded_at,
++         created_date_utc, last_updated_date_utc)
+         VALUES (s.order_id, s.order_state, s.created_date, s.last_updated_date, s.channel_code, s.channel_label,
+          s.currency, s.price, s.total_price, s.shipping_price, s.total_commission, s.customer_country,
+-         s.customer_city, s.shipping_company, s.shipping_tracking, s.payment_workflow, s.client_type, s.raw, s.loaded_at)
++         s.customer_city, s.shipping_company, s.shipping_tracking, s.payment_workflow, s.client_type, s.raw, s.loaded_at,
++         s.created_date_utc, s.last_updated_date_utc)
+ """)
+ 
+ # ─── MERGE order lines into UC ───
+@@ -287,6 +303,7 @@
+     .withColumn("received_date", F.to_timestamp("received_date"))
+     .withColumn("loaded_at", F.to_timestamp("loaded_at"))
+ )
++df_l = _madrid(df_l, ["shipped_date", "created_date", "debited_date", "last_updated_date", "received_date"])
+ df_l.createOrReplaceTempView("_lines_staging")
+ spark.sql("""
+     MERGE INTO dnipro_m.kabinet_data.raw_lm_order_lines t
+@@ -298,16 +315,20 @@
+         tax_amount=s.tax_amount, tax_code=s.tax_code, category_code=s.category_code,
+         shipped_date=s.shipped_date, shipping_from_country=s.shipping_from_country,
+         raw=s.raw, loaded_at=s.loaded_at, created_date=s.created_date,
+-        debited_date=s.debited_date, last_updated_date=s.last_updated_date, received_date=s.received_date
++        debited_date=s.debited_date, last_updated_date=s.last_updated_date, received_date=s.received_date,
++        shipped_date_utc=s.shipped_date_utc, created_date_utc=s.created_date_utc, debited_date_utc=s.debited_date_utc,
++        last_updated_date_utc=s.last_updated_date_utc, received_date_utc=s.received_date_utc
+     WHEN NOT MATCHED THEN INSERT
+         (order_line_id, order_id, order_line_state, shop_sku, product_sku, product_title,
+          quantity, price, price_unit, commission_fee, tax_amount, tax_code, category_code,
+          shipped_date, shipping_from_country, raw, loaded_at, created_date, debited_date,
+-         last_updated_date, received_date)
++         last_updated_date, received_date, shipped_date_utc, created_date_utc, debited_date_utc,
++         last_updated_date_utc, received_date_utc)
+         VALUES (s.order_line_id, s.order_id, s.order_line_state, s.shop_sku, s.product_sku, s.product_title,
+          s.quantity, s.price, s.price_unit, s.commission_fee, s.tax_amount, s.tax_code, s.category_code,
+          s.shipped_date, s.shipping_from_country, s.raw, s.loaded_at, s.created_date, s.debited_date,
+-         s.last_updated_date, s.received_date)
++         s.last_updated_date, s.received_date, s.shipped_date_utc, s.created_date_utc, s.debited_date_utc,
++         s.last_updated_date_utc, s.received_date_utc)
+ """)
+ print(f"✅ UC MERGE: {len(order_rows)} заказов, {len(line_rows)} позиций")
+ 
+@@ -369,6 +390,7 @@
+         .withColumn("transaction_date", F.to_timestamp("transaction_date"))
+         .withColumn("loaded_at", F.to_timestamp("loaded_at"))
+     )
++    df_r = _madrid(df_r, ["created_date", "transaction_date"])
+     df_r.createOrReplaceTempView("_refunds_staging")
+     spark.sql("""
+         MERGE INTO dnipro_m.kabinet_data.raw_lm_refunds t
+@@ -377,15 +399,16 @@
+             order_refund_id=s.order_refund_id, order_id=s.order_id, order_line_id=s.order_line_id,
+             shop_sku=s.shop_sku, amount=s.amount, quantity=s.quantity, reason_code=s.reason_code,
+             state=s.state, created_date=s.created_date, transaction_date=s.transaction_date,
++            created_date_utc=s.created_date_utc, transaction_date_utc=s.transaction_date_utc,
+             commission_amount=s.commission_amount, commission_tax_amount=s.commission_tax_amount,
+             shipping_amount=s.shipping_amount, raw=s.raw, loaded_at=s.loaded_at
+         WHEN NOT MATCHED THEN INSERT
+             (refund_id, order_refund_id, order_id, order_line_id, shop_sku, amount, quantity,
+              reason_code, state, created_date, transaction_date, commission_amount,
+-             commission_tax_amount, shipping_amount, raw, loaded_at)
++             commission_tax_amount, shipping_amount, raw, loaded_at, created_date_utc, transaction_date_utc)
+             VALUES (s.refund_id, s.order_refund_id, s.order_id, s.order_line_id, s.shop_sku, s.amount, s.quantity,
+              s.reason_code, s.state, s.created_date, s.transaction_date, s.commission_amount,
+-             s.commission_tax_amount, s.shipping_amount, s.raw, s.loaded_at)
++             s.commission_tax_amount, s.shipping_amount, s.raw, s.loaded_at, s.created_date_utc, s.transaction_date_utc)
+     """)
+     print(f"\n✅ Refunds MERGE: {len(refund_rows)} → raw_lm_refunds")
+ else:
+@@ -435,10 +458,11 @@
+ 
+ waiting = spark.sql(f"""
+     SELECT order_id, total_price, created_date,
+-           ROUND((unix_timestamp(current_timestamp()) - unix_timestamp(created_date)) / 3600, 1) AS hours_waiting
++           -- длительность — по created_date_utc: created_date с 14.10.2026 хранит часы Мадрида
++           ROUND((unix_timestamp(current_timestamp()) - unix_timestamp(created_date_utc)) / 3600, 1) AS hours_waiting
+     FROM dnipro_m.kabinet_data.raw_lm_orders
+     WHERE order_state = 'WAITING_ACCEPTANCE'
+-      AND (unix_timestamp(current_timestamp()) - unix_timestamp(created_date)) / 3600 > {ALERT_THRESHOLD_HOURS}
++      AND (unix_timestamp(current_timestamp()) - unix_timestamp(created_date_utc)) / 3600 > {ALERT_THRESHOLD_HOURS}
+     ORDER BY created_date
+ """).collect()
+ 
+@@ -501,7 +525,22 @@
+ # ═════════════════════════════════════════════════════════════════
+ 
+ import psycopg2.extras
++import datetime as _dtm
++from zoneinfo import ZoneInfo as _ZI
+ 
++# Время Мадрида (с 14.10.2026): в рабочую колонку — часы Мадрида без пояса (сессия в UTC, Postgres запишет их как
++# время UTC — то же правило, что в UC), в *_utc — исходный момент. Строку «…Z» в рабочую колонку передавать нельзя:
++# она ляжет настоящим UTC, и день съедет.
++def _utc_dt(s):
++    if not s:
++        return None
++    d = _dtm.datetime.fromisoformat(str(s).replace("Z", "+00:00"))
++    return (d if d.tzinfo else d.replace(tzinfo=_dtm.timezone.utc)).astimezone(_dtm.timezone.utc)
++
++def _mad_dt(s):
++    u = _utc_dt(s)
++    return u.astimezone(_ZI("Europe/Madrid")).replace(tzinfo=None) if u else None
++
+ # conn уже создан в Cell 3; если closed — переподключаемся
+ if conn.closed:
+     from databricks.sdk import WorkspaceClient
+@@ -514,6 +553,9 @@
+         user="v.tereshyn@dniprom.com", password=_cred.token, sslmode="require")
+     print("✅ Lakebase reconnected")
+ 
++with conn.cursor() as _tz_cur:
++    _tz_cur.execute("SET TIME ZONE 'UTC'")  # часы Мадрида пишутся как время UTC — правило «время Мадрида» (14.10.2026)
++
+ # ─── UPSERT orders → Lakebase ───
+ with conn.cursor() as cur:
+     psycopg2.extras.execute_values(cur, """
+@@ -521,11 +563,13 @@
+             (order_id, order_state, created_date, last_updated_date,
+              channel_code, channel_label, currency, price, total_price,
+              shipping_price, total_commission, customer_country, customer_city,
+-             shipping_company, shipping_tracking, payment_workflow, client_type, raw)
++             shipping_company, shipping_tracking, payment_workflow, client_type, raw,
++             created_date_utc, last_updated_date_utc)
+         VALUES %s
+         ON CONFLICT (order_id) DO UPDATE SET
+             order_state = EXCLUDED.order_state,
+             last_updated_date = EXCLUDED.last_updated_date,
++            last_updated_date_utc = EXCLUDED.last_updated_date_utc,
+             price = EXCLUDED.price,
+             total_price = EXCLUDED.total_price,
+             shipping_price = EXCLUDED.shipping_price,
+@@ -534,7 +578,8 @@
+             shipping_tracking = EXCLUDED.shipping_tracking,
+             raw = EXCLUDED.raw,
+             loaded_at = NOW()
+-    """, order_rows, page_size=100)
++    """, [r[:2] + (_mad_dt(r[2]), _mad_dt(r[3])) + r[4:] + (_utc_dt(r[2]), _utc_dt(r[3])) for r in order_rows],
++       page_size=100)
+     conn.commit()
+ print(f"✅ Lakebase raw_lm_orders: {len(order_rows)} upserted")
+ 
+@@ -547,13 +592,13 @@
+ with conn.cursor() as cur:
+     # Take only the first 15 fields + raw (skip extended dates not in schema)
+     lb_lines = [(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8],
+-                 r[9], r[10], r[11], r[12], r[13], r[14], r[19]) for r in line_rows]
++                 r[9], r[10], r[11], r[12], _mad_dt(r[13]), r[14], r[19], _utc_dt(r[13])) for r in line_rows]
+     psycopg2.extras.execute_values(cur, """
+         INSERT INTO kabinet_data.raw_lm_order_lines
+             (order_line_id, order_id, order_line_state, shop_sku, product_sku,
+              product_title, quantity, price, price_unit, commission_fee,
+              tax_amount, tax_code, category_code, shipped_date,
+-             shipping_from_country, raw)
++             shipping_from_country, raw, shipped_date_utc)
+         VALUES %s
+         ON CONFLICT (order_line_id) DO UPDATE SET
+             order_line_state = EXCLUDED.order_line_state,
+@@ -561,6 +606,7 @@
+             commission_fee = EXCLUDED.commission_fee,
+             tax_amount = EXCLUDED.tax_amount,
+             shipped_date = EXCLUDED.shipped_date,
++            shipped_date_utc = EXCLUDED.shipped_date_utc,
+             raw = EXCLUDED.raw,
+             loaded_at = NOW()
+     """, lb_lines, page_size=100)

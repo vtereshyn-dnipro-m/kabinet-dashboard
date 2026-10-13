@@ -3961,6 +3961,7 @@ TRANSLATIONS = {
     "cm.sev.info": {"ru": "Инфо", "uk": "Інфо", "en": "Info"},
     "cm.col.order": {"ru": "Заказ", "uk": "Замовлення", "en": "Order"},
     "cm.col.created": {"ru": "Создан", "uk": "Створено", "en": "Created"},
+    "cm.col.created_madrid": {"ru": "Создан (Мадрид)", "uk": "Створено (Мадрид)", "en": "Created (Madrid)"},
     "cm.col.state": {"ru": "Состояние", "uk": "Стан", "en": "State"},
     "cm.col.amount": {"ru": "Сумма", "uk": "Сума", "en": "Amount"},
     "cm.col.hours_open": {"ru": "Ждёт", "uk": "Чекає", "en": "Waiting"},

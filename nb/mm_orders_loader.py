@@ -57,6 +57,14 @@ def make_session():
     s.mount("https://", HTTPAdapter(max_retries=retry))
     return s
 
+def _mad_str(iso):
+    """ISO от ManoMano (с любым смещением) → «ГГГГ-ММ-ДД ЧЧ:ММ:СС» по Мадриду без пояса; пусто → None."""
+    if not iso:
+        return None
+    d = datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    d = d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
+    return d.astimezone(ZoneInfo("Europe/Madrid")).strftime("%Y-%m-%d %H:%M:%S")
+
 # ─── Fetch all orders ───
 def fetch_manomano_orders(session):
     headers = {"x-api-key": API_KEY, "Accept": "application/json",
@@ -91,7 +99,12 @@ def fetch_manomano_orders(session):
 
             for order in content:
                 order_ref = order.get("order_reference", "")
-                created_at = order.get("created_at", "")
+                # Время Мадрида (с 14.10.2026): ManoMano отдаёт created_at с местным смещением (+02:00), и день заказа
+                # по первым десяти знакам и раньше был днём Мадрида. Момент хранился в UTC — теперь в created_at
+                # часы Мадрида (как у Leroy Merlin и Carrefour), исходный момент — в created_at_utc. День считается
+                # переводом через часовой пояс, а не срезом строки: срез верен, только пока API отдаёт местное смещение.
+                created_at_utc = order.get("created_at", "")
+                created_at = _mad_str(created_at_utc) or ""
                 status = order.get("status", "")
                 is_mmf = order.get("is_mmf", False)
                 shipping = (order.get("addresses") or {}).get("shipping") or {}
@@ -116,7 +129,7 @@ def fetch_manomano_orders(session):
 
                 orders_list.append({
                     "order_ref": order_ref, "country": country, "contract_id": str(contract_id),
-                    "created_at": created_at, "status": status,
+                    "created_at": created_at, "created_at_utc": created_at_utc or None, "status": status,
                     "is_mmf": is_mmf,
                     "destination_city": shipping.get("city", ""),
                     "zip_code": shipping.get("zipcode", ""),
@@ -207,11 +220,14 @@ from pyspark.sql import Row
 from pyspark.sql.functions import current_timestamp, lit
 
 now_ts = datetime.datetime.now(ZoneInfo("Europe/Kyiv"))
+# created_at приходит строкой с часами Мадрида без пояса: сессия обязана быть в UTC, иначе Spark сдвинет её второй раз
+spark.conf.set("spark.sql.session.timeZone", "UTC")
 
 # колонка договора (07.10.2026) — заводим, если её ещё нет; прогон идёт под владельцем таблиц
 for _t in ("raw_mm_orders", "raw_mm_order_lines"):
     if "contract_id" not in spark.table(f"dnipro_m.kabinet_data.{_t}").columns:
         spark.sql(f"ALTER TABLE dnipro_m.kabinet_data.{_t} ADD COLUMNS (contract_id STRING)")
+# исходный момент заказа (14.10.2026) — колонку заводит миграция; без неё MERGE ниже упадёт, и это правильно
 
 # ─── UC MERGE: orders ───
 if orders:
@@ -233,11 +249,12 @@ if orders:
         WHEN NOT MATCHED THEN INSERT
             (order_ref, country, created_at, status, is_mmf, destination_city, zip_code,
              manomano_discount, seller_discount, shipping_discount, total_discount,
-             is_b2b, vat_liability, intraco_vat_number, is_professional, invoice_fiscal_number, loaded_at, contract_id)
-            VALUES (s.order_ref, s.country, s.created_at, s.status, s.is_mmf, s.destination_city, s.zip_code,
+             is_b2b, vat_liability, intraco_vat_number, is_professional, invoice_fiscal_number, loaded_at, contract_id,
+             created_at_utc)
+            VALUES (s.order_ref, s.country, CAST(s.created_at AS TIMESTAMP), s.status, s.is_mmf, s.destination_city, s.zip_code,
              s.manomano_discount, s.seller_discount, s.shipping_discount, s.total_discount,
              s.is_b2b, s.vat_liability, s.intraco_vat_number, s.is_professional, s.invoice_fiscal_number, s.loaded_at,
-             s.contract_id)
+             s.contract_id, CAST(s.created_at_utc AS TIMESTAMP))
     """)
     print(f"✅ UC raw_mm_orders: MERGED {len(orders)} rows")
 
@@ -278,6 +295,7 @@ pg = psycopg2.connect(
     user="v.tereshyn@dniprom.com", password=cred.token, sslmode="require")
 pg.autocommit = True
 cur = pg.cursor()
+cur.execute("SET TIME ZONE 'UTC'")  # часы Мадрида пишутся как время UTC — правило «время Мадрида» (14.10.2026)
 cur.execute("ALTER TABLE kabinet_data.raw_mm_orders ADD COLUMN IF NOT EXISTS contract_id text")
 cur.execute("ALTER TABLE kabinet_data.raw_mm_order_lines ADD COLUMN IF NOT EXISTS contract_id text")
 
@@ -287,8 +305,9 @@ for o in orders:
         INSERT INTO kabinet_data.raw_mm_orders
             (order_ref, country, created_at, status, is_mmf, destination_city, zip_code,
              manomano_discount, seller_discount, shipping_discount, total_discount,
-             is_b2b, vat_liability, intraco_vat_number, is_professional, invoice_fiscal_number, contract_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             is_b2b, vat_liability, intraco_vat_number, is_professional, invoice_fiscal_number, contract_id,
+             created_at_utc)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (order_ref) DO UPDATE SET
             contract_id = EXCLUDED.contract_id,
             status = EXCLUDED.status, is_mmf = EXCLUDED.is_mmf,
@@ -310,7 +329,7 @@ for o in orders:
           o.get("shipping_discount"), o.get("total_discount"),
           o.get("is_b2b"), o.get("vat_liability"),
           o.get("intraco_vat_number"), o.get("is_professional"),
-          o.get("invoice_fiscal_number"), o.get("contract_id")))
+          o.get("invoice_fiscal_number"), o.get("contract_id"), o.get("created_at_utc")))
 
 # Lines upsert (all fields incl. ex-VAT, carrier, shipping)
 for l in lines:

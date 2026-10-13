@@ -1,0 +1,102 @@
+--- a/Kabinet - Leroy Merlin Transactions Loader
++++ b/Kabinet - Leroy Merlin Transactions Loader
+@@ -101,6 +101,10 @@
+     .withColumn("transaction_date", F.to_timestamp("transaction_date"))
+     .withColumn("loaded_at", F.to_timestamp("loaded_at"))
+ )
++# Время Мадрида (с 14.10.2026): в рабочих колонках — часы Мадрида через часовой пояс (летом +2, зимой +1),
++# исходный момент от Mirakl (UTC) — в *_utc. День продажи и возврата отсюда считается по Мадриду.
++for _c in ("date_created", "last_updated", "transaction_date"):
++    df = df.withColumn(_c + "_utc", F.col(_c)).withColumn(_c, F.from_utc_timestamp(F.col(_c), "Europe/Madrid"))
+ 
+ df.createOrReplaceTempView("_txn_staging")
+ spark.sql("""
+@@ -113,14 +117,17 @@
+         last_updated=s.last_updated, channel_code=s.channel_code, order_id=s.order_id,
+         order_commercial_id=s.order_commercial_id, order_line_id=s.order_line_id,
+         shop_tax_code=s.shop_tax_code, transaction_date=s.transaction_date,
+-        raw=s.raw, loaded_at=s.loaded_at
++        raw=s.raw, loaded_at=s.loaded_at, date_created_utc=s.date_created_utc,
++        last_updated_utc=s.last_updated_utc, transaction_date_utc=s.transaction_date_utc
+     WHEN NOT MATCHED THEN INSERT
+         (id, type, payment_state, amount, amount_credited, amount_debited, balance,
+          currency, date_created, last_updated, channel_code, order_id, order_commercial_id,
+-         order_line_id, shop_tax_code, transaction_date, raw, loaded_at)
++         order_line_id, shop_tax_code, transaction_date, raw, loaded_at,
++         date_created_utc, last_updated_utc, transaction_date_utc)
+         VALUES (s.id, s.type, s.payment_state, s.amount, s.amount_credited, s.amount_debited, s.balance,
+          s.currency, s.date_created, s.last_updated, s.channel_code, s.order_id, s.order_commercial_id,
+-         s.order_line_id, s.shop_tax_code, s.transaction_date, s.raw, s.loaded_at)
++         s.order_line_id, s.shop_tax_code, s.transaction_date, s.raw, s.loaded_at,
++         s.date_created_utc, s.last_updated_utc, s.transaction_date_utc)
+ """)
+ print(f"✅ MERGE: {len(rows)} transactions → dnipro_m.kabinet_data.raw_lm_transactions")
+ 
+@@ -162,6 +169,7 @@
+     port=5432, dbname="databricks_postgres",
+     user="v.tereshyn@dniprom.com", password=_cred_lb.token, sslmode="require")
+ _cur_lb = _pg_lb.cursor()
++_cur_lb.execute("SET TIME ZONE 'UTC'")  # часы Мадрида пишутся как время UTC — правило «время Мадрида» (14.10.2026)
+ 
+ _cur_lb.execute("""
+     CREATE TABLE IF NOT EXISTS kabinet_data.raw_lm_transactions (
+@@ -170,16 +178,28 @@
+         amount NUMERIC(12,2), amount_credited NUMERIC(12,2),
+         amount_debited NUMERIC(12,2), balance NUMERIC(12,2),
+         currency TEXT,
+-        date_created TIMESTAMPTZ, last_updated TIMESTAMPTZ,
++        date_created TIMESTAMPTZ, last_updated TIMESTAMPTZ,      -- часы Мадрида, записанные как UTC; момент — *_utc
+         channel_code TEXT,
+         order_id TEXT, order_commercial_id TEXT, order_line_id TEXT,
+         shop_tax_code TEXT, transaction_date TIMESTAMPTZ,
+-        raw TEXT, loaded_at TIMESTAMPTZ DEFAULT NOW()
++        raw TEXT, loaded_at TIMESTAMPTZ DEFAULT NOW(),
++        date_created_utc TIMESTAMPTZ, last_updated_utc TIMESTAMPTZ, transaction_date_utc TIMESTAMPTZ
+     )
+ """)
+ _pg_lb.commit()
+ 
+ _cur_lb.execute("DELETE FROM kabinet_data.raw_lm_transactions")
++from zoneinfo import ZoneInfo as _ZI
++# В рабочую колонку — часы Мадрида без пояса: сессия в UTC (SET TIME ZONE ниже), и Postgres запишет их как
++# время UTC — то же правило, что в UC. Строку «…Z» туда передавать нельзя: она ляжет настоящим UTC, и день съедет.
++def _utc_dt(s):
++    if not s:
++        return None
++    d = dt.datetime.fromisoformat(str(s).replace("Z", "+00:00"))
++    return (d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)).astimezone(dt.timezone.utc)
++def _mad_dt(s):
++    u = _utc_dt(s)
++    return u.astimezone(_ZI("Europe/Madrid")).replace(tzinfo=None) if u else None
+ lb_rows = []
+ for t in txns:
+     ent = t.get("entities") or {}
+@@ -188,21 +208,24 @@
+         t.get("amount"), t.get("amount_credited"),
+         t.get("amount_debited"), t.get("balance"),
+         t.get("currency_iso_code") or t.get("currency"),
+-        t.get("date_created"), t.get("last_updated"),
++        _mad_dt(t.get("date_created")), _mad_dt(t.get("last_updated")),
+         (ent.get("channel") or {}).get("code"),
+         (ent.get("order") or {}).get("id"),
+         (ent.get("order") or {}).get("commercial_id"),
+         (ent.get("order_line") or {}).get("id"),
+         (ent.get("shop_tax") or {}).get("code"),
+-        (ent.get("transaction_info") or {}).get("date"),
++        _mad_dt((ent.get("transaction_info") or {}).get("date")),
+         json.dumps(t, ensure_ascii=False),
++        _utc_dt(t.get("date_created")), _utc_dt(t.get("last_updated")),
++        _utc_dt((ent.get("transaction_info") or {}).get("date")),
+     ))
+ psycopg2.extras.execute_batch(_cur_lb, """
+     INSERT INTO kabinet_data.raw_lm_transactions
+         (id, type, payment_state, amount, amount_credited, amount_debited, balance,
+          currency, date_created, last_updated, channel_code, order_id, order_commercial_id,
+-         order_line_id, shop_tax_code, transaction_date, raw)
+-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
++         order_line_id, shop_tax_code, transaction_date, raw,
++         date_created_utc, last_updated_utc, transaction_date_utc)
++    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+ """, lb_rows)
+ _pg_lb.commit()
+ _cur_lb.close()
