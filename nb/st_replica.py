@@ -419,12 +419,24 @@ for d1, d2, chunk in sa_all:
             WHERE t.snapshot_date = v.d AND t.marketplace = v.m""",
             [(r[0], r[2], r[5], r[6]) for r in mk_rows], template="(%s::date, %s, %s, %s)", page_size=1000)
         upd_daily = cur2.rowcount
-        # день, которого нет в ответе по рынку, — день без трафика: ноль, а не пусто (пусто = «не знаем»)
-        cur2.execute("""UPDATE kabinet_data.sales_traffic_daily t SET sessions = 0, page_views = 0
-                        WHERE t.snapshot_date BETWEEN %s AND %s AND t.marketplace = ANY(%s)
-                          AND NOT (t.snapshot_date, t.marketplace) IN (SELECT d, m FROM unnest(%s::date[], %s::text[]) AS u(d, m))""",
-                     (d1, d2, sorted(set(SA_MK.values())), [r[0] for r in mk_rows], [r[2] for r in mk_rows]))
-        zero_daily = cur2.rowcount
+        # Amazon публикует трафик с задержкой: последнего дня окна (вчера) в ответе обычно ещё нет НИ ПО ОДНОМУ рынку.
+        # Такой день — «не знаем», а не ноль (13.10.2026 утренний прогон записал 12.10 нулём по всем рынкам, и CVR
+        # недельного отчёта посчитал бы его днём без посетителей). Поэтому ноль ставится только по последний день,
+        # который есть в ответе хоть по одному рынку, а дни после него в окне куска — пусто
+        pub_end = max((r[0] for r in mk_rows), default=None)
+        all_mk = sorted(set(SA_MK.values()))
+        zero_daily = 0
+        if pub_end is not None:
+            # день, которого нет в ответе по рынку, — день без трафика: ноль, а не пусто (пусто = «не знаем»)
+            cur2.execute("""UPDATE kabinet_data.sales_traffic_daily t SET sessions = 0, page_views = 0
+                            WHERE t.snapshot_date BETWEEN %s AND %s AND t.marketplace = ANY(%s)
+                              AND NOT (t.snapshot_date, t.marketplace) IN (SELECT d, m FROM unnest(%s::date[], %s::text[]) AS u(d, m))""",
+                         (d1, pub_end, all_mk, [r[0] for r in mk_rows], [r[2] for r in mk_rows]))
+            zero_daily = cur2.rowcount
+        unpub_from = (pub_end + timedelta(days=1)) if pub_end is not None else d1
+        cur2.execute("""UPDATE kabinet_data.sales_traffic_daily SET sessions = NULL, page_views = NULL
+                        WHERE snapshot_date BETWEEN %s AND %s AND marketplace = ANY(%s)""", (unpub_from, d2, all_mk))
+        unpub_daily = cur2.rowcount
         # по ASIN: всё окно куска из ответа; ASIN, которого в ответе нет, в этот день сессий не имел
         cur2.execute("CREATE TEMP TABLE _sa (d date, m text, asin text, s int, pv int) ON COMMIT DROP")
         psycopg2.extras.execute_values(cur2, "INSERT INTO _sa VALUES %s",
@@ -437,15 +449,27 @@ for d1, d2, chunk in sa_all:
                           sessions = EXCLUDED.sessions, page_views = EXCLUDED.page_views,
                           sessions_source = EXCLUDED.sessions_source, loaded_at = now()""")
         ups_asin = cur2.rowcount
-        cur2.execute("""UPDATE kabinet_data.sales_traffic_asin t
-                        SET sessions = 0, page_views = 0, sessions_source = 'seller_analytics', loaded_at = now()
-                        WHERE t.snapshot_date BETWEEN %s AND %s AND t.marketplace = ANY(%s)
-                          AND NOT EXISTS (SELECT 1 FROM _sa WHERE _sa.d = t.snapshot_date AND _sa.m = t.marketplace
-                                          AND _sa.asin = t.asin)""",
-                     (d1, d2, sorted(set(SA_MK.values()))))
-        zero_asin = cur2.rowcount
+        zero_asin = 0
+        if pub_end is not None:
+            cur2.execute("""UPDATE kabinet_data.sales_traffic_asin t
+                            SET sessions = 0, page_views = 0, sessions_source = 'seller_analytics', loaded_at = now()
+                            WHERE t.snapshot_date BETWEEN %s AND %s AND t.marketplace = ANY(%s)
+                              AND NOT EXISTS (SELECT 1 FROM _sa WHERE _sa.d = t.snapshot_date AND _sa.m = t.marketplace
+                                              AND _sa.asin = t.asin)""",
+                         (d1, pub_end, all_mk))
+            zero_asin = cur2.rowcount
+        # неопубликованные дни по ASIN — тоже «не знаем»: строки, заведённые только ради сессий (без SKU и продаж),
+        # уходят, у строк с продажами сессии пустеют
+        cur2.execute("""DELETE FROM kabinet_data.sales_traffic_asin
+                        WHERE snapshot_date BETWEEN %s AND %s AND marketplace = ANY(%s)
+                          AND sessions_source = 'seller_analytics' AND sku IS NULL AND COALESCE(units_ordered, 0) = 0""",
+                     (unpub_from, d2, all_mk))
+        cur2.execute("""UPDATE kabinet_data.sales_traffic_asin SET sessions = NULL, page_views = NULL, sessions_source = NULL
+                        WHERE snapshot_date BETWEEN %s AND %s AND marketplace = ANY(%s)
+                          AND sessions_source = 'seller_analytics'""", (unpub_from, d2, all_mk))
         c.commit()
-        print(f"    записано: дней рынка {upd_daily} (без трафика {zero_daily}), ASIN×день {ups_asin}, без сессий {zero_asin}")
+        print(f"    записано: дней рынка {upd_daily} (без трафика {zero_daily}), ASIN×день {ups_asin}, без сессий {zero_asin}; "
+              f"ещё не опубликовано с {unpub_from} по {d2}: дней рынка {unpub_daily}")
     finally:
         c.close()
 
