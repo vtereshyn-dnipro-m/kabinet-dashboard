@@ -5219,6 +5219,9 @@ TRANSLATIONS = {
     "auth.log.act.ls.amazon.push": {"ru": "Отправлял листинг в Amazon", "uk": "Надсилав лістинг в Amazon", "en": "Pushed a listing to Amazon"},
     "auth.log.act.ls.method.edit": {"ru": "Менял методику", "uk": "Змінював методику", "en": "Changed methodology"},
     "auth.log.act.ls.settings.edit": {"ru": "Менял настройки", "uk": "Змінював налаштування", "en": "Changed settings"},
+    "auth.log.act.auto_admit": {"ru": "Получил «Просмотр» по рабочей почте", "uk": "Отримав «Перегляд» за робочою поштою", "en": "Got Viewer access by work email"},
+    "auth.log.act.notify_admit": {"ru": "Уведомление об автодоступе", "uk": "Сповіщення про автодоступ", "en": "Auto-access notification"},
+    "auth.log.act.notify_admit_wd": {"ru": "Уведомление об автодоступе дослано сторожем", "uk": "Сповіщення про автодоступ дослано сторожем", "en": "Auto-access notification sent by the watchdog"},
     "auth.log.act.notify_unknown": {"ru": "Уведомление о незнакомом входе", "uk": "Сповіщення про незнайомий вхід", "en": "Unknown sign-in notification"},
 }
 

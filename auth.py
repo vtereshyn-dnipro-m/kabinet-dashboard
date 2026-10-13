@@ -655,6 +655,8 @@ def guard():
         _touch_login(email, as_text(getattr(st.user, "name", "")), first=True)
         _log_login(email, "first_login", "заведён с ролью «Просмотр»")
         _load_user.clear()
+        # видимая запись журнала «кто и когда получил доступ»: уведомление ниже — служебное и скрыто по умолчанию
+        log_action("auto_admit", True, "user", email, "заведён: «Просмотр» в Кабинете и Listing Suite")
         notify_new_user(email, as_text(getattr(st.user, "name", "")))
     elif not st.session_state.get("_auth_touched"):
         _touch_login(email, "", first=False)
@@ -684,8 +686,8 @@ def notify_new_user(email, name):
     сам, и канал не должен молчать только потому, что грант на скоуп забыли выдать."""
     try:
         _telegram(f"👤 Новый человек в Кабинете: {name or ''} &lt;{email}&gt;\n"
-                  f"Роль «Просмотр», действий нет. Назначить роль и страны — "
-                  f"«Справочники → Доступ».")
+                  f"«Просмотр» в Кабинете и Listing Suite, действий нет. Назначить роль и страны — "
+                  f"«Доступ».")
         log_action("notify_new_user", True, "user", email, "отправлено приложением")
     except Exception as e:
         log_action("notify_new_user", False, "user", email,
