@@ -1,0 +1,29 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -2096,7 +2096,25 @@
+                        (_who, "досыл сторожем: приложению не хватило доступа к скоупу"))
+     if _new_people:
+         pg_conn.commit()
+-    print(f"\n🔑 Доступ: режим {_auth_now}, досланных уведомлений {len(_new_people)}")
++    # автодоступ по рабочей почте (с 13.10.2026): Кабинет сообщает о нём как о новом человеке (выше), Listing Suite —
++    # своим сообщением, и notify_admit пишет только при неудаче. Неотправленное досылаем так же
++    pg_cur.execute("""
++        SELECT DISTINCT a.object_id
++          FROM kabinet_data.app_action_log a
++         WHERE a.action = 'notify_admit' AND a.allowed = false
++           AND NOT EXISTS (SELECT 1 FROM kabinet_data.app_action_log b
++                            WHERE b.action = 'notify_admit_wd' AND b.allowed = true AND b.object_id = a.object_id)
++    """)
++    _admitted = [r[0] for r in pg_cur.fetchall() if r[0]]
++    for _who in _admitted:
++        _auth_lines.append(f"🆕 Listing Suite: автодоступ по рабочей почте — {_who}, «Просмотр»")
++        pg_cur.execute("""INSERT INTO kabinet_data.app_action_log
++                              (email, role, action, object_type, object_id, allowed, details, product)
++                          VALUES ('watchdog', NULL, 'notify_admit_wd', 'user', %s, true, %s, 'ls')""",
++                       (_who, "досыл сторожем: приложение не отправило"))
++    if _admitted:
++        pg_conn.commit()
++    print(f"\n🔑 Доступ: режим {_auth_now}, досланных уведомлений {len(_new_people) + len(_admitted)}")
+ except Exception as e:
+     print(f"\n⚠️ Access check failed: {type(e).__name__}: {e}")
+     _soft_errors.append(("access", f"{type(e).__name__}: {str(e)[:150]}"))
