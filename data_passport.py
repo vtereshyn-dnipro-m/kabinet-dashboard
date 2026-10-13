@@ -45,6 +45,12 @@ class Source:
     # У `stock_local` правило про всю таблицу (её каждый день пишет Mirakl), а нас интересует
     # возраст одних строк FBA — порог у них свой, и он тот же, что читает сторож.
     param_key: str = ""
+    # Свежесть — по последнему успешному прогону загрузчика (`system_pulse.last_success_at`), а не по
+    # последнему изменению строк (с 14.10.2026). Для справочников, которые ведёт загрузчик: он меняет строку,
+    # только когда что-то изменилось, и тихая неделя без новых листингов выглядела бы «данных нет» —
+    # так 13.10 «Допуски ассортиментной матрицы» загорелись «2 дн назад при пороге 48 ч» при живом
+    # ежедневном загрузчике. Колонка `anchor` остаётся «последним изменением» и показывается рядом.
+    by_pulse: bool = False
 
 
 # Что стоит за цифрами каждой страницы. Порядок — как на экране сверху вниз.
@@ -138,9 +144,9 @@ PAGES = {
                ("docs", "cells"), watch=False),
         Source("fc_docs", "forecast_documents", "created_at", "Kabinet - Forecast Plan Loader", 720,
                ("docs",), watch=False),
-        Source("sku", "sku_master", "updated_at", "Kabinet - SKU Master Loader", 48, ("sku",)),
+        Source("sku", "sku_master", "updated_at", "Kabinet - SKU Master Loader", 48, ("sku",), by_pulse=True),
         Source("admissions", "assortment_admissions", "updated_at", "Kabinet - Assortment Matrix Loader", 48,
-               ("admissions",)),
+               ("admissions",), by_pulse=True),
     ),
     # ── Инциденты ────────────────────────────────────────────────────────
     "incidents": (
@@ -180,10 +186,11 @@ PAGES = {
     # Справочники правятся руками, и «давно не менялся» здесь — норма, а не тревога.
     # Следим только за теми, что наполняет загрузчик: если он встал, справочник тихо отстанет.
     "dictionaries": (
-        Source("sku", "sku_master", "updated_at", "Kabinet - SKU Master Loader", 48, ("sku",)),
-        Source("peid", "product_entities", "updated_at", "Kabinet - Product Entities Loader", 48, ("peid",)),
+        Source("sku", "sku_master", "updated_at", "Kabinet - SKU Master Loader", 48, ("sku",), by_pulse=True),
+        Source("peid", "product_entities", "updated_at", "Kabinet - Product Entities Loader", 48, ("peid",),
+               by_pulse=True),
         Source("admissions", "assortment_admissions", "updated_at", "Kabinet - Assortment Matrix Loader", 48,
-               ("matrix",)),
+               ("matrix",), by_pulse=True),
         # Перевод ERP: им подписаны категории в английском интерфейсе. Следим, потому что
         # реплику наполняет загрузчик — встанет он, и английские названия тихо отстанут.
         Source("translation", "raw_erp_translation_en", "loaded_at", "Kabinet - SKU Master Loader", 48,
@@ -237,6 +244,13 @@ def _state(page: str) -> pd.DataFrame:
                       COALESCE(max_content_age_hours, max_age_hours) AS max_age_h
                FROM kabinet_data.data_freshness_rules WHERE is_active""", conn)
         params = pd.read_sql("SELECT key, value::numeric AS v FROM kabinet_data.reorder_params", conn)
+        # последний успешный прогон загрузчиков у источников «по пульсу» (см. Source.by_pulse)
+        _jobs = sorted({s.loader for s in srcs if s.by_pulse})
+        pulse = (pd.read_sql(
+            """SELECT job_name, last_success_at::text AS checked_at,
+                      EXTRACT(EPOCH FROM (now() - last_success_at)) / 3600 AS checked_age_h
+               FROM kabinet_data.system_pulse WHERE job_name = ANY(%(j)s)""", conn, params={"j": _jobs})
+                 if _jobs else pd.DataFrame(columns=["job_name", "checked_at", "checked_age_h"]))
         # последнее звено: откуда загрузчик берёт данные у площадки и как часто она их обновляет.
         # Живёт в своей таблице, потому что data_freshness_rules принадлежит владельцу базы —
         # колонок туда роль Кабинета не добавит
@@ -254,9 +268,14 @@ def _state(page: str) -> pd.DataFrame:
     thr = {r.tbl: r.max_age_h for r in rules.itertuples() if r.max_age_h}
     prm = {r.key: float(r.v) for r in params.itertuples() if r.v is not None}
     org = {r.tbl: r for r in origins.itertuples()}
+    pls = {r.job_name: r for r in pulse.itertuples()}
     rows = []
     for s in srcs:
         r = df[df["key"] == s.key]
+        # «по пульсу»: возраст = сколько загрузчик не отрабатывал; нет метки пульса — по содержимому, как раньше
+        pr = pls.get(s.loader) if s.by_pulse else None
+        checked_at = pr.checked_at if pr is not None else None
+        checked_age = (float(pr.checked_age_h) if pr is not None and pd.notna(pr.checked_age_h) else None)
         # порог: сначала свой ключ настройки, если объявлен, потом правило на таблицу
         limit = prm.get(s.param_key) if s.param_key else thr.get(s.table)
         limit_src = "param" if (s.param_key and limit is not None) else ("db" if limit is not None else "code")
@@ -275,7 +294,9 @@ def _state(page: str) -> pd.DataFrame:
             "darina_verdict": (o.darina_verdict if o else None),
             "darina_reason": (o.darina_reason if o else None),
             "as_of": (r["as_of"].iloc[0] if len(r) and r["as_of"].iloc[0] else None),
-            "age_h": (float(r["age_h"].iloc[0]) if len(r) and pd.notna(r["age_h"].iloc[0]) else None),
+            "age_h": (checked_age if checked_age is not None else
+                      (float(r["age_h"].iloc[0]) if len(r) and pd.notna(r["age_h"].iloc[0]) else None)),
+            "checked_at": checked_at,
             "limit_h": limit or s.default_max_age_h,
             "limit_from_db": limit is not None,
             "limit_src": limit_src,
@@ -296,6 +317,18 @@ def _fmt_date(v) -> str:
         return pd.Timestamp(v).strftime("%d.%m.%Y")
     except Exception:
         return str(v)[:10]
+
+
+def _fmt_dt(v) -> str:
+    """Время по Киеву «13.10 07:45» — для «проверено»: у прогона загрузчика важен час, не только день."""
+    if not v:
+        return "—"
+    try:
+        ts = pd.Timestamp(v)
+        ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts
+        return ts.tz_convert("Europe/Kyiv").strftime("%d.%m %H:%M")
+    except Exception:
+        return str(v)[:16]
 
 
 def _age_text(age_h) -> str:
@@ -322,8 +355,9 @@ def tip(page: str, metric_key: str, base: str = "") -> str:
         return base
     lines = []
     for r in used:
-        line = t("passport.tip_line", src=t(f"passport.src.{r.key}"), date=_fmt_date(r.as_of),
-                 loader=r.loader)
+        line = (t("passport.tip_line_pulse", src=t(f"passport.src.{r.key}"), checked=_fmt_dt(r.checked_at),
+                  changed=_fmt_date(r.as_of), loader=r.loader) if as_text(r.checked_at) else
+                t("passport.tip_line", src=t(f"passport.src.{r.key}"), date=_fmt_date(r.as_of), loader=r.loader))
         # техническое имя таблицы живёт здесь, а не в таблице паспорта: в строке оно занимает
         # половину ширины и ничего не говорит тому, кто смотрит на цифру, — но нужно тому,
         # кто пойдёт проверять её запросом
@@ -357,6 +391,8 @@ def banner(page: str) -> None:
     for r in bad:
         name = t(f"passport.src.{r.key}")
         items.append(t("passport.absent_item", src=name) if r.absent else
+                     t("passport.stale_item_pulse", src=name, loader=r.loader, checked=_fmt_dt(r.checked_at),
+                       age=_age_text(r.age_h), limit=int(r.limit_h)) if as_text(r.checked_at) else
                      t("passport.stale_item", src=name, date=_fmt_date(r.as_of),
                        age=_age_text(r.age_h), limit=int(r.limit_h)))
     st.warning(t("passport.stale_head") + "\n\n" + "\n".join(f"- {x}" for x in items))
@@ -426,6 +462,7 @@ def footer(page: str) -> None:
             t("passport.col_table"): [t(f"passport.src.{r.key}") for r in st_.itertuples()],
             t("passport.col_as_of"): [
                 t("passport.absent_short") if r.absent else
+                t("passport.as_of_pulse", checked=_fmt_dt(r.checked_at), changed=_fmt_date(r.as_of)) if as_text(r.checked_at) else
                 (_fmt_date(r.as_of) + " · " + _age_text(r.age_h)) for r in st_.itertuples()],
             t("passport.col_verdict"): [
                 {"we_pull_more": "⚠️", "we_pull_less": "⏳", "ok": "✓"}.get(as_text(r.verdict), "—")
