@@ -1,0 +1,12 @@
+{
+  "name": "Kabinet - Amazon Auth Guard",
+  "description": "Каждые 15 минут: обмен LWA по ключам SP-API и Amazon Ads из Databricks и упавшие за 2 часа прогоны любых джоб с ошибкой авторизации Amazon. Сломано — инцидент amazon_auth и сообщение в бот сразу. Источник — nb/amazon_auth_guard.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 7/15 * * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default",
+                    "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "guard", "environment_key": "default", "timeout_seconds": 900,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Amazon Auth Guard", "source": "WORKSPACE"}}
+  ]
+}
