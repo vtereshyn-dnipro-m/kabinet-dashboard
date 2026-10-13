@@ -121,7 +121,7 @@ for f in ("home.py", "pages/1_Stock.py", "pages/2_Incidents.py", "pages/3_Foreca
     _, плохо = прогнать(f)
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
-for sec in ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sku", "cat", "peid", "vg", "matrix"]:
+for sec in ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sched", "sku", "cat", "peid", "vg", "matrix"]:
     # в справочнике алертов код типа — это ключ записи (колонка «Код типа»), ему там место
     _, плохо = прогнать("pages/6_Dictionaries.py",
                         {"dict_section": sec, "dict_section_last": sec}, коды_можно=(sec == "alerts"))
@@ -133,4 +133,4 @@ for f in ("home.py", "pages/2_Incidents.py", "pages/8_CM_Dashboard.py"):
     _, плохо = прогнать(f, {"lang": "en"})
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f + " (EN)" + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
-print(f"\nс бедой: {беда} из 28")
+print(f"\nс бедой: {беда} из 29")
