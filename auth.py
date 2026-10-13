@@ -198,6 +198,47 @@ def _matrix():
 
 
 @st.cache_data(ttl=60)
+def _max_login_hours() -> float:
+    """Сколько часов действует вход через Google (`reorder_params.auth_max_login_hours`, по умолчанию 168).
+
+    Streamlit держит cookie входа 30 дней и Google за это время не перепроверяет: сотрудник, удалённый в Workspace,
+    с открытым браузером входил бы до месяца. Вход старше этого срока отправляем на повторный вход через Google —
+    удалённый аккаунт его не пройдёт. Нет строки или база недоступна — 168: нехватка настройки не должна ни
+    выкидывать людей каждый час, ни возвращать месяц."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'auth_max_login_hours'")
+            row = cur.fetchone()
+        return float(row[0]) if row and row[0] is not None and float(row[0]) > 0 else 168.0
+    except Exception:
+        return 168.0
+    finally:
+        conn.close()
+
+
+def _bind_sub(email: str, sub: str) -> str:
+    """Карточка ↔ Google ID (claim `sub`) — одно правило на оба продукта, функция базы
+    `kabinet_data.app_user_bind_sub`: 'none' | 'bound' | 'ok' | 'archived:<адрес архива>' | 'no_sub'.
+
+    'archived' — адрес почты перешёл к ДРУГОМУ Google-аккаунту (удалили в Workspace и завели заново): карточка
+    прежнего человека с его ролями ушла в архив, и дальше этот вход — обычный первый: «Просмотр» в обоих продуктах
+    для рабочей почты. Без привязки новый человек вошёл бы в карточку прежнего. Ошибка базы — 'error': вход не
+    ломаем, проверка повторится в следующем сеансе."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT kabinet_data.app_user_bind_sub(%s, %s)", (email, sub))
+            res = cur.fetchone()[0]
+        conn.commit()
+        return res or "error"
+    except Exception:
+        return "error"
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=60)
 def _load_user(email: str):
     """Строка человека и его страны. None — если строки нет."""
     conn = get_connection()
@@ -266,16 +307,18 @@ def log_action(action, allowed, object_type=None, object_id=None, details=""):
         conn.close()
 
 
-def _touch_login(email, name, first: bool):
+def _touch_login(email, name, first: bool, sub: str = ""):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             if first:
+                # карточка сразу привязана к Google ID того, кто вошёл (sub), — см. _bind_sub
                 cur.execute("""
-                    INSERT INTO kabinet_data.app_users (email, role, ls_role, note, created_by, first_login_at, last_login_at)
-                    VALUES (%s, 'viewer', 'viewer', %s, 'self:first-login', now(), now())
+                    INSERT INTO kabinet_data.app_users (email, role, ls_role, note, created_by, first_login_at, last_login_at,
+                                                        google_sub)
+                    VALUES (%s, 'viewer', 'viewer', %s, 'self:first-login', now(), now(), NULLIF(%s, ''))
                     ON CONFLICT (email) DO UPDATE SET last_login_at = now()
-                """, (email, f"первый вход: {name}" if name else None))
+                """, (email, f"первый вход: {name}" if name else None, sub or ""))
             else:
                 cur.execute("""
                     UPDATE kabinet_data.app_users
@@ -639,6 +682,39 @@ def guard():
         _screen(_login_screen, "Sign in")
         return
     email = as_text(getattr(st.user, "email", "")).strip().lower()
+    # Вход старше auth_max_login_hours — на повторный вход через Google: удалённый в Workspace аккаунт его не пройдёт.
+    # iat — время выдачи токена Google при входе; его нет — вход тоже считаем устаревшим.
+    try:
+        import time as _time
+        _age_h = (_time.time() - float(getattr(st.user, "iat", 0) or 0)) / 3600.0
+    except Exception:
+        _age_h = float("inf")
+    _max_h = _max_login_hours()
+    if _age_h > _max_h:
+        _log_login(email, "relogin", f"вход старше {_max_h:g} ч — повторный вход через Google")
+        st.logout()
+        return
+    # Карточка ↔ Google ID — раз за сеанс (см. _bind_sub)
+    if not st.session_state.get("_auth_sub_checked"):
+        _sub = as_text(getattr(st.user, "sub", "")).strip()
+        _res = _bind_sub(email, _sub)
+        if _res.startswith("archived:"):
+            _arch = _res.split(":", 1)[1]
+            _load_user.clear()
+            # «кто сейчас» посчитан в начале прогона по карточке прежнего человека — иначе новый до конца сеанса
+            # ходил бы с чужой ролью
+            st.session_state.pop("_auth_user", None)
+            _log_login(email, "reassigned", f"адрес у другого Google-аккаунта; прежняя карточка → {_arch}")
+            log_action("card_archived", True, "user", email,
+                       f"адрес перешёл к другому Google-аккаунту: прежняя карточка с ролями → {_arch} (выключена)")
+            try:
+                _telegram(f"⚠️ Адрес &lt;{email}&gt; теперь у другого Google-аккаунта.\n"
+                          f"Карточка прежнего человека с его ролями убрана в архив ({_arch}, выключена); "
+                          f"новый человек входит как новый: «Просмотр» в Кабинете и Listing Suite.")
+            except Exception as e:
+                log_action("notify_card_archived", False, "user", email,
+                           f"приложение не отправило: {type(e).__name__}: {str(e)[:120]}")
+        st.session_state["_auth_sub_checked"] = True
     row = _load_user(email)
     if not _allowed_to_enter(email, row):
         if row is None:
@@ -652,7 +728,8 @@ def guard():
         return
     # первый вход заводит человека с ролью «Просмотр» и уведомляет администраторов
     if row is None:
-        _touch_login(email, as_text(getattr(st.user, "name", "")), first=True)
+        _touch_login(email, as_text(getattr(st.user, "name", "")), first=True,
+                     sub=as_text(getattr(st.user, "sub", "")).strip())
         _log_login(email, "first_login", "заведён с ролью «Просмотр»")
         _load_user.clear()
         # видимая запись журнала «кто и когда получил доступ»: уведомление ниже — служебное и скрыто по умолчанию

@@ -5066,6 +5066,8 @@ TRANSLATIONS = {
     "auth.admin.res.denied_domain": {"ru": "отказ: домен", "uk": "відмова: домен", "en": "denied: domain"},
     "auth.admin.res.denied_disabled": {"ru": "отказ: доступ закрыт", "uk": "відмова: доступ закрито", "en": "denied: access closed"},
     "auth.admin.res.logout": {"ru": "выход", "uk": "вихід", "en": "sign-out"},
+    "auth.admin.res.relogin": {"ru": "повторный вход: срок входа истёк", "uk": "повторний вхід: строк входу сплив", "en": "re-sign-in: sign-in expired"},
+    "auth.admin.res.reassigned": {"ru": "адрес у другого Google-аккаунта", "uk": "адреса в іншого Google-акаунта", "en": "address now belongs to another Google account"},
 
     # названия действий: в базе лежит код, на экране слово
     "auth.action.forecast.edit": {"ru": "Прогноз: правка черновика", "uk": "Прогноз: правка чернетки", "en": "Forecast: edit draft"},
@@ -5213,6 +5215,8 @@ TRANSLATIONS = {
     "auth.log.act.ls.method.edit": {"ru": "Менял методику", "uk": "Змінював методику", "en": "Changed methodology"},
     "auth.log.act.ls.settings.edit": {"ru": "Менял настройки", "uk": "Змінював налаштування", "en": "Changed settings"},
     "auth.log.act.auto_admit": {"ru": "Получил «Просмотр» по рабочей почте", "uk": "Отримав «Перегляд» за робочою поштою", "en": "Got Viewer access by work email"},
+    "auth.log.act.card_archived": {"ru": "Карточка прежнего владельца адреса убрана в архив", "uk": "Картку попереднього власника адреси перенесено в архів", "en": "Previous owner's card archived"},
+    "auth.log.act.notify_card_archived": {"ru": "Уведомление об архиве карточки", "uk": "Сповіщення про архів картки", "en": "Card archive notification"},
     "auth.log.act.notify_admit": {"ru": "Уведомление об автодоступе", "uk": "Сповіщення про автодоступ", "en": "Auto-access notification"},
     "auth.log.act.notify_admit_wd": {"ru": "Уведомление об автодоступе дослано сторожем", "uk": "Сповіщення про автодоступ дослано сторожем", "en": "Auto-access notification sent by the watchdog"},
     "auth.log.act.notify_unknown": {"ru": "Уведомление о незнакомом входе", "uk": "Сповіщення про незнайомий вхід", "en": "Unknown sign-in notification"},

@@ -49,7 +49,8 @@ def ключи_экрана(текст: str) -> list:
                 "other", "ls_content", "ls_amazon", "ls_method", "ls_settings",
                 "ls_page")}
     прямые |= {f"auth.admin.res.{r}" for r in
-               ("ok", "first_login", "denied_domain", "denied_disabled", "logout")}
+               ("ok", "first_login", "denied_domain", "denied_disabled", "logout",
+                "relogin", "reassigned")}
     прямые |= {"auth.log.who.система", "auth.log.who.kabinet-app",
                "auth.log.who.watchdog", "auth.log.who.qa-агент"}
     # Ключи, собираемые склейкой (`t("auth.action." + действие)`), заранее не
