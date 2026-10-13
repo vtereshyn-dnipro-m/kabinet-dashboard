@@ -373,8 +373,11 @@ def footer(page: str) -> None:
         part = st.segmented_control(" ", ["sources", "schedule"], default="sources", key=f"passport_part_{page}",
                                     format_func=lambda k: t(f"sched.tab_{k}"), label_visibility="collapsed")
         if part == "schedule":
-            import schedule_view
-            schedule_view.render()
+            # с 14.10.2026 расписание — раздел «Справочников» (решение владельца): одно место на весь Кабинет вместо
+            # копии внизу каждой страницы. Здесь оставлен указатель, чтобы привычный путь не вёл в пустоту
+            st.info(t("sched.moved"))
+            st.page_link("pages/6_Dictionaries.py", label=t("sched.moved_link"), icon=":material/calendar_month:",
+                         query_params={"section": "sched"})
             return
         if "error" in st_.columns:
             st.caption(t("passport.unavailable"))
