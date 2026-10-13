@@ -1,0 +1,148 @@
+--- a/Kabinet - CF Orders Loader
++++ b/Kabinet - CF Orders Loader
+@@ -33,6 +33,18 @@
+     s.mount("https://", HTTPAdapter(max_retries=retry))
+     return s
+ 
++# ─── Время Мадрида (с 14.10.2026) ───
++# Mirakl отдаёт created_date в UTC («…Z»), и день заказа по первым десяти знакам строки был днём UTC: заказ в 00:30
++# по Мадриду ложился во вчерашний день. Теперь в рабочих колонках — часы Мадрида через часовой пояс (летом +2,
++# зимой +1, по дате каждой строки), исходный момент — в created_at_utc, день по UTC — в order_date_utc.
++def _mad_str(iso):
++    """ISO от Mirakl → «ГГГГ-ММ-ДД ЧЧ:ММ:СС» по Мадриду (без пояса); пусто → None."""
++    if not iso:
++        return None
++    d = datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
++    d = d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
++    return d.astimezone(ZoneInfo("Europe/Madrid")).strftime("%Y-%m-%d %H:%M:%S")
++
+ # ─── Fetch all orders (Mirakl /api/orders) ───
+ def fetch_carrefour_orders(session):
+     headers = {"Authorization": API_KEY, "Accept": "application/json"}
+@@ -66,14 +78,15 @@
+ 
+         for order in orders_raw:
+             order_id = str(order.get("order_id") or order.get("commercial_id", ""))
+-            created_at = order.get("created_date", "")
++            created_at_utc = order.get("created_date", "")
++            created_at = _mad_str(created_at_utc) or ""
+             status = order.get("order_state", "")
+             customer = order.get("customer") or {}
+             address = customer.get("shipping_address") or {}
+ 
+             orders_list.append({
+                 "order_ref": order_id, "country": COUNTRY,
+-                "created_at": created_at, "status": status,
++                "created_at": created_at, "created_at_utc": created_at_utc or None, "status": status,
+                 "destination_city": address.get("city", ""),
+                 "zip_code": address.get("zip_code", ""),
+             })
+@@ -140,6 +153,7 @@
+                     "cancel_commission": cancel_comm,
+                     "cancel_commission_total": cancel_comm_total,
+                     "order_date": created_at[:10] if created_at else None,
++                    "order_date_utc": created_at_utc[:10] if created_at_utc else None,
+                     "order_status": status,
+                 })
+ 
+@@ -176,6 +190,8 @@
+ from pyspark.sql.functions import current_timestamp
+ 
+ now_ts = datetime.datetime.now(ZoneInfo("Europe/Kyiv"))
++# created_at приходит строкой с часами Мадрида без пояса: сессия обязана быть в UTC, иначе Spark сдвинет её второй раз
++spark.conf.set("spark.sql.session.timeZone", "UTC")
+ 
+ # ─── UC MERGE: orders ───
+ if orders:
+@@ -189,8 +205,9 @@
+             status = s.status,
+             destination_city = s.destination_city, zip_code = s.zip_code,
+             loaded_at = s.loaded_at
+-        WHEN NOT MATCHED THEN INSERT (order_ref, country, created_at, status, destination_city, zip_code, loaded_at)
+-            VALUES (s.order_ref, s.country, s.created_at, s.status, s.destination_city, s.zip_code, s.loaded_at)
++        WHEN NOT MATCHED THEN INSERT (order_ref, country, created_at, created_at_utc, status, destination_city, zip_code, loaded_at)
++            VALUES (s.order_ref, s.country, CAST(s.created_at AS TIMESTAMP), CAST(s.created_at_utc AS TIMESTAMP),
++                    s.status, s.destination_city, s.zip_code, s.loaded_at)
+     """)
+     print(f"✅ UC raw_cf_orders: MERGED {len(orders)} rows")
+ 
+@@ -213,21 +230,23 @@
+             commission_vat = s.commission_vat, commission_rate_vat = s.commission_rate_vat,
+             total_commission = s.total_commission,
+             cancel_commission = s.cancel_commission, cancel_commission_total = s.cancel_commission_total,
+-            order_date = CAST(s.order_date AS DATE), order_status = s.order_status,
++            order_date = CAST(s.order_date AS DATE), order_date_utc = CAST(s.order_date_utc AS DATE),
++            order_status = s.order_status,
+             loaded_at = s.loaded_at
+         WHEN NOT MATCHED THEN INSERT (
+             order_ref, sku, country, title, quantity,
+             unit_price, total_price, unit_price_ex_vat, vat_rate,
+             commission_fee, commission_rate, shipping_price,
+             category_code, category_label, commission_vat, commission_rate_vat,
+-            total_commission, cancel_commission, cancel_commission_total, order_date, order_status, loaded_at)
++            total_commission, cancel_commission, cancel_commission_total, order_date, order_status, loaded_at,
++            order_date_utc)
+         VALUES (
+             s.order_ref, s.sku, s.country, s.title, s.quantity,
+             s.unit_price, s.total_price, s.unit_price_ex_vat, s.vat_rate,
+             s.commission_fee, s.commission_rate, s.shipping_price,
+             s.category_code, s.category_label, s.commission_vat, s.commission_rate_vat,
+             s.total_commission, s.cancel_commission, s.cancel_commission_total,
+-            CAST(s.order_date AS DATE), s.order_status, s.loaded_at)
++            CAST(s.order_date AS DATE), s.order_status, s.loaded_at, CAST(s.order_date_utc AS DATE))
+     """)
+     print(f"✅ UC raw_cf_order_lines: MERGED {len(lines)} rows")
+ 
+@@ -241,18 +260,19 @@
+     user="v.tereshyn@dniprom.com", password=cred.token, sslmode="require")
+ pg.autocommit = True
+ cur = pg.cursor()
++cur.execute("SET TIME ZONE 'UTC'")  # часы Мадрида пишутся как время UTC — правило «время Мадрида» (14.10.2026)
+ 
+ # Orders upsert
+ for o in orders:
+     cur.execute("""
+         INSERT INTO kabinet_data.raw_cf_orders
+-            (order_ref, country, created_at, status, destination_city, zip_code)
+-        VALUES (%s, %s, %s, %s, %s, %s)
++            (order_ref, country, created_at, created_at_utc, status, destination_city, zip_code)
++        VALUES (%s, %s, %s, %s, %s, %s, %s)
+         ON CONFLICT (order_ref) DO UPDATE SET
+             status = EXCLUDED.status,
+             destination_city = EXCLUDED.destination_city,
+             zip_code = EXCLUDED.zip_code, loaded_at = NOW()
+-    """, (o["order_ref"], o["country"], o["created_at"] or None,
++    """, (o["order_ref"], o["country"], o["created_at"] or None, o.get("created_at_utc"),
+           o["status"], o["destination_city"], o["zip_code"]))
+ 
+ # Lines upsert (all fields incl. commission — NULL preserved as NULL, 0 as 0)
+@@ -263,8 +283,8 @@
+              unit_price_ex_vat, vat_rate, commission_fee, commission_rate, shipping_price,
+              category_code, category_label, commission_vat, commission_rate_vat,
+              total_commission, cancel_commission, cancel_commission_total,
+-             order_date, order_status)
+-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
++             order_date, order_status, order_date_utc)
++        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+         ON CONFLICT (order_ref, sku, country) DO UPDATE SET
+             title = EXCLUDED.title, quantity = EXCLUDED.quantity,
+             unit_price = EXCLUDED.unit_price, total_price = EXCLUDED.total_price,
+@@ -276,7 +296,8 @@
+             total_commission = EXCLUDED.total_commission,
+             cancel_commission = EXCLUDED.cancel_commission,
+             cancel_commission_total = EXCLUDED.cancel_commission_total,
+-            order_date = EXCLUDED.order_date, order_status = EXCLUDED.order_status,
++            order_date = EXCLUDED.order_date, order_date_utc = EXCLUDED.order_date_utc,
++            order_status = EXCLUDED.order_status,
+             loaded_at = NOW()
+     """, (l["order_ref"], l["sku"], l["country"], l["title"],
+           l["quantity"], l["unit_price"], l["total_price"],
+@@ -287,7 +308,7 @@
+           l.get("commission_vat"), l.get("commission_rate_vat"),
+           l.get("total_commission"),
+           l.get("cancel_commission"), l.get("cancel_commission_total"),
+-          l.get("order_date"), l.get("order_status")))
++          l.get("order_date"), l.get("order_status"), l.get("order_date_utc")))
+ 
+ cur.close(); pg.close()
+ print(f"✅ Lakebase: {len(orders)} orders + {len(lines)} lines synced")

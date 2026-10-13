@@ -1,0 +1,11 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -121,7 +121,7 @@
+     ("dnipro_m.kabinet_data.raw_lm_offers", "loaded_at", 24,
+      None, None, "spark", "SUPPLY_DATA_OWNER", "LM офферы. 08:00+16:00 Kyiv."),
+     ("dnipro_m.kabinet_data.raw_lm_orders", "loaded_at", 24,
+-     "created_date", 72, "spark", "SUPPLY_DATA_OWNER", "LM заказы. Событие: дата заказа."),
++     "created_date_utc", 72, "spark", "SUPPLY_DATA_OWNER", "LM заказы. Событие: момент заказа (created_date_utc; created_date с 14.10.2026 — часы Мадрида)."),
+     ("dnipro_m.kabinet_data.raw_lm_order_lines", "loaded_at", 24,
+      None, None, "spark", "SUPPLY_DATA_OWNER", "LM позиции. Следует за orders."),
+     ("dnipro_m.kabinet_data.raw_lm_transactions", "loaded_at", 36,

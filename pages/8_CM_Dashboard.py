@@ -277,22 +277,28 @@ def load_lm_open_orders() -> pd.DataFrame:
     """Заказы Leroy Merlin, ожидающие акцепта. Может отсутствовать — проверяем."""
     if not table_exists("raw_lm_orders"):
         return pd.DataFrame()
-    conn = get_connection()
-    try:
-        return pd.read_sql("""
+    # С 14.10.2026 created_date хранит часы Мадрида без пояса, исходный момент — created_date_utc: «сколько ждёт»
+    # считается только по нему, иначе разница с NOW() ошибается на час-два. До миграции колонки ещё нет —
+    # тогда прежний запрос, чтобы выкладка кода раньше миграции не превратила список в «нет заказов».
+    sql = """
             SELECT order_id,
                    created_date,
                    order_state,
                    total_price,
-                   ROUND(EXTRACT(EPOCH FROM (NOW() - created_date)) / 3600.0, 1) AS hours_open
+                   ROUND(EXTRACT(EPOCH FROM (NOW() - {moment})) / 3600.0, 1) AS hours_open
             FROM kabinet_data.raw_lm_orders
             WHERE order_state IN ('WAITING_ACCEPTANCE', 'WAITING_DEBIT')
-            ORDER BY created_date
-        """, conn)
-    except Exception:
-        return pd.DataFrame()
-    finally:
-        conn.close()
+            ORDER BY {moment}
+        """
+    for moment in ("created_date_utc", "created_date"):
+        conn = get_connection()
+        try:
+            return pd.read_sql(sql.format(moment=moment), conn)
+        except Exception:
+            continue
+        finally:
+            conn.close()
+    return pd.DataFrame()
 
 
 @st.cache_data(ttl=600)
@@ -1073,7 +1079,7 @@ with tab_lm:
                         "order_id": st.column_config.TextColumn(
                             t("cm.col.order"), width="medium"),
                         "created_date": st.column_config.TextColumn(
-                            t("cm.col.created"), width="small"),
+                            t("cm.col.created_madrid"), width="small"),
                         "order_state": st.column_config.TextColumn(
                             t("cm.col.state"), width="small"),
                         "total_price": st.column_config.NumberColumn(

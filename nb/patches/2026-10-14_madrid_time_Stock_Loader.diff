@@ -1,0 +1,12 @@
+--- a/Kabinet - Stock Loader
++++ b/Kabinet - Stock Loader
+@@ -914,7 +914,8 @@
+         UNION ALL
+         SELECT {BASE_SKU_SQL.format(c='l.shop_sku')}, l.quantity
+         FROM kabinet_data.raw_lm_order_lines l JOIN kabinet_data.raw_lm_orders o ON o.order_id = l.order_id
+-        WHERE o.created_date >= NOW() - INTERVAL '{VELOCITY_WINDOW} days'
++        -- окно — по моменту (created_date_utc): created_date с 14.10.2026 хранит часы Мадрида без пояса
++        WHERE o.created_date_utc >= NOW() - INTERVAL '{VELOCITY_WINDOW} days'
+           AND COALESCE(l.order_line_state, '') NOT IN ('CANCELED', 'REFUSED', 'REFUNDED')
+         UNION ALL
+         SELECT {BASE_SKU_SQL.format(c='sku')}, quantity

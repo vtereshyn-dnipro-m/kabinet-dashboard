@@ -9,6 +9,6 @@ ON CONFLICT (incident_type) DO NOTHING;
 
 INSERT INTO kabinet_data.job_health_rules (job_id, job_name, expected_interval_hours, schedule_description, is_active, note)
 VALUES (:fallback_job_id, 'Kabinet - Запасной прогон после Ledger Summary', 30, 'ежедневно 18:30 Kyiv', true,
-        'Страховка вечерней цепочки: нет вечерней записи Ledger Summary — запасной Stock Loader и Coverage, тревога ledger_evening')
+        'Страховка вечерней цепочки: нет вечерней записи Ledger Summary — запасной Stock Loader и Coverage, тревога «Вечерние остатки FBA не обновились»')
 ON CONFLICT (job_id) DO UPDATE SET job_name = EXCLUDED.job_name, expected_interval_hours = EXCLUDED.expected_interval_hours,
     schedule_description = EXCLUDED.schedule_description, is_active = true, note = EXCLUDED.note;
