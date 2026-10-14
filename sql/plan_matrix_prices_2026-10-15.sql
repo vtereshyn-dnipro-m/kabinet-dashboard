@@ -16,18 +16,21 @@ CREATE TABLE IF NOT EXISTS kabinet_data.plan_price_daily (
     marketplace text        NOT NULL,                 -- код справочника: AMZ-ES, LM-ES, MM-FR, TTS-ES …
     sku         text        NOT NULL,                 -- SKU как во вкладке таблицы
     price       numeric(12,2),                        -- с НДС; пусто — цены нет (причина в source)
-    source      text        NOT NULL CHECK (source IN ('sales', 'scrape', 'offer', 'listed_no_price', 'kit_only', 'none')),
+    source      text        NOT NULL CHECK (source IN ('sales', 'sp_api', 'scrape', 'buybox', 'offer',
+                                                     'listed_no_price', 'kit_only', 'none')),
     units       integer,                              -- штук за окно продаж
     revenue     numeric(14,2),                        -- выручка за окно продаж, с НДС, после скидок продавца
-    n_obs       integer,                              -- сколько снимков витрины / офферов усреднено
-    note        text,                                 -- окно расчёта; у пустых — почему пусто
+    n_obs       integer,                              -- сколько листингов / снимков / проверок Buy Box / офферов усреднено
+    note        text,                                 -- окно или дата отчёта, купон; у пустых — почему пусто
     computed_at timestamptz NOT NULL DEFAULT now(),   -- когда посчитано (для дозаполненных задним числом — позже calc_date)
     PRIMARY KEY (calc_date, marketplace, sku)
 );
 COMMENT ON TABLE kabinet_data.plan_price_daily IS
     'Plan Matrix: средняя цена «на дату» по SKU × маркетплейс. sales — средневзвешенная цена продаж за '
-    'plan_price_sales_window_days; scrape — средняя цена витрины Amazon (ScrapingDog) за plan_price_listing_window_days; '
-    'offer — цена активного оффера Mirakl; listed_no_price / kit_only / none — цены нет. Пишет Kabinet - Plan Matrix Prices.';
+    'plan_price_sales_window_days (от plan_price_min_units штук); sp_api — наша цена листинга Amazon из отчёта листингов; '
+    'scrape — средняя цена витрины Amazon (ScrapingDog); buybox — средняя цена Buy Box (SP-API) за '
+    'plan_price_listing_window_days; у sp_api и scrape вычтен купон из ScrapingDog; offer — цена активного оффера Mirakl; '
+    'listed_no_price / kit_only / none — цены нет. Пишет Kabinet - Plan Matrix Prices.';
 
 CREATE TABLE IF NOT EXISTS kabinet_data.plan_price_month (
     marketplace text        NOT NULL,
@@ -50,9 +53,10 @@ INSERT INTO kabinet_data.reorder_params (key, value, note, updated_at) VALUES
  ('plan_price_sales_window_days', 90,
   'Plan Matrix: окно продаж для средней цены, дней по дату расчёта включительно («последние 3 месяца»)', now()),
  ('plan_price_listing_window_days', 30,
-  'Plan Matrix: окно усреднения цены витрины Amazon (снимки ScrapingDog), дней', now()),
- ('plan_price_min_units', 1,
-  'Plan Matrix: минимум проданных штук за окно, чтобы цена считалась по продажам; меньше — цена витрины', now()),
+  'Plan Matrix: окно усреднения цены витрины Amazon (ScrapingDog) и Buy Box и поиска купона, дней', now()),
+ ('plan_price_min_units', 3,
+  'Plan Matrix: минимум проданных штук за окно, чтобы цена считалась по продажам; меньше — цена листинга '
+  '(решение владельца 14.10.2026); нет и её — цена продаж', now()),
  ('plan_price_freeze_day', 15,
   'Plan Matrix: число месяца M−1, ценой на которое фиксируется месяц M; со следующего дня цена месяца не меняется', now()),
  ('plan_price_sheet_write', 0,
