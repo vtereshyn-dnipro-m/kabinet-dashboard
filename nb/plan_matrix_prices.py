@@ -12,11 +12,12 @@
 #      (промо и купоны Amazon, скидка продавца ManoMano, скидки продавца TikTok); с НДС — как цены витрины.
 #      Заказы Amazon Vine, заказы-замены и строки с ценой после промо ≤ 0 — не продажа;
 #   2) продано меньше — цена листинга:
-#      Amazon — а) наша цена листинга из SP-API: отчёт листингов GET_MERCHANT_LISTINGS_ALL_DATA (сырьё
-#                  raw_amazon_get_merchant_listings_all_data.price, активный листинг, отчёт на дату расчёта). У SKU
-#                  с двумя активными листингами (FBA и FBM) — меньшая цена: Buy Box держит её (22635000 DE: 54,98
-#                  и 69,98 €, Buy Box 54,98). Действующая sale price в отчёт не попадает, поэтому если наша цена в
-#                  ответе SP-API Product Pricing (buybox_status.our_price, последняя проверка за окно) ниже — берём её;
+#      Amazon — а) наша действующая цена из SP-API Listings Items (ячейка 1 кладёт её снимком дня в сырьё
+#                  dnipro_m.raw_amazon_listing_offers): меньшая из our_price и discounted_price (sale price), если
+#                  sale price действует на дату расчёта; только покупаемые листинги (BUYABLE) и предложение для всех
+#                  покупателей (audience ALL, не B2B). Отчёт листингов GET_MERCHANT_LISTINGS_ALL_DATA отдаёт только
+#                  обычную цену, поэтому он — запас для дат, на которые снимка Listings Items нет (история до 15.10.2026).
+#                  У SKU с двумя листингами (FBA и FBM) — меньшая цена: Buy Box держит её (22635000 DE: 54,98 и 69,98 €);
 #               б) нет её — средняя цена витрины ScrapingDog за plan_price_listing_window_days (30) дней;
 #               в) нет и её — средняя цена Buy Box (SP-API Product Pricing, kabinet_data.buybox_status) за то же окно.
 #               Из ScrapingDog в а) и б) берём купон: если в последнем снимке ASIN за окно есть текст купона
@@ -35,16 +36,111 @@
 # Где лежит:
 #   kabinet_data.plan_price_daily — история: расчёт «на дату» по каждой паре, строка на день (что было известно);
 #   kabinet_data.plan_price_month — цена месяца, frozen = зафиксирована; замороженную строку прогон не меняет.
-# Запись в Google-таблицу (ячейка 2) — ТОЛЬКО в свою вкладку avg_price и только при
+# Запись в Google-таблицу (ячейка 3) — ТОЛЬКО в свою вкладку avg_price и только при
 # reorder_params.plan_price_sheet_write = 1 (по умолчанию 0: в таблицу ничего не пишем до решения владельца).
 # Вкладки аналитика не трогаем никогда.
 #
-# Параметры: dry_run=1 — ничего не пишет ни в базу, ни в таблицу, печатает покрытие; as_of=ГГГГ-ММ-ДД — «сегодня»
-# для пробы.
+# Контроль: где цена SP-API отличается от последнего снимка ScrapingDog больше чем на plan_price_scrape_diff_pct (15 %),
+# ячейка печатает число таких пар и первые десять.
+#
+# Параметры: dry_run=1 — ничего не пишет ни в базу, ни в таблицу (Listings Items только читается), печатает покрытие;
+# as_of=ГГГГ-ММ-ДД — «сегодня» для пробы.
 
 # COMMAND ----------
 
-# DBTITLE 1,1. Расчёт цен → plan_price_daily, plan_price_month
+# DBTITLE 1,1. Сырьё: действующая цена Amazon из Listings Items → dnipro_m.raw_amazon_listing_offers
+# Снимок дня по всем нашим листингам ES/IT/FR/DE: purchasable_offer как отдаёт Amazon — обычная цена (our_price) и
+# sale price (discounted_price) с датами действия, отдельно для всех покупателей (ALL) и B2B. Сырьё — без отбора:
+# какая цена «действует», решает расчёт. История копится с первого прогона (15.10.2026), раньше её нет.
+import json, time, requests
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+dbutils.widgets.text("dry_run", "0")
+_DRY1 = dbutils.widgets.get("dry_run").strip() == "1"
+_EP, _SELLER = "https://sellingpartnerapi-eu.amazon.com", "A4JU8NB3VJG0K"   # один продавец на весь ЕС (AGENTS.md)
+_MPS = {"ES": "A1RKKUPIHCS9HS", "IT": "APJ6JRA9NG5V4", "FR": "A13V1IB3VIYZZH", "DE": "A1PA6795UKMFR9"}
+_snap = datetime.now(ZoneInfo("Europe/Kyiv")).date()
+LI_ERRORS = []                                    # сбои рынков — в пульс и падение прогона в конце (ячейка 4)
+
+def _sec(k):
+    return dbutils.secrets.get("amazon-sp-api", k)
+_tok = requests.post("https://api.amazon.com/auth/o2/token", data={
+    "grant_type": "refresh_token", "refresh_token": _sec("refresh-token"),
+    "client_id": _sec("lwa-app-id"), "client_secret": _sec("lwa-client-secret")}, timeout=30)
+_tok.raise_for_status()
+_H = {"x-amz-access-token": _tok.json()["access_token"]}
+
+def _page(mp_id, token):
+    params = {"marketplaceIds": mp_id, "includedData": "summaries,attributes", "pageSize": 20}
+    if token:
+        params["pageToken"] = token
+    wait = 2.0
+    for _ in range(9):
+        r = requests.get(f"{_EP}/listings/2021-08-01/items/{_SELLER}", headers=_H, params=params, timeout=60)
+        if r.status_code == 429:
+            time.sleep(wait); wait = min(wait * 2, 60); continue
+        if r.status_code >= 400:
+            raise RuntimeError(f"searchListingsItems {r.status_code}: {r.text[:300]}")
+        return r.json()
+    raise RuntimeError("[QUOTA_429] searchListingsItems: квота не освободилась")
+
+def _sched(blocks):
+    """[{schedule:[{value_with_tax, start_at, end_at}]}] → первое значение и его даты."""
+    for b in blocks or []:
+        for sc in b.get("schedule") or []:
+            v = sc.get("value_with_tax")
+            if v is not None:
+                return float(v), sc.get("start_at"), sc.get("end_at")
+    return None, None, None
+
+_rows = []
+for _cc, _mp in _MPS.items():
+    try:
+        _tokn, _n = None, 0
+        while True:
+            _j = _page(_mp, _tokn)
+            for it in _j.get("items", []):
+                sm = next((x for x in it.get("summaries") or [] if x.get("marketplaceId") == _mp), {})
+                for po in (it.get("attributes") or {}).get("purchasable_offer") or []:
+                    if po.get("marketplace_id") not in (None, _mp):
+                        continue
+                    our, _, _ = _sched(po.get("our_price"))
+                    disc, d_from, d_to = _sched(po.get("discounted_price"))
+                    _rows.append((_snap, _cc, it.get("sku"), sm.get("asin"), ",".join(sm.get("status") or []),
+                                  po.get("audience") or "ALL", po.get("currency"), our, disc,
+                                  d_from if disc is not None else None, d_to if disc is not None else None))
+                _n += 1
+            _tokn = (_j.get("pagination") or {}).get("nextToken")
+            if not _tokn:
+                break
+            time.sleep(0.25)                          # 5 запросов в секунду на продавца
+        print(f"Listings Items {_cc}: листингов {_n}")
+    except Exception as _e:
+        LI_ERRORS.append(f"{_cc}: {str(_e)[:200]}")
+        print(f"⚠️ Listings Items {_cc}: {_e}")
+
+_cols = ("snapshot_date date, marketplace string, seller_sku string, asin string, status string, audience string, "
+         "currency string, our_price double, discounted_price double, discount_start string, discount_end string")
+if _DRY1:
+    print(f"dry run — сырьё не пишу: строк {len(_rows)}, со скидкой {sum(1 for r in _rows if r[8] is not None)}")
+    spark.createDataFrame(_rows, _cols).createOrReplaceTempView("li_offers_dry")
+else:
+    spark.sql(f"""CREATE TABLE IF NOT EXISTS dnipro_m.dnipro_m.raw_amazon_listing_offers ({_cols}, loaded_at timestamp)
+                  COMMENT 'Kabinet - Plan Matrix Prices: purchasable_offer из SP-API Listings Items, снимок дня по рынку'""")
+    _done = sorted({r[1] for r in _rows})
+    if _done:                                     # снимок дня по рынку переписывается целиком; упавший рынок не трогаем
+        spark.createDataFrame(_rows, _cols).createOrReplaceTempView("li_offers_new")
+        spark.sql(f"""DELETE FROM dnipro_m.dnipro_m.raw_amazon_listing_offers
+                      WHERE snapshot_date = DATE'{_snap}' AND marketplace IN ({", ".join(f"'{c}'" for c in _done)})""")
+        spark.sql("""INSERT INTO dnipro_m.dnipro_m.raw_amazon_listing_offers
+                     SELECT *, current_timestamp() FROM li_offers_new""")
+    print(f"✅ raw_amazon_listing_offers {_snap}: строк {len(_rows)} по {_done}; "
+          f"со скидкой {sum(1 for r in _rows if r[8] is not None)}")
+
+# COMMAND ----------
+
+# DBTITLE 1,2. Расчёт цен → plan_price_daily, plan_price_month
 import json, re, calendar
 from collections import defaultdict
 from datetime import date, datetime, timedelta
@@ -83,6 +179,7 @@ SALES_DAYS = int(P.get("plan_price_sales_window_days", 90))
 LIST_DAYS = int(P.get("plan_price_listing_window_days", 30))
 MIN_UNITS = int(P.get("plan_price_min_units", 3))
 FREEZE_DAY = int(P.get("plan_price_freeze_day", 15))
+SCRAPE_DIFF = float(P.get("plan_price_scrape_diff_pct", 15))
 print(f"сегодня {TODAY}; окно продаж {SALES_DAYS} дн, витрины {LIST_DAYS} дн, минимум {MIN_UNITS} шт, "
       f"заморозка после {FREEZE_DAY}-го" + ("; DRY RUN — без записи" if DRY else ""))
 
@@ -251,18 +348,31 @@ for r in spark.sql(f"""
     code = AMZ_REPORT[r.marketplace_name]
     spapi[code][r.report_date].append((listing_sku.get((code, r.seller_sku)) or norm(r.seller_sku), float(r.price)))
 
-# ── Buy Box (SP-API Product Pricing): цена Buy Box, а нет её — наша цена в ответе; отдельно — наша цена ──
+# ── Действующая цена Amazon из Listings Items (сырьё ячейки 1): снимки по дням, покупаемые листинги, для всех ──
+li = defaultdict(lambda: defaultdict(list))      # code → snapshot_date → [(sku, our_price, sale, sale_from, sale_to)]
+_li_src = ("li_offers_dry" if DRY and spark.catalog.tableExists("li_offers_dry")
+           else "dnipro_m.dnipro_m.raw_amazon_listing_offers")
+if _li_src == "li_offers_dry" or spark.catalog.tableExists(_li_src):
+    for r in spark.sql(f"""
+            SELECT snapshot_date, marketplace, seller_sku, our_price, discounted_price,
+                   to_date(from_utc_timestamp(to_timestamp(discount_start), 'Europe/Madrid')) AS d_from,
+                   to_date(from_utc_timestamp(to_timestamp(discount_end), 'Europe/Madrid')) AS d_to
+            FROM {_li_src}
+            WHERE audience = 'ALL' AND status LIKE '%BUYABLE%' AND our_price > 0
+              AND snapshot_date >= DATE'{EARLIEST}'""").collect():
+        code = "AMZ-" + r.marketplace
+        li[code][r.snapshot_date].append((listing_sku.get((code, r.seller_sku)) or norm(r.seller_sku),
+                                          float(r.our_price), r.discounted_price, r.d_from, r.d_to))
+
+# ── Buy Box (SP-API Product Pricing): цена Buy Box, а нет её — наша цена в ответе ──
 buybox = []                                      # (code, sku, day, price)
-our_px = []                                      # (code, sku, checked_at, day, наша цена с действующей скидкой)
-for mk, asin, ts, d, bb, ours in q("""
-        SELECT marketplace, asin, checked_at, (checked_at AT TIME ZONE 'Europe/Madrid')::date, buybox_price, our_price
+for mk, asin, d, bb, ours in q("""
+        SELECT marketplace, asin, (checked_at AT TIME ZONE 'Europe/Madrid')::date, buybox_price, our_price
         FROM kabinet_data.buybox_status
         WHERE marketplace IN ('ES', 'IT', 'FR', 'DE') AND coalesce(buybox_price, our_price) > 0
           AND checked_at >= %s""", (EARLIEST,)):
     for s in asin_skus.get(("AMZ-" + mk, asin), ()):
         buybox.append(("AMZ-" + mk, s, d, float(bb if bb else ours)))
-        if ours:
-            our_px.append(("AMZ-" + mk, s, ts, d, float(ours)))
 
 # ── Офферы Mirakl: текущая цена активного оффера (истории офферов нет) ──
 offers = defaultdict(list)                       # (code, sku) → цены
@@ -299,10 +409,17 @@ def compute(as_of):
     for code, s, d, p in buybox:
         if l_from <= d <= as_of:
             bbx[(code, s)].append(p)
-    ours = {}                                    # (code, sku) → наша цена последней проверки Product Pricing
-    for code, s, ts, d, p in sorted(our_px, key=lambda x: x[2]):
-        if l_from <= d <= as_of:
-            ours[(code, s)] = p
+    lip, lip_info = defaultdict(list), {}        # Listings Items: снимок на дату (не старше 3 дней) → действующая цена
+    for code, by_day in li.items():
+        days = [d for d in by_day if as_of - timedelta(days=3) <= d <= as_of]
+        if days:
+            dd = max(days)
+            for s, our, sale, f, t in by_day[dd]:
+                live = sale is not None and sale > 0 and (f is None or f <= as_of) and (t is None or t >= as_of)
+                lip[(code, s)].append(min(our, sale) if live else our)
+                if live and sale < our:
+                    lip_info[(code, s)] = f"sale price {sale:.2f} (обычная {our:.2f}) {f or '…'}–{t or '…'}"
+            lip_info[("date", code)] = dd
     cpn = {}                                     # (code, sku) → купон последнего снимка за окно
     for code, s, ts, d, cp in sorted(coupon_obs, key=lambda x: x[2]):
         if l_from <= d <= as_of:
@@ -323,7 +440,7 @@ def compute(as_of):
         if new <= 0:
             return price, None
         return new, f"купон {cp[1]:g}{' %' if cp[0] == 'pct' else ' €'}"
-    active = {k for k in agg if agg[k][1] > 0} | set(listed) | set(sp) | set(offers)
+    active = {k for k in agg if agg[k][1] > 0} | set(listed) | set(sp) | set(lip) | set(offers)
     in_kit = defaultdict(set)                    # (code, компонент) — набор с ним продаётся или выставлен
     for code, s in active:
         for b in kit_parts.get(s, ()):
@@ -338,12 +455,14 @@ def compute(as_of):
             few = f"продано {units} шт < {MIN_UNITS}; " if sold else ""
             if sold and units >= MIN_UNITS:
                 out[k] = (round(rev / units, 2), "sales", units, round(rev, 2), None, f"{s_from}…{as_of}")
-            elif sp.get(k):
-                base, how = min(sp[k]), f"отчёт листингов {sp_date[code]}"
-                if ours.get(k) and ours[k] < base - 0.005:
-                    base, how = ours[k], f"sale price из Product Pricing (в отчёте листингов {min(sp[k]):.2f})"
+            elif lip.get(k) or sp.get(k):
+                if lip.get(k):
+                    base, n = min(lip[k]), len(lip[k])
+                    how = f"Listings Items {lip_info[('date', code)]}" + (f", {lip_info[k]}" if k in lip_info else "")
+                else:                                # снимка Listings Items на эту дату нет — обычная цена из отчёта
+                    base, n, how = min(sp[k]), len(sp[k]), f"отчёт листингов {sp_date[code]} (без sale price)"
                 p, cn = with_coupon(base, k)
-                out[k] = (round(p, 2), "sp_api", units or None, round(rev, 2) if sold else None, len(sp[k]),
+                out[k] = (round(p, 2), "sp_api", units or None, round(rev, 2) if sold else None, n,
                           few + how + (f", {cn}" if cn else ""))
             elif scr.get(k):
                 p, cn = with_coupon(sum(scr[k]) / len(scr[k]), k)
@@ -381,6 +500,17 @@ for tab, code in TABS.items():
         c["coupon"] += bool(v[5] and "купон" in v[5])
     print(f"{tab} | {len(SHEET_SKUS[tab])} | {c['sales']} | {c['sp_api']} | {c['scrape']} | {c['buybox']} | "
           f"{c['offer']} | {c['listed_no_price']} | {c['kit_only']} | {c['none']} | {c['coupon']}")
+# ── Контроль: цена SP-API против последнего снимка ScrapingDog за окно ──
+_last_scr = {}
+for code, s, d, p in sorted(scrape, key=lambda x: x[2]):
+    if TODAY - timedelta(days=LIST_DAYS - 1) <= d <= TODAY:
+        _last_scr[(code, s)] = (p, d)
+_cmp = [(code, s, v[0], _last_scr[(code, s)][0], _last_scr[(code, s)][1], v[5])
+        for (code, s), v in _today.items() if v[1] == "sp_api" and (code, s) in _last_scr]
+_far = sorted([c for c in _cmp if abs(c[3] / c[2] - 1) * 100 > SCRAPE_DIFF], key=lambda c: -abs(c[3] / c[2] - 1))
+print(f"контроль SP-API ↔ ScrapingDog: сравнимых пар {len(_cmp)}, расходятся больше {SCRAPE_DIFF:g} %: {len(_far)}")
+for code, s, p_sp, p_scr, d_scr, note in _far[:10]:
+    print(f"   {s} {code}: SP-API {p_sp:.2f} · ScrapingDog {p_scr:.2f} ({d_scr}) · {(p_scr / p_sp - 1) * 100:+.0f} % · {note}")
 for d in AS_OF:
     if d != TODAY:
         n = sum(1 for v in calcs[d].values() if v[0] is not None)
@@ -428,7 +558,7 @@ pg.close()
 
 # COMMAND ----------
 
-# DBTITLE 1,2. Вкладка avg_price в таблице (только при plan_price_sheet_write = 1)
+# DBTITLE 1,3. Вкладка avg_price в таблице (только при plan_price_sheet_write = 1)
 # Пишем только в СВОЮ вкладку avg_price: строка на SKU × вкладка × месяц. Вкладки аналитика не трогаем — если цена
 # нужна в AVG Price, лист подтягивает её формулой из avg_price (MAXIFS по SKU, вкладке и месяцу).
 # Пустые пары (source = none: SKU на маркетплейсе не продаётся и не выставлен) не пишем — лист меньше в разы.
@@ -487,7 +617,7 @@ _pg2.close()
 
 # COMMAND ----------
 
-# DBTITLE 1,3. Пульс
+# DBTITLE 1,4. Пульс
 # Последней операцией, безусловно: «ячейки доработали до конца», а не «всё внутри было без замечаний»
 import psycopg2
 from databricks.sdk import WorkspaceClient
@@ -507,3 +637,7 @@ else:
             ON CONFLICT (job_name) DO UPDATE SET last_success_at = now(), note = EXCLUDED.note""")
     _pg3.close()
     print("💓 Kabinet - Plan Matrix Prices")
+# Сбой Listings Items по рынку не останавливает расчёт (цена берётся из отчёта листингов), но прогон обязан упасть —
+# после пульса, чтобы «джоба зелёная» не прятала, что sale price по рынку не обновилась
+if globals().get("LI_ERRORS"):
+    raise RuntimeError("Listings Items: " + "; ".join(LI_ERRORS))
