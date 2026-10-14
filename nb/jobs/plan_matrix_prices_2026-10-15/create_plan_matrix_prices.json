@@ -1,0 +1,12 @@
+{
+  "name": "Kabinet - Plan Matrix Prices",
+  "description": "Plan Matrix, шаг 1: средняя цена SKU × маркетплейс × месяц (продажи за 90 дн → витрина/оффер → пусто), заморозка месяца M после 15-го числа M−1. Пишет kabinet_data.plan_price_daily / plan_price_month; вкладку avg_price таблицы — только при reorder_params.plan_price_sheet_write = 1. createReport не трогает. Источник — nb/plan_matrix_prices.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 30 16 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default",
+                    "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "gspread>=6", "google-auth"]}}],
+  "tasks": [
+    {"task_key": "prices", "environment_key": "default", "timeout_seconds": 1800,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Plan Matrix Prices", "source": "WORKSPACE"}}
+  ]
+}
