@@ -3,7 +3,7 @@
 -- :launcher_job_id — id джобы `Kabinet - Power BI Replica (16:45)`, его выдаст `databricks jobs create`.
 
 -- Каждый прогон реплики: заменил ли он реплику или оставил прежнюю (витрина неполная), и время сборки витрины Amazon.
--- Страницы берут отсюда строку «Как в Power BI на …» и плашку «Источник неполный»; паспорт — время сборки в ⓘ.
+-- Страницы берут отсюда строку «Данные на … В Power BI цифры обновятся до ~…» и плашку «Источник неполный»; паспорт — время сборки в ⓘ.
 CREATE TABLE IF NOT EXISTS kabinet_data.pbi_replica_meta (
     id              bigserial PRIMARY KEY,
     loaded_at       timestamptz NOT NULL DEFAULT now(),   -- когда отработал прогон
@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS kabinet_data.pbi_replica_meta (
     source_built_at timestamptz,          -- последняя запись в dnipro_m.dnipro_m.raw_amazon_spiderweb_report (DESCRIBE HISTORY)
     shown_as_of     timestamptz,          -- на какой момент данные на страницах: replaced — сейчас, kept — прошлая замена
     detail          text,                 -- kept: какие рынки упали или пропали, было → стало
-    window_days     int
+    window_days     int,
+    pbi_refresh_until text                -- до скольки (Киев, ЧЧ:ММ) экран Power BI обычно подтягивает витрину — оценка по журналу доступа
 );
 CREATE INDEX IF NOT EXISTS pbi_replica_meta_loaded_idx ON kabinet_data.pbi_replica_meta (loaded_at DESC);
 COMMENT ON TABLE kabinet_data.pbi_replica_meta IS

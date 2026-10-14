@@ -233,7 +233,7 @@ def replica_meta():
     def _load():
         conn = get_connection()
         try:
-            last = pd.read_sql("""SELECT status, source_built_at, shown_as_of, loaded_at, detail
+            last = pd.read_sql("""SELECT status, source_built_at, shown_as_of, loaded_at, detail, pbi_refresh_until
                                   FROM kabinet_data.pbi_replica_meta ORDER BY loaded_at DESC LIMIT 1""", conn)
             good = pd.read_sql("""SELECT source_built_at, loaded_at FROM kabinet_data.pbi_replica_meta
                                   WHERE status = 'replaced' ORDER BY loaded_at DESC LIMIT 1""", conn)
@@ -259,14 +259,24 @@ def _kyiv(v, fmt="%d.%m %H:%M") -> str:
 
 
 def freshness_line() -> str:
-    """«Как в Power BI на 14.10 10:21 · экран Power BI обновляется ~10:35–11:45 · Leroy, Carrefour, ManoMano —
-    заказы до 16:45». Пусто, пока не было ни одной полной замены (таблицы ещё нет)."""
+    """«Данные на 14.10 10:21. В Power BI цифры обновятся до ~11:45 — до этого там могут быть вчерашние.» (текст
+    владельца 14.10.2026). Время Power BI — оценка по журналу доступа (pbi_refresh_until, пишет реплика); вторая фраза
+    только сегодня и только до этого времени — после него она ничего не объясняет. Пусто, пока не было ни одной
+    полной замены (таблицы ещё нет)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
     from i18n import t
-    _, good = replica_meta()
+    last, good = replica_meta()
     if OWN_METHOD or not good:
         return ""
-    return t("pbi.fresh_line", built=_kyiv(good.get("source_built_at") or good.get("loaded_at")),
-             orders=_kyiv(good.get("loaded_at"), "%H:%M"))
+    built = good.get("source_built_at") or good.get("loaded_at")
+    line = t("pbi.fresh_line", built=_kyiv(built))
+    until = as_text((last or {}).get("pbi_refresh_until"))
+    now = datetime.now(ZoneInfo("Europe/Kyiv"))
+    if re.fullmatch(r"\d\d:\d\d", until) and _kyiv(built, "%Y-%m-%d") == now.strftime("%Y-%m-%d") \
+            and now.strftime("%H:%M") < until:
+        line += " " + t("pbi.fresh_pbi", until=until)
+    return line
 
 
 def incomplete_text() -> str:

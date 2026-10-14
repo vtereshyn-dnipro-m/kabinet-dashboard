@@ -90,6 +90,23 @@ except Exception as e:
     SOURCE_BUILT_AT = None
     print(f"⚠️ история {AMZ_TABLE} не прочиталась: {type(e).__name__}: {str(e)[:160]}")
 
+# до скольки экран Power BI обычно успевает подтянуть витрину — ОЦЕНКА по журналу доступа: медиана последнего захода
+# Power BI за день по 14 прошедшим дням (его обновление ходит под учёткой владельца витрины драйвером PowerBI).
+# Страницы пишут «В Power BI цифры обновятся до ~ЧЧ:ММ — до этого там могут быть вчерашние». Не прочиталось — без оценки.
+try:
+    _m = spark.sql("""
+        SELECT percentile_approx(m, 0.5) AS m FROM (
+          SELECT event_date, max(hour(from_utc_timestamp(event_time, 'Europe/Kyiv')) * 60
+                                 + minute(from_utc_timestamp(event_time, 'Europe/Kyiv'))) AS m
+          FROM system.access.audit
+          WHERE event_date >= current_date() - 14 AND event_date < current_date()
+            AND user_agent RLIKE 'PowerBI' AND action_name = 'tokenLogin'
+          GROUP BY event_date)""").collect()[0]["m"]
+    PBI_REFRESH_UNTIL = f"{int(_m) // 60:02d}:{int(_m) % 60:02d}" if _m is not None else None
+except Exception as e:
+    PBI_REFRESH_UNTIL = None
+    print(f"⚠️ журнал доступа не прочитался: {type(e).__name__}: {str(e)[:160]}")
+
 _w = WorkspaceClient()
 _cred = _w.postgres.generate_database_credential(
     endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary")
@@ -133,8 +150,10 @@ with pg, pg.cursor() as cur:
         # витрина неполная: реплику не трогаем, на страницах остаются цифры прошлой полной замены
         cur.execute("SELECT max(loaded_at) FROM kabinet_data.pbi_replica_meta WHERE status = 'replaced'")
         _shown = cur.fetchone()[0]
-        cur.execute("""INSERT INTO kabinet_data.pbi_replica_meta (status, source_built_at, shown_as_of, detail, window_days)
-                       VALUES ('kept', %s, %s, %s, %s)""", (SOURCE_BUILT_AT, _shown, GUARD_DETAIL, G_DAYS))
+        cur.execute("""INSERT INTO kabinet_data.pbi_replica_meta
+                           (status, source_built_at, shown_as_of, detail, window_days, pbi_refresh_until)
+                       VALUES ('kept', %s, %s, %s, %s, %s)""",
+                    (SOURCE_BUILT_AT, _shown, GUARD_DETAIL, G_DAYS, PBI_REFRESH_UNTIL))
     else:
         # одна транзакция: удалить всё и записать заново — у витрины меняется и история (тарифы доставки, возвраты)
         cur.execute("DELETE FROM kabinet_data.pbi_spiderweb_report WHERE true")
@@ -142,8 +161,9 @@ with pg, pg.cursor() as cur:
             INSERT INTO kabinet_data.pbi_spiderweb_report
                 (date, marketplace, sku, pbi_marketplace, pbi_country, {', '.join(COLS)})
             VALUES %s""", out, page_size=2000)
-        cur.execute("""INSERT INTO kabinet_data.pbi_replica_meta (status, source_built_at, shown_as_of, detail, window_days)
-                       VALUES ('replaced', %s, now(), NULL, %s)""", (SOURCE_BUILT_AT, G_DAYS))
+        cur.execute("""INSERT INTO kabinet_data.pbi_replica_meta
+                           (status, source_built_at, shown_as_of, detail, window_days, pbi_refresh_until)
+                       VALUES ('replaced', %s, now(), NULL, %s, %s)""", (SOURCE_BUILT_AT, G_DAYS, PBI_REFRESH_UNTIL))
 
 # ── тревога: открыть один раз и сразу в бот; обновлять текст, пока висит; закрыть, когда витрина снова полная ──
 SEND_ERR = None
@@ -159,16 +179,31 @@ with pg, pg.cursor() as cur:
     elif KEPT:
         cur.execute("""INSERT INTO kabinet_data.incidents (incident_type, severity, message, status, source)
                        VALUES ('pbi_source_incomplete', 'high', %s, 'open', 'watchdog')""", (_msg,))
+        # адресаты: основной чат всегда; второй (kabinet-alerts/telegram-chat-id-darina) — если секрет заведён.
+        # Нет секрета — шлём только в основной; не ушло во второй — пишем в текст тревоги, но прогон не роняем.
+        _chats = [("основной", dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"))]
         try:
-            _r = requests.post(
-                f"https://api.telegram.org/bot{dbutils.secrets.get('kabinet-alerts', 'telegram-bot-token')}/sendMessage",
-                json={"chat_id": dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"),
-                      "text": "🔴 <b>Витрина Power BI неполная</b>\n"
-                              + _msg.replace(INCIDENT_TOKEN + " ", "").replace("&", "&amp;").replace("<", "&lt;"),
-                      "parse_mode": "HTML", "disable_web_page_preview": True}, timeout=30)
-            SEND_ERR = None if _r.ok else f"{_r.status_code}: {_r.text[:150]}"
-        except Exception as e:
-            SEND_ERR = f"{type(e).__name__}: {str(e)[:150]}"
+            _chats.append(("второй адресат", dbutils.secrets.get("kabinet-alerts", "telegram-chat-id-darina")))
+        except Exception:
+            pass
+        _text = ("🔴 <b>Витрина Power BI неполная</b>\n"
+                 + _msg.replace(INCIDENT_TOKEN + " ", "").replace("&", "&amp;").replace("<", "&lt;"))
+        _errs = {}
+        for _who, _chat in _chats:
+            try:
+                _r = requests.post(
+                    f"https://api.telegram.org/bot{dbutils.secrets.get('kabinet-alerts', 'telegram-bot-token')}/sendMessage",
+                    json={"chat_id": _chat, "text": _text, "parse_mode": "HTML", "disable_web_page_preview": True},
+                    timeout=30)
+                if not _r.ok:
+                    _errs[_who] = f"{_r.status_code}: {_r.text[:150]}"
+            except Exception as e:
+                _errs[_who] = f"{type(e).__name__}: {str(e)[:150]}"
+        SEND_ERR = _errs.get("основной")       # не ушло в основной чат — прогон падает после пульса
+        if "второй адресат" in _errs:
+            cur.execute("""UPDATE kabinet_data.incidents SET message = message || %s
+                           WHERE incident_type = 'pbi_source_incomplete' AND status <> 'resolved'""",
+                        (f" Второму адресату не ушло: {_errs['второй адресат']}",))
         if SEND_ERR:
             cur.execute("""UPDATE kabinet_data.incidents SET message = message || %s
                            WHERE incident_type = 'pbi_source_incomplete' AND status <> 'resolved'""",
