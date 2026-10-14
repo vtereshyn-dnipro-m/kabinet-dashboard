@@ -425,6 +425,17 @@ def compute(as_of):
                 if live and sale < our:
                     lip_info[(code, s)] = f"sale price {sale:.2f} (обычная {our:.2f}) {f or '…'}–{t or '…'}"
             lip_info[("date", code)] = dd
+    # Даты без снимка Listings Items (история до 15.10.2026): обычная цена из отчёта, но скидка, чьё расписание
+    # покрывает дату расчёта, видна и в более позднем снимке — Amazon хранит последнее расписание sale price.
+    # 84515000 ES на 15.09: отчёт 169,95 €, а скидка 129,99 € шла 03.09–30.09. Берём самый ранний снимок после даты.
+    sched = {}
+    for code, by_day in li.items():
+        later = sorted(d for d in by_day if d > as_of)
+        if later:
+            for s, our, sale, f, t in by_day[later[0]]:
+                if sale is not None and sale > 0 and f is not None and t is not None and f <= as_of <= t:
+                    sched[(code, s)] = min(sale, sched.get((code, s), sale))
+                    lip_info[("sched", code, s)] = f"{f:%d.%m}–{t:%d.%m}, из снимка Listings Items {later[0]:%d.%m}"
     cpn = {}                                     # (code, sku) → купон последнего снимка за окно
     for code, s, ts, d, cp in sorted(coupon_obs, key=lambda x: x[2]):
         if l_from <= d <= as_of:
@@ -466,6 +477,10 @@ def compute(as_of):
                     how = f"Listings Items {lip_info[('date', code)]}" + (f", {lip_info[k]}" if k in lip_info else "")
                 else:                                # снимка Listings Items на эту дату нет — обычная цена из отчёта
                     base, n, how = min(sp[k]), len(sp[k]), f"отчёт листингов {sp_date[code]} (без sale price)"
+                    if sched.get(k) and sched[k] < base:
+                        how = (f"отчёт листингов {sp_date[code]} {base:.2f}, sale price {sched[k]:.2f} по расписанию "
+                               + lip_info[("sched", code, k[1])])
+                        base = sched[k]
                 p, cn = with_coupon(base, k)
                 out[k] = (round(p, 2), "sp_api", units or None, round(rev, 2) if sold else None, n,
                           few + how + (f", {cn}" if cn else ""))
@@ -596,6 +611,8 @@ _LEGEND = ("Цена месяца с НДС, € (2 знака). Пусто — 
            "Цвет шрифта — источник: чёрный — продажи за 90 дней (от 3 шт); коричневый — продажи 1–2 шт, цены листинга нет; "
            "синий — наша цена листинга Amazon (SP-API, со скидкой и купоном); фиолетовый — витрина ScrapingDog; "
            "оранжевый — Buy Box; зелёный — оффер площадки (Leroy Merlin, ManoMano, Carrefour).\n"
+           "Строки и их порядок берутся с вкладки маркетплейса при каждой записи. Брать цену лучше по SKU, а не по номеру "
+           "строки: =IFERROR(INDEX(avg_Amazon_ES!C:C; MATCH($B4; avg_Amazon_ES!$B:$B; 0)); \"\").\n"
            "Считает Кабинет (Kabinet - Plan Matrix Prices), не редактировать вручную — перезаписывается каждый день.")
 SHEET_ERRORS = []                                 # сбои отправки тревоги — прогон падает после пульса (ячейка 4)
 
@@ -615,11 +632,16 @@ _to_source = _TARGET == _SRC_KEY
 if _DRY or (_to_source and not _WRITE):
     print("вкладки avg_*: пропуск — " + ("dry run" if _DRY else "plan_price_sheet_write = 0 (ждёт решения владельца)"))
 else:
-    _c2.execute("""SELECT marketplace, sku, month, price, source, frozen, calc_date FROM kabinet_data.plan_price_month""")
+    _c2.execute("""SELECT m.marketplace, m.sku, m.month, m.price, m.source, m.frozen, m.calc_date, d.note, d.computed_at
+                   FROM kabinet_data.plan_price_month m
+                   JOIN kabinet_data.plan_price_daily d USING (calc_date, marketplace, sku)""")
     _pm = {}
     _months = set()
-    for mk, sku, m, price, src, fr, cd in _c2.fetchall():
-        _pm[(mk, sku, m)] = (price, src, fr, cd)
+    for mk, sku, m, price, src, fr, cd, dnote, comp in _c2.fetchall():
+        # заметка к ячейке — только там, где цена не «на дату»: оффер Mirakl у месяца, замороженного задним числом
+        cnote = (f"цена на {comp.astimezone(ZoneInfo('Europe/Kyiv')):%d.%m}, истории офферов нет"
+                 if dnote and "оффер на дату расчёта недоступен" in dnote else None)
+        _pm[(mk, sku, m)] = (price, src, fr, cd, cnote)
         _months.add(m)
     _c2.execute("""SELECT d.marketplace, d.sku FROM kabinet_data.plan_price_daily d
                    WHERE d.calc_date = (SELECT max(calc_date) FROM kabinet_data.plan_price_daily)
@@ -672,6 +694,8 @@ else:
                             "userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.00"},
                                                   "textFormat": {"foregroundColor": _rgb(_COLOR.get(src, "000000"))},
                                                   **({"backgroundColor": _grey} if m in _frozen_m else {})}}
+                    if v[4]:
+                        cell["note"] = v[4]
                     n_prices += 1
                 row.append(cell)
             grid.append(row)
