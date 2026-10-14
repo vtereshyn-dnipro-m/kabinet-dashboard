@@ -21,7 +21,8 @@
 # MAGIC - Изображения (с 14.10.2026, решение владельца) — из НАШЕГО листинга, Listings Items
 # MAGIC   (`main_product_image_locator`, `other_product_image_locator_N` → PTNN): то, что мы сами
 # MAGIC   загрузили. Каталог Amazon — только если в листинге картинок нет вовсе; нет одного главного —
-# MAGIC   главное из каталога. Откуда — колонка Image source.
+# MAGIC   главное из каталога. Пустые слоты PT добираются из каталога, только если главное фото
+# MAGIC   страницы совпало с нашим, и только снимками, которых в листинге нет. Откуда — Image source.
 # MAGIC - EAN, которого нет в каталоге Amazon, берём из справочника SKU Кабинета (`kabinet_data.sku_master`)
 # MAGIC   и пишем отдельной колонкой, откуда он. Код ищем как есть и в очищенном виде (без `-FBA`,
 # MAGIC   `-FBM`, хвостового `_`, «` 2`» → «`-2`»), но НЕ откатываем к базовому коду: у варианта `-B`
@@ -66,6 +67,7 @@ SRC_AMAZON, SRC_DIR, SRC_NONE = "Amazon catalog", "SKU directory", "none"
 # Откуда картинки строки: наш листинг (что мы сами загрузили) главнее каталога Amazon — решение
 # владельца 14.10.2026: каталог у неактивного варианта отдаёт фото соседа по семейству.
 IMG_LISTING, IMG_LISTING_CAT_MAIN, IMG_CATALOG = "Our listing", "Our listing, main image from Amazon catalog", "Amazon catalog"
+IMG_LISTING_CAT_EXTRA = "Our listing + extra images from Amazon catalog"
 import requests
 from databricks.sdk import WorkspaceClient
 from openpyxl import Workbook
@@ -317,14 +319,12 @@ for r in lst.itertuples():
         "sku": r.seller_sku, "asin": r.asin or "", "title": title(it) if it else None,
         "in_catalog": bool(it), "ean": ean or "", "ean_src": src, "ean_multi": len(eans) > 1,
         "imgs": {v: imgs[v] for v in order}, "n_img": len(order), "img_src": img_src,
-        "cat_main": cat_imgs.get("MAIN"), "our_main": lst_imgs.get("MAIN"),
+        "cat_main": cat_imgs.get("MAIN"), "our_main": lst_imgs.get("MAIN"), "cat_imgs": cat_imgs,
         "fc": "FBA" if str(r.fulfillment_channel).startswith("AMAZON") else "FBM",
         "status": r.status, "reason": (reasons.get(r.seller_sku) or "") if r.status != "Active" else "",
         "rel": relations(it) if it else (False, False),
     })
 
-pt_max = max([max([pt_key(v)[1] for v in x["imgs"] if v != "MAIN"] or [0]) for x in rows] or [0])
-img_cols = ["MAIN"] + [f"PT{n:02d}" for n in range(1, pt_max + 1)]
 
 # ── 4б. сверка строки с живыми данными перед сохранением ───────────────────────
 # Картинки в файле — из нашего листинга. Сверяем, показывает ли Amazon на странице товара то же
@@ -421,6 +421,42 @@ for x in rows:
     x["check"] = "; ".join(t for _, t in chk)
     x["chk_kinds"] = {k for k, _ in chk}
     x["inactive_child"] = x["status"] != "Active" and x["rel"][1] and not x["parent"]
+# ── 4в. недостающие дополнительные фото — из каталога, но только где страница подтвердила товар ──
+# Решение владельца 14.10.2026 (вариант Б): в листинге фото часто меньше, чем показывает Amazon
+# (у 123 строк одно вместо 6–9). Где главное фото страницы совпало с нашим (Same) — каталог
+# показывает именно наш товар, и пустые слоты PT добираются из него тем же номером слота. Снимок,
+# который уже есть среди фото листинга (по содержимому — ID у Amazon разные), второй раз не берётся.
+# Где главное фото другое или не проверено — только листинг: так у 58614000 нет ни одного фото соседа.
+fill = [x for x in rows if x["match"] == MATCH_SAME and x["img_src"] == IMG_LISTING
+        and any(v != "MAIN" and v not in x["imgs"] for v in x["cat_imgs"])]
+need = sorted({u for x in fill for u in list(x["imgs"].values())
+               + [c_ for v, c_ in x["cat_imgs"].items() if v != "MAIN" and v not in x["imgs"]]} - set(hashes))
+with ThreadPoolExecutor(8) as ex_:
+    hashes.update(zip(need, ex_.map(dhash, need)))
+n_added = 0
+for x in fill:
+    have = [hashes.get(u) for u in x["imgs"].values()]
+    if any(h is None for h in have):
+        continue                 # не смогли сравнить с фото листинга — не рискуем задвоить
+    added = 0
+    for v, u in x["cat_imgs"].items():
+        if v == "MAIN" or v in x["imgs"]:
+            continue
+        h = hashes.get(u)
+        if h is None or any(bin(h ^ h2).count("1") <= IMG_SAME_MAX_BITS for h2 in have):
+            continue
+        x["imgs"][v] = u
+        have.append(h)
+        added += 1
+    if added:
+        x["imgs"] = {v: x["imgs"][v] for v in sorted(x["imgs"], key=pt_key)}
+        x["img_src"], x["n_img"] = IMG_LISTING_CAT_EXTRA, len(x["imgs"])
+        n_added += added
+print(f"добрано из каталога: {n_added} фото в {sum(1 for x in rows if x['img_src'] == IMG_LISTING_CAT_EXTRA)} строках")
+
+pt_max = max([max([pt_key(v)[1] for v in x["imgs"] if v != "MAIN"] or [0]) for x in rows] or [0])
+img_cols = ["MAIN"] + [f"PT{n:02d}" for n in range(1, pt_max + 1)]
+
 n_check = sum(1 for x in rows if x["check"])
 print(f"сверка: в Check {n_check} строк; фото " + ", ".join(
     f"{m_}: {sum(1 for x in rows if x['match'] == m_)}" for m_ in (MATCH_SAME, MATCH_DIFF, MATCH_NA, MATCH_PARENT)))
@@ -489,9 +525,11 @@ summary = ([("TEST FILE", "Trial run — not for sending")] if TEST else []) + [
     ("EAN source values", f"{SRC_AMAZON} — from Amazon catalog; {SRC_DIR} — from our SKU directory "
                           f"when Amazon has none; {SRC_NONE} — not found in either"),
     ("Images", "From our own listing (SP-API Listings Items: the images we uploaded — main image, then PT01, "
-               "PT02… by slot). Amazon catalog images only when our listing has no images at all"),
+               "PT02… by slot). Empty PT slots are filled from Amazon catalog only when the main image on the "
+               "Amazon page is the same as ours, and only with pictures not already in our listing. Amazon catalog "
+               "images for the whole row only when our listing has no images at all"),
     ("Image source", ", ".join(f"{v_}: {sum(1 for x in rows if x['img_src'] == v_)}"
-                               for v_ in (IMG_LISTING, IMG_LISTING_CAT_MAIN, IMG_CATALOG, SRC_NONE))),
+                               for v_ in (IMG_LISTING, IMG_LISTING_CAT_EXTRA, IMG_LISTING_CAT_MAIN, IMG_CATALOG, SRC_NONE))),
     ("Status", "Listing status from Amazon's listings report: Active, Inactive, Incomplete; rows are sorted in that order"),
     ("Inactive reason", "Listing issues from SP-API Listings Items as Amazon returns them (severity: message); "
                         "empty when Amazon returns no issue — nothing is inferred"),
@@ -550,7 +588,7 @@ result = {"file": f"{OUT_DIR}/{name}", "rows": n, "asins": len(asins), "not_foun
           "test": TEST, "check_rows": n_check,
           "match": {m_: sum(1 for x in rows if x["match"] == m_) for m_ in (MATCH_SAME, MATCH_DIFF, MATCH_NA, MATCH_PARENT)},
           "inactive_children": sum(1 for x in rows if x["inactive_child"]),
-          "img_src": {v_: sum(1 for x in rows if x["img_src"] == v_) for v_ in (IMG_LISTING, IMG_LISTING_CAT_MAIN, IMG_CATALOG, SRC_NONE)},
+          "img_src": {v_: sum(1 for x in rows if x["img_src"] == v_) for v_ in (IMG_LISTING, IMG_LISTING_CAT_EXTRA, IMG_LISTING_CAT_MAIN, IMG_CATALOG, SRC_NONE)},
           "check_kinds": {k_: sum(1 for x in rows if k_ in x["chk_kinds"]) for k_ in ("foreign", "diff", "image_na", "listing")}}
 print(json.dumps(result, ensure_ascii=False))
 dbutils.notebook.exit(json.dumps(result, ensure_ascii=False))  # noqa: F821
