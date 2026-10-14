@@ -4,7 +4,7 @@
   "max_concurrent_runs": 1,
   "schedule": {"quartz_cron_expression": "0 30 16 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
   "environments": [{"environment_key": "default",
-                    "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "gspread>=6", "google-auth"]}}],
+                    "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "gspread>=6", "google-auth", "requests"]}}],
   "tasks": [
     {"task_key": "prices", "environment_key": "default", "timeout_seconds": 1800,
      "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Plan Matrix Prices", "source": "WORKSPACE"}}
