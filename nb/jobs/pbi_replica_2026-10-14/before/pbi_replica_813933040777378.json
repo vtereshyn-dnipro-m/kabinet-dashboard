@@ -1,0 +1,48 @@
+{
+  "created_time": 1791481328070,
+  "creator_user_name": "v.tereshyn@dniprom.com",
+  "job_id": 813933040777378,
+  "run_as_user_name": "v.tereshyn@dniprom.com",
+  "settings": {
+    "email_notifications": {},
+    "environments": [
+      {
+        "environment_key": "default",
+        "spec": {
+          "client": "2",
+          "dependencies": [
+            "psycopg2-binary",
+            "databricks-sdk\u003e=0.118.0"
+          ]
+        }
+      }
+    ],
+    "format": "MULTI_TASK",
+    "max_concurrent_runs": 1,
+    "name": "Kabinet - Power BI Replica",
+    "queue": {
+      "enabled": true
+    },
+    "schedule": {
+      "pause_status": "UNPAUSED",
+      "quartz_cron_expression": "0 45 12,16 * * ?",
+      "timezone_id": "Europe/Kyiv"
+    },
+    "tasks": [
+      {
+        "disabled": false,
+        "email_notifications": {},
+        "environment_key": "default",
+        "notebook_task": {
+          "notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Power BI Replica",
+          "source": "WORKSPACE"
+        },
+        "run_if": "ALL_SUCCESS",
+        "task_key": "pbi_replica",
+        "timeout_seconds": 1800
+      }
+    ],
+    "timeout_seconds": 0,
+    "webhook_notifications": {}
+  }
+}

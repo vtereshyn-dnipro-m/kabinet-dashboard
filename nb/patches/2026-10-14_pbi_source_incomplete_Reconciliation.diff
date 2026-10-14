@@ -1,0 +1,31 @@
+--- a/Kabinet - Reconciliation
++++ b/Kabinet - Reconciliation
+@@ -620,6 +620,17 @@
+                              (d1 - d0).days + 1, None, "off" if off else "ok",
+                              f"разница {f'{diff:+,.2f}'.replace(',', ' ')} {unit}, допуск {'0 шт' if unit == 'шт' else '0,01 €'}",
+                              False if off else None, None, None))
++    # Витрина собралась неполной, и реплика оставила прежние цифры (14.10.2026, nb/pbi_spiderweb_replica.py):
++    # расхождение реплики с живой витриной тогда — не поломка Кабинета, а неполный источник. Статус строки
++    # 'source_incomplete', а не 'off': сторож заводит тревогу сверки только на 'off', а про сам источник уже
++    # сказала реплика (тревога «Витрина Power BI неполная»).
++    fetch_one = fetch("""SELECT status, to_char(shown_as_of AT TIME ZONE 'Europe/Kyiv', 'DD.MM HH24:MI'), detail
++                         FROM kabinet_data.pbi_replica_meta ORDER BY loaded_at DESC LIMIT 1""")
++    if fetch_one and fetch_one[0][0] == "kept":
++        _kept_at, _kept_why = fetch_one[0][1], fetch_one[0][2]
++        _pbi_res = [r[:13] + ("source_incomplete",
++                              f"источник неполный: реплика оставлена на {_kept_at} ({_kept_why}); {r[14]}") + r[15:]
++                    if r[13] == "off" else r for r in _pbi_res]
+     cur.execute("DELETE FROM kabinet_data.reconciliation_results WHERE calc_date = %s AND against = %s",
+                 (CALC, PBI_AGAINST))
+     psycopg2.extras.execute_values(cur, """
+@@ -639,7 +650,9 @@
+          else f"сошлось до цента ({len(_pbi_res)} сравнений, {_pbi_from:%m.%Y} — по вчера)",
+          PBI_TABLE))
+     pg.commit()
+-    PBI_NOTE = f"Power BI 1:1: сравнений {len(_pbi_res)}, расходится {len(_pbi_off)}"
++    _pbi_src = sum(1 for r in _pbi_res if r[13] == "source_incomplete")
++    PBI_NOTE = (f"Power BI 1:1: сравнений {len(_pbi_res)}, расходится {len(_pbi_off)}"
++                + (f", источник неполный {_pbi_src}" if _pbi_src else ""))
+     print(f"✅ {PBI_NOTE}")
+     for r in _pbi_off[:20]:
+         print(f"   ✗ {r[4]} {r[3]}: Кабинет {r[7]:,.2f}, Power BI {r[8]:,.2f} — {r[14]}")

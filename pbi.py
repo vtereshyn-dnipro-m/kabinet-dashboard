@@ -24,11 +24,13 @@ shipping_cost_refund − expenses_refund + reimbursment, поэтому разл
 выплат, фактический НДС, реклама Leroy Merlin) не удалена: таблицы и код на месте, страницы просто её не
 показывают. Вернуть — `OWN_METHOD = True`; разбор методик пойдёт отдельным документом.
 """
+import re
 from datetime import date
 
 import pandas as pd
 
 from db.connection import get_connection
+from util import as_text
 
 OWN_METHOD = False          # True — страницы показывают прежнюю методику Кабинета вместо цифр Power BI
 SOURCE = "kabinet_data.pbi_spiderweb_report"
@@ -216,3 +218,84 @@ def last_date() -> pd.Timestamp:
     finally:
         conn.close()
     return pd.Timestamp(r["d"]) if pd.notna(r["d"]) else pd.NaT
+
+
+# ── Свежесть реплики (14.10.2026) ────────────────────────────────────────────────────────────────────────
+# Реплика запускается по записи в витрину Amazon (~10:20), а экран Power BI тянет витрину сам около 10:35–11:45 —
+# поэтому Кабинет утром «впереди» экрана, а днём ещё и с дневными заказами Leroy Merlin, ManoMano и Carrefour
+# (их часть витрины считается на лету). Строка под карточками называет обе вещи; если витрина собралась неполной,
+# реплика её не копирует (nb/pbi_spiderweb_replica.py), и страница говорит, на какой момент показаны цифры.
+def replica_meta():
+    """(последний прогон, последняя полная замена) из kabinet_data.pbi_replica_meta; таблицы нет — (None, None)."""
+    import streamlit as st
+
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _load():
+        conn = get_connection()
+        try:
+            last = pd.read_sql("""SELECT status, source_built_at, shown_as_of, loaded_at, detail, pbi_refresh_until
+                                  FROM kabinet_data.pbi_replica_meta ORDER BY loaded_at DESC LIMIT 1""", conn)
+            good = pd.read_sql("""SELECT source_built_at, loaded_at FROM kabinet_data.pbi_replica_meta
+                                  WHERE status = 'replaced' ORDER BY loaded_at DESC LIMIT 1""", conn)
+            amz = pd.read_sql("""SELECT DISTINCT marketplace FROM kabinet_data.pbi_spiderweb_report
+                                 WHERE pbi_marketplace = 'Amazon'""", conn)["marketplace"]
+            last_d = last.iloc[0].to_dict() if len(last) else None
+            if last_d is not None:
+                last_d["amazon_codes"] = set(amz)
+            return (last_d, good.iloc[0].to_dict() if len(good) else None)
+        except Exception:
+            return None, None
+        finally:
+            conn.close()
+    return _load()
+
+
+def _kyiv(v, fmt="%d.%m %H:%M") -> str:
+    if v is None or (not isinstance(v, str) and pd.isna(v)):
+        return "—"
+    ts = pd.Timestamp(v)
+    ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts
+    return ts.tz_convert("Europe/Kyiv").strftime(fmt)
+
+
+def freshness_line() -> str:
+    """«Данные на 14.10 10:21. В Power BI цифры обновятся до ~11:45 — до этого там могут быть вчерашние.» (текст
+    владельца 14.10.2026). Время Power BI — оценка по журналу доступа (pbi_refresh_until, пишет реплика); вторая фраза
+    только сегодня и только до этого времени — после него она ничего не объясняет. Пусто, пока не было ни одной
+    полной замены (таблицы ещё нет)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from i18n import t
+    last, good = replica_meta()
+    if OWN_METHOD or not good:
+        return ""
+    built = good.get("source_built_at") or good.get("loaded_at")
+    line = t("pbi.fresh_line", built=_kyiv(built))
+    until = as_text((last or {}).get("pbi_refresh_until"))
+    now = datetime.now(ZoneInfo("Europe/Kyiv"))
+    if re.fullmatch(r"\d\d:\d\d", until) and _kyiv(built, "%Y-%m-%d") == now.strftime("%Y-%m-%d") \
+            and now.strftime("%H:%M") < until:
+        line += " " + t("pbi.fresh_pbi", until=until)
+    return line
+
+
+def incomplete_text() -> str:
+    """Текст плашки, если последний прогон оставил прежнюю реплику (витрина собралась неполной); иначе пусто."""
+    from i18n import t
+    last, good = replica_meta()
+    if OWN_METHOD or not last or last.get("status") != "kept":
+        return ""
+    # Текст плашки — решение владельца 14.10.2026: без причин и без слова «бот». «Amazon» — только если неполными
+    # вышли одни рынки Amazon (код рынка в начале каждой части detail: «ES: было …; IT: …»); упал канал
+    # Mirakl, Wallapop или сайт — без названия площадки, иначе плашка назвала бы не того. Какие коды — Amazon, говорит
+    # сама реплика (pbi_marketplace), а не длина кода: у Leroy Merlin код тоже из двух букв (LM).
+    codes = re.findall(r"(?:^|;\s*)([A-Z_]+):", as_text(last.get("detail")))
+    amz = last.get("amazon_codes") or set()
+    key = "pbi.incomplete_amz" if codes and all(c in amz for c in codes) else "pbi.incomplete"
+    return t(key, at=_kyiv((good or {}).get("loaded_at") or last.get("shown_as_of")))
+
+
+def built_at_text() -> str:
+    """Время сборки витрины Amazon, на которой стоят цифры, — для подсказки ⓘ в паспорте данных."""
+    _, good = replica_meta()
+    return _kyiv((good or {}).get("source_built_at")) if good else ""

@@ -1,0 +1,16 @@
+{
+  "job_id": 813933040777378,
+  "new_settings": {
+    "description": "Реплика витрины Power BI в Lakebase. Запуск по записи в dnipro_m.dnipro_m.raw_amazon_spiderweb_report (5 мин тишины); ещё — задачей в джобе сверки в 13:00 и запускалкой «Kabinet - Power BI Replica (16:45)». Перед заменой сравнивает витрину с прошлой репликой и неполную не копирует. Источник — nb/pbi_spiderweb_replica.py.",
+    "trigger": {
+      "pause_status": "UNPAUSED",
+      "table_update": {
+        "condition": "ANY_UPDATED",
+        "table_names": ["dnipro_m.dnipro_m.raw_amazon_spiderweb_report"],
+        "wait_after_last_change_seconds": 300,
+        "min_time_between_triggers_seconds": 1800
+      }
+    }
+  },
+  "fields_to_remove": ["schedule"]
+}
