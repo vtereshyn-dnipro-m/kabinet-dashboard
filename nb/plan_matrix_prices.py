@@ -36,9 +36,10 @@
 # Где лежит:
 #   kabinet_data.plan_price_daily — история: расчёт «на дату» по каждой паре, строка на день (что было известно);
 #   kabinet_data.plan_price_month — цена месяца, frozen = зафиксирована; замороженную строку прогон не меняет.
-# Запись в Google-таблицу (ячейка 3) — ТОЛЬКО в свою вкладку avg_price и только при
-# reorder_params.plan_price_sheet_write = 1 (по умолчанию 0: в таблицу ничего не пишем до решения владельца).
-# Вкладки аналитика не трогаем никогда.
+# Запись в Google-таблицу (ячейка 3) — ТОЛЬКО в свои вкладки avg_<вкладка маркетплейса> (avg_Amazon_ES …
+# avg_TikTok_ES, формат согласован с аналитиком 14.10.2026) и только при reorder_params.plan_price_sheet_write = 1.
+# Параметр target_sheet = ключ другой таблицы (копии) — пишет туда для показа, флаг для этого не нужен.
+# Вкладки аналитика, включая prices_*, не трогаем никогда.
 #
 # Контроль: где цена SP-API отличается от последнего снимка ScrapingDog больше чем на plan_price_scrape_diff_pct (15 %),
 # ячейка печатает число таких пар и первые десять.
@@ -180,6 +181,7 @@ LIST_DAYS = int(P.get("plan_price_listing_window_days", 30))
 MIN_UNITS = int(P.get("plan_price_min_units", 3))
 FREEZE_DAY = int(P.get("plan_price_freeze_day", 15))
 SCRAPE_DIFF = float(P.get("plan_price_scrape_diff_pct", 15))
+MONTHS_AHEAD = int(P.get("plan_price_months_ahead", 15))
 print(f"сегодня {TODAY}; окно продаж {SALES_DAYS} дн, витрины {LIST_DAYS} дн, минимум {MIN_UNITS} шт, "
       f"заморозка после {FREEZE_DAY}-го" + ("; DRY RUN — без записи" if DRY else ""))
 
@@ -222,6 +224,9 @@ def add_months(d, n):
 def freeze_date(month):                 # месяц M фиксируется ценой расчёта на FREEZE_DAY-е число месяца M−1
     prev = add_months(month, -1)
     return date(prev.year, prev.month, min(FREEZE_DAY, calendar.monthrange(prev.year, prev.month)[1]))
+
+# Месяцы — шапка таблицы плюс не меньше MONTHS_AHEAD вперёд от текущего: новые месяцы появляются сами
+MONTHS = sorted(set(MONTHS) | {add_months(date(TODAY.year, TODAY.month, 1), i) for i in range(MONTHS_AHEAD)})
 
 # Какие даты расчёта нужны: сегодня и «на 15-е» для месяцев, которые пора заморозить, а замороженной строки ещё нет
 frozen_have = set() if DRY else {(r[0], r[1], r[2]) for r in q(
@@ -558,11 +563,16 @@ pg.close()
 
 # COMMAND ----------
 
-# DBTITLE 1,3. Вкладка avg_price в таблице (только при plan_price_sheet_write = 1)
-# Пишем только в СВОЮ вкладку avg_price: строка на SKU × вкладка × месяц. Вкладки аналитика не трогаем — если цена
-# нужна в AVG Price, лист подтягивает её формулой из avg_price (MAXIFS по SKU, вкладке и месяцу).
-# Пустые пары (source = none: SKU на маркетплейсе не продаётся и не выставлен) не пишем — лист меньше в разы.
-import json
+# DBTITLE 1,3. Вкладки avg_<маркетплейс> в таблице (только при plan_price_sheet_write = 1 или в копию)
+# Вкладка на маркетплейс: avg_Amazon_ES, …, avg_TikTok_ES. Строки — те же, что на вкладке аналитика, и на ТЕХ ЖЕ номерах
+# строк (данные с 4-й), чтобы формула вида =avg_Amazon_ES!C4 брала свою строку. Колонки: Name, SKU, месяцы
+# «October 2026» … — каждый месяц из plan_price_month (не меньше plan_price_months_ahead вперёд).
+# Ячейка — цена месяца с НДС, 2 знака; пусто — цены нет. Текста в ячейках цены нет: замороженный месяц — серый фон,
+# источник — цвет шрифта (легенда — заметкой к A1 и строкой 2 шапки).
+# Проверка перед записью: цен на вкладке стало меньше прошлой записи больше чем на plan_price_sheet_guard_drop_pct,
+# или не осталось ни одной — вкладку НЕ перезаписываем, заводим тревогу и шлём в бот. Сбой отправки — прогон падает
+# после пульса.
+import json, requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import psycopg2
@@ -571,12 +581,23 @@ from google.oauth2.service_account import Credentials
 from databricks.sdk import WorkspaceClient
 
 dbutils.widgets.text("dry_run", "0")
+dbutils.widgets.text("target_sheet", "")
 _DRY = dbutils.widgets.get("dry_run").strip() == "1"
-_SHEET_KEY = "1fA4Kla_IJ5LAlj07z69ya6TwE0MU7aYOa6fuTeOC0GM"
+_SRC_KEY = "1fA4Kla_IJ5LAlj07z69ya6TwE0MU7aYOa6fuTeOC0GM"          # таблица аналитика: отсюда только читаем строки
+_TARGET = dbutils.widgets.get("target_sheet").strip() or _SRC_KEY
 _TAB_OF = {"AMZ-ES": "Amazon_ES", "AMZ-IT": "Amazon_IT", "AMZ-FR": "Amazon_FR", "AMZ-DE": "Amazon_DE",
            "LM-ES": "LM_ES", "MM-ES": "MM_ES", "MM-FR": "MM_FR", "CF-ES": "CF_ES", "TTS-ES": "TikTok_ES"}
-_SRC = {"sales": "sales", "sp_api": "listing price (SP-API)", "scrape": "storefront (ScrapingDog)",
-        "buybox": "Buy Box", "offer": "offer", "listed_no_price": "listed, no price", "kit_only": "kits only"}
+_rgb = lambda h: {"red": int(h[0:2], 16) / 255, "green": int(h[2:4], 16) / 255, "blue": int(h[4:6], 16) / 255}
+# цвет шрифта по источнику; продажи меньше порога (цены листинга нет) — отдельным цветом, их видно
+_COLOR = {"sales": "000000", "sales_few": "7f6000", "sp_api": "1155cc", "scrape": "8e24aa", "buybox": "e65100",
+          "offer": "38761d"}
+_LEGEND = ("Цена месяца с НДС, € (2 знака). Пусто — цены нет.\n"
+           "Серый фон — месяц заморожен (цена на 15-е число прошлого месяца).\n"
+           "Цвет шрифта — источник: чёрный — продажи за 90 дней (от 3 шт); коричневый — продажи 1–2 шт, цены листинга нет; "
+           "синий — наша цена листинга Amazon (SP-API, со скидкой и купоном); фиолетовый — витрина ScrapingDog; "
+           "оранжевый — Buy Box; зелёный — оффер площадки (Leroy Merlin, ManoMano, Carrefour).\n"
+           "Считает Кабинет (Kabinet - Plan Matrix Prices), не редактировать вручную — перезаписывается каждый день.")
+SHEET_ERRORS = []                                 # сбои отправки тревоги — прогон падает после пульса (ячейка 4)
 
 _wc2 = WorkspaceClient()
 _pg2 = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com", port=5432,
@@ -584,35 +605,137 @@ _pg2 = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.clo
                         password=_wc2.postgres.generate_database_credential(
                             endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary").token)
 _c2 = _pg2.cursor()
-_c2.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'plan_price_sheet_write'")
-_r = _c2.fetchone()
-_WRITE = bool(_r and float(_r[0]) == 1)
-if _DRY or not _WRITE:
-    print("вкладка avg_price: пропуск — " + ("dry run" if _DRY else "plan_price_sheet_write = 0 (ждёт решения владельца)"))
+_c2.execute("SELECT key, value FROM kabinet_data.reorder_params WHERE key IN ('plan_price_sheet_write', "
+            "'plan_price_sheet_guard_drop_pct')")
+_P2 = {k: float(v) for k, v in _c2.fetchall()}
+_WRITE = _P2.get("plan_price_sheet_write", 0) == 1
+_DROP = _P2.get("plan_price_sheet_guard_drop_pct", 30)
+_to_source = _TARGET == _SRC_KEY
+
+if _DRY or (_to_source and not _WRITE):
+    print("вкладки avg_*: пропуск — " + ("dry run" if _DRY else "plan_price_sheet_write = 0 (ждёт решения владельца)"))
 else:
-    _c2.execute("""
-        SELECT sku, marketplace, month, price, source, calc_date, frozen FROM kabinet_data.plan_price_month
-        WHERE source <> 'none' ORDER BY marketplace, sku, month""")
-    _rows = _c2.fetchall()
-    _now = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%Y-%m-%d %H:%M")
-    _out = [["sku", "tab", "month", "avg_price", "source", "price_date", "frozen", "month_start", "updated"]]
-    for sku, mk, m, price, src, cd, fr in _rows:
-        _out.append([sku, _TAB_OF.get(mk, mk), m.strftime("%B %Y"), float(price) if price is not None else "",
-                     _SRC.get(src, src), cd.isoformat(), "yes" if fr else "no", m.isoformat(), _now])
+    _c2.execute("""SELECT marketplace, sku, month, price, source, frozen, calc_date FROM kabinet_data.plan_price_month""")
+    _pm = {}
+    _months = set()
+    for mk, sku, m, price, src, fr, cd in _c2.fetchall():
+        _pm[(mk, sku, m)] = (price, src, fr, cd)
+        _months.add(m)
+    _c2.execute("""SELECT d.marketplace, d.sku FROM kabinet_data.plan_price_daily d
+                   WHERE d.calc_date = (SELECT max(calc_date) FROM kabinet_data.plan_price_daily)
+                     AND d.source = 'sales' AND d.note LIKE 'продано %'""")
+    _few = set(_c2.fetchall())                    # «продажи 1–2 шт без листинга» — по последнему расчёту
+    _months = sorted(_months)
+    _frozen_m = {m for m in _months if all(v[2] for (mk, s, mm), v in _pm.items() if mm == m)}
+
     _info2 = json.loads(dbutils.secrets.get("kabinet-external", "google-sa-json"), strict=False)
     _gc2 = gspread.authorize(Credentials.from_service_account_info(
         _info2, scopes=["https://www.googleapis.com/auth/spreadsheets"]))
-    _sh2 = _gc2.open_by_key(_SHEET_KEY)
-    try:
-        _ws = _sh2.worksheet("avg_price")
-    except gspread.WorksheetNotFound:
-        _ws = _sh2.add_worksheet("avg_price", rows=len(_out) + 100, cols=len(_out[0]))
-    if _ws.row_count < len(_out):
-        _ws.add_rows(len(_out) - _ws.row_count + 100)
-    _ws.batch_clear(["A:I"])                     # только своя вкладка
-    # SKU — текстом (raw): иначе лист съест ведущий ноль у 08455000 и формула MAXIFS не найдёт строку
-    _ws.update(_out, "A1", raw=True)
-    print(f"✅ avg_price: {len(_out) - 1} строк")
+    _src = _gc2.open_by_key(_SRC_KEY)             # только чтение строк
+    _dst = _gc2.open_by_key(_TARGET)
+    _norm = lambda c: __import__("re").sub(r"^(\d{7})(?!\d)", r"0\1",
+                                           __import__("re").sub(r"[-_]+$", "", str(c or "").strip()))
+    _hdr_fmt = {"textFormat": {"bold": True}, "horizontalAlignment": "CENTER"}
+    _grey = _rgb("d9d9d9")
+    _alerts, _written = [], []
+    for mk, tab in _TAB_OF.items():
+        vals = _src.worksheet(tab).get_values("A1:B")
+        n_rows = max(len(vals), 4)
+        name_of = {i: (r[0] if len(r) > 0 else "", r[1] if len(r) > 1 else "") for i, r in enumerate(vals)}
+        # сетка: строка 1 — Name, SKU, месяцы; строка 2 — «заморожен / до 15.MM»; строка 3 — пусто; дальше — как у неё
+        grid = []
+        head = [{"userEnteredValue": {"stringValue": "Name"}, "userEnteredFormat": _hdr_fmt,
+                 "note": _LEGEND},
+                {"userEnteredValue": {"stringValue": "SKU"}, "userEnteredFormat": _hdr_fmt}]
+        sub = [{}, {}]
+        for m in _months:
+            fr = m in _frozen_m
+            f = dict(_hdr_fmt, **({"backgroundColor": _grey} if fr else {}))
+            head.append({"userEnteredValue": {"stringValue": m.strftime("%B %Y")}, "userEnteredFormat": f})
+            prev = m.replace(day=1) - __import__("datetime").timedelta(days=1)
+            sub.append({"userEnteredValue": {"stringValue": "заморожен" if fr else f"до 15.{prev:%m}"},
+                        "userEnteredFormat": {"horizontalAlignment": "CENTER", "textFormat": {"italic": True},
+                                              **({"backgroundColor": _grey} if fr else {})}})
+        grid += [head, sub, []]
+        n_prices = 0
+        for i in range(3, n_rows):
+            name, sku_cell = name_of.get(i, ("", ""))
+            row = [{"userEnteredValue": {"stringValue": name}} if name else {},
+                   {"userEnteredValue": {"stringValue": sku_cell}} if sku_cell else {}]
+            sku = _norm(sku_cell)
+            for m in _months:
+                v = _pm.get((mk, sku, m)) if sku_cell else None
+                cell = {"userEnteredFormat": {"backgroundColor": _grey}} if m in _frozen_m else {}
+                if v and v[0] is not None:
+                    src = "sales_few" if (v[1] == "sales" and (mk, sku) in _few and not v[2]) else v[1]
+                    cell = {"userEnteredValue": {"numberValue": round(float(v[0]), 2)},
+                            "userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": "#,##0.00"},
+                                                  "textFormat": {"foregroundColor": _rgb(_COLOR.get(src, "000000"))},
+                                                  **({"backgroundColor": _grey} if m in _frozen_m else {})}}
+                    n_prices += 1
+                row.append(cell)
+            grid.append(row)
+        # проверка перед записью — против прошлой удачной записи в ЭТУ таблицу
+        _c2.execute("""SELECT n_prices FROM kabinet_data.plan_price_sheet_log
+                       WHERE target_sheet = %s AND tab = %s AND status = 'written' ORDER BY written_at DESC LIMIT 1""",
+                    (_TARGET, "avg_" + tab))
+        _prev = (_c2.fetchone() or [None])[0]
+        if _prev and (n_prices == 0 or n_prices < _prev * (1 - _DROP / 100)):
+            _why = f"цен {n_prices} против {_prev} в прошлой записи (порог −{_DROP:g} %)"
+            _alerts.append(f"avg_{tab}: {_why}")
+            with _pg2, _pg2.cursor() as _c:
+                _c.execute("""INSERT INTO kabinet_data.plan_price_sheet_log (target_sheet, tab, n_rows, n_prices, status, note)
+                              VALUES (%s, %s, %s, %s, 'skipped', %s)""", (_TARGET, "avg_" + tab, n_rows, n_prices, _why))
+            print(f"⛔ avg_{tab}: не перезаписываю — {_why}")
+            continue
+        try:
+            ws = _dst.worksheet("avg_" + tab)
+        except gspread.WorksheetNotFound:
+            ws = _dst.add_worksheet("avg_" + tab, rows=n_rows, cols=2 + len(_months))
+        ws.resize(rows=n_rows, cols=2 + len(_months))     # лишние строки и колонки прошлой записи уходят
+        reqs = [{"updateCells": {"range": {"sheetId": ws.id, "startRowIndex": r0, "endRowIndex": min(r0 + 300, n_rows),
+                                           "startColumnIndex": 0, "endColumnIndex": 2 + len(_months)},
+                                 "rows": [{"values": rw} for rw in grid[r0:r0 + 300]],
+                                 "fields": "userEnteredValue,userEnteredFormat,note"}}
+                for r0 in range(0, n_rows, 300)]
+        reqs.append({"updateSheetProperties": {"properties": {"sheetId": ws.id, "gridProperties": {
+            "frozenRowCount": 3, "frozenColumnCount": 2}}, "fields": "gridProperties(frozenRowCount,frozenColumnCount)"}})
+        _dst.batch_update({"requests": reqs})
+        with _pg2, _pg2.cursor() as _c:
+            _c.execute("""INSERT INTO kabinet_data.plan_price_sheet_log (target_sheet, tab, n_rows, n_prices, status, note)
+                          VALUES (%s, %s, %s, %s, 'written', %s)""",
+                       (_TARGET, "avg_" + tab, n_rows, n_prices, f"месяцы {_months[0]:%m.%Y}–{_months[-1]:%m.%Y}"))
+        _written.append(f"avg_{tab} {n_prices}")
+    print(f"✅ {'таблица аналитика' if _to_source else 'копия ' + _TARGET}: " + ", ".join(_written))
+
+    # тревога: одна на прогон; закрывается сама, когда все вкладки записаны
+    _TOKEN = "[PLANPRICE:" + ("таблица" if _to_source else _TARGET[:12]) + "]"
+    with _pg2, _pg2.cursor() as _c:
+        _c.execute("""SELECT id FROM kabinet_data.incidents WHERE incident_type = 'plan_price_sheet_guard'
+                      AND status <> 'resolved' AND message LIKE %s""", (_TOKEN + "%",))
+        _open = [r[0] for r in _c.fetchall()]
+        if _alerts:
+            _msg = (f"{_TOKEN} Plan Matrix: средние цены НЕ перезаписаны во вкладках " + "; ".join(_alerts)
+                    + ". В таблице остались цены прошлой записи.")
+            if _open:
+                _c.execute("UPDATE kabinet_data.incidents SET message = %s WHERE id = ANY(%s)", (_msg, _open))
+            else:
+                _c.execute("""INSERT INTO kabinet_data.incidents (incident_type, severity, message, status, source)
+                              VALUES ('plan_price_sheet_guard', 'high', %s, 'open', 'watchdog')""", (_msg,))
+                try:
+                    _r = requests.post(
+                        f"https://api.telegram.org/bot{dbutils.secrets.get('kabinet-alerts', 'telegram-bot-token')}/sendMessage",
+                        json={"chat_id": dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"),
+                              "text": "🟠 <b>Plan Matrix: цены не перезаписаны</b>\n"
+                                      + _msg.replace(_TOKEN + " ", "").replace("&", "&amp;").replace("<", "&lt;"),
+                              "parse_mode": "HTML", "disable_web_page_preview": True}, timeout=30)
+                    if not _r.ok:
+                        SHEET_ERRORS.append(f"бот {_r.status_code}: {_r.text[:150]}")
+                except Exception as _e:
+                    SHEET_ERRORS.append(f"бот: {type(_e).__name__}: {str(_e)[:150]}")
+        elif _open:
+            _c.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
+                          resolved_by = 'watchdog-autoclose: вкладки avg_* записаны' WHERE id = ANY(%s)""", (_open,))
 _pg2.close()
 
 # COMMAND ----------
@@ -639,5 +762,6 @@ else:
     print("💓 Kabinet - Plan Matrix Prices")
 # Сбой Listings Items по рынку не останавливает расчёт (цена берётся из отчёта листингов), но прогон обязан упасть —
 # после пульса, чтобы «джоба зелёная» не прятала, что sale price по рынку не обновилась
-if globals().get("LI_ERRORS"):
-    raise RuntimeError("Listings Items: " + "; ".join(LI_ERRORS))
+if globals().get("LI_ERRORS") or globals().get("SHEET_ERRORS"):
+    raise RuntimeError("; ".join([f"Listings Items: {e}" for e in globals().get("LI_ERRORS") or []]
+                                 + [f"тревога Plan Matrix: {e}" for e in globals().get("SHEET_ERRORS") or []]))
