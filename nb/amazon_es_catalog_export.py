@@ -25,6 +25,14 @@
 # MAGIC - Изображения: у каждого варианта Amazon отдаёт несколько размеров — берём самый большой
 # MAGIC   (по площади). Порядок колонок: главное (MAIN), затем PT01, PT02… по номеру. Образцы цвета
 # MAGIC   (SWCH) и прочие служебные варианты в колонки не идут — их число видно в сводке.
+# MAGIC - Check (с 14.10.2026) — сверка каждой строки с живыми данными перед сохранением файла.
+# MAGIC   ASIN из отчёта листингов сверяется с Listings Items; главное фото каталога — с главным фото
+# MAGIC   НАШЕГО листинга (`main_product_image_locator`) ПО СОДЕРЖИМОМУ (перцептивный хеш): Amazon
+# MAGIC   перекодирует фото, и ID картинки у одного и того же снимка разный — сравнение ID дало бы
+# MAGIC   250 ложных расхождений из 655. Повод — 58614000 / B0F3DSKYJH (SAB-15DX): в нашем листинге
+# MAGIC   фото SAB-15DX, а каталог Amazon отдаёт фото SA i120 соседа по семейству вариаций; у
+# MAGIC   неактивного варианта так бывает, и страница amazon.es/dp/<ASIN> вдобавок открывает
+# MAGIC   покупаемого соседа. Причина пишется словами; пусто — строка подтвердилась.
 # MAGIC
 # MAGIC **Куда** — `/Volumes/dnipro_m/dnipro_m/kabinet_raw/exports/amazon_es_catalog/`: файл с датой
 # MAGIC выгрузки и копия `…_latest.xlsx`. Пульса и правила живости у джобы нет намеренно: она не по
@@ -32,7 +40,8 @@
 # MAGIC просили.
 # MAGIC
 # MAGIC Параметр `limit` — сколько товаров взять (0 = все); `probe` = 1 — полный прогон без замены
-# MAGIC `…_latest.xlsx` (файл с суффиксом `_probe`). Оба нужны для пробы.
+# MAGIC `…_latest.xlsx`. Пробный файл помечен TEST и в имени (`TEST_amazon_es_catalog_…`), и внутри
+# MAGIC (листы «TEST …», первая строка сводки) — чтобы его нельзя было отправить по ошибке.
 
 # COMMAND ----------
 
@@ -41,9 +50,11 @@
 # Ячейки с `%pip` нет намеренно: зависимости объявлены в спецификации окружения джобы, а
 # `restartPython()` рядом с ней роняет прогон SIGABRT (AGENTS.md).
 import io, json, re, shutil, time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 
 import psycopg2
+from PIL import Image   # сверка фото по содержимому; без Pillow прогон падает, а не пишет «не проверено»
 
 # Файл для Марко — на английском (решение владельца 06.10.2026): заголовки, значения «откуда EAN»,
 # названия листов и сводка. Значения источника — константы, по ним же считается сводка.
@@ -64,6 +75,10 @@ LI_PAUSE_SEC = 0.25
 OUT_DIR = "/Volumes/dnipro_m/dnipro_m/kabinet_raw/exports/amazon_es_catalog"
 # searchCatalogItems: 2 запроса в секунду с запасом 2. Берём с запасом — 0,6 с между запросами.
 PAUSE_SEC = 0.6
+# Два фото считаются одним снимком, если разность хешей (dHash 16×16, 256 бит) не больше этого.
+# Не настройка, а допуск метода, выверенный на данных 14.10.2026: перекодированный Amazon снимок
+# даёт 0–24 (371 пара — ровно 0, две — 8 и 24), разные снимки — от 32 до 142; между ними пусто.
+IMG_SAME_MAX_BITS = 24
 
 try:
     dbutils.widgets.text("limit", "0")  # noqa: F821
@@ -123,7 +138,7 @@ HDR = {"x-amz-access-token": _lwa.json()["access_token"]}
 def search(batch):
     """Один запрос на ≤20 ASIN. На 429 ждём нарастающе, до ~5 минут в сумме, потом падаем."""
     params = {"identifiers": ",".join(batch), "identifiersType": "ASIN", "marketplaceIds": MP_ES,
-              "includedData": "identifiers,images,summaries", "pageSize": 20}
+              "includedData": "identifiers,images,summaries,relationships", "pageSize": 20}
     wait = 2.0
     for _ in range(9):
         r = requests.get(f"{EP}/catalog/2022-04-01/items", headers=HDR, params=params, timeout=60)
@@ -140,36 +155,47 @@ for i in range(0, len(asins), 20):
     time.sleep(PAUSE_SEC)
 print(f"ASIN запрошено {len(asins)}, в каталоге найдено {len(items)}")
 
-# ── 2б. причина неактивности: Listings Items, проблемы листинга ────────────────
+# ── 2б. живой листинг: Listings Items — ASIN, наше главное фото, проблемы листинга ───
+# Один запрос на SKU по ВСЕМ строкам: issues нужны для причины неактивности, summaries и
+# attributes — для сверки строки перед сохранением (колонка Check).
 from urllib.parse import quote
 
-def listing_issues(sku):
-    """Проблемы листинга, как их отдаёт Amazon (на английском). Пусто, если проблем в ответе нет."""
+def listing_live(sku):
+    """{asin, our_main, parent, issues}; None — листинга нет в Listings API (404)."""
     url = f"{EP}/listings/2021-08-01/items/{SELLER_ID}/{quote(sku, safe='')}"
-    params = {"marketplaceIds": MP_ES, "includedData": "issues", "issueLocale": "en_US"}
+    params = {"marketplaceIds": MP_ES, "includedData": "summaries,attributes,issues", "issueLocale": "en_US"}
     wait = 2.0
     for _ in range(9):
         r = requests.get(url, headers=HDR, params=params, timeout=60)
         if r.status_code == 429:
             time.sleep(wait); wait = min(wait * 2, 60); continue
         if r.status_code == 404:
-            return None          # листинга нет в Listings API — причины не знаем, не додумываем
+            return None          # листинга нет в Listings API — ни причины, ни сверки, не додумываем
         r.raise_for_status()
+        js = r.json()
         out = []
-        for i in r.json().get("issues", []) or []:
+        for i in js.get("issues", []) or []:
             msg = str(i.get("message") or "").strip()
             if msg:
                 sev = str(i.get("severity") or "").strip()
                 out.append(f"{sev}: {msg}" if sev else msg)
-        return "; ".join(dict.fromkeys(out)) or None
+        summ = next((s_ for s_ in js.get("summaries") or [] if s_.get("marketplaceId") == MP_ES), {})
+        attrs = js.get("attributes") or {}
+        loc = [x for x in attrs.get("main_product_image_locator") or []
+               if x.get("marketplace_id") in (None, MP_ES) and x.get("media_location")]
+        return {"asin": summ.get("asin"),
+                "our_main": loc[0]["media_location"] if loc else None,
+                "parent": any(x.get("value") == "parent" for x in attrs.get("parentage_level") or []),
+                "issues": "; ".join(dict.fromkeys(out)) or None}
     raise RuntimeError(f"[QUOTA_429] getListingsItem: квота не освободилась, SKU {sku}")
 
-reasons, li_404 = {}, 0
-for r in lst[lst["status"] != "Active"].itertuples():
-    v = listing_issues(r.seller_sku)
-    reasons[r.seller_sku] = v
+live = {}
+for r in lst.itertuples():
+    live[r.seller_sku] = listing_live(r.seller_sku)
     time.sleep(LI_PAUSE_SEC)
-print(f"причины: запрошено {len(reasons)}, с причиной {sum(1 for v in reasons.values() if v)}")
+reasons = {k: (v or {}).get("issues") for k, v in live.items()}
+print(f"Listings Items: запрошено {len(live)}, нет в API {sum(1 for v in live.values() if v is None)}, "
+      f"с причиной у неактивных {sum(1 for r in lst.itertuples() if r.status != 'Active' and reasons.get(r.seller_sku))}")
 
 def ean_from_catalog(it):
     found = []
@@ -204,6 +230,12 @@ def images(it):
             if v not in best or area > best[v][0]:
                 best[v] = (area, im.get("link"), im.get("width"), im.get("height"))
     return best, other
+
+def relations(it):
+    """(контейнер вариаций, вариант семейства) по каталогу ES."""
+    rel = [x for b in it.get("relationships", []) if b.get("marketplaceId") == MP_ES
+           for x in b.get("relationships", [])]
+    return any(x.get("childAsins") for x in rel), any(x.get("parentAsins") for x in rel)
 
 def title(it):
     for s in it.get("summaries", []):
@@ -263,18 +295,120 @@ for r in lst.itertuples():
         "in_catalog": bool(it), "ean": ean or "", "ean_src": src, "ean_multi": len(eans) > 1,
         "imgs": {v: best[v][1] for v in order}, "n_img": len(order),
         "fc": "FBA" if str(r.fulfillment_channel).startswith("AMAZON") else "FBM",
-        "status": r.status, "reason": reasons.get(r.seller_sku) or "",
+        "status": r.status, "reason": (reasons.get(r.seller_sku) or "") if r.status != "Active" else "",
+        "rel": relations(it) if it else (False, False),
     })
 
 pt_max = max([max([pt_key(v)[1] for v in x["imgs"] if v != "MAIN"] or [0]) for x in rows] or [0])
 img_cols = ["MAIN"] + [f"PT{n:02d}" for n in range(1, pt_max + 1)]
 
+# ── 4б. сверка строки с живыми данными перед сохранением ───────────────────────
+# Главное фото каталога сравниваем с главным фото НАШЕГО листинга по содержимому: Amazon
+# перекодирует снимок, и у одного и того же фото ID разный. Совпадение хеша значит «тот же
+# снимок», а не «тот же товар»: обновлённое фото того же товара тоже даёт разность — такие
+# строки помечены в колонке сравнения, но в Check не идут, иначе Check тонул бы в норме.
+# Признак ЧУЖОГО фото — главное фото каталога совпадает с фото другого нашего товара (другой
+# базовый код, не контейнер вариаций), а в нашем листинге своё: так было у 58614000.
+MATCH_SAME, MATCH_DIFF, MATCH_NA, MATCH_PARENT = "Same", "Different photo", "Not verified", "Not checked (variation parent)"
+
+def img_id(u):
+    m = re.search(r"/images/I/([^./]+)", u or "")
+    return m.group(1) if m else None
+
+def img_url(u):
+    """Уменьшенная копия для хеша; не-Amazon ссылку берём как есть."""
+    i = img_id(u)
+    return f"https://m.media-amazon.com/images/I/{i}._SL256_.jpg" if i else u
+
+def dhash(u, n=16):
+    try:
+        r = requests.get(img_url(u), timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+        g = Image.open(io.BytesIO(r.content)).convert("L").resize((n + 1, n), Image.LANCZOS)
+    except Exception:
+        return None
+    px = list(g.getdata())
+    return sum(1 << (y * n + x) for y in range(n) for x in range(n) if px[y * (n + 1) + x] > px[y * (n + 1) + x + 1])
+
+def base_code(sku):
+    t = re.sub(r"^S\d*_", "", sku.strip())
+    m = re.match(r"(\d{5,8})", t)
+    return m.group(1).zfill(8) if m else t
+
+for x in rows:
+    lv = live.get(x["sku"])
+    x["our_main"] = (lv or {}).get("our_main")
+    x["parent"] = bool((lv or {}).get("parent")) or x["rel"][0]
+
+to_hash = {u for x in rows if not x["parent"] for u in (x["our_main"], x["imgs"].get("MAIN"))
+           if u and img_id(x["our_main"]) != img_id(x["imgs"].get("MAIN"))}
+to_hash = sorted(to_hash)
+with ThreadPoolExecutor(8) as ex_:
+    hashes = dict(zip(to_hash, ex_.map(dhash, to_hash)))
+
+by_main = {}
+for x in rows:
+    if x["imgs"].get("MAIN") and not x["parent"]:
+        by_main.setdefault(img_id(x["imgs"]["MAIN"]), []).append(x)
+
+for x in rows:
+    lv, chk = live.get(x["sku"]), []   # (вид, текст); вид — для сводки, текст — для получателя
+    cat_main, ours = x["imgs"].get("MAIN"), x["our_main"]
+    if lv is None:
+        chk.append(("listing", "Listing not found in Amazon Listings API — row not confirmed"))
+    elif lv.get("asin") and x["asin"] and lv["asin"] != x["asin"]:
+        chk.append(("listing", f"ASIN differs: listings report {x['asin']}, live listing {lv['asin']}"))
+    if not x["in_catalog"]:
+        chk.append(("image_na", "ASIN not found in Amazon ES catalog — no images"))
+    if x["parent"]:
+        x["match"] = MATCH_PARENT
+    elif not cat_main:
+        x["match"] = MATCH_NA
+        if x["in_catalog"]:
+            chk.append(("image_na", "Amazon catalog returns no main image"))
+    elif lv is not None and not ours:
+        x["match"] = MATCH_NA
+        chk.append(("image_na", "Main image not verified: our listing has no main image"))
+    elif lv is None:
+        x["match"] = MATCH_NA
+    elif img_id(ours) == img_id(cat_main):
+        x["match"] = MATCH_SAME
+    else:
+        h1, h2 = hashes.get(ours), hashes.get(cat_main)
+        if h1 is None or h2 is None:
+            x["match"] = MATCH_NA
+            chk.append(("image_na", "Main image not verified: image could not be downloaded"))
+        elif bin(h1 ^ h2).count("1") <= IMG_SAME_MAX_BITS:
+            x["match"] = MATCH_SAME
+        else:
+            x["match"] = MATCH_DIFF
+            per_asin = {}          # один SKU на ASIN: 17557000 и 17557000-FBA — один товар
+            for o in by_main.get(img_id(cat_main), []):
+                if o["asin"] != x["asin"] and base_code(o["sku"]) != base_code(x["sku"]):
+                    per_asin[o["asin"]] = min(per_asin.get(o["asin"], o["sku"]), o["sku"])
+            others = sorted(per_asin.values())
+            if others:
+                shown = ", ".join(others[:5]) + (f" and {len(others) - 5} more" if len(others) > 5 else "")
+                chk.append(("foreign", f"Main image may be another product's photo: Amazon shows the same image "
+                                       f"for SKU {shown}, while our listing has its own main image"))
+    x["check"] = "; ".join(t for _, t in chk)
+    x["chk_kinds"] = {k for k, _ in chk}
+    x["inactive_child"] = x["status"] != "Active" and x["rel"][1] and not x["parent"]
+n_check = sum(1 for x in rows if x["check"])
+print(f"сверка: в Check {n_check} строк; фото " + ", ".join(
+    f"{m_}: {sum(1 for x in rows if x['match'] == m_)}" for m_ in (MATCH_SAME, MATCH_DIFF, MATCH_NA, MATCH_PARENT)))
+
 # ── 5. Excel ───────────────────────────────────────────────────────────────────
+TEST = bool(LIMIT or PROBE)   # пробный файл: TEST в имени, в названиях листов и первой строкой сводки
 wb = Workbook()
 ws = wb.active
-ws.title = "Amazon ES"
+ws.title = "TEST Amazon ES" if TEST else "Amazon ES"
+if TEST:
+    wb.properties.title = "TEST — trial export, not for sending"
+# новые колонки — в конце: прежние не сдвигаются, у получателя ничего не съезжает
 head = (["SKU", "ASIN", "EAN", "EAN source"]
-        + ["Main image" if c == "MAIN" else c for c in img_cols] + ["Export date", "Status", "Inactive reason"])
+        + ["Main image" if c == "MAIN" else c for c in img_cols]
+        + ["Export date", "Status", "Inactive reason", "Main image vs our listing", "Check"])
 ws.append(head)
 for c in ws[1]:
     c.font = Font(bold=True)
@@ -282,12 +416,15 @@ for c in ws[1]:
     c.alignment = Alignment(wrap_text=True, vertical="top")
 for x in rows:
     ws.append([x["sku"], x["asin"], x["ean"], x["ean_src"]]
-              + [x["imgs"].get(c, "") for c in img_cols] + [stamp_human, x["status"], x["reason"]])
+              + [x["imgs"].get(c, "") for c in img_cols]
+              + [stamp_human, x["status"], x["reason"], x["match"], x["check"]])
+    if x["check"]:
+        ws.cell(ws.max_row, len(head)).fill = PatternFill("solid", fgColor="FCE4D6")
 # коды и штрихкоды — текстом: иначе Excel съест ведущий ноль у 08455000
 for row in ws.iter_rows(min_row=2, max_col=3):
     for c in row:
         c.number_format = "@"
-widths = [16, 13, 15, 16] + [40] * len(img_cols) + [16, 12, 80]
+widths = [16, 13, 15, 16] + [40] * len(img_cols) + [16, 12, 80, 18, 80]
 for i, w_ in enumerate(widths, start=1):
     ws.column_dimensions[ws.cell(1, i).column_letter].width = w_
 ws.freeze_panes = "C2"
@@ -300,7 +437,7 @@ n_no_ean = sum(1 for x in rows if x["ean_src"] == SRC_NONE)
 n_lt7 = sum(1 for x in rows if x["n_img"] < 7)
 n_not_found = sum(1 for x in rows if not x["in_catalog"])
 n_multi = sum(1 for x in rows if x["ean_multi"])
-summary = [
+summary = ([("TEST FILE", "Trial run — not for sending")] if TEST else []) + [
     ("Export date", stamp_human + " (Kyiv time)"),
     ("Listings report date", listing_date),
     ("Products in export (all Amazon ES SKUs)", n),
@@ -328,9 +465,28 @@ summary = [
     ("Status", "Listing status from Amazon's listings report: Active, Inactive, Incomplete; rows are sorted in that order"),
     ("Inactive reason", "Listing issues from SP-API Listings Items as Amazon returns them (severity: message); "
                         "empty when Amazon returns no issue — nothing is inferred"),
+    ("Rows to check (Check is not empty)", n_check),
+    ("  Main image may be another product's photo",
+     sum(1 for x in rows if "foreign" in x["chk_kinds"])),
+    ("  Main image not verified (no image in our listing or in Amazon catalog, download failed)",
+     sum(1 for x in rows if "image_na" in x["chk_kinds"])),
+    ("  ASIN or listing not confirmed by Listings API",
+     sum(1 for x in rows if "listing" in x["chk_kinds"])),
+    ("Main image vs our listing",
+     ", ".join(f"{m_}: {sum(1 for x in rows if x['match'] == m_)}" for m_ in (MATCH_SAME, MATCH_DIFF, MATCH_NA, MATCH_PARENT))),
+    ("Not buyable variants of a family (Inactive / Incomplete)",
+     f"{sum(1 for x in rows if x['inactive_child'])} — amazon.es/dp/<ASIN> may open another, buyable variant of the "
+     f"same family; the row data belongs to the ASIN in the row, not to the page that opens"),
+    ("Main image vs our listing — values",
+     f"{MATCH_SAME} — the image Amazon shows is the same picture as the main image in our listing (compared by "
+     f"content, not by link); {MATCH_DIFF} — Amazon shows another picture, usually a newer photo of the same "
+     f"product; {MATCH_NA} — one of the two images is missing; {MATCH_PARENT} — a container for variants, "
+     f"not a sellable product"),
+    ("Check", "Checked against live Amazon data before the file was saved: ASIN against the live listing, "
+              "main image against our listing. Empty — the row is confirmed; otherwise the reason is given"),
     ("Source", "SP-API Catalog Items 2022-04-01 and Listings Items 2021-08-01, Amazon.es, fresh request at export time"),
 ]
-s2 = wb.create_sheet("Summary")
+s2 = wb.create_sheet("TEST Summary" if TEST else "Summary")
 for k, v in summary:
     s2.append([k, v])
 s2.column_dimensions["A"].width = 70
@@ -340,11 +496,14 @@ for c in s2["A"]:
 
 import os
 os.makedirs(OUT_DIR, exist_ok=True)
+if TEST:
+    s2["A1"].font = Font(bold=True, color="C00000")
+    s2["B1"].font = Font(bold=True, color="C00000")
 tmp = f"/tmp/amazon_es_catalog_{stamp}.xlsx"
 wb.save(tmp)
-name = f"amazon_es_catalog_{stamp}{'_probe' if (LIMIT or PROBE) else ''}.xlsx"
+name = f"{'TEST_' if TEST else ''}amazon_es_catalog_{stamp}.xlsx"
 shutil.copy(tmp, f"{OUT_DIR}/{name}")
-if not (LIMIT or PROBE):
+if not TEST:
     shutil.copy(tmp, f"{OUT_DIR}/amazon_es_catalog_latest.xlsx")
 print(f"✅ {OUT_DIR}/{name}")
 
@@ -355,6 +514,9 @@ result = {"file": f"{OUT_DIR}/{name}", "rows": n, "asins": len(asins), "not_foun
           "by_status": {s_: sum(1 for x in rows if x["status"] == s_) for s_ in STATUS_ORDER},
           "with_reason": {s_: sum(1 for x in rows if x["status"] == s_ and x["reason"]) for s_ in STATUS_ORDER}, "grade_excluded": int(n_grade), "no_asin_listings": len(no_asin),
           "img_hist": {k: sum(1 for x in rows if x["n_img"] == k) for k in sorted({x["n_img"] for x in rows})},
-          "no_ean_list": [x["sku"] for x in rows if x["ean_src"] == SRC_NONE][:60]}
+          "no_ean_list": [x["sku"] for x in rows if x["ean_src"] == SRC_NONE][:60],
+          "test": TEST, "check_rows": n_check,
+          "match": {m_: sum(1 for x in rows if x["match"] == m_) for m_ in (MATCH_SAME, MATCH_DIFF, MATCH_NA, MATCH_PARENT)},
+          "inactive_children": sum(1 for x in rows if x["inactive_child"])}
 print(json.dumps(result, ensure_ascii=False))
 dbutils.notebook.exit(json.dumps(result, ensure_ascii=False))  # noqa: F821
