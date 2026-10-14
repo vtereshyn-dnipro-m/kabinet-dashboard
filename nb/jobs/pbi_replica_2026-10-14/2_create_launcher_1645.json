@@ -1,0 +1,9 @@
+{
+  "name": "Kabinet - Power BI Replica (16:45)",
+  "description": "Запускает Kabinet - Power BI Replica в 16:45 Kyiv, чтобы подхватить дневные заказы Leroy Merlin, ManoMano и Carrefour (у них витрина Power BI считается на лету из наших таблиц). Своего ноутбука нет: у одной джобы не может быть и запуска по записи, и расписания.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 45 16 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "tasks": [
+    {"task_key": "pbi_replica", "run_job_task": {"job_id": 813933040777378}, "timeout_seconds": 3600}
+  ]
+}

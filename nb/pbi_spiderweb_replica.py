@@ -12,17 +12,30 @@
 # Код рынка — тот же, что в экономике Кабинета (ES, GB, LM, MM_ES, CF_ES, WP_ES…), чтобы фильтры и подписи
 # страниц работали без второго словаря.
 #
-# Расписание — 12:45 и 16:45 Kyiv: после пересчёта Amazon в витрине (10:50) и загрузчиков Mirakl и Odoo, до сверки
-# в 13:00 (она сравнивает реплику с живой витриной — расхождение больше 1 € значит, что Кабинет показывает не то,
-# что Power BI), и второй раз после вечернего прогона Leroy Merlin (15:30).
+# Запуск (с 14.10.2026, решение владельца): по ЗАПИСИ в таблицу Amazon витрины dnipro_m.dnipro_m.raw_amazon_spiderweb_report
+# (её пересобирает джоба Дарины около 10:20; запуск через 5 минут тишины) — Кабинет обновляется раньше экрана Power BI,
+# который тянет витрину около 10:35–11:45. Дальше — задачей в джобе сверки в 13:00 (сверка сначала обновляет реплику) и
+# запускалкой `Kabinet - Power BI Replica (16:45)`: подхватить дневные заказы Leroy Merlin, ManoMano и Carrefour (у них
+# витрина считается на лету из наших таблиц). До 14.10 было расписание 12:45 / 16:45, и с ~10:20 до 12:45 Кабинет
+# показывал вчерашнюю сборку Amazon, а Power BI — уже сегодняшнюю.
+#
+# Защита от неполной сборки (14.10.2026, решение владельца). 13.10 витрина Amazon собралась неполной (Испания 2,5 тыс.
+# вместо 13 тыс. €, Бельгии и Британии нет), и реплика скопировала её молча. Теперь перед заменой новая витрина
+# сравнивается с текущей репликой по ОДНИМ И ТЕМ ЖЕ дням (последние pbi_guard_days дней, 14, что есть в обеих) по каждому
+# рынку: продажи с НДС упали больше чем на pbi_guard_drop_pct % или рынок пропал (при прежней сумме от
+# pbi_guard_min_eur) — реплику НЕ заменяем, оставляем прежнюю (продажи, заказы и справочник — все три, чтобы они не
+# разошлись между собой); на страницах плашка «Источник неполный», в бот — тревога (инцидент pbi_source_incomplete),
+# сверка 1:1 пишет «источник неполный», а не «расхождение». Решение и время сборки витрины (DESCRIBE HISTORY) ложатся
+# в kabinet_data.pbi_replica_meta — его читают страницы и паспорт данных.
 
 # COMMAND ----------
 
-# DBTITLE 1,1. Витрина → kabinet_data.pbi_spiderweb_report
-import psycopg2, psycopg2.extras
+# DBTITLE 1,1. Витрина → kabinet_data.pbi_spiderweb_report (с защитой от неполной сборки)
+import psycopg2, psycopg2.extras, requests
 from databricks.sdk import WorkspaceClient
 
 VIEW = "dnipro_m.dnipro_m.v_all_marketplaces_spiderweb_report"
+AMZ_TABLE = "dnipro_m.dnipro_m.raw_amazon_spiderweb_report"
 # площадка и страна витрины → код рынка Кабинета (как в экономике)
 AMAZON = {"Spain": "ES", "Italy": "IT", "France": "FR", "Germany": "DE", "Belgium": "BE", "Netherlands": "NL",
           "United Kingdom": "GB", "Sweden": "SE", "Poland": "PL", "Ireland": "IE"}
@@ -36,6 +49,7 @@ NUM = ["units_sold", "sales_vat_incl", "sales_vat_excl", "tax_amount", "commissi
        "expenses_refund", "cogs_refund", "shipping_cost_refund", "reimbursment", "impressions", "clicks", "spend",
        "paidUnits", "paidSales", "profit", "contribution_profit"]
 COLS = [c.lower().replace("paidunits", "paid_units").replace("paidsales", "paid_sales") for c in NUM]
+INCIDENT_TOKEN = "[PBISRC:витрина Power BI]"
 
 
 def code_of(mk, country):
@@ -69,28 +83,112 @@ for r in src:
         rows[key] = [r["marketplace"], r["country"], vals]
 out = [(d, code, sku, mk, ctry, *vals) for (d, code, sku), (mk, ctry, vals) in rows.items()]
 
+# время сборки витрины Amazon — последняя запись в её таблицу; его показывают страницы («Как в Power BI на …»)
+try:
+    SOURCE_BUILT_AT = spark.sql(f"DESCRIBE HISTORY {AMZ_TABLE} LIMIT 1").collect()[0]["timestamp"]
+except Exception as e:
+    SOURCE_BUILT_AT = None
+    print(f"⚠️ история {AMZ_TABLE} не прочиталась: {type(e).__name__}: {str(e)[:160]}")
+
 _w = WorkspaceClient()
 _cred = _w.postgres.generate_database_credential(
     endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary")
 pg = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com",
                       port=5432, dbname="databricks_postgres",
                       user=_w.current_user.me().user_name, password=_cred.token, sslmode="require")
+
+# ── защита: новая витрина против текущей реплики по одним и тем же дням, по каждому рынку ──
+GUARD = []                             # [(рынок, было, стало, «упал на N %» / «пропал»)]
 with pg, pg.cursor() as cur:
-    # одна транзакция: удалить всё и записать заново — у витрины меняется и история (тарифы доставки, возвраты)
-    cur.execute("DELETE FROM kabinet_data.pbi_spiderweb_report")
-    psycopg2.extras.execute_values(cur, f"""
-        INSERT INTO kabinet_data.pbi_spiderweb_report
-            (date, marketplace, sku, pbi_marketplace, pbi_country, {', '.join(COLS)})
-        VALUES %s""", out, page_size=2000)
+    cur.execute("""SELECT key, value FROM kabinet_data.reorder_params
+                   WHERE key IN ('pbi_guard_drop_pct', 'pbi_guard_min_eur', 'pbi_guard_days')""")
+    _gp = {k: float(v) for k, v in cur.fetchall()}
+    G_DROP = _gp.get("pbi_guard_drop_pct", 30.0)
+    G_MIN = _gp.get("pbi_guard_min_eur", 50.0)
+    G_DAYS = int(_gp.get("pbi_guard_days", 14))
+    cur.execute("SELECT max(date) FROM kabinet_data.pbi_spiderweb_report")
+    _old_max = cur.fetchone()[0]
+    if _old_max is not None:                       # первая загрузка — сравнивать не с чем
+        _to = min(_old_max, max(k[0] for k in rows))
+        cur.execute("""SELECT marketplace, sum(sales_vat_incl)::float FROM kabinet_data.pbi_spiderweb_report
+                       WHERE date > %s::date - %s AND date <= %s GROUP BY 1""", (_to, G_DAYS, _to))
+        _old = dict(cur.fetchall())
+        _new = {}
+        for (d, code, sku), (mk, ctry, vals) in rows.items():
+            if d <= _to and (_to - d).days < G_DAYS:
+                _new[code] = _new.get(code, 0.0) + vals[NUM.index("sales_vat_incl")]
+        for code, was in sorted(_old.items(), key=lambda x: -x[1]):
+            if was < G_MIN:
+                continue
+            now_ = _new.get(code, 0.0)
+            if now_ <= 0.005:
+                GUARD.append((code, was, now_, "пропал"))
+            elif now_ < was * (1 - G_DROP / 100):
+                GUARD.append((code, was, now_, f"упал на {(1 - now_ / was) * 100:.0f} %"))
+KEPT = bool(GUARD)
+GUARD_DETAIL = "; ".join(f"{c}: было {w:,.0f} €, стало {n:,.0f} € — {why}".replace(",", " ") for c, w, n, why in GUARD)
+
+with pg, pg.cursor() as cur:
+    if KEPT:
+        # витрина неполная: реплику не трогаем, на страницах остаются цифры прошлой полной замены
+        cur.execute("SELECT max(loaded_at) FROM kabinet_data.pbi_replica_meta WHERE status = 'replaced'")
+        _shown = cur.fetchone()[0]
+        cur.execute("""INSERT INTO kabinet_data.pbi_replica_meta (status, source_built_at, shown_as_of, detail, window_days)
+                       VALUES ('kept', %s, %s, %s, %s)""", (SOURCE_BUILT_AT, _shown, GUARD_DETAIL, G_DAYS))
+    else:
+        # одна транзакция: удалить всё и записать заново — у витрины меняется и история (тарифы доставки, возвраты)
+        cur.execute("DELETE FROM kabinet_data.pbi_spiderweb_report WHERE true")
+        psycopg2.extras.execute_values(cur, f"""
+            INSERT INTO kabinet_data.pbi_spiderweb_report
+                (date, marketplace, sku, pbi_marketplace, pbi_country, {', '.join(COLS)})
+            VALUES %s""", out, page_size=2000)
+        cur.execute("""INSERT INTO kabinet_data.pbi_replica_meta (status, source_built_at, shown_as_of, detail, window_days)
+                       VALUES ('replaced', %s, now(), NULL, %s)""", (SOURCE_BUILT_AT, G_DAYS))
+
+# ── тревога: открыть один раз и сразу в бот; обновлять текст, пока висит; закрыть, когда витрина снова полная ──
+SEND_ERR = None
+with pg, pg.cursor() as cur:
+    cur.execute("""SELECT id FROM kabinet_data.incidents WHERE incident_type = 'pbi_source_incomplete'
+                   AND status <> 'resolved' AND message LIKE %s""", (INCIDENT_TOKEN + "%",))
+    _open = [r[0] for r in cur.fetchall()]
+    _built = f" (сборка {SOURCE_BUILT_AT:%d.%m %H:%M} UTC)" if SOURCE_BUILT_AT else ""
+    _msg = (f"{INCIDENT_TOKEN} Витрина Power BI собралась неполной{_built} — реплику Кабинета НЕ заменяю, на страницах "
+            f"прежние цифры. {GUARD_DETAIL}")
+    if KEPT and _open:
+        cur.execute("UPDATE kabinet_data.incidents SET message = %s WHERE id = ANY(%s)", (_msg, _open))
+    elif KEPT:
+        cur.execute("""INSERT INTO kabinet_data.incidents (incident_type, severity, message, status, source)
+                       VALUES ('pbi_source_incomplete', 'high', %s, 'open', 'watchdog')""", (_msg,))
+        try:
+            _r = requests.post(
+                f"https://api.telegram.org/bot{dbutils.secrets.get('kabinet-alerts', 'telegram-bot-token')}/sendMessage",
+                json={"chat_id": dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"),
+                      "text": "🔴 <b>Витрина Power BI неполная</b>\n"
+                              + _msg.replace(INCIDENT_TOKEN + " ", "").replace("&", "&amp;").replace("<", "&lt;"),
+                      "parse_mode": "HTML", "disable_web_page_preview": True}, timeout=30)
+            SEND_ERR = None if _r.ok else f"{_r.status_code}: {_r.text[:150]}"
+        except Exception as e:
+            SEND_ERR = f"{type(e).__name__}: {str(e)[:150]}"
+        if SEND_ERR:
+            cur.execute("""UPDATE kabinet_data.incidents SET message = message || %s
+                           WHERE incident_type = 'pbi_source_incomplete' AND status <> 'resolved'""",
+                        (f" В бот сразу не ушло: {SEND_ERR}",))
+    elif _open:
+        cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
+                       resolved_by = 'watchdog-autoclose: витрина снова полная, реплика заменена'
+                       WHERE id = ANY(%s)""", (_open,))
 pg.close()
 
 _by = {}
 for (d, code, sku), (mk, ctry, vals) in rows.items():
     _by[code] = _by.get(code, 0.0) + vals[NUM.index("sales_vat_incl")]
-REPLICA_NOTE = (f"строк {len(out)} по {min(k[0] for k in rows)}–{max(k[0] for k in rows)}"
-                + (f"; незнакомые рынки витрины: {', '.join(sorted(unknown))}" if unknown else ""))
-print("✅", REPLICA_NOTE)
-print("   продажи с НДС: " + ", ".join(f"{k} {v:,.0f}" for k, v in sorted(_by.items(), key=lambda x: -x[1])))
+REPLICA_NOTE = ((f"ВИТРИНА НЕПОЛНАЯ — реплика не заменена ({GUARD_DETAIL})" if KEPT else
+                 f"строк {len(out)} по {min(k[0] for k in rows)}–{max(k[0] for k in rows)}")
+                + (f"; сборка витрины Amazon {SOURCE_BUILT_AT:%d.%m %H:%M} UTC" if SOURCE_BUILT_AT else "")
+                + (f"; незнакомые рынки витрины: {', '.join(sorted(unknown))}" if unknown else "")
+                + (f"; тревога в бот НЕ ушла: {SEND_ERR}" if SEND_ERR else ""))
+print("⛔" if KEPT else "✅", REPLICA_NOTE)
+print("   продажи с НДС в витрине: " + ", ".join(f"{k} {v:,.0f}" for k, v in sorted(_by.items(), key=lambda x: -x[1])))
 
 # COMMAND ----------
 
@@ -98,6 +196,7 @@ print("   продажи с НДС: " + ", ".join(f"{k} {v:,.0f}" for k, v in so
 # Вторая таблица модели Power BI: строка на заказ. Из неё его карточки Orders Count (число строк), Average Order Value
 # (сумма order_total_amount_eur / число строк) и Average Basket Depth (среднее unique_sku_ordered). Связана в модели
 # с продажами только через календарь (дата × страна × площадка), поэтому разреза по категории и SKU у заказов нет.
+# Ячейка 1 оставила прежнюю реплику (витрина неполная) — заказы тоже не трогаем, иначе разойдутся с продажами.
 import psycopg2, psycopg2.extras
 from databricks.sdk import WorkspaceClient
 
@@ -115,32 +214,41 @@ def code_of(mk, country):
     return OTHER.get((mk, country)) or f"?{mk}/{country}"
 
 
-src = spark.sql(f"""SELECT source, order_id, purchase_date, marketplace, country,
-                           CAST(order_total_amount_eur AS double) AS amt, CAST(items_quantity_ordered AS double) AS items,
-                           CAST(unique_sku_ordered AS bigint) AS uniq
-                    FROM {ORDERS_VIEW}""").collect()
-if not src:
-    raise RuntimeError(f"{ORDERS_VIEW} не отдала ни одной строки — заказы не переписываю")
-rows = {}
-for r in src:
-    # ключ витрины — заказ внутри источника; повтор (если появится) не множит заказ, а заменяет строку
-    rows[(r["source"], r["order_id"])] = (r["order_id"], r["source"], r["purchase_date"], code_of(r["marketplace"], r["country"]),
-                                          r["marketplace"], r["country"], r["amt"], r["items"], r["uniq"])
 _w = WorkspaceClient()
 _cred = _w.postgres.generate_database_credential(
     endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary")
 pg = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com",
                       port=5432, dbname="databricks_postgres",
                       user=_w.current_user.me().user_name, password=_cred.token, sslmode="require")
-with pg, pg.cursor() as cur:
-    cur.execute("DELETE FROM kabinet_data.pbi_orders_report")
-    psycopg2.extras.execute_values(cur, """
-        INSERT INTO kabinet_data.pbi_orders_report
-            (order_id, source, purchase_date, marketplace, pbi_marketplace, pbi_country,
-             order_total_amount_eur, items_quantity_ordered, unique_sku_ordered)
-        VALUES %s""", list(rows.values()), page_size=2000)
+with pg.cursor() as cur:
+    cur.execute("""SELECT status FROM kabinet_data.pbi_replica_meta
+                   WHERE loaded_at > now() - interval '30 minutes' ORDER BY loaded_at DESC LIMIT 1""")
+    _st = cur.fetchone()
+pg.rollback()
+if _st and _st[0] == "kept":
+    ORDERS_NOTE = "заказы не заменены — витрина неполная"
+else:
+    src = spark.sql(f"""SELECT source, order_id, purchase_date, marketplace, country,
+                               CAST(order_total_amount_eur AS double) AS amt, CAST(items_quantity_ordered AS double) AS items,
+                               CAST(unique_sku_ordered AS bigint) AS uniq
+                        FROM {ORDERS_VIEW}""").collect()
+    if not src:
+        raise RuntimeError(f"{ORDERS_VIEW} не отдала ни одной строки — заказы не переписываю")
+    orows = {}
+    for r in src:
+        # ключ витрины — заказ внутри источника; повтор (если появится) не множит заказ, а заменяет строку
+        orows[(r["source"], r["order_id"])] = (r["order_id"], r["source"], r["purchase_date"],
+                                               code_of(r["marketplace"], r["country"]), r["marketplace"], r["country"],
+                                               r["amt"], r["items"], r["uniq"])
+    with pg, pg.cursor() as cur:
+        cur.execute("DELETE FROM kabinet_data.pbi_orders_report WHERE true")
+        psycopg2.extras.execute_values(cur, """
+            INSERT INTO kabinet_data.pbi_orders_report
+                (order_id, source, purchase_date, marketplace, pbi_marketplace, pbi_country,
+                 order_total_amount_eur, items_quantity_ordered, unique_sku_ordered)
+            VALUES %s""", list(orows.values()), page_size=2000)
+    ORDERS_NOTE = f"заказов {len(orows)}" + (f" (повторов в витрине {len(src) - len(orows)})" if len(src) != len(orows) else "")
 pg.close()
-ORDERS_NOTE = f"заказов {len(rows)}" + (f" (повторов в витрине {len(src) - len(rows)})" if len(src) != len(rows) else "")
 print("✅", ORDERS_NOTE)
 
 # COMMAND ----------
@@ -148,31 +256,40 @@ print("✅", ORDERS_NOTE)
 # DBTITLE 1,3. Категории и названия SKU → kabinet_data.pbi_sku_categories
 # Справочник Power BI: название и три уровня категорий по SKU. У SKU без кода в дереве ERP витрина ставит название
 # «Need to Name» и категорию «Set» — копируем как есть, иначе разрез по категориям разошёлся бы с Power BI.
+# Витрина неполная (ячейка 1 оставила прежнюю реплику) — справочник тоже не трогаем.
 import psycopg2, psycopg2.extras
 from databricks.sdk import WorkspaceClient
 
 CAT_VIEW = "dnipro_m.dnipro_m.v_sku_names_categories"
-src = spark.sql(f"""SELECT sku, name_en, name_ukr, category_level1_en, category_level2_en, category_level3_en,
-                           category_level1_ukr, category_level2_ukr, category_level3_ukr
-                    FROM {CAT_VIEW} WHERE sku IS NOT NULL""").collect()
-if not src:
-    raise RuntimeError(f"{CAT_VIEW} не отдала ни одной строки — справочник не переписываю")
-cats = {r["sku"]: tuple(r) for r in src}
 _w = WorkspaceClient()
 _cred = _w.postgres.generate_database_credential(
     endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary")
 pg = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com",
                       port=5432, dbname="databricks_postgres",
                       user=_w.current_user.me().user_name, password=_cred.token, sslmode="require")
-with pg, pg.cursor() as cur:
-    cur.execute("DELETE FROM kabinet_data.pbi_sku_categories")
-    psycopg2.extras.execute_values(cur, """
-        INSERT INTO kabinet_data.pbi_sku_categories
-            (sku, name_en, name_ukr, category_level1_en, category_level2_en, category_level3_en,
-             category_level1_ukr, category_level2_ukr, category_level3_ukr)
-        VALUES %s""", list(cats.values()), page_size=1000)
+with pg.cursor() as cur:
+    cur.execute("""SELECT status FROM kabinet_data.pbi_replica_meta
+                   WHERE loaded_at > now() - interval '30 minutes' ORDER BY loaded_at DESC LIMIT 1""")
+    _st = cur.fetchone()
+pg.rollback()
+if _st and _st[0] == "kept":
+    CATS_NOTE = "справочник не заменён — витрина неполная"
+else:
+    src = spark.sql(f"""SELECT sku, name_en, name_ukr, category_level1_en, category_level2_en, category_level3_en,
+                               category_level1_ukr, category_level2_ukr, category_level3_ukr
+                        FROM {CAT_VIEW} WHERE sku IS NOT NULL""").collect()
+    if not src:
+        raise RuntimeError(f"{CAT_VIEW} не отдала ни одной строки — справочник не переписываю")
+    cats = {r["sku"]: tuple(r) for r in src}
+    with pg, pg.cursor() as cur:
+        cur.execute("DELETE FROM kabinet_data.pbi_sku_categories WHERE true")
+        psycopg2.extras.execute_values(cur, """
+            INSERT INTO kabinet_data.pbi_sku_categories
+                (sku, name_en, name_ukr, category_level1_en, category_level2_en, category_level3_en,
+                 category_level1_ukr, category_level2_ukr, category_level3_ukr)
+            VALUES %s""", list(cats.values()), page_size=1000)
+    CATS_NOTE = f"SKU в справочнике {len(cats)}"
 pg.close()
-CATS_NOTE = f"SKU в справочнике {len(cats)}"
 print("✅", CATS_NOTE)
 
 # COMMAND ----------
@@ -197,3 +314,6 @@ with _pg, _pg.cursor() as _c:
         ON CONFLICT (job_name) DO UPDATE SET last_success_at = now(), note = EXCLUDED.note""", (_note,))
 _pg.close()
 print("💓 Kabinet - Power BI Replica")
+# тревогу «витрина неполная» не доставили в бот — молчание канала должно быть красным: падаем после пульса
+if globals().get("SEND_ERR"):
+    raise RuntimeError(f"тревога «витрина Power BI неполная» не ушла в бот: {SEND_ERR}")

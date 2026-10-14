@@ -816,6 +816,9 @@ else:
         _period_txt = mn.period_line(_dstat, _w.cur_from, _as_of, PERIOD.end, _loaded_last)
     if _period_txt:
         st.caption(_period_txt)
+    # на какую сборку витрины опираются цифры и когда её подтянет экран Power BI (14.10.2026)
+    if pbi.freshness_line():
+        st.caption(pbi.freshness_line())
     # ACOS и TACOS — формулы Power BI (05.10.2026): весь расход на рекламу к продажам с рекламы и ко всем продажам
     # с НДС; с 08.10.2026 и числа те же — из реплики его витрины (ad_ratios). Окно — то же, что у выручки и маржи
     if pd.notna(_m_from) and pd.notna(_m_to):

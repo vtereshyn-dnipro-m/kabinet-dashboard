@@ -362,6 +362,9 @@ def tip(page: str, metric_key: str, base: str = "") -> str:
         # половину ширины и ничего не говорит тому, кто смотрит на цифру, — но нужно тому,
         # кто пойдёт проверять её запросом
         line += " " + t("passport.tip_table", table=f"kabinet_data.{r.table}")
+        # реплика витрины Power BI: на какую сборку витрины Amazon опираются цифры (14.10.2026)
+        if r.table == "pbi_spiderweb_report" and pbi.built_at_text():
+            line += " " + t("passport.pbi_built", at=pbi.built_at_text())
         # у площадки данные обновляются со своей частотой, и подпись должна называть её:
         # «данные по 25.09» без этого читается как «в источнике больше ничего нет»
         if as_text(r.platform_source):
@@ -385,9 +388,12 @@ def banner(page: str) -> None:
         st.caption(t("passport.unavailable"))
         return
     bad = [r for r in st_.itertuples() if r.stale or r.absent]
-    if not bad:
+    # витрина Power BI собралась неполной — реплика оставлена прежней (14.10.2026): говорим наверху страницы
+    _pbi_kept = (pbi.incomplete_text() if any(s.table == "pbi_spiderweb_report" for s in PAGES.get(page, ()))
+                 else "")
+    if not bad and not _pbi_kept:
         return
-    items = []
+    items = [_pbi_kept] if _pbi_kept else []
     for r in bad:
         name = t(f"passport.src.{r.key}")
         items.append(t("passport.absent_item", src=name) if r.absent else

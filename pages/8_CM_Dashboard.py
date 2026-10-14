@@ -1290,6 +1290,9 @@ def _countries_view() -> None:
 
 
 with tab_all:
+    # на какую сборку витрины опираются цифры и когда её подтянет экран Power BI (14.10.2026)
+    if pbi.freshness_line():
+        st.caption(pbi.freshness_line())
     _geo = "market"
     if not pbi.OWN_METHOD:
         _geo_opts = {"country": t("home.geo.by_country"), "market": t("home.geo.by_market")}
