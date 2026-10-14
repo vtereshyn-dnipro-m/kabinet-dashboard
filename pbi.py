@@ -24,6 +24,7 @@ shipping_cost_refund − expenses_refund + reimbursment, поэтому разл
 выплат, фактический НДС, реклама Leroy Merlin) не удалена: таблицы и код на месте, страницы просто её не
 показывают. Вернуть — `OWN_METHOD = True`; разбор методик пойдёт отдельным документом.
 """
+import re
 from datetime import date
 
 import pandas as pd
@@ -236,7 +237,12 @@ def replica_meta():
                                   FROM kabinet_data.pbi_replica_meta ORDER BY loaded_at DESC LIMIT 1""", conn)
             good = pd.read_sql("""SELECT source_built_at, loaded_at FROM kabinet_data.pbi_replica_meta
                                   WHERE status = 'replaced' ORDER BY loaded_at DESC LIMIT 1""", conn)
-            return (last.iloc[0].to_dict() if len(last) else None, good.iloc[0].to_dict() if len(good) else None)
+            amz = pd.read_sql("""SELECT DISTINCT marketplace FROM kabinet_data.pbi_spiderweb_report
+                                 WHERE pbi_marketplace = 'Amazon'""", conn)["marketplace"]
+            last_d = last.iloc[0].to_dict() if len(last) else None
+            if last_d is not None:
+                last_d["amazon_codes"] = set(amz)
+            return (last_d, good.iloc[0].to_dict() if len(good) else None)
         except Exception:
             return None, None
         finally:
@@ -269,8 +275,14 @@ def incomplete_text() -> str:
     last, good = replica_meta()
     if OWN_METHOD or not last or last.get("status") != "kept":
         return ""
-    return t("pbi.incomplete", at=_kyiv((good or {}).get("loaded_at") or last.get("shown_as_of")),
-             why=as_text(last.get("detail"), "—"))
+    # Текст плашки — решение владельца 14.10.2026: без причин и без слова «бот». «Amazon» — только если неполными
+    # вышли одни рынки Amazon (код рынка в начале каждой части detail: «ES: было …; IT: …»); упал канал
+    # Mirakl, Wallapop или сайт — без названия площадки, иначе плашка назвала бы не того. Какие коды — Amazon, говорит
+    # сама реплика (pbi_marketplace), а не длина кода: у Leroy Merlin код тоже из двух букв (LM).
+    codes = re.findall(r"(?:^|;\s*)([A-Z_]+):", as_text(last.get("detail")))
+    amz = last.get("amazon_codes") or set()
+    key = "pbi.incomplete_amz" if codes and all(c in amz for c in codes) else "pbi.incomplete"
+    return t(key, at=_kyiv((good or {}).get("loaded_at") or last.get("shown_as_of")))
 
 
 def built_at_text() -> str:
