@@ -195,12 +195,16 @@ def norm(s):
 
 # ── Таблица: SKU и месяцы (только чтение) ──
 _info = json.loads(dbutils.secrets.get("kabinet-external", "google-sa-json"), strict=False)
+# лимит Sheets — 60 чтений в минуту на сервисный аккаунт, общий с Unified Pricing: повтор при 429 и одно пакетное чтение
+from gspread.http_client import BackOffHTTPClient
 _gc = gspread.authorize(Credentials.from_service_account_info(
-    _info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]))
+    _info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]), http_client=BackOffHTTPClient)
 _sh = _gc.open_by_key(SHEET_KEY)
+_batch = _sh.values_batch_get([f"'{t}'!A1:ZZ6" for t in TABS] + [f"'{t}'!A1:B" for t in TABS])["valueRanges"]
 SHEET_SKUS, MONTHS, skipped_cells = {}, None, []
-for _tab in TABS:
-    _vals = _sh.worksheet(_tab).get_all_values()
+for _k, _tab in enumerate(TABS):
+    _head, _body = _batch[_k].get("values", []), _batch[_k + len(TABS)].get("values", [])
+    _vals = _head + _body[len(_head):]          # шапка во всю ширину (месяцы), дальше — колонки A:B
     _hdr = next(i for i, r in enumerate(_vals[:6]) if len(r) > 1 and r[1].strip().upper() == "SKU")
     _m = [datetime.strptime(c.strip(), "%B %Y").date() for c in _vals[_hdr - 1] if c.strip()]
     MONTHS = sorted(set(MONTHS or []) | set(_m))
@@ -651,17 +655,22 @@ else:
     _frozen_m = {m for m in _months if all(v[2] for (mk, s, mm), v in _pm.items() if mm == m)}
 
     _info2 = json.loads(dbutils.secrets.get("kabinet-external", "google-sa-json"), strict=False)
+    from gspread.http_client import BackOffHTTPClient   # повтор при 429: лимит чтений общий с Unified Pricing
     _gc2 = gspread.authorize(Credentials.from_service_account_info(
-        _info2, scopes=["https://www.googleapis.com/auth/spreadsheets"]))
+        _info2, scopes=["https://www.googleapis.com/auth/spreadsheets"]), http_client=BackOffHTTPClient)
     _src = _gc2.open_by_key(_SRC_KEY)             # только чтение строк
     _dst = _gc2.open_by_key(_TARGET)
+    # строки всех вкладок — одним пакетным чтением, список листов копии/таблицы — одним запросом
+    _rows_of = dict(zip(_TAB_OF.values(), (v.get("values", []) for v in _src.values_batch_get(
+        [f"'{t}'!A1:B" for t in _TAB_OF.values()])["valueRanges"])))
+    _ws_by = {w.title: w for w in _dst.worksheets()}
     _norm = lambda c: __import__("re").sub(r"^(\d{7})(?!\d)", r"0\1",
                                            __import__("re").sub(r"[-_]+$", "", str(c or "").strip()))
     _hdr_fmt = {"textFormat": {"bold": True}, "horizontalAlignment": "CENTER"}
     _grey = _rgb("d9d9d9")
     _alerts, _written = [], []
     for mk, tab in _TAB_OF.items():
-        vals = _src.worksheet(tab).get_values("A1:B")
+        vals = _rows_of[tab]
         n_rows = max(len(vals), 4)
         name_of = {i: (r[0] if len(r) > 0 else "", r[1] if len(r) > 1 else "") for i, r in enumerate(vals)}
         # сетка: строка 1 — Name, SKU, месяцы; строка 2 — «заморожен / до 15.MM»; строка 3 — пусто; дальше — как у неё
@@ -712,10 +721,7 @@ else:
                               VALUES (%s, %s, %s, %s, 'skipped', %s)""", (_TARGET, "avg_" + tab, n_rows, n_prices, _why))
             print(f"⛔ avg_{tab}: не перезаписываю — {_why}")
             continue
-        try:
-            ws = _dst.worksheet("avg_" + tab)
-        except gspread.WorksheetNotFound:
-            ws = _dst.add_worksheet("avg_" + tab, rows=n_rows, cols=2 + len(_months))
+        ws = _ws_by.get("avg_" + tab) or _dst.add_worksheet("avg_" + tab, rows=n_rows, cols=2 + len(_months))
         ws.resize(rows=n_rows, cols=2 + len(_months))     # лишние строки и колонки прошлой записи уходят
         reqs = [{"updateCells": {"range": {"sheetId": ws.id, "startRowIndex": r0, "endRowIndex": min(r0 + 300, n_rows),
                                            "startColumnIndex": 0, "endColumnIndex": 2 + len(_months)},
