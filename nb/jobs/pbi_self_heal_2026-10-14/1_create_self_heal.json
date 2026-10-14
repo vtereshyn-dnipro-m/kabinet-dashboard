@@ -1,0 +1,11 @@
+{
+  "name": "Kabinet - Power BI Self-Heal",
+  "description": "Самовосстановление витрины Power BI: упавшие утром Amazon-джобы источника и неполная сборка — один перезапуск в день (ключи рабочие), затем Spiderweb; тревоги «не обновилась до 12:00», «реплика не сработала по записи», сообщение об изменении джоб источника. Только перезапуск чужих джоб, их код и настройки не трогает. Источник — nb/pbi_self_heal.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 15/30 10-17 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default", "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "self_heal", "environment_key": "default", "timeout_seconds": 900,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Power BI Self-Heal", "source": "WORKSPACE"}}
+  ]
+}

@@ -1,0 +1,380 @@
+{
+ "max_retries": 2,
+ "min_retry_interval_millis": 600000,
+ "retry_on_timeout": false,
+ "jobs": [
+  {
+   "job_id": 990635019399469,
+   "name": "Kabinet - AMC Collect",
+   "tasks": [
+    "amc_collect"
+   ]
+  },
+  {
+   "job_id": 383948740025305,
+   "name": "Kabinet - Account Health Loader",
+   "tasks": [
+    "load"
+   ]
+  },
+  {
+   "job_id": 630855251229041,
+   "name": "Kabinet - Assortment Matrix Loader",
+   "tasks": [
+    "load"
+   ]
+  },
+  {
+   "job_id": 566316968124876,
+   "name": "Kabinet - Availability History",
+   "tasks": [
+    "notebook_task_Kabinet_-_Availability_History"
+   ]
+  },
+  {
+   "job_id": 376510559038967,
+   "name": "Kabinet - BSR Daily",
+   "tasks": [
+    "bsr_daily"
+   ]
+  },
+  {
+   "job_id": 807913225672389,
+   "name": "Kabinet - Brand Analytics Loader",
+   "tasks": [
+    "load"
+   ]
+  },
+  {
+   "job_id": 1086620628061334,
+   "name": "Kabinet - Buy Box",
+   "tasks": [
+    "buybox"
+   ]
+  },
+  {
+   "job_id": 506442818633407,
+   "name": "Kabinet - CF Offers Loader",
+   "tasks": [
+    "notebook_task_Kabinet_-_CF_Offers_Loader"
+   ]
+  },
+  {
+   "job_id": 764157401968516,
+   "name": "Kabinet - CF Orders Loader",
+   "tasks": [
+    "load_cf_orders"
+   ]
+  },
+  {
+   "job_id": 85948015331467,
+   "name": "Kabinet - CF Transactions Loader",
+   "tasks": [
+    "notebook_task_Kabinet_-_CF_Transactions_Loader"
+   ]
+  },
+  {
+   "job_id": 847957236064692,
+   "name": "Kabinet - Coverage Projection",
+   "tasks": [
+    "notebook_task_Kabinet_-_Coverage_Projection"
+   ]
+  },
+  {
+   "job_id": 80981047732046,
+   "name": "Kabinet - Dependent Demand",
+   "tasks": [
+    "rebuild"
+   ]
+  },
+  {
+   "job_id": 1029400291008022,
+   "name": "Kabinet - Economics Loader",
+   "tasks": [
+    "notebook_task_Kabinet_-_Economics_Loader"
+   ]
+  },
+  {
+   "job_id": 1070371622017059,
+   "name": "Kabinet - FBA Charges Loader",
+   "tasks": [
+    "fba_charges"
+   ]
+  },
+  {
+   "job_id": 174154625041145,
+   "name": "Kabinet - FBA Ledger Detail + Listing Cards Sync",
+   "tasks": [
+    "notebook_task_Kabinet_-_FBA_Ledger_Detail_Loader"
+   ]
+  },
+  {
+   "job_id": 821057250140489,
+   "name": "Kabinet - FBA Shipments Loader",
+   "tasks": [
+    "load"
+   ]
+  },
+  {
+   "job_id": 742197017270185,
+   "name": "Kabinet - FX Rates",
+   "tasks": [
+    "fx"
+   ]
+  },
+  {
+   "job_id": 89898429872492,
+   "name": "Kabinet - Forecast Plan Loader",
+   "tasks": [
+    "load"
+   ]
+  },
+  {
+   "job_id": 73306181318180,
+   "name": "Kabinet - Inventory Age Loader",
+   "tasks": [
+    "load"
+   ]
+  },
+  {
+   "job_id": 341438799740428,
+   "name": "Kabinet - LM Offers Loader",
+   "tasks": [
+    "load_offers"
+   ]
+  },
+  {
+   "job_id": 1017310909968163,
+   "name": "Kabinet - LM Orders Loader",
+   "tasks": [
+    "load_orders"
+   ]
+  },
+  {
+   "job_id": 804741971942511,
+   "name": "Kabinet - LM Transactions Loader",
+   "tasks": [
+    "load_transactions"
+   ]
+  },
+  {
+   "job_id": 182571468632740,
+   "name": "Kabinet - Listing Issues Loader",
+   "tasks": [
+    "scan_listing_issues",
+    "sync_replica_to_listing_suite"
+   ]
+  },
+  {
+   "job_id": 772811628056364,
+   "name": "Kabinet - MM Competitiveness Loader",
+   "tasks": [
+    "notebook_task_Kabinet_-_MM_Competitiveness_Loader"
+   ]
+  },
+  {
+   "job_id": 801870810114047,
+   "name": "Kabinet - MM Offers Loader",
+   "tasks": [
+    "notebook_task_Kabinet_-_MM_Offers_Loader"
+   ]
+  },
+  {
+   "job_id": 426895326626180,
+   "name": "Kabinet - MM Orders Loader",
+   "tasks": [
+    "load_mm_orders"
+   ]
+  },
+  {
+   "job_id": 35625771508691,
+   "name": "Kabinet - MM Reference Loader",
+   "tasks": [
+    "notebook_task_Kabinet_-_MM_Reference_Loader"
+   ]
+  },
+  {
+   "job_id": 565517931588672,
+   "name": "Kabinet - MYI Report Collector",
+   "tasks": [
+    "notebook_task_Kabinet_-_MYI_Report_Collector"
+   ]
+  },
+  {
+   "job_id": 299946338451892,
+   "name": "Kabinet - Mirakl Health",
+   "tasks": [
+    "notebook_task_Kabinet_-_LM_Health"
+   ]
+  },
+  {
+   "job_id": 89270271625477,
+   "name": "Kabinet - Odoo Channels Loader",
+   "tasks": [
+    "load_odoo_channels"
+   ]
+  },
+  {
+   "job_id": 470982562461595,
+   "name": "Kabinet - Odoo Customer Returns",
+   "tasks": [
+    "odoo_customer_returns"
+   ]
+  },
+  {
+   "job_id": 386823324031566,
+   "name": "Kabinet - Odoo Purchase Orders",
+   "tasks": [
+    "odoo_purchase_orders"
+   ]
+  },
+  {
+   "job_id": 813933040777378,
+   "name": "Kabinet - Power BI Replica",
+   "tasks": [
+    "pbi_replica"
+   ]
+  },
+  {
+   "job_id": 761137342699876,
+   "name": "Kabinet - Product Entities Loader",
+   "tasks": [
+    "load"
+   ]
+  },
+  {
+   "job_id": 453710724542368,
+   "name": "Kabinet - Reconciliation",
+   "tasks": [
+    "reconciliation"
+   ]
+  },
+  {
+   "job_id": 1088358634966851,
+   "name": "Kabinet - Returns Loader",
+   "tasks": [
+    "notebook_task_Kabinet_-_Returns_Loader"
+   ]
+  },
+  {
+   "job_id": 909831072825007,
+   "name": "Kabinet - SKU Master Loader",
+   "tasks": [
+    "load"
+   ]
+  },
+  {
+   "job_id": 32157082853424,
+   "name": "Kabinet - Sales & Traffic Replica",
+   "tasks": [
+    "replica"
+   ]
+  },
+  {
+   "job_id": 1031968971438584,
+   "name": "Kabinet - Sales Plan Loader",
+   "tasks": [
+    "load_sales_plan"
+   ]
+  },
+  {
+   "job_id": 1086798073703615,
+   "name": "Kabinet - Settlements Loader",
+   "tasks": [
+    "settlements"
+   ]
+  },
+  {
+   "job_id": 108611324580114,
+   "name": "Kabinet - Shipment Facts",
+   "tasks": [
+    "build"
+   ]
+  },
+  {
+   "job_id": 201160589560980,
+   "name": "Kabinet - Stock Loader",
+   "tasks": [
+    "notebook_task_Kabinet_-_Stock_Loader"
+   ]
+  },
+  {
+   "job_id": 474477518393306,
+   "name": "Kabinet - Suppressed Listings Checker",
+   "tasks": [
+    "notebook_task_Kabinet_-_Suppressed_Listings_Checker"
+   ]
+  },
+  {
+   "job_id": 840251218452465,
+   "name": "Kabinet - Unified Pricing Loader",
+   "tasks": [
+    "load"
+   ]
+  },
+  {
+   "job_id": 677553953151758,
+   "name": "Kabinet - Warehouse Owner from Odoo",
+   "tasks": [
+    "load"
+   ]
+  }
+ ],
+ "excluded": [
+  {
+   "job_id": 897574936559645,
+   "name": "Kabinet - Amazon Auth Guard",
+   "why": "каждые 15 мин — следующий прогон и есть повтор"
+  },
+  {
+   "job_id": 1023271221032583,
+   "name": "Kabinet - Amazon ES Catalog Export",
+   "why": "ручной запуск"
+  },
+  {
+   "job_id": 1088220719651633,
+   "name": "Kabinet - ClickUp Sync",
+   "why": "каждый час — следующий прогон и есть повтор"
+  },
+  {
+   "job_id": 892524372824225,
+   "name": "Kabinet - FBA Ledger Detail Loader",
+   "why": "на паузе"
+  },
+  {
+   "job_id": 123340359216077,
+   "name": "Kabinet - Job Schedule Snapshot",
+   "why": "каждый час — следующий прогон и есть повтор"
+  },
+  {
+   "job_id": 538571098601924,
+   "name": "Kabinet - Load Day Snapshots",
+   "why": "каждый час — следующий прогон и есть повтор"
+  },
+  {
+   "job_id": 760565204236769,
+   "name": "Kabinet - Review Requests (ES Evening)",
+   "why": "шлёт покупателям запросы отзывов — повтор не нужен"
+  },
+  {
+   "job_id": 504383462189415,
+   "name": "Kabinet - Review Requests (Morning)",
+   "why": "шлёт покупателям запросы отзывов — повтор не нужен"
+  },
+  {
+   "job_id": 555949343425480,
+   "name": "Kabinet - Watchdog",
+   "why": "не загрузчик: повтор после отправленной сводки задвоил бы её; свой запасной запуск 13:40"
+  },
+  {
+   "job_id": 219517488147334,
+   "name": "Kabinet - Weekly Report",
+   "why": "не загрузчик: повтор задвоил бы недельный отчёт в Telegram"
+  },
+  {
+   "job_id": 936210060909607,
+   "name": "Kabinet - Запасной прогон после Ledger Summary",
+   "why": "страховка вечерней цепочки — решает сама, повтор сломал бы её логику"
+  }
+ ]
+}
