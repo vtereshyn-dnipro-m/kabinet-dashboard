@@ -13,6 +13,8 @@
 #      и Amazon Ads (ads_lwa_*). Сломанный ключ виден ДО того, как упадёт первый загрузчик;
 #   2) упавшие за последние 2 часа прогоны ЛЮБЫХ джоб воркспейса (наших и Дарины): если в тексте ошибки — авторизация
 #      Amazon (401/403 Unauthorized, invalid_client, invalid_grant, «expired»), тревога с именем джобы и текстом.
+#      С 14.10.2026 падения джоб источника витрины Power BI (kabinet_data.pbi_source_jobs) уходят и второму адресату —
+#      kabinet-alerts/telegram-chat-id-darina, если секрет заведён.
 # Тревога — инцидент amazon_auth (source watchdog, по одному на ключ / джобу: [AMZAUTH:…]) и сообщение в бот сразу, один
 # раз при открытии. Закрывается здесь же: ключ снова обменивается / у джобы появился успешный прогон после падения.
 # Значения ключей не выводятся и не пишутся никуда. Метка пульса — последней и безусловно.
@@ -111,6 +113,15 @@ _cred = w.postgres.generate_database_credential(endpoint="projects/kabinet-dashb
 pg = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com", port=5432,
                       dbname="databricks_postgres", user=w.current_user.me().user_name, password=_cred.token,
                       sslmode="require")
+# джобы источника витрины Power BI — их падения уходят и второму адресату; отдельной транзакцией: если таблицы нет,
+# ошибка не должна откатить тревоги, заведённые ниже
+src_names = set()
+try:
+    with pg, pg.cursor() as cur:
+        cur.execute("SELECT job_name FROM kabinet_data.pbi_source_jobs WHERE is_active")
+        src_names = {r[0] for r in cur.fetchall()}
+except Exception:
+    pass
 sent, send_err, closed = [], [], []
 with pg, pg.cursor() as cur:
     cur.execute("""SELECT id, message FROM kabinet_data.incidents
@@ -136,18 +147,36 @@ with pg, pg.cursor() as cur:
     # читать никто не станет. Ключи — первыми: это причина, джобы — следствие
     new_texts.sort(key=lambda x: x[1] != "critical")
     if new_texts and not DRY:
-        body = "\n\n".join("• " + x[2] for x in new_texts).replace("&", "&amp;").replace("<", "&lt;")
+        # второй адресат (kabinet-alerts/telegram-chat-id-darina, если секрет заведён) получает только падения джоб
+        # источника витрины Power BI — список kabinet_data.pbi_source_jobs (решение владельца 14.10.2026)
         try:
-            rr = requests.post(f"https://api.telegram.org/bot{dbutils.secrets.get('kabinet-alerts', 'telegram-bot-token')}/sendMessage",
-                               json={"chat_id": dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"),
-                                     "text": ("🔴 <b>Авторизация Amazon</b>\n" + body)[:4000],
-                                     "parse_mode": "HTML", "disable_web_page_preview": True}, timeout=30)
-            if rr.ok:
-                sent = [x[0] for x in new_texts]
-            else:
-                send_err.append(f"{rr.status_code}: {rr.text[:150]}")
-        except Exception as e:
-            send_err.append(f"{type(e).__name__}: {str(e)[:150]}")
+            second_chat = dbutils.secrets.get("kabinet-alerts", "telegram-chat-id-darina")
+        except Exception:
+            second_chat = None
+
+        def _send(chat, items):
+            body = "\n\n".join("• " + x[2] for x in items).replace("&", "&amp;").replace("<", "&lt;")
+            try:
+                rr = requests.post(f"https://api.telegram.org/bot{dbutils.secrets.get('kabinet-alerts', 'telegram-bot-token')}/sendMessage",
+                                   json={"chat_id": chat, "text": ("🔴 <b>Авторизация Amazon</b>\n" + body)[:4000],
+                                         "parse_mode": "HTML", "disable_web_page_preview": True}, timeout=30)
+                return None if rr.ok else f"{rr.status_code}: {rr.text[:150]}"
+            except Exception as e:
+                return f"{type(e).__name__}: {str(e)[:150]}"
+
+        err = _send(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"), new_texts)
+        if err:
+            send_err.append(err)
+        else:
+            sent = [x[0] for x in new_texts]
+        theirs = [x for x in new_texts if x[0][len("[AMZAUTH:"):-1] in src_names]
+        if second_chat and theirs:
+            err2 = _send(second_chat, theirs)
+            if err2:
+                # второму адресату не ушло — в текст тревоги, но прогон не роняем: основной канал жив
+                for tok, _, _ in theirs:
+                    cur.execute("UPDATE kabinet_data.incidents SET message = message || %s WHERE incident_type = 'amazon_auth' "
+                                "AND status <> 'resolved' AND message LIKE %s", (f" Второму адресату не ушло: {err2}", tok + "%"))
         if send_err:
             # молчание канала должно быть красным: причина — в тексте инцидента (её покажет дневная сводка сторожа),
             # а прогон падает после пульса
