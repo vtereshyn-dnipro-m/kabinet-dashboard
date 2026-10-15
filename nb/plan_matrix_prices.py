@@ -265,7 +265,7 @@ sales = []                                       # (code, sku, day, revenue, uni
 _amz = spark.sql(f"""
     WITH o AS (
         SELECT amazon_order_id, sales_channel, order_status, coalesce(is_replacement_order, false) AS repl,
-               to_date(from_utc_timestamp(purchase_date, 'Europe/Madrid')) AS d,
+               to_date(purchase_date) AS d,       -- уже время Мадрида: загрузчик пишет его так, второй перевод сдвигал 22–24 ч на завтра
                row_number() OVER (PARTITION BY amazon_order_id ORDER BY last_update_date DESC) AS rn
         FROM dnipro_m.dnipro_m.raw_amazon_seller_central_get_orders
         WHERE purchase_date >= DATE'{EARLIEST}'),

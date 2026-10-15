@@ -1925,10 +1925,17 @@ Lakebase принадлежат ему). Объём: заказы LM 386 стр�
 −1 шт, сентябрь +19,19 € и +1 шт; CF 1 строка на 70 €, итоги месяцев без изменений. Транзакции по
 `transaction_date` не сдвинулись ни одной строкой: списания идут днём.
 
-**Не переведено (13.10.2026, отдельное решение):** Amazon — дни продаж в Sales & Traffic и Data Kiosk считает сам
-Amazon, а `orders_history.purchase_date` (страница «Отзывы», `shipment_facts`) в UTC: за сентябрь–октябрь день
-сменили бы 144 заказа из 1 598. И дата отгрузки Mirakl через SendCloud (`raw_sendcloud_parcels.date_announced`,
-таблица Дарины, UTC).
+**Amazon: `purchase_date` УЖЕ по Мадриду, переводить её не надо** (проверено 15.10.2026; запись от 13.10 «`orders_history.
+purchase_date` в UTC» была неверной). Загрузчик заказов — ноутбук аналитика «SendCloud tracking for Tableau» (джоба
+240320825848727, 09:11) — переводит все даты заказа (`purchase_date`, `last_update_date`, `earliest_*`/`latest_*`) в
+Мадрид и отбрасывает пояс, то есть в `dnipro_m.raw_amazon_seller_central_get_orders` лежат часы Мадрида, записанные как
+время UTC, — тот же приём, что у Mirakl. Сверка с Orders API `getOrder`: 408-9088501-2743552 у Amazon 13.10 23:13:54Z,
+в таблице 14.10 01:13:54; так у всех семи проверенных заказов ES с мая по октябрь. `orders_history` (Stock Loader)
+копирует значение как есть — часы Мадрида с меткой «+00». Значит: день — `DATE(purchase_date)` / `purchase_date::date`
+без перевода, а `from_utc_timestamp(purchase_date, 'Europe/Madrid')` даёт ДВОЙНОЙ сдвиг — заказ 22:00–24:00 уходит на
+завтра (так было в `Kabinet - Plan Matrix Prices` до 15.10.2026). Длительности от `NOW()` по ней врут на 1–2 часа.
+Дни продаж в Sales & Traffic и Data Kiosk считает сам Amazon. Не переведена дата отгрузки Mirakl через SendCloud
+(`raw_sendcloud_parcels.date_announced`, таблица аналитика, UTC).
 
 ## Каждая цифра объясняет себя сама (с 06.10.2026, решение владельца)
 
