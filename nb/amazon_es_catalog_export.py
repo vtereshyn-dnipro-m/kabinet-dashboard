@@ -2,6 +2,9 @@
 # MAGIC %md
 # MAGIC # Kabinet - Amazon ES Catalog Export
 # MAGIC
+# MAGIC Параметр `marketplace` (с 15.10.2026): ES (по умолчанию), FR, IT, DE — тот же файл по другому рынку
+# MAGIC Amazon, `amazon_<рынок>_catalog_latest.xlsx` в своей папке. Без параметра — Испания, как раньше.
+# MAGIC
 # MAGIC Выгрузка для Марко: все наши товары на Amazon ES — SKU, ASIN, EAN и ссылки на все изображения
 # MAGIC (главное, затем PT01, PT02… отдельными колонками) — в Excel. С 07.10.2026 в том же листе не только
 # MAGIC активные, но и неактивные и незавершённые листинги (Марко спросил, можно ли выгружать и их):
@@ -77,12 +80,23 @@ from openpyxl.styles import Alignment, Font, PatternFill
 PG_HOST = "ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com"
 PG_EP = "projects/kabinet-dashboard/branches/production/endpoints/primary"
 EP = "https://sellingpartnerapi-eu.amazon.com"
-MP_ES = "A1RKKUPIHCS9HS"
+# рынок — параметр `marketplace`; ES по умолчанию, чтобы прежний запуск джобы давал прежний файл
+MARKETS = {"ES": ("A1RKKUPIHCS9HS", "Spain (ES)", "amazon.es"), "FR": ("A13V1IB3VIYZZH", "France (FR)", "amazon.fr"),
+           "IT": ("APJ6JRA9NG5V4", "Italy (IT)", "amazon.it"), "DE": ("A1PA6795UKMFR9", "Germany (DE)", "amazon.de")}
+try:
+    dbutils.widgets.text("marketplace", "ES")  # noqa: F821
+    MK = (dbutils.widgets.get("marketplace") or "ES").strip().upper()  # noqa: F821
+except Exception:
+    MK = "ES"
+if MK not in MARKETS:
+    raise ValueError(f"marketplace={MK}: известны {', '.join(MARKETS)}")
+MP, MP_NAME, DOMAIN = MARKETS[MK]
+mk = MK.lower()
 SELLER_ID = "A4JU8NB3VJG0K"   # один на весь европейский аккаунт (AGENTS.md, Buy Box)
 STATUS_ORDER = {"Active": 0, "Inactive": 1, "Incomplete": 2}
 # getListingsItem: 5 запросов в секунду с запасом 10 — 0,25 с между запросами
 LI_PAUSE_SEC = 0.25
-OUT_DIR = "/Volumes/dnipro_m/dnipro_m/kabinet_raw/exports/amazon_es_catalog"
+OUT_DIR = f"/Volumes/dnipro_m/dnipro_m/kabinet_raw/exports/amazon_{mk}_catalog"
 # searchCatalogItems: 2 запроса в секунду с запасом 2. Берём с запасом — 0,6 с между запросами.
 PAUSE_SEC = 0.6
 # Два фото считаются одним снимком, если разность хешей (dHash 16×16, 256 бит) не больше этого.
@@ -106,32 +120,32 @@ now = datetime.now(KYIV)
 stamp = now.strftime("%Y-%m-%d")
 stamp_human = now.strftime("%Y-%m-%d %H:%M")
 
-# ── 1. листинги ES из сегодняшнего отчёта: активные, неактивные, незавершённые ───
-lst = spark.sql("""
+# ── 1. листинги рынка из сегодняшнего отчёта: активные, неактивные, незавершённые ───
+lst = spark.sql(f"""
     WITH last AS (SELECT max(report_date) AS d
                   FROM dnipro_m.dnipro_m.raw_amazon_get_merchant_listings_all_data
-                  WHERE marketplace_name = 'Spain (ES)')
+                  WHERE marketplace_name = '{MP_NAME}')
     SELECT DISTINCT l.seller_sku,
            coalesce(l.asin1, CASE WHEN l.product_id_type = '1' THEN l.product_id END) AS asin,
            l.fulfillment_channel, l.report_date, l.status
     FROM dnipro_m.dnipro_m.raw_amazon_get_merchant_listings_all_data l, last
-    WHERE l.marketplace_name = 'Spain (ES)' AND l.status IN ('Active', 'Inactive', 'Incomplete')
+    WHERE l.marketplace_name = '{MP_NAME}' AND l.status IN ('Active', 'Inactive', 'Incomplete')
       AND l.report_date = last.d AND l.seller_sku NOT LIKE 'amzn.gr.%'
 """).toPandas()  # noqa: F821
 listing_date = str(lst["report_date"].iloc[0]) if len(lst) else "—"
 lst["_ord"] = lst["status"].map(STATUS_ORDER)
 lst = lst.sort_values(["_ord", "seller_sku"]).reset_index(drop=True)
-n_grade = spark.sql("""
+n_grade = spark.sql(f"""
     SELECT count(*) FROM dnipro_m.dnipro_m.raw_amazon_get_merchant_listings_all_data
-    WHERE marketplace_name = 'Spain (ES)' AND status IN ('Active', 'Inactive', 'Incomplete')
+    WHERE marketplace_name = '{MP_NAME}' AND status IN ('Active', 'Inactive', 'Incomplete')
       AND seller_sku LIKE 'amzn.gr.%'
       AND report_date = (SELECT max(report_date) FROM dnipro_m.dnipro_m.raw_amazon_get_merchant_listings_all_data
-                         WHERE marketplace_name = 'Spain (ES)')
+                         WHERE marketplace_name = '{MP_NAME}')
 """).collect()[0][0]  # noqa: F821
 if LIMIT:
     # проба: понемногу каждого статуса, чтобы проверить и колонку причины
     lst = lst.groupby("status", group_keys=False).head(LIMIT).reset_index(drop=True)
-print(f"листингов ES: {len(lst)} (отчёт от {listing_date}; amzn.gr.* исключено: {n_grade})")
+print(f"листингов {MK}: {len(lst)} (отчёт от {listing_date}; amzn.gr.* исключено: {n_grade})")
 no_asin = lst[lst["asin"].isna()]
 asins = sorted(set(lst["asin"].dropna()))
 
@@ -147,7 +161,7 @@ HDR = {"x-amz-access-token": _lwa.json()["access_token"]}
 
 def search(batch):
     """Один запрос на ≤20 ASIN. На 429 ждём нарастающе, до ~5 минут в сумме, потом падаем."""
-    params = {"identifiers": ",".join(batch), "identifiersType": "ASIN", "marketplaceIds": MP_ES,
+    params = {"identifiers": ",".join(batch), "identifiersType": "ASIN", "marketplaceIds": MP,
               "includedData": "identifiers,images,summaries,relationships", "pageSize": 20}
     wait = 2.0
     for _ in range(9):
@@ -174,7 +188,7 @@ def listing_live(sku):
     """{asin, imgs, parent, issues}; None — листинга нет в Listings API (404).
     imgs — картинки, которые мы сами загрузили в листинг: {"MAIN": ссылка, "PT01": …}."""
     url = f"{EP}/listings/2021-08-01/items/{SELLER_ID}/{quote(sku, safe='')}"
-    params = {"marketplaceIds": MP_ES, "includedData": "summaries,attributes,issues", "issueLocale": "en_US"}
+    params = {"marketplaceIds": MP, "includedData": "summaries,attributes,issues", "issueLocale": "en_US"}
     wait = 2.0
     for _ in range(9):
         r = requests.get(url, headers=HDR, params=params, timeout=60)
@@ -190,13 +204,13 @@ def listing_live(sku):
             if msg:
                 sev = str(i.get("severity") or "").strip()
                 out.append(f"{sev}: {msg}" if sev else msg)
-        summ = next((s_ for s_ in js.get("summaries") or [] if s_.get("marketplaceId") == MP_ES), {})
+        summ = next((s_ for s_ in js.get("summaries") or [] if s_.get("marketplaceId") == MP), {})
         attrs = js.get("attributes") or {}
         imgs = {}
         for k, v in attrs.items():
             m = re.fullmatch(r"other_product_image_locator_(\d+)", k)
             slot = "MAIN" if k == "main_product_image_locator" else (f"PT{int(m.group(1)):02d}" if m else None)
-            loc = [x for x in v or [] if x.get("marketplace_id") in (None, MP_ES) and x.get("media_location")]
+            loc = [x for x in v or [] if x.get("marketplace_id") in (None, MP) and x.get("media_location")]
             if slot and loc:
                 imgs[slot] = loc[0]["media_location"]
         return {"asin": summ.get("asin"), "imgs": imgs,
@@ -215,7 +229,7 @@ print(f"Listings Items: запрошено {len(live)}, нет в API {sum(1 for
 def ean_from_catalog(it):
     found = []
     for blk in it.get("identifiers", []):
-        if blk.get("marketplaceId") != MP_ES:
+        if blk.get("marketplaceId") != MP:
             continue
         for x in blk.get("identifiers", []):
             t, v = x.get("identifierType"), str(x.get("identifier") or "").strip()
@@ -235,7 +249,7 @@ def images(it):
     """{вариант: ссылка на самый большой размер}; служебные варианты считаем отдельно."""
     best, other = {}, set()
     for blk in it.get("images", []):
-        if blk.get("marketplaceId") != MP_ES:
+        if blk.get("marketplaceId") != MP:
             continue
         for im in blk.get("images", []):
             v = im.get("variant")
@@ -247,14 +261,14 @@ def images(it):
     return best, other
 
 def relations(it):
-    """(контейнер вариаций, вариант семейства) по каталогу ES."""
-    rel = [x for b in it.get("relationships", []) if b.get("marketplaceId") == MP_ES
+    """(контейнер вариаций, вариант семейства) по каталогу рынка."""
+    rel = [x for b in it.get("relationships", []) if b.get("marketplaceId") == MP
            for x in b.get("relationships", [])]
     return any(x.get("childAsins") for x in rel), any(x.get("parentAsins") for x in rel)
 
 def title(it):
     for s in it.get("summaries", []):
-        if s.get("marketplaceId") == MP_ES:
+        if s.get("marketplaceId") == MP:
             return s.get("itemName")
     return None
 
@@ -373,7 +387,7 @@ for x in rows:
     elif lv.get("asin") and x["asin"] and lv["asin"] != x["asin"]:
         chk.append(("listing", f"ASIN differs: listings report {x['asin']}, live listing {lv['asin']}"))
     if not x["in_catalog"]:
-        chk.append(("image_na", "ASIN not found in Amazon ES catalog"))
+        chk.append(("image_na", f"ASIN not found in Amazon {MK} catalog"))
     if x["parent"]:
         x["match"] = MATCH_PARENT
     elif not cat_main:
@@ -444,7 +458,7 @@ print(f"сверка: в Check {n_check} строк; главное фото к�
 TEST = bool(LIMIT or PROBE)   # пробный файл: TEST в имени, в названиях листов и первой строкой сводки
 wb = Workbook()
 ws = wb.active
-ws.title = "TEST Amazon ES" if TEST else "Amazon ES"
+ws.title = f"TEST Amazon {MK}" if TEST else f"Amazon {MK}"
 if TEST:
     wb.properties.title = "TEST — trial export, not for sending"
 # новые колонки — в конце: прежние не сдвигаются, у получателя ничего не съезжает
@@ -482,14 +496,14 @@ n_multi = sum(1 for x in rows if x["ean_multi"])
 summary = ([("TEST FILE", "Trial run — not for sending")] if TEST else []) + [
     ("Export date", stamp_human + " (Kyiv time)"),
     ("Listings report date", listing_date),
-    ("Products in export (all Amazon ES SKUs)", n),
+    (f"Products in export (all Amazon {MK} SKUs)", n),
     ("  Active", sum(1 for x in rows if x["status"] == "Active")),
     ("  Inactive", sum(1 for x in rows if x["status"] == "Inactive")),
     ("  Incomplete", sum(1 for x in rows if x["status"] == "Incomplete")),
     ("Inactive / Incomplete with a reason from Amazon", sum(1 for x in rows if x["status"] != "Active" and x["reason"])),
     ("Unique ASINs", len({x["asin"] for x in rows if x["asin"]})),
     ("Excluded: amzn.gr.* (Amazon's resale of returned items, not our SKUs)", n_grade),
-    ("ASIN not found in Amazon ES catalog", n_not_found),
+    (f"ASIN not found in Amazon {MK} catalog", n_not_found),
     ("No EAN in Amazon catalog", n_no_ean_amz),
     ("  of which EAN taken from SKU directory", n_ean_dir),
     ("  of which no EAN anywhere", n_no_ean),
@@ -518,12 +532,12 @@ summary = ([("TEST FILE", "Trial run — not for sending")] if TEST else []) + [
     ("  ASIN or listing not confirmed by Listings API",
      sum(1 for x in rows if "listing" in x["chk_kinds"])),
     ("Not buyable variants of a family (Inactive / Incomplete)",
-     f"{sum(1 for x in rows if x['inactive_child'])} — amazon.es/dp/<ASIN> may open another, buyable variant of the "
+     f"{sum(1 for x in rows if x['inactive_child'])} — {DOMAIN}/dp/<ASIN> may open another, buyable variant of the "
      f"same family; the row data belongs to the ASIN in the row, not to the page that opens"),
     ("Check", "Checked against live Amazon data before the file was saved: ASIN against the live listing, "
               "ASIN in Amazon catalog, main image in our listing. Empty — the row is confirmed; otherwise the "
               "reason is given. Check says nothing about the photo shown on the Amazon product page"),
-    ("Source", "SP-API Catalog Items 2022-04-01 and Listings Items 2021-08-01, Amazon.es, fresh request at export time"),
+    ("Source", f"SP-API Catalog Items 2022-04-01 and Listings Items 2021-08-01, {DOMAIN.capitalize()}, fresh request at export time"),
 ]
 s2 = wb.create_sheet("TEST Summary" if TEST else "Summary")
 for k, v in summary:
@@ -538,15 +552,15 @@ os.makedirs(OUT_DIR, exist_ok=True)
 if TEST:
     s2["A1"].font = Font(bold=True, color="C00000")
     s2["B1"].font = Font(bold=True, color="C00000")
-tmp = f"/tmp/amazon_es_catalog_{stamp}.xlsx"
+tmp = f"/tmp/amazon_{mk}_catalog_{stamp}.xlsx"
 wb.save(tmp)
-name = f"{'TEST_' if TEST else ''}amazon_es_catalog_{stamp}.xlsx"
+name = f"{'TEST_' if TEST else ''}amazon_{mk}_catalog_{stamp}.xlsx"
 shutil.copy(tmp, f"{OUT_DIR}/{name}")
 if not TEST:
-    shutil.copy(tmp, f"{OUT_DIR}/amazon_es_catalog_latest.xlsx")
+    shutil.copy(tmp, f"{OUT_DIR}/amazon_{mk}_catalog_latest.xlsx")
 print(f"✅ {OUT_DIR}/{name}")
 
-result = {"file": f"{OUT_DIR}/{name}", "rows": n, "asins": len(asins), "not_found": n_not_found,
+result = {"marketplace": MK, "file": f"{OUT_DIR}/{name}", "rows": n, "asins": len(asins), "not_found": n_not_found,
           "no_ean_amazon": n_no_ean_amz, "ean_from_dir": n_ean_dir, "no_ean": n_no_ean,
           "multi_ean": n_multi, "lt7": n_lt7, "pt_max": pt_max, "other_variants": other_variants,
           "listing_date": listing_date,
