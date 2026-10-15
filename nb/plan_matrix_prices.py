@@ -627,8 +627,11 @@ _pg2 = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.clo
                             endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary").token)
 _c2 = _pg2.cursor()
 _c2.execute("SELECT key, value FROM kabinet_data.reorder_params WHERE key IN ('plan_price_sheet_write', "
-            "'plan_price_sheet_guard_drop_pct')")
+            "'plan_price_sheet_guard_drop_pct') OR key LIKE 'plan_price_sheet_skip_%'")
 _P2 = {k: float(v) for k, v in _c2.fetchall()}
+# вкладка на паузе: plan_price_sheet_skip_<вкладка> = 1 (например plan_price_sheet_skip_LM_ES) — её avg_* не трогаем,
+# в ней остаётся прошлая запись. Решение по одной площадке не должно останавливать запись остальных.
+_SKIP = {k[len("plan_price_sheet_skip_"):] for k, v in _P2.items() if k.startswith("plan_price_sheet_skip_") and v == 1}
 _WRITE = _P2.get("plan_price_sheet_write", 0) == 1
 _DROP = _P2.get("plan_price_sheet_guard_drop_pct", 30)
 _to_source = _TARGET == _SRC_KEY
@@ -670,6 +673,13 @@ else:
     _grey = _rgb("d9d9d9")
     _alerts, _written = [], []
     for mk, tab in _TAB_OF.items():
+        if tab in _SKIP:
+            with _pg2, _pg2.cursor() as _c:
+                _c.execute("""INSERT INTO kabinet_data.plan_price_sheet_log (target_sheet, tab, n_rows, n_prices, status, note)
+                              VALUES (%s, %s, 0, 0, 'skipped', %s)""",
+                           (_TARGET, "avg_" + tab, f"на паузе: plan_price_sheet_skip_{tab} = 1"))
+            print(f"⏸ avg_{tab}: на паузе (plan_price_sheet_skip_{tab} = 1) — не трогаю")
+            continue
         vals = _rows_of[tab]
         n_rows = max(len(vals), 4)
         name_of = {i: (r[0] if len(r) > 0 else "", r[1] if len(r) > 1 else "") for i, r in enumerate(vals)}
