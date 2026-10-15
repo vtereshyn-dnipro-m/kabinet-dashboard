@@ -393,13 +393,16 @@ for sku, price in q("SELECT shop_sku, price FROM kabinet_data.raw_lm_offers WHER
 # сохраняет цену (plan_price_lm_rejected_offer = 1): цена у нас и у площадки есть, отклонение часто временное — 15.10.2026
 # каталог LM отклонил 302 оффера из 357 за одно утро. Выключенный по другой причине (снят нами, нет цены) — нет.
 if LM_REJECTED:
-    for sku, price, why in q("""SELECT shop_sku, price, inactivity_reasons FROM kabinet_data.raw_lm_offers
+    for sku, price, why, loaded in q("""SELECT shop_sku, price, inactivity_reasons,
+                                      (loaded_at AT TIME ZONE 'Europe/Madrid')::date
+                               FROM kabinet_data.raw_lm_offers
                                WHERE NOT active AND price > 0
                                  AND inactivity_reasons ~ 'PRODUCT_STATUS_(REJECTED|NEW)'"""):
         k = ("LM-ES", norm(sku))
         if k not in offers:
             offers[k].append(float(price))
-            offer_note[k] = "оффер выключен каталогом LM (" + why + ") — цена оффера"
+            # тот же текст уходит заметкой в ячейку вкладки avg_LM_ES (ячейка 3)
+            offer_note[k] = f"LM отклонил оффер ({why}), цена оффера на {loaded:%d.%m}"
 
 for sku, price, disc, d_from, d_to in q("""
         SELECT shop_sku, price, discount_price, discount_start, discount_end FROM kabinet_data.raw_cf_offers
@@ -661,8 +664,13 @@ else:
     _months = set()
     for mk, sku, m, price, src, fr, cd, dnote, comp in _c2.fetchall():
         # заметка к ячейке — только там, где цена не «на дату»: оффер Mirakl у месяца, замороженного задним числом
-        cnote = (f"цена на {comp.astimezone(ZoneInfo('Europe/Kyiv')):%d.%m}, истории офферов нет"
-                 if dnote and "оффер на дату расчёта недоступен" in dnote else None)
+        _parts = []
+        if dnote and "оффер на дату расчёта недоступен" in dnote:
+            _parts.append(f"цена на {comp.astimezone(ZoneInfo('Europe/Kyiv')):%d.%m}, истории офферов нет")
+        _rej = __import__("re").search(r"LM отклонил оффер \([^)]*\), цена оффера на \d\d\.\d\d", dnote or "")
+        if _rej:                          # цена отклонённого оффера LM (plan_price_lm_rejected_offer) — видно в ячейке
+            _parts.append(_rej.group(0))
+        cnote = "; ".join(_parts) or None
         _pm[(mk, sku, m)] = (price, src, fr, cd, cnote)
         _months.add(m)
     _c2.execute("""SELECT d.marketplace, d.sku FROM kabinet_data.plan_price_daily d
