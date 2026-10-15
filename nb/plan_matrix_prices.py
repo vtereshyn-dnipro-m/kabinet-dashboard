@@ -182,6 +182,7 @@ MIN_UNITS = int(P.get("plan_price_min_units", 3))
 FREEZE_DAY = int(P.get("plan_price_freeze_day", 15))
 SCRAPE_DIFF = float(P.get("plan_price_scrape_diff_pct", 15))
 MONTHS_AHEAD = int(P.get("plan_price_months_ahead", 15))
+LM_REJECTED = P.get("plan_price_lm_rejected_offer", 0) == 1
 print(f"сегодня {TODAY}; окно продаж {SALES_DAYS} дн, витрины {LIST_DAYS} дн, минимум {MIN_UNITS} шт, "
       f"заморозка после {FREEZE_DAY}-го" + ("; DRY RUN — без записи" if DRY else ""))
 
@@ -385,8 +386,21 @@ for mk, asin, d, bb, ours in q("""
 
 # ── Офферы Mirakl: текущая цена активного оффера (истории офферов нет) ──
 offers = defaultdict(list)                       # (code, sku) → цены
+offer_note = {}                                  # (code, sku) → почему цена взята у неактивного оффера
 for sku, price in q("SELECT shop_sku, price FROM kabinet_data.raw_lm_offers WHERE active AND price > 0"):
     offers[("LM-ES", norm(sku))].append(float(price))
+# Оффер, который Leroy Merlin выключил из-за решения СВОЕГО каталога (товар отклонён или ещё не принят), для плана
+# сохраняет цену (plan_price_lm_rejected_offer = 1): цена у нас и у площадки есть, отклонение часто временное — 15.10.2026
+# каталог LM отклонил 302 оффера из 357 за одно утро. Выключенный по другой причине (снят нами, нет цены) — нет.
+if LM_REJECTED:
+    for sku, price, why in q("""SELECT shop_sku, price, inactivity_reasons FROM kabinet_data.raw_lm_offers
+                               WHERE NOT active AND price > 0
+                                 AND inactivity_reasons ~ 'PRODUCT_STATUS_(REJECTED|NEW)'"""):
+        k = ("LM-ES", norm(sku))
+        if k not in offers:
+            offers[k].append(float(price))
+            offer_note[k] = "оффер выключен каталогом LM (" + why + ") — цена оффера"
+
 for sku, price, disc, d_from, d_to in q("""
         SELECT shop_sku, price, discount_price, discount_start, discount_end FROM kabinet_data.raw_cf_offers
         WHERE active AND price > 0"""):
@@ -498,7 +512,8 @@ def compute(as_of):
             elif offers.get(k):
                 out[k] = (round(sum(offers[k]) / len(offers[k]), 2), "offer", units or None,
                           round(rev, 2) if sold else None, len(offers[k]),
-                          few + ("оффер на дату расчёта недоступен — взят текущий" if backfill else "текущий оффер"))
+                          few + ("оффер на дату расчёта недоступен — взят текущий" if backfill else "текущий оффер")
+                          + (f"; {offer_note[k]}" if k in offer_note else ""))
             elif sold:                           # меньше порога, но цены листинга нет — цена продаж лучше пустоты
                 out[k] = (round(rev / units, 2), "sales", units, round(rev, 2), None,
                           few + f"цены листинга нет; {s_from}…{as_of}")
