@@ -1327,6 +1327,8 @@ Loader` в 06:00, поэтому правки словаря доезжают д
 
 ## Экспорт каталога Amazon ES для Марко
 
+**С 15.10.2026 рынок — параметр `marketplace`** (ES по умолчанию, FR, IT, DE): тот же ноутбук и та же джоба, файлы `amazon_<рынок>_catalog_<дата>.xlsx` и `…_latest.xlsx` в папке `/Volumes/dnipro_m/dnipro_m/kabinet_raw/exports/amazon_<рынок>_catalog/`. Рынок в отчёте листингов ищется по `marketplace_name` («France (FR)», «Italy (IT)»), запросы SP-API — с id рынка. Запуск без параметра даёт прежний испанский файл.
+
 Джоба `Kabinet - Amazon ES Catalog Export` (1023271221032583), запуск вручную, без расписания и пульса. Файл —
 `/Volumes/dnipro_m/dnipro_m/kabinet_raw/exports/amazon_es_catalog/`, `…_latest.xlsx` всегда последний. Всё на
 английском (решение владельца 06.10.2026). Источник кода — `nb/amazon_es_catalog_export.py`: правка идёт PR'ом, проба —
