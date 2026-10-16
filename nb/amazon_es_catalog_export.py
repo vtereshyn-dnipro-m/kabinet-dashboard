@@ -21,11 +21,14 @@
 # MAGIC   товаров (Grade & Resell), а не наши, поэтому их в выгрузке нет.
 # MAGIC - EAN — **свежий запрос** SP-API Catalog Items 2022-04-01 (`searchCatalogItems` по 20 ASIN),
 # MAGIC   рынок ES. Не старые снимки витрины.
-# MAGIC - Изображения (с 14.10.2026, решение владельца) — из НАШЕГО листинга, Listings Items
-# MAGIC   (`main_product_image_locator`, `other_product_image_locator_N` → PTNN): то, что мы сами
-# MAGIC   загрузили. Каталог Amazon — только если в листинге картинок нет вовсе; нет одного главного —
-# MAGIC   главное из каталога. Пустые слоты PT добираются из каталога, только если главное фото
-# MAGIC   каталога совпало с нашим, и только снимками, которых в листинге нет. Откуда — Image source.
+# MAGIC - Изображения (с 16.10.2026, решение владельца) — по статусу листинга. Active — фото каталога Amazon
+# MAGIC   (у покупаемого ASIN это живая страница; фото нашего листинга бывает устаревшим, как у 54477000).
+# MAGIC   Inactive / Incomplete — фото НАШЕГО листинга, Listings Items (`main_product_image_locator`,
+# MAGIC   `other_product_image_locator_N` → PTNN): у неактивного варианта каталог отдаёт фото соседа (58614000).
+# MAGIC   В листинге неактивной строки фото нет — пусто, в Check «No photos in our listing — need to upload»
+# MAGIC   (84107000); каталог у неактивных не берём. Пустые слоты PT у строк с фото листинга добираются из
+# MAGIC   каталога, только если главное фото каталога совпало с нашим.
+# MAGIC   Откуда — Image source.
 # MAGIC - EAN, которого нет в каталоге Amazon, берём из справочника SKU Кабинета (`kabinet_data.sku_master`)
 # MAGIC   и пишем отдельной колонкой, откуда он. Код ищем как есть и в очищенном виде (без `-FBA`,
 # MAGIC   `-FBM`, хвостового `_`, «` 2`» → «`-2`»), но НЕ откатываем к базовому коду: у варианта `-B`
@@ -72,6 +75,8 @@ SRC_AMAZON, SRC_DIR, SRC_NONE = "Amazon catalog", "SKU directory", "none"
 # владельца 14.10.2026: каталог у неактивного варианта отдаёт фото соседа по семейству.
 IMG_LISTING, IMG_LISTING_CAT_MAIN, IMG_CATALOG = "Our listing", "Our listing, main image from Amazon catalog", "Amazon catalog"
 IMG_LISTING_CAT_EXTRA = "Our listing + extra images from Amazon catalog"
+IMG_CATALOG_LIVE = "Amazon catalog (live page, active listing)"
+IMG_NONE_INACTIVE = "None: not active, our listing has no images"
 import requests
 from databricks.sdk import WorkspaceClient
 from openpyxl import Workbook
@@ -320,15 +325,21 @@ for r in lst.itertuples():
         other_variants[v] = other_variants.get(v, 0) + 1
     cat_imgs = {v: best[v][1] for v in sorted(best, key=pt_key)}
     lst_imgs = (live.get(r.seller_sku) or {}).get("imgs") or {}
-    # Картинки — из нашего листинга; каталог — только если в листинге картинок нет вовсе.
-    # Нет в листинге одного главного (4 строки на 14.10) — главное из каталога, и это видно в Image source.
-    if lst_imgs:
-        imgs = dict(lst_imgs)
-        img_src = IMG_LISTING
-        if "MAIN" not in imgs and cat_imgs.get("MAIN"):
-            imgs["MAIN"], img_src = cat_imgs["MAIN"], IMG_LISTING_CAT_MAIN
+    # Картинки по статусу (решение владельца 16–17.10.2026, разбор 54477000):
+    #  • Active — фото каталога Amazon: у покупаемого ASIN это и есть живая страница. Фото нашего листинга бывает
+    #    устаревшим вкладом, который Amazon не показывает: у 54477000 (FBM, BUYABLE) в листинге 41XmNeOeSEL, а на
+    #    странице и в каталоге 81vTSoBngGL. Каталога нет — листинг;
+    #  • Inactive / Incomplete — ТОЛЬКО фото нашего листинга: у неактивного варианта каталог отдаёт фото соседа
+    #    (58614000 — фото SA i120). Нет в листинге фото (или главного) — пусто, в Check «нужно загрузить»
+    #    (84107000); каталог у неактивных не берём вовсе.
+    if r.status == "Active" and cat_imgs:
+        imgs, img_src = dict(cat_imgs), IMG_CATALOG_LIVE
+    elif lst_imgs:
+        imgs, img_src = dict(lst_imgs), IMG_LISTING
+    elif r.status != "Active":
+        imgs, img_src = {}, IMG_NONE_INACTIVE
     else:
-        imgs, img_src = cat_imgs, (IMG_CATALOG if cat_imgs else SRC_NONE)
+        imgs, img_src = {}, SRC_NONE
     order = sorted(imgs, key=pt_key)
     rows.append({
         "sku": r.seller_sku, "asin": r.asin or "", "title": title(it) if it else None,
@@ -392,11 +403,10 @@ for x in rows:
         x["match"] = MATCH_PARENT
     elif not cat_main:
         x["match"] = MATCH_NA
-        if x["in_catalog"] and lv is not None and not ours:
+        if x["status"] == "Active" and x["in_catalog"] and lv is not None and not ours:
             chk.append(("image_na", "No main image in our listing or in Amazon catalog"))
     elif lv is not None and not ours:
         x["match"] = MATCH_NA
-        chk.append(("image_na", "Our listing has no main image — main image is taken from Amazon catalog"))
     elif lv is None:
         x["match"] = MATCH_NA
     elif img_id(ours) == img_id(cat_main):
@@ -411,6 +421,10 @@ for x in rows:
             x["match"] = MATCH_SAME
         else:
             x["match"] = MATCH_DIFF
+    # неактивная строка берёт фото только из нашего листинга (17.10.2026): нет — пусто и просьба загрузить
+    if x["status"] != "Active" and not x["imgs"].get("MAIN"):
+        chk.append(("upload", "No photos in our listing — need to upload" if not x["imgs"]
+                    else "No main photo in our listing — need to upload"))
     x["check"] = "; ".join(t for _, t in chk)
     x["chk_kinds"] = {k for k, _ in chk}
     x["inactive_child"] = x["status"] != "Active" and x["rel"][1] and not x["parent"]
@@ -522,7 +536,7 @@ summary = ([("TEST FILE", "Trial run — not for sending")] if TEST else []) + [
                "image is the same picture as ours, and only with pictures not already in our listing. Amazon "
                "catalog images for the whole row only when our listing has no images at all"),
     ("Image source", ", ".join(f"{v_}: {sum(1 for x in rows if x['img_src'] == v_)}"
-                               for v_ in (IMG_LISTING, IMG_LISTING_CAT_EXTRA, IMG_LISTING_CAT_MAIN, IMG_CATALOG, SRC_NONE))),
+                               for v_ in (IMG_LISTING, IMG_LISTING_CAT_EXTRA, IMG_LISTING_CAT_MAIN, IMG_CATALOG, IMG_CATALOG_LIVE, IMG_NONE_INACTIVE, SRC_NONE))),
     ("Status", "Listing status from Amazon's listings report: Active, Inactive, Incomplete; rows are sorted in that order"),
     ("Inactive reason", "Listing issues from SP-API Listings Items as Amazon returns them (severity: message); "
                         "empty when Amazon returns no issue — nothing is inferred"),
@@ -531,6 +545,8 @@ summary = ([("TEST FILE", "Trial run — not for sending")] if TEST else []) + [
      sum(1 for x in rows if "image_na" in x["chk_kinds"])),
     ("  ASIN or listing not confirmed by Listings API",
      sum(1 for x in rows if "listing" in x["chk_kinds"])),
+    ("  Not active, no photos in our listing — need to upload",
+     sum(1 for x in rows if "upload" in x["chk_kinds"])),
     ("Not buyable variants of a family (Inactive / Incomplete)",
      f"{sum(1 for x in rows if x['inactive_child'])} — {DOMAIN}/dp/<ASIN> may open another, buyable variant of the "
      f"same family; the row data belongs to the ASIN in the row, not to the page that opens"),
@@ -571,7 +587,7 @@ result = {"marketplace": MK, "file": f"{OUT_DIR}/{name}", "rows": n, "asins": le
           "test": TEST, "check_rows": n_check,
           "catalog_main_vs_listing": {m_: sum(1 for x in rows if x["match"] == m_) for m_ in (MATCH_SAME, MATCH_DIFF, MATCH_NA, MATCH_PARENT)},
           "inactive_children": sum(1 for x in rows if x["inactive_child"]),
-          "img_src": {v_: sum(1 for x in rows if x["img_src"] == v_) for v_ in (IMG_LISTING, IMG_LISTING_CAT_EXTRA, IMG_LISTING_CAT_MAIN, IMG_CATALOG, SRC_NONE)},
-          "check_kinds": {k_: sum(1 for x in rows if k_ in x["chk_kinds"]) for k_ in ("image_na", "listing")}}
+          "img_src": {v_: sum(1 for x in rows if x["img_src"] == v_) for v_ in (IMG_LISTING, IMG_LISTING_CAT_EXTRA, IMG_LISTING_CAT_MAIN, IMG_CATALOG, IMG_CATALOG_LIVE, IMG_NONE_INACTIVE, SRC_NONE)},
+          "check_kinds": {k_: sum(1 for x in rows if k_ in x["chk_kinds"]) for k_ in ("image_na", "listing", "upload")}}
 print(json.dumps(result, ensure_ascii=False))
 dbutils.notebook.exit(json.dumps(result, ensure_ascii=False))  # noqa: F821
