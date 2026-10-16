@@ -1800,7 +1800,7 @@ Spiderweb — и только перезапускать.** Код, настро
 чего-либо из этого — по-прежнему только с её отдельного согласия. Перезапуск идёт под владельцем Кабинета (он
 администратор воркспейса), сами джобы исполняются под ней — так же, как её плановый запуск.
 
-Джоба `Kabinet - Power BI Self-Heal` (каждые 30 мин 10:15–17:45 Kyiv, под владельцем, источник `nb/pbi_self_heal.py`,
+Джоба `Kabinet - Power BI Self-Heal` (каждые 30 мин 11:15–17:45 Kyiv; до 16.10.2026 — с 10:15, но первый запуск шёл раньше конца сборки витрины `Test spiderweb Amazon` (старт 10:00, ~20 мин) и сторож держал тревогу `schedule_order`, под владельцем, источник `nb/pbi_self_heal.py`,
 журнал решений — `kabinet_data.pbi_self_heal_log`). Какие джобы считаются источником — данные, а не код:
 `kabinet_data.pbi_source_jobs` (роль `amazon` — шесть её Amazon-джоб: Sales & Traffic, FBA Fees + Listings, Ads First и
 Second, SendCloud tracking, Ledger Summary; роль `spiderweb` — `Test spiderweb Amazon`). Amazon-джоба — та, что ходит в
