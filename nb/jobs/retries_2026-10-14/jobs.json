@@ -109,13 +109,6 @@
    ]
   },
   {
-   "job_id": 821057250140489,
-   "name": "Kabinet - FBA Shipments Loader",
-   "tasks": [
-    "load"
-   ]
-  },
-  {
    "job_id": 742197017270185,
    "name": "Kabinet - FX Rates",
    "tasks": [
@@ -375,6 +368,11 @@
    "job_id": 936210060909607,
    "name": "Kabinet - Запасной прогон после Ledger Summary",
    "why": "страховка вечерней цепочки — решает сама, повтор сломал бы её логику"
+  },
+  {
+   "job_id": 821057250140489,
+   "name": "Kabinet - FBA Shipments Loader",
+   "why": "с 16.10.2026 без повторов: на 429 createReport не ждёт и не повторяет — повтор джобы снова занял бы квоту аккаунта"
   }
  ]
 }

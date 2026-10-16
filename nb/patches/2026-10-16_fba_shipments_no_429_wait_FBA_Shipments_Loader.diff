@@ -1,0 +1,32 @@
+--- a/Kabinet - FBA Shipments Loader
++++ b/Kabinet - FBA Shipments Loader
+@@ -95,12 +95,13 @@
+ 
+ 
+ def api(method, path, **kw):
+-    # createReport — один запрос в минуту на весь аккаунт продавца (AGENTS.md): ждём терпеливо.
+-    # Пауза 65 с, а не 60: при ровно минутном шаге запрос попадает в момент, когда токен ещё не
+-    # выдан, и клиент может простоять в 429 сколько угодно — 26.09.2026 так сгорели два добора
+-    # по сорок попыток. Загрузчик SQP с шагом 65 с в тех же сутках создал 265 отчётов без отказов.
++    # createReport — квота аккаунта продавца, общая с чужими джобами (AGENTS.md). На 429 НЕ ждём и НЕ
++    # повторяем (решение владельца 16.10.2026): 16.10 этот загрузчик с 15:30 до 16:57 стучался в Amazon
++    # каждые 65 с (40 попыток × три автоповтора джобы) и держал занятой квоту, на которой в 16:20 стоял
++    # Ledger Summary аналитика. Отгрузки дочитает завтрашний прогон: окно перечитывается целиком.
++    # Чтение статуса и документа квоту createReport не тратит — там терпение оставлено.
+     is_create = method.lower() == "post" and path.endswith("/reports")
+-    tries, pause = (40, 65) if is_create else (10, 15)
++    tries, pause = (1, 0) if is_create else (10, 15)
+     for attempt in range(tries):
+         r = requests.request(method, SP_API_EU + path,
+                              headers={"x-amz-access-token": token()}, timeout=90, **kw)
+@@ -115,8 +116,8 @@
+             print(f"   HTTP {r.status_code} {path}: {r.text[:300]}")
+         r.raise_for_status(); return r.json()
+     # [QUOTA_429] — маркер для сторожа: исчерпанная квота, а не поломка кода
+-    raise RuntimeError(f"[QUOTA_429] {tries} попыток по {pause} с, всё 429: {path}; "
+-                       f"лимит по словам Amazon: {_limits}")
++    raise RuntimeError(f"[QUOTA_429] {'createReport: 429, без повтора' if is_create else f'{tries} попыток, всё 429'}: "
++                       f"{path}; лимит по словам Amazon: {_limits}")
+ 
+ 
+ def fetch_report(mp_id, start, end):
