@@ -1,0 +1,13 @@
+{
+  "name": "Kabinet - Amazon Ads Invoices",
+  "description": "Счета Amazon Ads (Billing API) по всем рекламным профилям → dnipro_m.raw_amazon_ads_invoices и raw_amazon_ads_invoice_fees (регуляторный сбор по странам). Каждый прогон перечитывает всю историю API, MERGE. Квоту createReport не трогает. Параметр dry_run=1 — без записи. Источник — nb/ads_invoices_loader.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 50 8 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default",
+                    "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "invoices", "environment_key": "default", "timeout_seconds": 1200,
+     "max_retries": 2, "min_retry_interval_millis": 600000,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Amazon Ads Invoices", "source": "WORKSPACE"}}
+  ]
+}
