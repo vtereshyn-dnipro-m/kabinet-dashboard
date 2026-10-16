@@ -1,0 +1,14 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -104,8 +104,9 @@
+     # ── Odoo / ERP (ежедневные) — date_column уже есть событийная дата ──
+     ("dnipro_m.dnipro_m.raw_odoo_stock", "report_date", 36,
+      None, None, "spark", "DATA_OWNER", "Остатки Odoo все склады. 07:00 UTC."),
+-    ("dnipro_m.dnipro_m.raw_odoo_madrid_stock", "report_date", 36,
+-     None, None, "spark", "DATA_OWNER", "Мадрид Odoo. Следует за raw_odoo_stock."),
++    # raw_odoo_madrid_stock (только Мадрид) аналитик не пишет с 12.10.2026; Кабинет с 16.10 читает Мадрид из
++    # raw_odoo_stock (склад «RS Spain Madrid (Stock)»), её свежесть проверяет правило выше. Правило на старую таблицу
++    # выключено в базе (sql/madrid_stock_from_odoo_stock_2026-10-16.sql) — здесь его нет, чтобы seed не включил его снова.
+     ("dnipro_m.raw_erp_inventory_stock_auto", "created_at", 36,
+      None, None, "spark", "DATA_OWNER", "ERP остатки (5 складов PL). ~11:30 UTC."),
+ 
