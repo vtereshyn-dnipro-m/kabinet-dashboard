@@ -1,7 +1,7 @@
 # Databricks notebook source
 # DBTITLE 1,Kabinet - Power BI Self-Heal: перезапуск упавшей утренней сборки витрины и тревоги источника
 # Kabinet - Power BI Self-Heal (с 14.10.2026, решение владельца; разрешение владельца витрины на перезапуск — 14.10.2026).
-# Каждые 30 минут с 11:15 до 17:45 Kyiv (до 16.10.2026 — с 10:15), под владельцем: он администратор и может запускать чужие джобы, читает журнал
+# Каждые 30 минут с 11:15 до 20:45 Kyiv (до 16.10.2026 — с 10:15 до 17:45; вечер добавлен ради проверки п. 3), под владельцем: он администратор и может запускать чужие джобы, читает журнал
 # Delta и Jobs API.
 #
 # Зачем. 13.10.2026 истёк ключ SP-API, утренние Amazon-джобы витрины упали, витрина Power BI собралась неполной, и
@@ -15,6 +15,13 @@
 #   2) тревоги: витрина не обновилась до pbi_source_late_hour (12:00); реплика не сработала по записи (запись в витрину
 #      была, а прогона реплики с триггером TABLE после неё нет); у джобы источника сменилось расписание, ноутбук или
 #      таблицы, которые она пишет (сообщение один раз, затем новая точка отсчёта).
+#   3) молчаливый сбой чужой джобы (с 16.10.2026, решение владельца): джоба аналитика «успешна», а её таблица не
+#      обновилась — так 16.10 Ledger Summary получил 429 на createReport, ошибку проглотил и ничего не записал. Какие
+#      джобы и таблицы проверять — kabinet_data.source_job_checks (начали с Ledger Summary). Сбой → тревога в бот и ОДИН
+#      перезапуск этого прогона: не раньше source_silent_restart_after_min (30) минут после его конца и не в окно чужих
+#      отчётов (джобы из kabinet_data.report_quota_jobs: идёт сейчас или стартует по расписанию раньше, чем перезапуск
+#      успеет кончиться, с запасом source_silent_quota_buffer_min). Перезапуск тоже ничего не записал — тревога «не
+#      помогло», больше не перезапускаем. Код чужих джоб не трогаем — только наш мониторинг;
 # Тревоги о витрине — в основной чат и второму адресату (kabinet-alerts/telegram-chat-id-darina, если секрет заведён);
 # о смене расписания — только в основной. Журнал решений — kabinet_data.pbi_self_heal_log, один перезапуск в день держит
 # он же. Метка пульса — последней и безусловно.
@@ -96,6 +103,24 @@ with pg() as c, c.cursor() as cur:
     GUARD_AGE_MIN = (now - _g[0]).total_seconds() / 60 if _g and _g[0] else None
     cur.execute("SELECT job_id, writes FROM kabinet_data.job_schedule_snapshot")
     SNAP_WRITES = {int(j): sorted(wr or []) for j, wr in cur.fetchall()}
+    cur.execute("""SELECT key, value FROM kabinet_data.reorder_params
+                   WHERE key IN ('source_silent_restart_after_min', 'source_silent_quota_buffer_min')""")
+    _sp = {k: float(v) for k, v in cur.fetchall()}
+    SILENT_AFTER = _sp.get("source_silent_restart_after_min", 30)
+    QUOTA_BUF = _sp.get("source_silent_quota_buffer_min", 10)
+    CHECKS, QUOTA_JOBS, SLOTS = [], {}, {}
+    try:
+        cur.execute("""SELECT job_id, job_name, table_name FROM kabinet_data.source_job_checks
+                       WHERE is_active ORDER BY job_name""")
+        CHECKS = [dict(zip(("job_id", "job_name", "table"), r)) for r in cur.fetchall()]
+        cur.execute("SELECT job_id, job_name FROM kabinet_data.report_quota_jobs WHERE is_active")
+        QUOTA_JOBS = {int(j): n for j, n in cur.fetchall()}
+        cur.execute("SELECT job_id, slots, median_min FROM kabinet_data.job_schedule_snapshot")
+        SLOTS = {int(j): (sl or [], float(md) if md is not None else None) for j, sl, md in cur.fetchall()}
+    except Exception as e:                          # таблиц ещё нет (SQL не применён) — проверка молчит, витрина работает
+        c.rollback()
+        CHECKS = []
+        print(f"проверка молчаливых сбоев выключена: {type(e).__name__}: {str(e)[:150]}")
 if WATCH_SINCE is None:
     WATCH_SINCE = now                                    # первый прогон: точка отсчёта — сейчас
 amazon_jobs = [s for s in SRC if s["role"] == "amazon"]
@@ -256,6 +281,102 @@ for s in SRC:
         changes.append((s, "; ".join(diff)))
         baselines.append((s["job_id"], cur_))
 
+# ── молчаливый сбой: джоба «успешна», а её таблица не обновилась ──
+WRITE_OPS = ("WRITE", "MERGE", "UPDATE", "DELETE", "CREATE OR REPLACE TABLE AS SELECT", "REPLACE TABLE AS SELECT",
+             "CREATE TABLE AS SELECT", "COPY INTO", "STREAMING UPDATE")
+ACTIVE = ("PENDING", "QUEUED", "RUNNING", "BLOCKED", "WAITING_FOR_RETRY", "TERMINATING")
+silent_restarts = {}                                    # исходный прогон → наш перезапуск (журнал за сегодня)
+for l in LOG:
+    if l["kind"] == "silent_restart":
+        try:
+            silent_restarts[int(json.loads(l["detail"])["origin_run"])] = l["run_id"]
+        except Exception:
+            pass
+our_restart_runs = {v for v in silent_restarts.values() if v}
+
+
+def quota_busy(need_min):
+    """Чужие отчёты: идёт сейчас или стартует раньше, чем успеет кончиться перезапуск (+ запас)."""
+    busy = []
+    horizon = now_k + dt.timedelta(minutes=need_min + QUOTA_BUF)
+    for jid, name in QUOTA_JOBS.items():
+        r = next(iter(w.jobs.list_runs(job_id=jid, active_only=True, limit=1)), None)
+        if r is not None:
+            busy.append(f"идёт {name}")
+            continue
+        for sl in SLOTS.get(jid, ([], None))[0]:
+            if sl.get("after") or not sl.get("t") or now_k.isoweekday() not in (sl.get("dows") or []):
+                continue
+            hh, mm = map(int, sl["t"].split(":"))
+            st = now_k.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            dur = sl.get("p90_min") or sl.get("median_min") or 10
+            if st <= horizon and st + dt.timedelta(minutes=dur) >= now_k:
+                busy.append(f"{name} {sl['t']}–{(st + dt.timedelta(minutes=dur)):%H:%M}")
+    return busy
+
+
+def table_writes(table, since):
+    hist = spark.sql(f"DESCRIBE HISTORY {table} LIMIT 200").collect()
+    out = []
+    for h in hist:
+        ts = h["timestamp"].replace(tzinfo=dt.timezone.utc) if h["timestamp"].tzinfo is None else h["timestamp"]
+        if ts >= since and any(str(h["operation"]).startswith(op) for op in WRITE_OPS):
+            out.append(ts)
+    return sorted(out)
+
+
+silent_found = []
+for chk in CHECKS:
+    jid, name, table = int(chk["job_id"]), chk["job_name"], chk["table"]
+    tok, tok2 = f"[SRCSILENT:{jid}]", f"[SRCSILENT:{jid}:retry]"
+    try:
+        runs = [r for r in w.jobs.list_runs(job_id=jid, start_time_from=day_start_ms, limit=10)
+                if lstate(r) in ("TERMINATED", "INTERNAL_ERROR")]
+        if not runs:
+            continue
+        last = max(runs, key=lambda r: r.start_time)
+        if rstate(last) != "SUCCESS":
+            continue                                     # явное падение — не наш случай (его видят job_health и п. 1)
+        st_ = dt.datetime.fromtimestamp(last.start_time / 1000, dt.timezone.utc)
+        en_ = dt.datetime.fromtimestamp(last.end_time / 1000, dt.timezone.utc)
+        wrote = [t for t in table_writes(table, st_) if t <= en_ + dt.timedelta(minutes=5)]
+        if wrote:
+            resolve[tok] = f"прогон {kyiv(last.start_time, '%H:%M')} записал таблицу {kyiv(wrote[-1], '%H:%M')}"
+            resolve[tok2] = resolve[tok]
+            continue
+        prev = table_writes(table, st_ - dt.timedelta(days=3))
+        last_w = f"последняя запись {kyiv(prev[-1])}" if prev else "записей за 3 дня нет"
+        what = (f"{name}: прогон {kyiv(last.start_time, '%H:%M')}–{kyiv(last.end_time, '%H:%M')} отмечен успешным, но таблица "
+                f"{table.split('.')[-1]} не обновилась ({last_w}) — скорее всего, ошибка внутри ноутбука проглочена "
+                f"(16.10 так было с 429 на createReport).")
+        silent_found.append(name)
+        if last.run_id in our_restart_runs:
+            alerts[tok2] = ("source_silent_fail", "high", what + " Это уже наш перезапуск — второй раз не перезапускаю, "
+                            "нужно разобраться вручную.", True)
+            continue
+        if last.run_id in silent_restarts:
+            continue                                     # перезапуск заказан, ждём его конца
+        if any(lstate(r) in ACTIVE for r in w.jobs.list_runs(job_id=jid, active_only=True, limit=1)):
+            notes.append(f"{name}: молчаливый сбой, но джоба уже идёт — жду")
+            continue
+        waited = (now - en_).total_seconds() / 60
+        need = max([sl.get("p90_min") or sl.get("median_min") or 10 for sl in SLOTS.get(jid, ([], None))[0]] or [10])
+        busy = quota_busy(need) if waited >= SILENT_AFTER else []
+        if waited < SILENT_AFTER:
+            alerts[tok] = ("source_silent_fail", "high", what + f" Перезапущу один раз не раньше чем через "
+                           f"{int(SILENT_AFTER)} мин после конца прогона и вне окон чужих отчётов.", True)
+        elif busy:
+            alerts[tok] = ("source_silent_fail", "high", what + " Перезапущу один раз, когда освободится квота "
+                           "отчётов (сейчас: " + "; ".join(busy[:3]) + ").", True)
+        else:
+            run_id = None if DRY else w.jobs.run_now(job_id=jid).run_id
+            log_rows.append(("silent_restart", run_id, json.dumps({"job_id": jid, "origin_run": last.run_id,
+                                                                    "job_name": name}, ensure_ascii=False)))
+            alerts[tok] = ("source_silent_fail", "high", what + f" Перезапустил в {now_k:%H:%M} (окно чужих отчётов "
+                           f"свободно, после прогона прошло {int(waited)} мин).", True)
+    except Exception as e:
+        notes.append(f"проверка {name} не прошла: {type(e).__name__}: {str(e)[:150]}")
+
 # ── запись: журнал, инциденты, точки отсчёта ──
 def recipients(second):
     chats = [("основной", dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"))]
@@ -287,10 +408,12 @@ def esc(s):
 
 SEND_ERR, sent, closed = [], [], []
 TITLES = {"pbi_self_heal": "Самовосстановление витрины Power BI", "pbi_source_late": "Витрина Power BI не обновилась",
-          "pbi_trigger_missed": "Реплика Power BI не сработала по записи"}
+          "pbi_trigger_missed": "Реплика Power BI не сработала по записи",
+          "source_silent_fail": "Джоба отработала, а таблица не обновилась"}
 with pg() as c, c.cursor() as cur:
     cur.execute("""SELECT id, incident_type, message FROM kabinet_data.incidents
-                   WHERE incident_type IN ('pbi_self_heal', 'pbi_source_late', 'pbi_trigger_missed') AND status <> 'resolved'""")
+                   WHERE incident_type IN ('pbi_self_heal', 'pbi_source_late', 'pbi_trigger_missed', 'source_silent_fail')
+                     AND status <> 'resolved'""")
     open_inc = {}
     for iid, typ, msg in cur.fetchall():
         tok = re.match(r"\[[A-Z]+:[^\]]+\]", msg or "")
@@ -346,13 +469,14 @@ with pg() as c, c.cursor() as cur:
 
 note = (f"проблемы: {'; '.join(problems) or 'нет'}; ключи: {'не работают' if keys_bad else 'неизвестно' if keys_unknown else 'ок'}; "
         f"решения: {', '.join(k for k, _, _ in log_rows) or '—'}; тревог новых/обновлённых {len(sent)}, закрыто {len(closed)}; "
-        f"изменений у джоб источника {len(changes)}" + (f"; {'; '.join(notes)}" if notes else "")
+        f"изменений у джоб источника {len(changes)}; молчаливых сбоев {len(silent_found)}"
+        + (f" ({', '.join(silent_found)})" if silent_found else "") + (f"; {'; '.join(notes)}" if notes else "")
         + (f"; в бот НЕ ушло: {SEND_ERR}" if SEND_ERR else ""))
 print(("ПРОБА: " if DRY else "") + note)
 if DRY:
     dbutils.notebook.exit(json.dumps({"problems": problems, "alerts": {k: v[2][:300] for k, v in alerts.items()},
                                       "resolve": resolve, "log": log_rows, "changes": [(s["job_name"], d) for s, d in changes],
-                                      "keys_bad": keys_bad, "keys_unknown": keys_unknown}, ensure_ascii=False, default=str))
+                                      "keys_bad": keys_bad, "keys_unknown": keys_unknown, "silent": silent_found, "notes": notes}, ensure_ascii=False, default=str))
 
 # ── пульс — последним и безусловно ──
 with pg() as c, c.cursor() as cur:
