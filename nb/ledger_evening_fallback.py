@@ -21,6 +21,45 @@
 # COMMAND ----------
 
 import json
+
+
+def tg_to_subscribers(text):
+    """Копия тревоги подписчикам бота (kabinet_data.telegram_subscribers, status = 'active': /start в
+    @kabinet_dm_alerts_bot и разрешение владельца). Основной чат (владелец) шлёт вызывающий код как раньше и он
+    подписан всегда. Подписчикам — лучшим усилием: не дошло — причины в ответе, прогон из-за них не падает."""
+    import psycopg2 as _tg_pg, requests as _tg_rq
+    from databricks.sdk import WorkspaceClient as _TgWC
+    try:
+        _tg_w = _TgWC()
+        _tg_c = _tg_pg.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com", port=5432,
+                               dbname="databricks_postgres", user=_tg_w.current_user.me().user_name, sslmode="require",
+                               password=_tg_w.postgres.generate_database_credential(
+                                   endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary").token)
+        try:
+            with _tg_c.cursor() as _tg_cur:
+                _tg_cur.execute("SELECT chat_id FROM kabinet_data.telegram_subscribers WHERE status = 'active'")
+                _tg_subs = [str(r[0]) for r in _tg_cur.fetchall()]
+        finally:
+            _tg_c.close()
+    except Exception as e:
+        return [f"подписчики не прочитались: {type(e).__name__}: {str(e)[:120]}"]
+    _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
+    _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
+    _tg_errs = []
+    for _tg_chat in _tg_subs:
+        if _tg_chat == _tg_main:
+            continue
+        try:
+            _tg_r = _tg_rq.post(f"https://api.telegram.org/bot{_tg_tok}/sendMessage",
+                                json={"chat_id": _tg_chat, "text": text[:4000], "parse_mode": "HTML",
+                                      "disable_web_page_preview": True}, timeout=30)
+            if not _tg_r.ok:
+                _tg_errs.append(f"подписчик {_tg_chat}: {_tg_r.status_code} {_tg_r.text[:100]}")
+        except Exception as e:
+            _tg_errs.append(f"подписчик {_tg_chat}: {type(e).__name__}")
+    return _tg_errs
+
+
 import datetime as dt
 from zoneinfo import ZoneInfo
 import psycopg2, requests
@@ -109,6 +148,9 @@ with pg, pg.cursor() as cur:
                 send_error = f"{r.status_code}: {r.text[:200]}"
         except Exception as e:
             send_error = f"{type(e).__name__}: {str(e)[:200]}"
+        _sub = tg_to_subscribers("🔴 <b>Вечерние остатки FBA</b>\n" + msg.replace(TOKEN + " ", ""))
+        if _sub:
+            send_error = (send_error + "; " if send_error else "") + "подписчикам: " + "; ".join(_sub)[:200]
         if send_error:
             # прогон здесь НЕ роняем: упавшая проверка отменила бы и запасной прогон, ради которого она есть. Сбой
             # отправки остаётся в тексте инцидента — его покажет дневная сводка сторожа — и в метке пульса

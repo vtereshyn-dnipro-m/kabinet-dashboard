@@ -1,0 +1,12 @@
+{
+  "name": "Kabinet - Alerts Bot",
+  "description": "Подписка на тревоги через @kabinet_dm_alerts_bot: /start — заявка владельцу с кнопками «Разрешить / Отклонить», /stop — отписка. Подписчики — kabinet_data.telegram_subscribers; копию тревог им шлёт каждая джоба-отправитель. Каждые 10 минут. Параметр dry_run=1 — без записи и отправки. Источник — nb/alerts_bot.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 3/10 * * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default",
+                    "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "bot", "environment_key": "default", "timeout_seconds": 600,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Alerts Bot", "source": "WORKSPACE"}}
+  ]
+}
