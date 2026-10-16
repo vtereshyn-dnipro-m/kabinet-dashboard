@@ -1,0 +1,16 @@
+--- a/Kabinet - Stock Loader
++++ b/Kabinet - Stock Loader
+@@ -1597,8 +1597,11 @@
+ # Берём только базовые SKU (без суффиксов -A/-B/-85 и префиксов S_)
+ _madrid_rows = spark.sql("""
+     SELECT sku, free_to_use_qty
+-    FROM dnipro_m.dnipro_m.raw_odoo_madrid_stock
+-    WHERE report_date = (SELECT MAX(report_date) FROM dnipro_m.dnipro_m.raw_odoo_madrid_stock)
++    FROM dnipro_m.dnipro_m.raw_odoo_stock
++    -- склад «RS Spain Madrid (Stock)» общей выгрузки Odoo: raw_odoo_madrid_stock не пишется с 12.10.2026
++    WHERE warehouse = 'RS Spain Madrid (Stock)'
++      AND report_date = (SELECT MAX(report_date) FROM dnipro_m.dnipro_m.raw_odoo_stock
++                         WHERE warehouse = 'RS Spain Madrid (Stock)')
+       AND free_to_use_qty > 0
+       AND sku NOT LIKE '%-%'
+       AND sku NOT LIKE 'S\\_%'

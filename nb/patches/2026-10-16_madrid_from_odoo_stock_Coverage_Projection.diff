@@ -1,0 +1,19 @@
+--- a/Kabinet - Coverage Projection
++++ b/Kabinet - Coverage Projection
+@@ -401,9 +401,13 @@
+            SUM(GREATEST(COALESCE(CAST(qty_available AS INT), 0)
+                         - CAST(free_to_use_qty AS INT), 0))         AS reserved,
+            SUM(COALESCE(CAST(outgoing AS INT), 0))                  AS outgoing
+-    FROM dnipro_m.dnipro_m.raw_odoo_madrid_stock
+-    WHERE free_to_use_qty > 0
+-      AND report_date = (SELECT MAX(report_date) FROM dnipro_m.dnipro_m.raw_odoo_madrid_stock)
++    FROM dnipro_m.dnipro_m.raw_odoo_stock
++    -- Мадрид — склад «RS Spain Madrid (Stock)» общей выгрузки Odoo. raw_odoo_madrid_stock (только Мадрид) аналитик
++    -- перестал писать после 12.10.2026, и покрытие три дня считалось по остатку на 12.10; данные склада в raw_odoo_stock
++    -- те же (12.10 — 7 322 шт по 4 274 строкам, построчно одинаково).
++    WHERE warehouse = 'RS Spain Madrid (Stock)' AND free_to_use_qty > 0
++      AND report_date = (SELECT MAX(report_date) FROM dnipro_m.dnipro_m.raw_odoo_stock
++                         WHERE warehouse = 'RS Spain Madrid (Stock)')
+       AND sku RLIKE '^[0-9]'
+     GROUP BY REGEXP_EXTRACT(sku, '^([0-9]+)', 1)
+     HAVING LENGTH(REGEXP_EXTRACT(sku, '^([0-9]+)', 1)) >= 5
