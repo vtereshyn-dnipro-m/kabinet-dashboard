@@ -617,6 +617,45 @@ import gspread
 from google.oauth2.service_account import Credentials
 from databricks.sdk import WorkspaceClient
 
+
+def tg_to_subscribers(text):
+    """Копия тревоги подписчикам бота (kabinet_data.telegram_subscribers, status = 'active': /start в
+    @kabinet_dm_alerts_bot и разрешение владельца). Основной чат (владелец) шлёт вызывающий код как раньше и он
+    подписан всегда. Подписчикам — лучшим усилием: не дошло — причины в ответе, прогон из-за них не падает."""
+    import psycopg2 as _tg_pg, requests as _tg_rq
+    from databricks.sdk import WorkspaceClient as _TgWC
+    try:
+        _tg_w = _TgWC()
+        _tg_c = _tg_pg.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com", port=5432,
+                               dbname="databricks_postgres", user=_tg_w.current_user.me().user_name, sslmode="require",
+                               password=_tg_w.postgres.generate_database_credential(
+                                   endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary").token)
+        try:
+            with _tg_c.cursor() as _tg_cur:
+                _tg_cur.execute("SELECT chat_id FROM kabinet_data.telegram_subscribers WHERE status = 'active'")
+                _tg_subs = [str(r[0]) for r in _tg_cur.fetchall()]
+        finally:
+            _tg_c.close()
+    except Exception as e:
+        return [f"подписчики не прочитались: {type(e).__name__}: {str(e)[:120]}"]
+    _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
+    _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
+    _tg_errs = []
+    for _tg_chat in _tg_subs:
+        if _tg_chat == _tg_main:
+            continue
+        try:
+            _tg_r = _tg_rq.post(f"https://api.telegram.org/bot{_tg_tok}/sendMessage",
+                                json={"chat_id": _tg_chat, "text": text[:4000], "parse_mode": "HTML",
+                                      "disable_web_page_preview": True}, timeout=30)
+            if not _tg_r.ok:
+                _tg_errs.append(f"подписчик {_tg_chat}: {_tg_r.status_code} {_tg_r.text[:100]}")
+        except Exception as e:
+            _tg_errs.append(f"подписчик {_tg_chat}: {type(e).__name__}")
+    return _tg_errs
+
+
+
 dbutils.widgets.text("dry_run", "0")
 dbutils.widgets.text("target_sheet", "")
 _DRY = dbutils.widgets.get("dry_run").strip() == "1"
@@ -796,6 +835,10 @@ else:
                         SHEET_ERRORS.append(f"бот {_r.status_code}: {_r.text[:150]}")
                 except Exception as _e:
                     SHEET_ERRORS.append(f"бот: {type(_e).__name__}: {str(_e)[:150]}")
+                _sub = tg_to_subscribers("🟠 <b>Plan Matrix: цены не перезаписаны</b>\n"
+                                         + _msg.replace(_TOKEN + " ", "").replace("&", "&amp;").replace("<", "&lt;"))
+                if _sub:
+                    print("⚠️ подписчикам не ушло: " + "; ".join(_sub))
         elif _open:
             _c.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
                           resolved_by = 'watchdog-autoclose: вкладки avg_* записаны' WHERE id = ANY(%s)""", (_open,))

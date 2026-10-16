@@ -1,0 +1,79 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -448,7 +448,46 @@
+ # Инциденты: kabinet_data.incidents (job_health)
+ # ═════════════════════════════════════════════════════════════
+ from datetime import datetime, timezone, timedelta
++
++
++def tg_to_subscribers(text):
++    """Копия тревоги подписчикам бота (kabinet_data.telegram_subscribers, status = 'active': /start в
++    @kabinet_dm_alerts_bot и разрешение владельца). Основной чат (владелец) шлёт вызывающий код как раньше и он
++    подписан всегда. Подписчикам — лучшим усилием: не дошло — причины в ответе, прогон из-за них не падает."""
++    import psycopg2 as _tg_pg, requests as _tg_rq
++    from databricks.sdk import WorkspaceClient as _TgWC
++    try:
++        _tg_w = _TgWC()
++        _tg_c = _tg_pg.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com", port=5432,
++                               dbname="databricks_postgres", user=_tg_w.current_user.me().user_name, sslmode="require",
++                               password=_tg_w.postgres.generate_database_credential(
++                                   endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary").token)
++        try:
++            with _tg_c.cursor() as _tg_cur:
++                _tg_cur.execute("SELECT chat_id FROM kabinet_data.telegram_subscribers WHERE status = 'active'")
++                _tg_subs = [str(r[0]) for r in _tg_cur.fetchall()]
++        finally:
++            _tg_c.close()
++    except Exception as e:
++        return [f"подписчики не прочитались: {type(e).__name__}: {str(e)[:120]}"]
++    _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
++    _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
++    _tg_errs = []
++    for _tg_chat in _tg_subs:
++        if _tg_chat == _tg_main:
++            continue
++        try:
++            _tg_r = _tg_rq.post(f"https://api.telegram.org/bot{_tg_tok}/sendMessage",
++                                json={"chat_id": _tg_chat, "text": text[:4000], "parse_mode": "HTML",
++                                      "disable_web_page_preview": True}, timeout=30)
++            if not _tg_r.ok:
++                _tg_errs.append(f"подписчик {_tg_chat}: {_tg_r.status_code} {_tg_r.text[:100]}")
++        except Exception as e:
++            _tg_errs.append(f"подписчик {_tg_chat}: {type(e).__name__}")
++    return _tg_errs
+ 
++
++
+ # Сбои отдельных проверок ниже не роняют прогон — иначе одна упавшая проверка
+ # оставила бы без присмотра все остальные. Но и молчать о них нельзя: с 01.09
+ # по 13.09.2026 блок Telegram падал на каждом прогоне, печатал «⚠️» в лог, и
+@@ -2522,6 +2561,9 @@
+         print(f"\n⚠️ Telegram compose error: {type(e).__name__}: {e}")
+         _soft_errors.append(("telegram compose", f"{type(e).__name__}: {str(e)[:150]}"))
+ 
++    # подписчикам бота тревог (kabinet_data.telegram_subscribers) — всё, кроме блока «Доступ»: смена режима входа и новые
++    # люди — дело владельца, а не тех, кто подписался на тревоги
++    _tg_auth_from = len(_tg_lines)
+     # ── 4b. 🔑 Доступ: смена режима входа и новые люди ──
+     # Стоит ВНЕ try сборки выше: сообщение про то, что Кабинет открыли или закрыли,
+     # не должно пропасть из-за падения соседнего блока.
+@@ -2530,6 +2572,7 @@
+             _tg_lines.append("")
+         for _l in _auth_lines:
+             _tg_lines.append(_l)
++    _tg_auth_to = len(_tg_lines)
+ 
+     # ── 5. ⚙️ Сбои самих проверок — всегда в чат, даже если больше сказать нечего ──
+     if _soft_errors:
+@@ -2549,6 +2592,11 @@
+             resp = _tg_req.post(f"https://api.telegram.org/bot{_tg_token}/sendMessage", json={
+                 "chat_id": _tg_chat, "text": _tg_msg, "parse_mode": "HTML"
+             }, timeout=15)
++            _tg_sub_lines = _tg_lines[:_tg_auth_from] + _tg_lines[_tg_auth_to:]
++            if any(x.strip() for x in _tg_sub_lines):
++                _tg_sub_err = tg_to_subscribers("\n".join(_tg_sub_lines).strip())
++                if _tg_sub_err:
++                    print("⚠️ подписчикам не ушло: " + "; ".join(_tg_sub_err))
+             if resp.ok:
+                 print(f"\n📩 Telegram: 🔴{len(_recon11)} 🚨{len(new_incidents)} ✅{len(resolved_incidents)} ⏳{len(stale_open) if stale_open and should_remind else 0} 📅{len(_weekly_open) if _weekly_due else 0} ⚙️{len(_soft_errors)}")
+             else:

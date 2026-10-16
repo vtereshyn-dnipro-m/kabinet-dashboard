@@ -13,8 +13,7 @@
 #      и Amazon Ads (ads_lwa_*). Сломанный ключ виден ДО того, как упадёт первый загрузчик;
 #   2) упавшие за последние 2 часа прогоны ЛЮБЫХ джоб воркспейса (наших и Дарины): если в тексте ошибки — авторизация
 #      Amazon (401/403 Unauthorized, invalid_client, invalid_grant, «expired»), тревога с именем джобы и текстом.
-#      С 14.10.2026 падения джоб источника витрины Power BI (kabinet_data.pbi_source_jobs) уходят и второму адресату —
-#      kabinet-alerts/telegram-chat-id-darina, если секрет заведён.
+#      С 16.10.2026 тревога уходит и подписчикам бота тревог (kabinet_data.telegram_subscribers) — то же, что владельцу.
 # Тревога — инцидент amazon_auth (source watchdog, по одному на ключ / джобу: [AMZAUTH:…]) и сообщение в бот сразу, один
 # раз при открытии. Закрывается здесь же: ключ снова обменивается / у джобы появился успешный прогон после падения.
 # Значения ключей не выводятся и не пишутся никуда. Метка пульса — последней и безусловно.
@@ -28,6 +27,45 @@ import psycopg2, requests
 from databricks.sdk import WorkspaceClient
 
 JOB_NAME = "Kabinet - Amazon Auth Guard"
+
+
+def tg_to_subscribers(text):
+    """Копия тревоги подписчикам бота (kabinet_data.telegram_subscribers, status = 'active': /start в
+    @kabinet_dm_alerts_bot и разрешение владельца). Основной чат (владелец) шлёт вызывающий код как раньше и он
+    подписан всегда. Подписчикам — лучшим усилием: не дошло — причины в ответе, прогон из-за них не падает."""
+    import psycopg2 as _tg_pg, requests as _tg_rq
+    from databricks.sdk import WorkspaceClient as _TgWC
+    try:
+        _tg_w = _TgWC()
+        _tg_c = _tg_pg.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com", port=5432,
+                               dbname="databricks_postgres", user=_tg_w.current_user.me().user_name, sslmode="require",
+                               password=_tg_w.postgres.generate_database_credential(
+                                   endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary").token)
+        try:
+            with _tg_c.cursor() as _tg_cur:
+                _tg_cur.execute("SELECT chat_id FROM kabinet_data.telegram_subscribers WHERE status = 'active'")
+                _tg_subs = [str(r[0]) for r in _tg_cur.fetchall()]
+        finally:
+            _tg_c.close()
+    except Exception as e:
+        return [f"подписчики не прочитались: {type(e).__name__}: {str(e)[:120]}"]
+    _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
+    _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
+    _tg_errs = []
+    for _tg_chat in _tg_subs:
+        if _tg_chat == _tg_main:
+            continue
+        try:
+            _tg_r = _tg_rq.post(f"https://api.telegram.org/bot{_tg_tok}/sendMessage",
+                                json={"chat_id": _tg_chat, "text": text[:4000], "parse_mode": "HTML",
+                                      "disable_web_page_preview": True}, timeout=30)
+            if not _tg_r.ok:
+                _tg_errs.append(f"подписчик {_tg_chat}: {_tg_r.status_code} {_tg_r.text[:100]}")
+        except Exception as e:
+            _tg_errs.append(f"подписчик {_tg_chat}: {type(e).__name__}")
+    return _tg_errs
+
+
 SCOPE = "amazon-sp-api"
 # признак ошибки авторизации и признак, что речь об Amazon (у SendCloud и Odoo тоже бывают 401 — это не наше событие)
 AUTH_RE = re.compile(r"(HTTP|status|code|Error|createReport|createQuery|get\w*)\W{0,4}40[13]\b[\s\S]{0,160}?"
@@ -113,16 +151,7 @@ _cred = w.postgres.generate_database_credential(endpoint="projects/kabinet-dashb
 pg = psycopg2.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com", port=5432,
                       dbname="databricks_postgres", user=w.current_user.me().user_name, password=_cred.token,
                       sslmode="require")
-# джобы источника витрины Power BI — их падения уходят и второму адресату; отдельной транзакцией: если таблицы нет,
-# ошибка не должна откатить тревоги, заведённые ниже
-src_names = set()
-try:
-    with pg, pg.cursor() as cur:
-        cur.execute("SELECT job_name FROM kabinet_data.pbi_source_jobs WHERE is_active")
-        src_names = {r[0] for r in cur.fetchall()}
-except Exception:
-    pass
-sent, send_err, closed = [], [], []
+sent, send_err, closed, sub_err = [], [], [], []
 with pg, pg.cursor() as cur:
     cur.execute("""SELECT id, message FROM kabinet_data.incidents
                    WHERE incident_type = 'amazon_auth' AND status <> 'resolved'""")
@@ -147,13 +176,6 @@ with pg, pg.cursor() as cur:
     # читать никто не станет. Ключи — первыми: это причина, джобы — следствие
     new_texts.sort(key=lambda x: x[1] != "critical")
     if new_texts and not DRY:
-        # второй адресат (kabinet-alerts/telegram-chat-id-darina, если секрет заведён) получает только падения джоб
-        # источника витрины Power BI — список kabinet_data.pbi_source_jobs (решение владельца 14.10.2026)
-        try:
-            second_chat = dbutils.secrets.get("kabinet-alerts", "telegram-chat-id-darina")
-        except Exception:
-            second_chat = None
-
         def _send(chat, items):
             body = "\n\n".join("• " + x[2] for x in items).replace("&", "&amp;").replace("<", "&lt;")
             try:
@@ -169,14 +191,10 @@ with pg, pg.cursor() as cur:
             send_err.append(err)
         else:
             sent = [x[0] for x in new_texts]
-        theirs = [x for x in new_texts if x[0][len("[AMZAUTH:"):-1] in src_names]
-        if second_chat and theirs:
-            err2 = _send(second_chat, theirs)
-            if err2:
-                # второму адресату не ушло — в текст тревоги, но прогон не роняем: основной канал жив
-                for tok, _, _ in theirs:
-                    cur.execute("UPDATE kabinet_data.incidents SET message = message || %s WHERE incident_type = 'amazon_auth' "
-                                "AND status <> 'resolved' AND message LIKE %s", (f" Второму адресату не ушло: {err2}", tok + "%"))
+        # копия подписчикам бота тревог (kabinet_data.telegram_subscribers) — то же сообщение, что владельцу; их сбои —
+        # в заметку пульса, прогон из-за них не падает
+        _body = "\n\n".join("• " + x[2] for x in new_texts).replace("&", "&amp;").replace("<", "&lt;")
+        sub_err = tg_to_subscribers(("🔴 <b>Авторизация Amazon</b>\n" + _body)[:4000])
         if send_err:
             # молчание канала должно быть красным: причина — в тексте инцидента (её покажет дневная сводка сторожа),
             # а прогон падает после пульса
@@ -204,7 +222,8 @@ with pg, pg.cursor() as cur:
             closed.append(tok)
 
 note = ("; ".join(checked) + f"; тревог {len(problems)}, отправлено {len(sent)}, закрыто {len(closed)}"
-        + (f"; в бот НЕ ушло: {', '.join(send_err)}" if send_err else ""))
+        + (f"; в бот НЕ ушло: {', '.join(send_err)}" if send_err else "")
+        + (f"; подписчикам не ушло: {'; '.join(sub_err)[:200]}" if sub_err else ""))
 print(("ПРОБА: " if DRY else "") + note)
 with pg, pg.cursor() as cur:
     if not DRY:

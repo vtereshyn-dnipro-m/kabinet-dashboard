@@ -32,6 +32,45 @@
 
 # DBTITLE 1,1. Витрина → kabinet_data.pbi_spiderweb_report (с защитой от неполной сборки)
 import psycopg2, psycopg2.extras, requests
+
+
+def tg_to_subscribers(text):
+    """Копия тревоги подписчикам бота (kabinet_data.telegram_subscribers, status = 'active': /start в
+    @kabinet_dm_alerts_bot и разрешение владельца). Основной чат (владелец) шлёт вызывающий код как раньше и он
+    подписан всегда. Подписчикам — лучшим усилием: не дошло — причины в ответе, прогон из-за них не падает."""
+    import psycopg2 as _tg_pg, requests as _tg_rq
+    from databricks.sdk import WorkspaceClient as _TgWC
+    try:
+        _tg_w = _TgWC()
+        _tg_c = _tg_pg.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com", port=5432,
+                               dbname="databricks_postgres", user=_tg_w.current_user.me().user_name, sslmode="require",
+                               password=_tg_w.postgres.generate_database_credential(
+                                   endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary").token)
+        try:
+            with _tg_c.cursor() as _tg_cur:
+                _tg_cur.execute("SELECT chat_id FROM kabinet_data.telegram_subscribers WHERE status = 'active'")
+                _tg_subs = [str(r[0]) for r in _tg_cur.fetchall()]
+        finally:
+            _tg_c.close()
+    except Exception as e:
+        return [f"подписчики не прочитались: {type(e).__name__}: {str(e)[:120]}"]
+    _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
+    _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
+    _tg_errs = []
+    for _tg_chat in _tg_subs:
+        if _tg_chat == _tg_main:
+            continue
+        try:
+            _tg_r = _tg_rq.post(f"https://api.telegram.org/bot{_tg_tok}/sendMessage",
+                                json={"chat_id": _tg_chat, "text": text[:4000], "parse_mode": "HTML",
+                                      "disable_web_page_preview": True}, timeout=30)
+            if not _tg_r.ok:
+                _tg_errs.append(f"подписчик {_tg_chat}: {_tg_r.status_code} {_tg_r.text[:100]}")
+        except Exception as e:
+            _tg_errs.append(f"подписчик {_tg_chat}: {type(e).__name__}")
+    return _tg_errs
+
+
 from databricks.sdk import WorkspaceClient
 
 VIEW = "dnipro_m.dnipro_m.v_all_marketplaces_spiderweb_report"
@@ -179,13 +218,8 @@ with pg, pg.cursor() as cur:
     elif KEPT:
         cur.execute("""INSERT INTO kabinet_data.incidents (incident_type, severity, message, status, source)
                        VALUES ('pbi_source_incomplete', 'high', %s, 'open', 'watchdog')""", (_msg,))
-        # адресаты: основной чат всегда; второй (kabinet-alerts/telegram-chat-id-darina) — если секрет заведён.
-        # Нет секрета — шлём только в основной; не ушло во второй — пишем в текст тревоги, но прогон не роняем.
+        # основной чат (владелец) — как раньше: не ушло → прогон падает после пульса; копия — подписчикам бота тревог
         _chats = [("основной", dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"))]
-        try:
-            _chats.append(("второй адресат", dbutils.secrets.get("kabinet-alerts", "telegram-chat-id-darina")))
-        except Exception:
-            pass
         _text = ("🔴 <b>Витрина Power BI неполная</b>\n"
                  + _msg.replace(INCIDENT_TOKEN + " ", "").replace("&", "&amp;").replace("<", "&lt;"))
         _errs = {}
@@ -200,10 +234,11 @@ with pg, pg.cursor() as cur:
             except Exception as e:
                 _errs[_who] = f"{type(e).__name__}: {str(e)[:150]}"
         SEND_ERR = _errs.get("основной")       # не ушло в основной чат — прогон падает после пульса
-        if "второй адресат" in _errs:
+        _sub = tg_to_subscribers(_text)
+        if _sub:
             cur.execute("""UPDATE kabinet_data.incidents SET message = message || %s
                            WHERE incident_type = 'pbi_source_incomplete' AND status <> 'resolved'""",
-                        (f" Второму адресату не ушло: {_errs['второй адресат']}",))
+                        (" Подписчикам не ушло: " + "; ".join(_sub)[:200],))
         if SEND_ERR:
             cur.execute("""UPDATE kabinet_data.incidents SET message = message || %s
                            WHERE incident_type = 'pbi_source_incomplete' AND status <> 'resolved'""",

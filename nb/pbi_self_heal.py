@@ -22,8 +22,8 @@
 #      отчётов (джобы из kabinet_data.report_quota_jobs: идёт сейчас или стартует по расписанию раньше, чем перезапуск
 #      успеет кончиться, с запасом source_silent_quota_buffer_min). Перезапуск тоже ничего не записал — тревога «не
 #      помогло», больше не перезапускаем. Код чужих джоб не трогаем — только наш мониторинг;
-# Тревоги о витрине — в основной чат и второму адресату (kabinet-alerts/telegram-chat-id-darina, если секрет заведён);
-# о смене расписания — только в основной. Журнал решений — kabinet_data.pbi_self_heal_log, один перезапуск в день держит
+# Тревоги — в основной чат (владелец) и подписчикам бота тревог (kabinet_data.telegram_subscribers, с 16.10.2026
+# вместо отдельного секрета на второго адресата). Журнал решений — kabinet_data.pbi_self_heal_log, один перезапуск в день держит
 # он же. Метка пульса — последней и безусловно.
 
 # COMMAND ----------
@@ -168,7 +168,7 @@ if kept_today:
     problems.append("сборка неполная — реплика её не взяла" + (f" ({META['detail']})" if META.get("detail") else ""))
 
 # ── решения: один перезапуск в день ──
-alerts = {}            # токен → (тип, severity, текст, второму адресату)
+alerts = {}            # токен → (тип, severity, текст)
 resolve = {}           # токен → причина закрытия
 log_rows = []          # (kind, submit_run_id, detail)
 restart = next((l for l in LOG if l["kind"] == "restart"), None)
@@ -192,13 +192,13 @@ if restart and not outcome_logged:
                 log_rows.append(("not_helped", restart["run_id"], why))
                 alerts["[PBIHEAL:restart]"] = ("pbi_self_heal", "high",
                     f"Перезапуск утренней сборки витрины Power BI не помог: {why}. Второй раз сегодня не перезапускаю — "
-                    f"нужно разобраться вручную.", True)
+                    f"нужно разобраться вручную.")
 elif problems and not restart:
     if keys_bad:
         alerts["[PBIHEAL:keys]"] = ("pbi_self_heal", "critical",
             "Сборка витрины Power BI не прошла (" + "; ".join(problems) + "), а ключи Amazon не работают — перезапуск "
             "не делаю. Замените ключи в трёх местах (Databricks amazon-sp-api, Streamlit Secrets Listing Suite и "
-            "Кабинета); после этого перезапуск сделаю сам на ближайшей проверке.", True)
+            "Кабинета); после этого перезапуск сделаю сам на ближайшей проверке.")
     elif keys_unknown:
         notes.append(f"проблема есть, но Auth Guard не отрабатывал {GUARD_AGE_MIN or '—'} мин — жду")
     elif running:
@@ -206,7 +206,7 @@ elif problems and not restart:
     elif now_k.hour >= LAST_HOUR:
         alerts["[PBIHEAL:late]"] = ("pbi_self_heal", "high",
             "Сборка витрины Power BI сегодня не прошла (" + "; ".join(problems) + "), а для перезапуска уже поздно: "
-            "длинная сборка пересеклась бы с вечерними загрузчиками. Перезапуск не делал.", True)
+            "длинная сборка пересеклась бы с вечерними загрузчиками. Перезапуск не делал.")
     else:
         resolve["[PBIHEAL:keys]"] = "ключи снова рабочие"
         names = list(failed_amazon)
@@ -224,7 +224,7 @@ elif problems and not restart:
         log_rows.append(("restart", run_id, listed))
         alerts["[PBIHEAL:restart]"] = ("pbi_self_heal", "medium",
             f"Утренняя сборка витрины Power BI не прошла ({'; '.join(problems)}). Ключи Amazon рабочие — перезапустил "
-            f"{listed}. Реплика Кабинета подхватит витрину сама; если не поможет — напишу.", True)
+            f"{listed}. Реплика Кабинета подхватит витрину сама; если не поможет — напишу.")
 elif not problems:
     resolve["[PBIHEAL:keys]"] = "сборка в порядке"
     resolve["[PBIHEAL:late]"] = "сборка в порядке"
@@ -233,7 +233,7 @@ elif not problems:
 if now_k.hour >= LATE_HOUR and BUILT is not None and not built_today:
     alerts["[PBISRC:late]"] = ("pbi_source_late", "high",
         f"Витрина Power BI сегодня не обновлялась: последняя сборка Amazon {kyiv(BUILT)}, сейчас {now_k:%H:%M}. "
-        f"Кабинет и Power BI показывают вчерашние цифры.", True)
+        f"Кабинет и Power BI показывают вчерашние цифры.")
 elif built_today:
     resolve["[PBISRC:late]"] = f"витрина собрана {kyiv(BUILT)}"
 
@@ -247,7 +247,7 @@ if BUILT is not None and BUILT >= WATCH_SINCE and now - BUILT >= dt.timedelta(mi
         alerts["[PBIREPL:trigger]"] = ("pbi_trigger_missed", "high",
             f"Витрина Power BI записана {kyiv(BUILT)}, а реплика Кабинета по записи не сработала (прошло "
             f"{int((now - BUILT).total_seconds() // 60)} мин). Проверить триггер джобы Kabinet - Power BI Replica; "
-            f"до этого цифры обновятся только сверкой в 13:00 и запуском в 16:45.", False)
+            f"до этого цифры обновятся только сверкой в 13:00 и запуском в 16:45.")
     else:
         resolve["[PBIREPL:trigger]"] = f"реплика сработала по записи {kyiv(trig[0].start_time)}"
 
@@ -352,7 +352,7 @@ for chk in CHECKS:
         silent_found.append(name)
         if last.run_id in our_restart_runs:
             alerts[tok2] = ("source_silent_fail", "high", what + " Это уже наш перезапуск — второй раз не перезапускаю, "
-                            "нужно разобраться вручную.", True)
+                            "нужно разобраться вручную.")
             continue
         if last.run_id in silent_restarts:
             continue                                     # перезапуск заказан, ждём его конца
@@ -364,42 +364,74 @@ for chk in CHECKS:
         busy = quota_busy(need) if waited >= SILENT_AFTER else []
         if waited < SILENT_AFTER:
             alerts[tok] = ("source_silent_fail", "high", what + f" Перезапущу один раз не раньше чем через "
-                           f"{int(SILENT_AFTER)} мин после конца прогона и вне окон чужих отчётов.", True)
+                           f"{int(SILENT_AFTER)} мин после конца прогона и вне окон чужих отчётов.")
         elif busy:
             alerts[tok] = ("source_silent_fail", "high", what + " Перезапущу один раз, когда освободится квота "
-                           "отчётов (сейчас: " + "; ".join(busy[:3]) + ").", True)
+                           "отчётов (сейчас: " + "; ".join(busy[:3]) + ").")
         else:
             run_id = None if DRY else w.jobs.run_now(job_id=jid).run_id
             log_rows.append(("silent_restart", run_id, json.dumps({"job_id": jid, "origin_run": last.run_id,
                                                                     "job_name": name}, ensure_ascii=False)))
             alerts[tok] = ("source_silent_fail", "high", what + f" Перезапустил в {now_k:%H:%M} (окно чужих отчётов "
-                           f"свободно, после прогона прошло {int(waited)} мин).", True)
+                           f"свободно, после прогона прошло {int(waited)} мин).")
     except Exception as e:
         notes.append(f"проверка {name} не прошла: {type(e).__name__}: {str(e)[:150]}")
 
 # ── запись: журнал, инциденты, точки отсчёта ──
-def recipients(second):
-    chats = [("основной", dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"))]
-    if second:
-        try:
-            chats.append(("второй адресат", dbutils.secrets.get("kabinet-alerts", "telegram-chat-id-darina")))
-        except Exception:
-            pass
-    return chats
-
-
-def send(text, second):
+def send(text):
+    """Основной чат (владелец, подписан всегда) — как раньше: не ушло → прогон падает после пульса. Копия — подписчикам
+    бота (tg_to_subscribers); их сбои — в заметку пульса."""
     errs = {}
-    for who, chat in recipients(second):
-        try:
-            r = requests.post(f"https://api.telegram.org/bot{dbutils.secrets.get('kabinet-alerts', 'telegram-bot-token')}/sendMessage",
-                              json={"chat_id": chat, "text": text[:4000], "parse_mode": "HTML",
-                                    "disable_web_page_preview": True}, timeout=30)
-            if not r.ok:
-                errs[who] = f"{r.status_code}: {r.text[:150]}"
-        except Exception as e:
-            errs[who] = f"{type(e).__name__}: {str(e)[:150]}"
+    try:
+        r = requests.post(f"https://api.telegram.org/bot{dbutils.secrets.get('kabinet-alerts', 'telegram-bot-token')}/sendMessage",
+                          json={"chat_id": dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"), "text": text[:4000],
+                                "parse_mode": "HTML", "disable_web_page_preview": True}, timeout=30)
+        if not r.ok:
+            errs["основной"] = f"{r.status_code}: {r.text[:150]}"
+    except Exception as e:
+        errs["основной"] = f"{type(e).__name__}: {str(e)[:150]}"
+    sub = tg_to_subscribers(text)
+    if sub:
+        errs["подписчики"] = "; ".join(sub)
+        notes.append("подписчикам не ушло: " + "; ".join(sub)[:200])
     return errs
+
+
+def tg_to_subscribers(text):
+    """Копия тревоги подписчикам бота (kabinet_data.telegram_subscribers, status = 'active': /start в
+    @kabinet_dm_alerts_bot и разрешение владельца). Основной чат (владелец) шлёт вызывающий код как раньше и он
+    подписан всегда. Подписчикам — лучшим усилием: не дошло — причины в ответе, прогон из-за них не падает."""
+    import psycopg2 as _tg_pg, requests as _tg_rq
+    from databricks.sdk import WorkspaceClient as _TgWC
+    try:
+        _tg_w = _TgWC()
+        _tg_c = _tg_pg.connect(host="ep-delicate-cherry-d2nabn27.database.us-east-1.cloud.databricks.com", port=5432,
+                               dbname="databricks_postgres", user=_tg_w.current_user.me().user_name, sslmode="require",
+                               password=_tg_w.postgres.generate_database_credential(
+                                   endpoint="projects/kabinet-dashboard/branches/production/endpoints/primary").token)
+        try:
+            with _tg_c.cursor() as _tg_cur:
+                _tg_cur.execute("SELECT chat_id FROM kabinet_data.telegram_subscribers WHERE status = 'active'")
+                _tg_subs = [str(r[0]) for r in _tg_cur.fetchall()]
+        finally:
+            _tg_c.close()
+    except Exception as e:
+        return [f"подписчики не прочитались: {type(e).__name__}: {str(e)[:120]}"]
+    _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
+    _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
+    _tg_errs = []
+    for _tg_chat in _tg_subs:
+        if _tg_chat == _tg_main:
+            continue
+        try:
+            _tg_r = _tg_rq.post(f"https://api.telegram.org/bot{_tg_tok}/sendMessage",
+                                json={"chat_id": _tg_chat, "text": text[:4000], "parse_mode": "HTML",
+                                      "disable_web_page_preview": True}, timeout=30)
+            if not _tg_r.ok:
+                _tg_errs.append(f"подписчик {_tg_chat}: {_tg_r.status_code} {_tg_r.text[:100]}")
+        except Exception as e:
+            _tg_errs.append(f"подписчик {_tg_chat}: {type(e).__name__}")
+    return _tg_errs
 
 
 def esc(s):
@@ -426,7 +458,7 @@ with pg() as c, c.cursor() as cur:
         for kind, rid, detail in log_rows:
             cur.execute("INSERT INTO kabinet_data.pbi_self_heal_log (day, kind, submit_run_id, detail) VALUES (%s, %s, %s, %s)",
                         (today, kind, rid, detail))
-    for tok, (typ, sev, text, second) in alerts.items():
+    for tok, (typ, sev, text) in alerts.items():
         msg = f"{tok} {text}"
         if tok in open_inc:
             if not DRY:
@@ -437,7 +469,7 @@ with pg() as c, c.cursor() as cur:
             cur.execute("""INSERT INTO kabinet_data.incidents (incident_type, severity, message, status, source)
                            VALUES (%s, %s, %s, 'open', 'watchdog')""", (typ, sev, msg))
             icon = "🔴" if sev in ("critical", "high") else "🟡"
-            errs = send(f"{icon} <b>{TITLES[typ]}</b>\n{esc(text)}", second)
+            errs = send(f"{icon} <b>{TITLES[typ]}</b>\n{esc(text)}")
             if "основной" in errs:
                 SEND_ERR.append(errs["основной"])
             if errs:
@@ -455,7 +487,7 @@ with pg() as c, c.cursor() as cur:
     if changes and not DRY:
         body = "\n".join(f"• {esc(s['job_name'])}: {esc(d)}" for s, d in changes)
         errs = send("🟡 <b>Изменилась джоба источника витрины Power BI</b>\n" + body
-                    + "\nПроверить, не задевает ли это реплику и сверку Кабинета.", False)
+                    + "\nПроверить, не задевает ли это реплику и сверку Кабинета.")
         if "основной" in errs:
             SEND_ERR.append(errs["основной"])
         for s, d in changes:
