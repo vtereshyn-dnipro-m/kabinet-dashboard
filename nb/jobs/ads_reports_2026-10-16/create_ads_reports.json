@@ -1,0 +1,13 @@
+{
+  "name": "Kabinet - Amazon Ads Reports",
+  "description": "Отчёты Amazon Ads Reporting v3 по профилям с рекламой: таргетинг, плейсменты и поисковые запросы SP, поисковые запросы SB, невалидный трафик SP и SB → dnipro_m.raw_amazon_ads_*. Первый прогон — всё, что Amazon хранит (SP 95 дн, SB 60 дн, невалидный трафик 365 дн), дальше окно reorder_params.ads_reports_reread_days. Квоту createReport SP-API не трогает. Параметр dry_run=1 — без записи. Источник — nb/ads_reports_loader.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 10 7 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default",
+                    "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "reports", "environment_key": "default", "timeout_seconds": 14400,
+     "max_retries": 1, "min_retry_interval_millis": 600000,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Amazon Ads Reports", "source": "WORKSPACE"}}
+  ]
+}
