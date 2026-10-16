@@ -1,0 +1,14 @@
+{
+  "name": "Kabinet - Alert Close on Write",
+  "description": "Тревоги «таблица не обновилась» (ledger_evening, source_silent_fail) закрываются по записи в таблицу, а не следующим прогоном джобы, которая их завела. Запуск по записи в таблицы из kabinet_data.source_job_checks (минута тишины). Параметр dry_run=1 — без записи. Источник — nb/alert_close_on_write.py.",
+  "max_concurrent_runs": 1,
+  "trigger": {"pause_status": "UNPAUSED", "table_update": {
+    "table_names": ["dnipro_m.dnipro_m.raw_amazon_fba_inventory_ledger_summary"],
+    "condition": "ANY_UPDATED", "wait_after_last_change_seconds": 60, "min_time_between_triggers_seconds": 60}},
+  "environments": [{"environment_key": "default",
+                    "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0"]}}],
+  "tasks": [
+    {"task_key": "close", "environment_key": "default", "timeout_seconds": 600,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Alert Close on Write", "source": "WORKSPACE"}}
+  ]
+}
