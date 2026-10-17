@@ -1,0 +1,72 @@
+--- a/Kabinet - Coverage Projection
++++ b/Kabinet - Coverage Projection
+@@ -240,18 +240,36 @@
+ print(f"   Итого: {len(incoming_by_week)} (sku, week) slots, {sum(incoming_by_week.values()):,} units")
+ 
+ # ─── 3. Прогноз (скорость продаж 30д, по маркетплейсу) ───
+-pg_cur.execute("""
+-    SELECT
+-        SUBSTRING(sku FROM '^(?:amzn\.gr\.)?([0-9]+)') AS norm_sku,
+-        marketplace_code AS marketplace,
+-        SUM(quantity) AS units_30d
+-    FROM kabinet_data.orders_history
+-    WHERE purchase_date >= NOW() - INTERVAL '30 days'
+-      AND order_status = 'Shipped'
+-      AND marketplace_code IS NOT NULL
++# Наборы раскладываются на компоненты ПО СПРОСУ (решение владельца 17.10.2026): продажа набора — это спрос на каждый
++# его компонент × количество в составе (kabinet_data.v_sku_composition, приоритет Odoo). До этого продажа набора шла
++# в базовый код по первым цифрам: «41324000-B» (шуруповёрт + фонарь 58616000) давал спрос шуруповёрту, а фонарю —
++# нет; «17599000-A» (кусторез + 2 аккумулятора 49136000) — ни одного аккумулятора; наборы «S…_» не попадали никуда.
++# Ключ набора — код без хвоста -FBA / -FBM и подчёркиваний: «41324000-B-FBA-» → «41324000-B».
++pg_cur.execute(r"""
++    WITH o AS (
++        SELECT REGEXP_REPLACE(sku, '(-(FBA|FBM))?[-_]*$', '') AS kit_key, sku,
++               marketplace_code AS marketplace, SUM(quantity) AS q
++        FROM kabinet_data.orders_history
++        WHERE purchase_date >= NOW() - INTERVAL '30 days'
++          AND order_status = 'Shipped'
++          AND marketplace_code IS NOT NULL
++        GROUP BY 1, 2, 3
++    ),
++    kits AS (
++        SELECT parent_sku, child_sku, SUM(quantity) AS qty FROM kabinet_data.v_sku_composition
++        WHERE parent_sku IN (SELECT parent_sku FROM kabinet_data.v_sku_composition WHERE parent_sku <> child_sku)
++        GROUP BY 1, 2
++    ),
++    exploded AS (
++        SELECT SUBSTRING(COALESCE(k.child_sku, o.sku) FROM '^(?:amzn\.gr\.)?([0-9]+)') AS norm_sku, o.marketplace,
++               o.q * COALESCE(k.qty, 1) AS units
++        FROM o LEFT JOIN kits k ON k.parent_sku = o.kit_key
++    )
++    SELECT norm_sku, marketplace, SUM(units) AS units_30d
++    FROM exploded
++    WHERE norm_sku IS NOT NULL
+     GROUP BY 1, 2
+-    HAVING SUBSTRING(sku FROM '^(?:amzn\.gr\.)?([0-9]+)') IS NOT NULL
+-       AND SUM(quantity) > 0
++    HAVING SUM(units) > 0
+ """)
+ velocity_data = {}
+ for sku, mp, units in pg_cur.fetchall():
+@@ -409,6 +427,12 @@
+       AND report_date = (SELECT MAX(report_date) FROM dnipro_m.dnipro_m.raw_odoo_stock
+                          WHERE warehouse = 'RS Spain Madrid (Stock)')
+       AND sku RLIKE '^[0-9]'
++      -- Наборы (в BOM Odoo есть компонент, отличный от самого кода) в запас НЕ входят (решение владельца 17.10.2026):
++      -- их остаток Odoo считает из компонентов — «сколько можно собрать», — физически их нет. 16.10 у 194 наборов
++      -- из 204 остаток ровно равен минимуму по компонентам, больше — ни у одного. С ними 41324000 = 164 своих + 112
++      -- (41324000-A, по мультитулу 83845000) + 10 (41324000-B, по фонарю 58616000) = 286, 49136000 — 344 при 82;
++      -- в запасе Мадрида это 2 067 «штук» из 5 881. Спрос наборов уходит в компоненты (ячейка спроса выше).
++      AND sku NOT IN (SELECT parent_sku FROM dnipro_m.dnipro_m.raw_odoo_sku_mapping WHERE parent_sku <> child_sku)
+     GROUP BY REGEXP_EXTRACT(sku, '^([0-9]+)', 1)
+     HAVING LENGTH(REGEXP_EXTRACT(sku, '^([0-9]+)', 1)) >= 5
+ """).collect()
+@@ -978,6 +1002,8 @@
+         FROM dnipro_m.dnipro_m.raw_odoo_stock
+         WHERE report_date = (SELECT MAX(report_date) FROM dnipro_m.dnipro_m.raw_odoo_stock)
+           AND incoming > 0 AND sku RLIKE '^[0-9]'
++          -- наборы — расчётные (из компонентов), их приход второй раз считал бы приход компонентов (17.10.2026)
++          AND sku NOT IN (SELECT parent_sku FROM dnipro_m.dnipro_m.raw_odoo_sku_mapping WHERE parent_sku <> child_sku)
+         GROUP BY warehouse, REGEXP_EXTRACT(sku, '^([0-9]+)', 1)
+         HAVING LENGTH(REGEXP_EXTRACT(sku, '^([0-9]+)', 1)) >= 5
+     """).collect()
