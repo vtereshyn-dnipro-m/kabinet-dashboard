@@ -21,9 +21,9 @@
 # MAGIC   товаров (Grade & Resell), а не наши, поэтому их в выгрузке нет.
 # MAGIC - EAN — **свежий запрос** SP-API Catalog Items 2022-04-01 (`searchCatalogItems` по 20 ASIN),
 # MAGIC   рынок ES. Не старые снимки витрины.
-# MAGIC - Изображения (с 16.10.2026, решение владельца) — по статусу листинга. Active — фото каталога Amazon
+# MAGIC - Изображения (с 16.10.2026, решение владельца) — по статусу листинга. Active и BUYABLE — фото каталога Amazon
 # MAGIC   (у покупаемого ASIN это живая страница; фото нашего листинга бывает устаревшим, как у 54477000).
-# MAGIC   Inactive / Incomplete — фото НАШЕГО листинга, Listings Items (`main_product_image_locator`,
+# MAGIC   Остальные (Inactive / Incomplete и Active без BUYABLE — в Check «not buyable») — фото НАШЕГО листинга, Listings Items (`main_product_image_locator`,
 # MAGIC   `other_product_image_locator_N` → PTNN): у неактивного варианта каталог отдаёт фото соседа (58614000).
 # MAGIC   В листинге неактивной строки фото нет — пусто, в Check «No photos in our listing — need to upload»
 # MAGIC   (84107000); каталог у неактивных не берём. Пустые слоты PT у строк с фото листинга добираются из
@@ -77,6 +77,11 @@ IMG_LISTING, IMG_LISTING_CAT_MAIN, IMG_CATALOG = "Our listing", "Our listing, ma
 IMG_LISTING_CAT_EXTRA = "Our listing + extra images from Amazon catalog"
 IMG_CATALOG_LIVE = "Amazon catalog (live page, buyable listing)"
 IMG_NONE_INACTIVE = "None: not buyable, our listing has no images"
+# Одно главное фото у разных ASIN, где владелец снимка проверен глазами (по самому фото): ID снимка → базовый код и
+# модель владельца, плюс модели остальных строк для текста «загрузите своё». У владельца пометки нет, у остальных —
+# «Main photo is <модель> (<код>) — need to upload <своя модель> photo». Остальные пары — общая пометка «проверьте».
+# 81RLT8zjlZL — пускач с компрессором JS-16C (надпись на кейсе), стоял главным и у пускача JS-8 81123011 (17.10.2026).
+PHOTO_OWNERS = {"81RLT8zjlZL": {"owner": "54477000", "model": "JS-16C", "others": {"81123011": "JS-8"}}}
 import requests
 from databricks.sdk import WorkspaceClient
 from openpyxl import Workbook
@@ -425,6 +430,10 @@ for x in rows:
         else:
             x["match"] = MATCH_DIFF
     # неактивная строка берёт фото только из нашего листинга (17.10.2026): нет — пусто и просьба загрузить
+    # Status — как в отчёте листингов; если там Active, а Amazon сейчас не продаёт (нет BUYABLE в Listings Items),
+    # говорим это в Check (22539000, 17.10.2026): по такой строке фото только из листинга
+    if x["status"] == "Active" and lv is not None and not lv.get("buyable"):
+        chk.append(("not_buyable", "Active, but Amazon doesn't sell it (not buyable)"))
     if not x["live"] and not x["imgs"].get("MAIN"):
         chk.append(("upload", "No photos in our listing — need to upload" if not x["imgs"]
                     else "No main photo in our listing — need to upload"))
@@ -432,23 +441,34 @@ for x in rows:
     x["chk_kinds"] = {k for k, _ in chk}
     x["inactive_child"] = x["status"] != "Active" and x["rel"][1] and not x["parent"]
 # ── 4б'. одно главное фото у разных товаров ─────────────────────────────────────────────────────────────────────
-# Одинаковый снимок (тот же ID Amazon) главным фото у разных базовых кодов — повод проверить, чьё оно. 17.10.2026:
-# 81RLT8zjlZL (JS-16C с компрессором) стоял главным и у 54477000-FBA, и у 81123011 — пускача JS-8, это другой товар;
-# 71kz5G-7pEL — у шлангов 59327001 (3/4", 25 м) и 59327003 (1/2", 20 м). Вывода «ошибка» не делаем, только пометка.
+# Одинаковый снимок (тот же ID Amazon) главным фото у разных ASIN — повод проверить, чьё оно. Сравниваем ASIN, а не
+# базовый код: у 59609000 (пила DRS-200BC без аккумулятора) и 59609000-1 (комплект с аккумулятором и зарядкой) код
+# один, а товары разные, и по базовому коду пара не ловилась. Строки одного ASIN (FBA и FBM) делят фото по делу.
+# 17.10.2026: 81RLT8zjlZL — у 54477000-FBA и пускача JS-8 81123011; 71kz5G-7pEL — у шлангов 59327001 и 59327003;
+# 51JkaGT5QiL — у 59609000 и 59609000-1. Вывода «ошибка» не делаем — кроме снимков с проверенным владельцем.
+def _base(sku):
+    m_ = re.match(r"(?:S\d*_)?(\d+)", sku)
+    return m_.group(1) if m_ else sku
 _by_main = {}
 for x in rows:
     _m = img_id(x["imgs"].get("MAIN")) if x["imgs"].get("MAIN") else None
     if _m and not x["parent"]:
         _by_main.setdefault(_m, []).append(x)
-for _grp in _by_main.values():
-    _bases = {re.match(r"(?:S\d*_)?(\d+)", x["sku"]).group(1) if re.match(r"(?:S\d*_)?(\d+)", x["sku"]) else x["sku"]
-              for x in _grp}
-    if len(_bases) > 1:
-        for x in _grp:
-            _others = sorted({y["sku"] for y in _grp if y is not x})
+for _m, _grp in _by_main.items():
+    if len({x["asin"] or x["sku"] for x in _grp}) < 2:
+        continue
+    _own = PHOTO_OWNERS.get(_m)
+    for x in _grp:
+        if _own:
+            if _base(x["sku"]) == _own["owner"]:
+                continue
+            _note = (f"Main photo is {_own['model']} ({_own['owner']}) — need to upload "
+                     f"{_own['others'].get(x['sku']) or _own['others'].get(_base(x['sku'])) or 'this product'} photo")
+        else:
+            _others = sorted({y["sku"] for y in _grp if (y["asin"] or y["sku"]) != (x["asin"] or x["sku"])})
             _note = "Same main photo as " + ", ".join(_others[:3]) + " — check it shows this product"
-            x["check"] = "; ".join(t for t in (x["check"], _note) if t)
-            x["chk_kinds"].add("same_main")
+        x["check"] = "; ".join(t for t in (x["check"], _note) if t)
+        x["chk_kinds"].add("same_main")
 
 # ── 4в. недостающие дополнительные фото — из каталога, но только где страница подтвердила товар ──
 # Решение владельца 14.10.2026 (вариант Б): в листинге фото часто меньше, чем показывает Amazon
@@ -572,7 +592,9 @@ summary = ([("TEST FILE", "Trial run — not for sending")] if TEST else []) + [
      sum(1 for x in rows if "listing" in x["chk_kinds"])),
     ("  Not buyable, no photos in our listing — need to upload",
      sum(1 for x in rows if "upload" in x["chk_kinds"])),
-    ("  Same main photo as another product — check it shows this product",
+    ("  Active in the listings report, but Amazon doesn't sell it (not buyable)",
+     sum(1 for x in rows if "not_buyable" in x["chk_kinds"])),
+    ("  Same main photo on another ASIN — check it shows this product",
      sum(1 for x in rows if "same_main" in x["chk_kinds"])),
     ("Not buyable variants of a family (Inactive / Incomplete)",
      f"{sum(1 for x in rows if x['inactive_child'])} — {DOMAIN}/dp/<ASIN> may open another, buyable variant of the "
@@ -615,6 +637,6 @@ result = {"marketplace": MK, "file": f"{OUT_DIR}/{name}", "rows": n, "asins": le
           "catalog_main_vs_listing": {m_: sum(1 for x in rows if x["match"] == m_) for m_ in (MATCH_SAME, MATCH_DIFF, MATCH_NA, MATCH_PARENT)},
           "inactive_children": sum(1 for x in rows if x["inactive_child"]),
           "img_src": {v_: sum(1 for x in rows if x["img_src"] == v_) for v_ in (IMG_LISTING, IMG_LISTING_CAT_EXTRA, IMG_LISTING_CAT_MAIN, IMG_CATALOG, IMG_CATALOG_LIVE, IMG_NONE_INACTIVE, SRC_NONE)},
-          "check_kinds": {k_: sum(1 for x in rows if k_ in x["chk_kinds"]) for k_ in ("image_na", "listing", "upload", "same_main")}}
+          "check_kinds": {k_: sum(1 for x in rows if k_ in x["chk_kinds"]) for k_ in ("image_na", "listing", "not_buyable", "upload", "same_main")}}
 print(json.dumps(result, ensure_ascii=False))
 dbutils.notebook.exit(json.dumps(result, ensure_ascii=False))  # noqa: F821
