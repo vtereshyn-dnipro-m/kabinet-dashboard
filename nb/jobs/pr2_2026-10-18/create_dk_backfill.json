@@ -1,0 +1,14 @@
+{
+  "name": "Kabinet - Economics DK Backfill",
+  "description": "Ночной добор экономики Amazon из Data Kiosk за два года (только дни до 15.05.2026, уже загруженное не перезаписывается) → dnipro_m.kabinet.economics_daily / economics_fees; в economics_summary не идёт. Новых запросов после reorder_params.econ_backfill_deadline_hhmm (04:30) не создаёт. Второй задачей — промо: первый её прогон добирает историю промо. Когда в пульсе «история полная» — поставить на паузу и удалить правило сторожа. Источник — nb/economics_dk_backfill.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 30 0 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default", "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "backfill", "environment_key": "default", "timeout_seconds": 16200,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Economics DK Backfill", "source": "WORKSPACE"}},
+    {"task_key": "promotions", "depends_on": [{"task_key": "backfill"}], "run_if": "ALL_DONE",
+     "environment_key": "default", "timeout_seconds": 3600,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Amazon Promotions Loader", "source": "WORKSPACE"}}
+  ]
+}

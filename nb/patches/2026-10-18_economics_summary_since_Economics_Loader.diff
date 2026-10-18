@@ -1,0 +1,43 @@
+--- a/Kabinet - Economics Loader
++++ b/Kabinet - Economics Loader
+@@ -627,19 +627,26 @@
+ print(f"sku_cogs_current: {len(_chain)} SKU, выпало из цепочки {_gone}")
+ print(f"COGS маппинг: {len(cogs_df)} SKU (от {cogs_df['cogs'].min():.2f} до {cogs_df['cogs'].max():.2f} EUR); "
+       f"из карточки Odoo — {_odoo_n} (запасной источник, когда SKU нет в основной помесячной таблице)")
++
++# ─── Граница истории economics_summary (решение владельца 18.10.2026) ─
++# В economics_daily / economics_fees с 18.10.2026 лежит и история до 15.05.2026 — добор из Data Kiosk за два года
++# (Kabinet - Economics DK Backfill). В economics_summary её НЕ переносим: сводка, как и раньше, начинается 15.05.2026.
++# Без этой границы ячейка подхватила бы добранную историю целиком на первом же прогоне.
++ECON_SUMMARY_SINCE = "2026-05-15"
+ 
+ # ─── ReferralFee из economics_fees (net: Referral + Refunded) ─
+-referral_df = spark.sql("""
++referral_df = spark.sql(f"""
+     SELECT sales_date, marketplace, child_asin,
+            SUM(amount) AS referral_fee
+     FROM dnipro_m.kabinet.economics_fees
+     WHERE fee_type_name IN ('ReferralFee', 'RefundedReferralFee')
++      AND sales_date >= DATE'{ECON_SUMMARY_SINCE}'
+     GROUP BY sales_date, marketplace, child_asin
+ """).toPandas()
+ print(f"ReferralFee: {len(referral_df)} строк, net {referral_df['referral_fee'].sum():,.2f} EUR")
+ 
+ # ─── Агрегация economics_daily ───────────────────────────────
+-econ_df = spark.sql("""
++econ_df = spark.sql(f"""
+     SELECT
+         sales_date,
+         marketplace,
+@@ -657,8 +664,9 @@
+         END                        AS net_proceeds_per_unit,
+         MAX(currency_code)         AS currency_code
+     FROM dnipro_m.kabinet.economics_daily
+-    WHERE units_ordered > 0
+-       OR (net_proceeds_total IS NOT NULL AND net_proceeds_total != 0)
++    WHERE sales_date >= DATE'{ECON_SUMMARY_SINCE}'
++      AND (units_ordered > 0
++           OR (net_proceeds_total IS NOT NULL AND net_proceeds_total != 0))
+     GROUP BY sales_date, marketplace, child_asin
+ """).toPandas()
+ print(f"Строк после фильтра: {len(econ_df)}")
