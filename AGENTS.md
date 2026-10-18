@@ -1979,6 +1979,19 @@ SP (`spTargeting`, `spCampaigns` с плейсментом, `spSearchTerm`) — 
   settlement в транзакции есть — сверка с settlement-отчётом идёт по нему напрямую. Проба 18.10: 101 транзакция за два
   дня по всем рынкам; виды разбивки — `Commission`, `FBAPerUnitFulfillmentFee`, `DigitalServicesFee`, `PromoRebates`,
   `VineEnrollmentFee`, `ShippingChargeback` и др.
+  **Одна продажа лежит в таблице ДВАЖДЫ** — отложенной транзакцией (`DEFERRED_RELEASED`) и выплатой (`RELEASED`) с той
+  же разбивкой, и сумма «всего подряд» удваивается (digital-сбор ES за август 2026 выходил 506 € вместо 241 €). Читать
+  только вью `dnipro_m.v_amazon_finances_transactions_current` / `v_amazon_finances_breakdowns_current`
+  (`sql/v_amazon_finances_current_2026-10-18.sql`): выплаты + ещё не выплаченные (`DEFERRED`) + отложенные, на которые
+  выплаты нет — 423 продажи ноября 2024 — марта 2025 Amazon отдаёт только отложенной транзакцией. ES август 2026 по вью
+  — 811 заказов и 40 334,16 €, как в settlement до цента. И второе: внутри разбивки суммы вложены (путь `X` и `X/Y`
+  повторяют одни деньги, уровень транзакции повторяет позиции) — складывать один уровень: листья (`is_leaf = 'Y'`) или
+  конкретный путь у позиций (`item_no IS NOT NULL`).
+- **Бэклог (решение владельца 18.10.2026, не чинить сейчас): digital-сбор в `economics_fees` недосчитан.** Data Kiosk
+  отдаёт `DigitalServicesFeeSOA` почти пустым — ES август 2026 14 €, сентябрь 5 €, — а Amazon удерживает 241 € и 256 €
+  (с НДС; settlement и Finances сходятся до цента). Наша методика маржи недосчитывает по ES ~200–250 € в месяц; экраны
+  это не трогает — там цифры Power BI, у которого модель «3 % от реферальной» близка к факту. Чинить — брать сбор из
+  Finances (вью `v_amazon_finances_breakdowns_current`, путь `…DigitalServicesFee/DigitalServicesFee` у позиций).
 - **Промо по товару** — `Kabinet - Amazon Promotions Loader` (08:50), Data Kiosk `analytics_sellerAnalytics_2025_03_31`,
   блок `promotion` → `dnipro_m.raw_amazon_seller_analytics_promotions`: ASIN × рынок × день, только дни с акцией. Один
   запрос на все рынки, суммы в евро (пересчёт GB/SE/PL делает Amazon). `msku` Amazon для промо не отдаёт, идентификатора
