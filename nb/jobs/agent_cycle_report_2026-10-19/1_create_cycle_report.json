@@ -1,0 +1,11 @@
+{
+  "name": "Kabinet - Agent Cycle Report",
+  "description": "Отправляет в бот сводки циклов автономной работы агента из kabinet_data.agent_cycle_reports. Секрет бота читает только эта джоба. Источник — nb/agent_cycle_report.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 0/15 8-22 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default", "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "send", "environment_key": "default", "timeout_seconds": 600,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Agent Cycle Report", "source": "WORKSPACE"}}
+  ]
+}
