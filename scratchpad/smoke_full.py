@@ -12,16 +12,35 @@
    уехал в прод с повторным help= в «Остатках» (30.09.2026). Поэтому компиляцию
    проверяем САМИ, до запуска, и пустой прогон тоже считаем провалом.
 """
-import sys, json, psycopg2, warnings, logging, pandas as pd
+import os, subprocess, sys, json, psycopg2, warnings, logging, pandas as pd
 warnings.filterwarnings("ignore"); logging.disable(logging.WARNING)
-sys.path.insert(0, "/Users/vitter/Documents/Code/kabinet-dashboard")
+# Код — из ТОЙ рабочей копии, где лежит этот файл (ветка в worktree, а не main). До 18.10.2026 путь был зашит на
+# основной checkout, и прогон из worktree с веткой молча проверял код main: «0 провалов» значило «main исправен».
+R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, R)
+
+
+def _dsn() -> str:
+    """Подключение к Lakebase: LAKEBASE_DSN, иначе .mcp.json этой копии, иначе основного checkout (в git его нет,
+    а в worktree его не копируют)."""
+    if os.environ.get("LAKEBASE_DSN"):
+        return os.environ["LAKEBASE_DSN"]
+    common = subprocess.run(["git", "-C", R, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                            capture_output=True, text=True).stdout.strip()
+    for root in (R, os.path.dirname(common) if common else ""):
+        f = os.path.join(root, ".mcp.json") if root else ""
+        if f and os.path.exists(f):
+            return json.load(open(f))["mcpServers"]["lakebase-kabinet"]["env"]["LAKEBASE_DSN"]
+    raise SystemExit("нет подключения: задайте LAKEBASE_DSN или положите .mcp.json в основной checkout")
+
+
 import db.connection as dbc
-DSN = json.load(open("/Users/vitter/Documents/Code/kabinet-dashboard/.mcp.json"))["mcpServers"]["lakebase-kabinet"]["env"]["LAKEBASE_DSN"]
+DSN = _dsn()
 dbc.get_connection = lambda: psycopg2.connect(DSN)
 import streamlit as st
 st.page_link = lambda *a, **k: None
 from streamlit.testing.v1 import AppTest
-R = "/Users/vitter/Documents/Code/kabinet-dashboard"
+print(f"проверяется код: {R} (ветка {subprocess.run(['git', '-C', R, 'branch', '--show-current'], capture_output=True, text=True).stdout.strip() or '—'})")
 SQLISH = ("syntax", "column", "relation", "does not exist", "group by", "psycopg2",
           "operator", "не прочиталось", "undefined")
 # Коды типов инцидентов на экране — признак того, что подпись взята мимо i18n.incident_type_label (своя копия
