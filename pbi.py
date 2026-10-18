@@ -172,7 +172,10 @@ def load_categories() -> pd.DataFrame:
 COUNTRY_SQL = f"""
     SELECT pbi_country AS country, pbi_marketplace AS platform,
            SUM(units_sold) AS units, SUM(sales_vat_incl) AS sales_vat_incl, SUM(sales_vat_excl) AS sales_vat_excl,
-           SUM(contribution_profit) AS cp
+           SUM(contribution_profit) AS cp,
+           SUM(quantity_refund) AS units_refunded, SUM(refund_total_vat_incl) AS refund_vat_incl,
+           SUM(spend) AS spend, SUM(packing_cost_total) AS packing, SUM(shipping_cost_total) AS shipping,
+           SUM(cancel_commission_vat_excl) AS cancel_commission, SUM(expenses) AS expenses
     FROM {SOURCE}
     WHERE date BETWEEN %(a)s AND %(b)s
     GROUP BY 1, 2

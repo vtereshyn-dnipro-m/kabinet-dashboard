@@ -1238,7 +1238,10 @@ def _countries_view() -> None:
     cn["platform"] = cn["platform"].map(lambda p: t("cm.platform.website") if as_text(p) == "Website" else p)
     by_c = (cn.groupby("label", as_index=False)
               .agg(units=("units", "sum"), sales_vat_incl=("sales_vat_incl", "sum"),
-                   sales_vat_excl=("sales_vat_excl", "sum"), cp=("cp", "sum")))
+                   sales_vat_excl=("sales_vat_excl", "sum"), cp=("cp", "sum"),
+                   units_refunded=("units_refunded", "sum"), refund_vat_incl=("refund_vat_incl", "sum"),
+                   spend=("spend", "sum"), packing=("packing", "sum"), shipping=("shipping", "sum"),
+                   cancel_commission=("cancel_commission", "sum"), expenses=("expenses", "sum")))
     # продажи с НДС каждой площадки — своей колонкой (10.10.2026): Wallapop и сайт отдельно, а не строкой «площадки».
     # Пусто — площадки в стране нет (на экране «—»), ноль — площадка есть, продаж за период не было
     _plat = cn.pivot_table(index="label", columns="platform", values="sales_vat_incl", aggfunc="sum")
@@ -1273,7 +1276,9 @@ def _countries_view() -> None:
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
     show_df(
-        by_c[["label", "units", "sales_vat_incl", "sales_vat_excl", "cp", "cp_pct"] + list(_pcols.values())],
+        # возвраты, реклама, упаковка, доставка, комиссия за отмены и расходы — те же колонки реплики Power BI (18.10.2026)
+        by_c[["label", "units", "sales_vat_incl", "sales_vat_excl", "cp", "cp_pct", "units_refunded", "refund_vat_incl",
+              "spend", "packing", "shipping", "cancel_commission", "expenses"] + list(_pcols.values())],
         use_container_width=True, hide_index=True, na_text="—",
         column_config={
             "label": st.column_config.TextColumn(t("cm.all.col_country")),
@@ -1284,6 +1289,20 @@ def _countries_view() -> None:
             "sales_vat_excl": st.column_config.NumberColumn(t("money.kpi.sales_excl_pbi"), format="%.0f €"),
             "cp": st.column_config.NumberColumn(t("money.kpi.cp_pbi"), format="%.0f €"),
             "cp_pct": st.column_config.NumberColumn(t("cm.col.cp_pct_pbi"), format="%.1f%%"),
+            "units_refunded": st.column_config.NumberColumn(t("cm.all.col_refund_units"), format="%d", width="small",
+                                                            help=t("cm.all.col_refund_units_help")),
+            "refund_vat_incl": st.column_config.NumberColumn(t("cm.all.col_refund_eur"), format="%.0f €",
+                                                             help=t("cm.all.col_refund_eur_help")),
+            "spend": st.column_config.NumberColumn(t("money.kpi.spend_pbi"), format="%.0f €",
+                                                   help=t("money.kpi.spend_pbi_help")),
+            "packing": st.column_config.NumberColumn(t("cm.all.col_packing"), format="%.0f €",
+                                                     help=t("cm.all.col_packing_help")),
+            "shipping": st.column_config.NumberColumn(t("cm.all.col_shipping"), format="%.0f €",
+                                                      help=t("cm.all.col_shipping_help")),
+            "cancel_commission": st.column_config.NumberColumn(t("cm.all.col_cancel_comm"), format="%.0f €",
+                                                               help=t("cm.all.col_cancel_comm_help")),
+            "expenses": st.column_config.NumberColumn(t("money.kpi.expenses_pbi"), format="%.0f €",
+                                                      help=t("cm.all.col_expenses_help")),
         },
     )
     st.caption(t("cm.all.note_country"))
