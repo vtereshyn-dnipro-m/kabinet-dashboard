@@ -834,7 +834,9 @@ else:
                     if not _r.ok:
                         SHEET_ERRORS.append(f"бот {_r.status_code}: {_r.text[:150]}")
                 except Exception as _e:
-                    SHEET_ERRORS.append(f"бот: {type(_e).__name__}: {str(_e)[:150]}")
+                    import re as _re_tok   # requests кладёт URL с токеном бота в текст исключения — вырезаем до записи
+                    _err_text = _re_tok.sub(r"bot\d+:[\w-]+", "bot<токен>", str(_e))
+                    SHEET_ERRORS.append(f"бот: {type(_e).__name__}: {_err_text[:150]}")
                 _sub = tg_to_subscribers("🟠 <b>Plan Matrix: цены не перезаписаны</b>\n"
                                          + _msg.replace(_TOKEN + " ", "").replace("&", "&amp;").replace("<", "&lt;"))
                 if _sub:

@@ -232,7 +232,9 @@ with pg, pg.cursor() as cur:
                 if not _r.ok:
                     _errs[_who] = f"{_r.status_code}: {_r.text[:150]}"
             except Exception as e:
-                _errs[_who] = f"{type(e).__name__}: {str(e)[:150]}"
+                import re as _re_tok   # requests кладёт URL с токеном бота в текст исключения — вырезаем до записи
+                _err_text = _re_tok.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))
+                _errs[_who] = f"{type(e).__name__}: {_err_text[:150]}"
         SEND_ERR = _errs.get("основной")       # не ушло в основной чат — прогон падает после пульса
         _sub = tg_to_subscribers(_text)
         if _sub:
