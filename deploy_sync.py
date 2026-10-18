@@ -11,18 +11,29 @@ Streamlit перечитывает с диска на каждом прогон�
 и выгрузить модули проекта из `sys.modules`; `app.py` идёт дальше и импортирует их заново уже с диска, вместе со
 свежим `i18n`.
 
-Первый прогон процесса — особый случай: номера «при загрузке» ещё нет. Выгружаем модули, только если какой-то файл
-проекта НОВЕЕ самого процесса (время старта — из `/proc` на Linux, где живёт Streamlit Cloud): это ровно мерж,
-который принёс сам `deploy_sync` — процесс старый, файлы новые. Обычный старт процесса ничего не выгружает: модули
-только что импортированы из тех же файлов, а тестовые подмены (`db.connection.get_connection` в проверках) не
-теряются. На macOS `/proc` нет — первый прогон не выгружает ничего.
+Номер «при загрузке» хранится в переменной ЭТОГО модуля, а не в `st.cache_resource`: сам `deploy_sync` никогда не
+выгружается, а кэш сбрасываем мы же — номер в нём пропадал бы вместе с кэшем, и следующий сеанс снова шёл бы в ветку
+«первого прогона». Сброс — под блокировкой с повторной проверкой номера: два сеанса, одновременно увидевшие новый
+коммит, иначе выгружали бы модули друг у друга посреди импорта (`KeyError` в чужом потоке — воспроизведено
+проверяющим PR #330).
 
-Звать `sync()` НАДО первой строкой `app.py`, до импорта модулей проекта: модуль, импортированный раньше, `app.py`
-держал бы ссылкой на старый объект до конца прогона. Сам этот модуль импортирует только стандартную библиотеку и
-streamlit — его выгружать нельзя, и он себя не выгружает.
+Первый прогон процесса — особый случай: номера «при загрузке» ещё нет. Выгружаем модули, только если какой-то файл
+проекта НОВЕЕ самого процесса (время старта — `starttime` из `/proc/self/stat` + `btime` из `/proc/stat`; это Linux,
+где живёт Streamlit Cloud): это ровно мерж, который принёс сам `deploy_sync` — процесс старый, файлы новые. Обычный
+старт процесса ничего не выгружает. Время изменения каталога `/proc/<pid>` для этого НЕ годится: ядро ставит его,
+когда лениво создаёт запись, а не при старте процесса. Где `/proc` нет (macOS), первый прогон не выгружает ничего.
+
+Сеанс, открытый до мержа, держит в `st.session_state["_auth_user"]` объект пользователя СТАРОГО класса — после
+выгрузки `auth` новый код ждал бы у него новых полей. Поэтому при смене кода в сеансе этот объект выбрасывается, и
+`auth.current()` собирает его заново.
+
+Ограничение: правка САМОГО `deploy_sync.py` доезжает только с ребутом — модуль себя не выгружает намеренно (иначе
+терялись бы номер и блокировка). Звать `sync()` НАДО первой строкой `app.py`, до импорта модулей проекта: модуль,
+импортированный раньше, `app.py` держал бы ссылкой на старый объект до конца прогона.
 """
 import os
 import sys
+import threading
 import time
 
 import streamlit as st
@@ -30,6 +41,9 @@ import streamlit as st
 ROOT = os.path.dirname(os.path.abspath(__file__))
 _FALLBACK_EVERY_S = 30          # без .git отпечаток кода считается не чаще раза в 30 с
 _fallback = {"at": 0.0, "value": None}
+_state = {"commit": None, "last": None}   # номер при загрузке модулей и последний прочитанный; один на процесс
+_lock = threading.Lock()
+_SESSION_KEYS_OF_OLD_CODE = ("_auth_user",)   # объекты классов проекта, которые сеанс хранит между прогонами
 
 
 def _read(path):
@@ -41,7 +55,7 @@ def _read(path):
 
 
 def current_commit():
-    """sha коммита рабочей копии из `.git` (обычная ветка, отделённая голова, packed-refs); нет `.git` — None."""
+    """sha коммита рабочей копии из `.git` (обычная ветка, отделённая голова, packed-refs, worktree); нет — None."""
     git = os.path.join(ROOT, ".git")
     if os.path.isfile(git):                       # worktree: в .git лежит «gitdir: <путь>»
         line = _read(git) or ""
@@ -84,30 +98,54 @@ def _code_fingerprint():
                     parts.append(f"{p}:{s.st_mtime_ns}:{s.st_size}")
                 except OSError:
                     pass
-    _fallback.update(at=now, value="fp:" + str(hash("|".join(sorted(parts)))))
+    _fallback.update(at=now, value="fp:" + format(abs(hash("|".join(sorted(parts)))), "x"))
     return _fallback["value"]
 
 
 def version():
-    """Что сейчас загружено: короткий sha или «отпечаток кода»."""
-    v = current_commit() or _code_fingerprint()
-    return v[:7] if not v.startswith("fp:") else v
+    """Что сейчас загружено: короткий sha (или «fp:» и 7 знаков отпечатка, если `.git` нет). Без повторного чтения."""
+    v = _state["last"] or current_commit() or _code_fingerprint()
+    return v[:10] if v.startswith("fp:") else v[:7]
+
+
+def _parse_start(stat_text, proc_stat_text, clk_tck):
+    """Время старта процесса (unix) из содержимого /proc/self/stat и /proc/stat; не разобралось — None."""
+    try:
+        rest = stat_text[stat_text.rindex(")") + 2:].split()   # после «(comm) » идёт поле 3 (state)
+        starttime_ticks = int(rest[19])                        # поле 22 — индекс 19 от поля 3
+        btime = next(int(l.split()[1]) for l in proc_stat_text.splitlines() if l.startswith("btime "))
+        return btime + starttime_ticks / clk_tck
+    except (ValueError, IndexError, StopIteration):
+        return None
 
 
 def _process_started_at():
-    """Время старта процесса (Linux: каталог /proc/<pid> создаётся при старте); где /proc нет — None."""
-    try:
-        return os.stat(f"/proc/{os.getpid()}").st_mtime
-    except OSError:
+    """Время старта процесса на Linux; где /proc нет — None."""
+    stat, pstat = _read("/proc/self/stat"), _read("/proc/stat")
+    if not stat or not pstat:
         return None
+    try:
+        tck = os.sysconf("SC_CLK_TCK")
+    except (ValueError, OSError, AttributeError):
+        return None
+    return _parse_start(stat, pstat, tck)
+
+
+def _project_modules():
+    me = __name__
+    for name, mod in list(sys.modules.items()):
+        f = getattr(mod, "__file__", None) or ""
+        # __main__ — это сам исполняемый скрипт (app.py или страница): Streamlit держит его в sys.modules, и выгрузка
+        # роняла прогон KeyError '__main__' (поймано локальной пробой 19.10.2026)
+        if name.startswith("__") or name == me or not f or "site-packages" in f:
+            continue
+        if os.path.abspath(f).startswith(ROOT + os.sep):
+            yield name, f
 
 
 def _project_newer_than(ts):
     """Есть ли загруженный модуль проекта, чей файл изменён позже ts."""
-    for name, mod in list(sys.modules.items()):
-        f = getattr(mod, "__file__", None) or ""
-        if name.startswith("__") or not f or "site-packages" in f or not os.path.abspath(f).startswith(ROOT + os.sep):
-            continue
+    for _, f in _project_modules():
         try:
             if os.stat(f).st_mtime > ts:
                 return True
@@ -116,40 +154,35 @@ def _project_newer_than(ts):
     return False
 
 
-@st.cache_resource(show_spinner=False)
-def _loaded():
-    """Номер кода, при котором процесс загрузил модули. Живёт в cache_resource — один на процесс, общий для сессий."""
-    return {"commit": None}
-
-
-def _purge_project_modules():
-    me = __name__
-    for name, mod in list(sys.modules.items()):
-        f = getattr(mod, "__file__", None) or ""
-        # __main__ — это сам исполняемый скрипт (app.py или страница): Streamlit держит его в sys.modules, и выгрузка
-        # роняла прогон KeyError '__main__' (поймано локальной пробой 19.10.2026)
-        if name.startswith("__") or name == me:
-            continue
-        if f and os.path.abspath(f).startswith(ROOT + os.sep) and "site-packages" not in f:
-            sys.modules.pop(name, None)
+def _forget_old_session_objects(now):
+    """Сеанс, переживший смену кода, выбрасывает объекты старых классов — их соберут заново."""
+    try:
+        if st.session_state.get("_deploy_code") != now:
+            for k in _SESSION_KEYS_OF_OLD_CODE:
+                st.session_state.pop(k, None)
+            st.session_state["_deploy_code"] = now
+    except Exception:
+        pass                        # вне сеанса (тесты, голый запуск) session_state недоступен — нечего чистить
 
 
 def sync():
-    """Первой строкой app.py. Коммит сменился (или первый прогон процесса) — сброс кэшей и выгрузка модулей проекта.
-    Возвращает True, если сброс был в этом прогоне."""
+    """Первой строкой app.py. Коммит сменился (или первый прогон процесса после мержа) — сброс кэшей и выгрузка
+    модулей проекта. Возвращает True, если сброс был в этом прогоне."""
     now = current_commit() or _code_fingerprint()
-    box = _loaded()
-    if box.get("commit") == now:
-        return False
-    if box.get("commit") is None:
-        # первый прогон процесса: запомнить номер; выгружать — только если файлы проекта новее процесса
-        started = _process_started_at()
-        if started is None or not _project_newer_than(started):
-            box["commit"] = now
-            return False
-    st.cache_data.clear()
-    st.cache_resource.clear()       # вместе с ним уходит и box — заводим заново
-    _purge_project_modules()
-    _loaded()["commit"] = now
-    print(f"[deploy_sync] код {now[:12]}: кэши сброшены, модули проекта перечитаются", flush=True)
-    return True
+    _state["last"] = now
+    reset = False
+    if _state["commit"] != now:
+        with _lock:
+            if _state["commit"] != now:            # повторная проверка: другой сеанс мог успеть сбросить
+                first = _state["commit"] is None
+                started = _process_started_at() if first else None
+                if not first or (started is not None and _project_newer_than(started)):
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+                    for name, _ in list(_project_modules()):
+                        sys.modules.pop(name, None)
+                    reset = True
+                    print(f"[deploy_sync] код {now[:12]}: кэши сброшены, модули проекта перечитаются", flush=True)
+                _state["commit"] = now
+    _forget_old_session_objects(now)
+    return reset
