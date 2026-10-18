@@ -178,6 +178,12 @@ PAGES = {
           (Source("pbi", "pbi_spiderweb_report", "date", "Kabinet - Power BI Replica", 72,
                   ("acos", "tacos", "spend", "ad_sales")),)),
         # ads_spend страница «Реклама» не читает вовсе (строка = SKU, продаж SB в ней нет) — в паспорте её нет
+        # блоки «Все рынки — по отчётам Amazon Ads» (18.10.2026): реплики отчётов рекламы, счетов и сборов (ads_report.py)
+        Source("ads_api", "ads_campaign_daily", "date", "Kabinet - Ads Replica", 72,
+               ("real_cost", "api_ratios", "placements", "invalid")),
+        Source("ads_terms", "ads_search_term_daily", "date", "Kabinet - Ads Replica", 96, ("wasted",)),
+        # сбор приходит со счётом, а счёт — по порогу ~500 € раз в 2–7 дней: «давно» у него норма, не тревога
+        Source("ads_fees", "ads_fees_daily", "date", "Kabinet - Ads Replica", 240, ("real_cost",), watch=False),
         Source("ads_alerts", "ads_alerts", "calc_date", "Kabinet - Ads Alerts", 48, ("alerts",)),
         # журнал кнопок: пишется только когда человек нажал, «устарел» он по делу не бывает
         Source("ads_actions", "ads_actions", "created_at", "—", 720, ("actions",), watch=False),

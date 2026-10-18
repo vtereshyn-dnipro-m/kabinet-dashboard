@@ -25,6 +25,7 @@ import period as period_mod
 import catalog
 import ads_api
 import ad_ratios
+import ads_report
 import money_notes as mn
 import pbi
 from links import MARKETPLACE_ID, amazon_url, market_name
@@ -429,6 +430,144 @@ card(c6, t("ads.card.cac"), t("ads.card.cac_base"),
      "—" if pd.isna(_cac) else money(_cac, 2),
      note=mn.note(mn.VAT_EXCL, _ch_amc, "ad_day", _per))
 st.caption(t("ads.card.formula_note"))
+
+# ═══════════════════════════════════════════════════════════════════
+# ВСЕ РЫНКИ ПО ОТЧЁТАМ ADS API (18.10.2026, решения владельца)
+# ═══════════════════════════════════════════════════════════════════
+# Реальная стоимость, ACOS и TACOS по стране и кампании, пустые траты, плейсменты и недействительный трафик —
+# по репликам отчётов Amazon Ads (ads_report.py). AMC ниже — только Испания, эти блоки — все рынки с расходом
+st.markdown(f"### {t('ads.api.title')}")
+try:
+    _api_mk_all = ads_report.countries(_from.date(), _to.date())
+except Exception as _e:
+    _api_mk_all = []
+    st.error(f"{t('ads.api.err')}: {_e}")
+if _api_mk_all:
+    _api_mk = tuple(st.multiselect(t("ads.api.countries"), _api_mk_all, default=[], format_func=market_name,
+                                   placeholder=t("ads.filter.market_all"), key="ads_api_mk")) or tuple(_api_mk_all)
+    _api_per = f"{_from.strftime('%d.%m')}–{_to.strftime('%d.%m')}"
+    _api_ch = "=" + t("mn.ch.selected", m=", ".join(market_name(m) for m in _api_mk))
+
+    # ── 1. реальная стоимость ──
+    st.markdown(f"#### {t('ads.api.cost_title')}")
+    _rc = ads_report.real_cost(_from.date(), _to.date(), _api_mk)
+    _tot = {c: float(_rc[c].sum()) for c in ("spend", "sp", "sb", "sd", "fee", "vat", "real", "real_incl_vat")}
+    k1, k2, k3, k4 = st.columns(4)
+    card(k1, t("ads.api.spend"), t("ads.api.spend_base", sp=money(_tot["sp"]), sb=money(_tot["sb"]), sd=money(_tot["sd"])),
+         money(_tot["spend"]), note=mn.note(mn.VAT_EXCL, _api_ch, "ad_day", _api_per))
+    card(k2, t("ads.api.fee"), t("ads.api.fee_base",
+         p=f"{_tot['fee'] / _tot['spend'] * 100:.1f}" if _tot["spend"] else "—"),
+         money(_tot["fee"]), note=mn.note(mn.VAT_EXCL, _api_ch, "ad_day", _api_per))
+    card(k3, t("ads.api.vat"), t("ads.api.vat_base"), money(_tot["vat"]),
+         note=mn.note(None, _api_ch, "ad_day", _api_per))
+    card(k4, t("ads.api.real"), t("ads.api.real_base", v=money(_tot["real_incl_vat"])), money(_tot["real"]), "good",
+         note=mn.note(mn.VAT_EXCL, _api_ch, "ad_day", _api_per))
+    st.caption(t("ads.api.cost_note"))
+
+    # ── 2. ACOS и TACOS: по стране, затем по кампании ──
+    st.markdown(f"#### {t('ads.api.ratio_title')}")
+    _cmp = ads_report.campaigns(_from.date(), _to.date(), _api_mk)
+    for _c in ("cost", "sales", "orders", "clicks", "impressions"):
+        _cmp[_c] = pd.to_numeric(_cmp[_c], errors="coerce").fillna(0.0)
+    _sv = ads_report.sales_vat_incl(_from.date(), _to.date(), _api_mk)
+    _byc = (_cmp.groupby("country", as_index=False)[["cost", "sales", "orders", "clicks"]].sum()
+            .merge(_sv, on="country", how="left"))
+    _byc["sales_vat_incl"] = pd.to_numeric(_byc["sales_vat_incl"], errors="coerce")
+    _byc["acos"] = _byc["cost"] / _byc["sales"].where(_byc["sales"] > 0) * 100
+    _byc["tacos"] = _byc["cost"] / _byc["sales_vat_incl"].where(_byc["sales_vat_incl"] > 0) * 100
+    _byc["label"] = _byc["country"].map(market_name)
+    show_df(_byc.sort_values("cost", ascending=False)[["label", "cost", "sales", "acos", "sales_vat_incl", "tacos", "orders", "clicks"]],
+            hide_index=True, use_container_width=True, na_text="—", column_config={
+                "label": st.column_config.TextColumn(t("ads.api.col_country")),
+                "cost": st.column_config.NumberColumn(t("ads.api.col_cost"), format="%.0f €"),
+                "sales": st.column_config.NumberColumn(t("ads.api.col_ad_sales"), format="%.0f €"),
+                "acos": st.column_config.NumberColumn("ACOS", format="%.1f%%"),
+                "sales_vat_incl": st.column_config.NumberColumn(t("ads.api.col_all_sales"), format="%.0f €"),
+                "tacos": st.column_config.NumberColumn("TACOS", format="%.1f%%"),
+                "orders": st.column_config.NumberColumn(t("ads.api.col_orders"), format="%d"),
+                "clicks": st.column_config.NumberColumn(t("ads.api.col_clicks"), format="%d")})
+    with st.expander(t("ads.api.by_campaign"), expanded=False):
+        _cmp["acos"] = _cmp["cost"] / _cmp["sales"].where(_cmp["sales"] > 0) * 100
+        _cmp["label"] = _cmp["country"].map(market_name)
+        show_df(_cmp.sort_values("cost", ascending=False)[["label", "ad_product", "campaign_name", "campaign_status", "cost", "sales", "acos", "orders", "clicks"]],
+                hide_index=True, use_container_width=True, na_text="—", column_config={
+                    "label": st.column_config.TextColumn(t("ads.api.col_country")),
+                    "ad_product": st.column_config.TextColumn(t("ads.api.col_type"), width="small"),
+                    "campaign_name": st.column_config.TextColumn(t("ads.api.col_campaign")),
+                    "campaign_status": st.column_config.TextColumn(t("ads.api.col_status"), width="small"),
+                    "cost": st.column_config.NumberColumn(t("ads.api.col_cost"), format="%.0f €"),
+                    "sales": st.column_config.NumberColumn(t("ads.api.col_ad_sales"), format="%.0f €"),
+                    "acos": st.column_config.NumberColumn("ACOS", format="%.1f%%"),
+                    "orders": st.column_config.NumberColumn(t("ads.api.col_orders"), format="%d"),
+                    "clicks": st.column_config.NumberColumn(t("ads.api.col_clicks"), format="%d")})
+    st.caption(t("ads.api.ratio_note"))
+
+    # ── 3. пустые траты: главная цифра — запросы с 10+ кликами и без заказов ──
+    st.markdown(f"#### {t('ads.api.terms_title')}")
+    _hot, _ts, _tend = ads_report.search_terms(_api_mk)
+    if not _ts:
+        st.info(t("common.no_data"))
+    else:
+        h1, h2 = st.columns([1, 2])
+        card(h1, t("ads.api.hot", n=ads_report.SEARCH_MIN_CLICKS),
+             t("ads.api.hot_base", k=_ts["hot_n"], a=_ts["start"].strftime("%d.%m"), b=_ts["end"].strftime("%d.%m")),
+             money(_ts["hot_cost"]), "bad" if _ts["hot_cost"] > 0 else "",
+             note=mn.note(mn.VAT_EXCL, _api_ch, "ad_day", ""))
+        with h2:
+            _hot["label"] = _hot["country"].map(market_name)
+            show_df(_hot[["label", "ad_product", "search_term", "campaign_name", "cost", "clicks", "impressions"]],
+                    hide_index=True, use_container_width=True, column_config={
+                        "label": st.column_config.TextColumn(t("ads.api.col_country"), width="small"),
+                        "ad_product": st.column_config.TextColumn(t("ads.api.col_type"), width="small"),
+                        "search_term": st.column_config.TextColumn(t("ads.api.col_term")),
+                        "campaign_name": st.column_config.TextColumn(t("ads.api.col_campaign")),
+                        "cost": st.column_config.NumberColumn(t("ads.api.col_cost"), format="%.0f €"),
+                        "clicks": st.column_config.NumberColumn(t("ads.api.col_clicks"), format="%d"),
+                        "impressions": st.column_config.NumberColumn(t("ads.api.col_impr"), format="%d")})
+        st.caption(t("ads.api.terms_note", z=money(_ts["zero_cost"]), c=money(_ts["cost"]),
+                     p=f"{_ts['zero_pct']:.0f}" if _ts.get("zero_pct") is not None else "—",
+                     n=_ts["zero_n"], s=_ts["zero_small_n"]))
+
+    # ── 4. плейсменты SP ──
+    st.markdown(f"#### {t('ads.api.place_title')}")
+    _pl = ads_report.placements(_from.date(), _to.date(), _api_mk)
+    if _pl.empty:
+        st.info(t("common.no_data"))
+    else:
+        _pl["label"] = _pl["country"].map(market_name)
+        _PLACE = {"Top of Search on-Amazon": "top", "Detail Page on-Amazon": "detail", "Other on-Amazon": "other",
+                  "Off Amazon": "off"}
+        _pl["placement_label"] = _pl["placement"].map(
+            lambda v: t(f"ads.api.place.{_PLACE[as_text(v)]}") if as_text(v) in _PLACE else as_text(v))
+        show_df(_pl[["label", "placement_label", "cost", "sales", "acos", "clicks", "orders"]],
+                hide_index=True, use_container_width=True, na_text="—", column_config={
+                    "label": st.column_config.TextColumn(t("ads.api.col_country")),
+                    "placement_label": st.column_config.TextColumn(t("ads.api.col_placement")),
+                    "cost": st.column_config.NumberColumn(t("ads.api.col_cost"), format="%.0f €"),
+                    "sales": st.column_config.NumberColumn(t("ads.api.col_ad_sales"), format="%.0f €"),
+                    "acos": st.column_config.NumberColumn("ACOS", format="%.1f%%"),
+                    "clicks": st.column_config.NumberColumn(t("ads.api.col_clicks"), format="%d"),
+                    "orders": st.column_config.NumberColumn(t("ads.api.col_orders"), format="%d")})
+        st.caption(t("ads.api.place_note"))
+
+    # ── 5. недействительный трафик ──
+    st.markdown(f"#### {t('ads.api.invalid_title')}")
+    _iv = ads_report.invalid_traffic(_from.date(), _to.date(), _api_mk)
+    if _iv.empty:
+        st.info(t("common.no_data"))
+    else:
+        _iv["label"] = _iv["country"].map(market_name)
+        show_df(_iv[["label", "ad_product", "gross_clicks", "invalid_clicks", "click_pct", "gross_impressions", "invalid_impressions", "impr_pct"]],
+                hide_index=True, use_container_width=True, na_text="—", column_config={
+                    "label": st.column_config.TextColumn(t("ads.api.col_country")),
+                    "ad_product": st.column_config.TextColumn(t("ads.api.col_type"), width="small"),
+                    "gross_clicks": st.column_config.NumberColumn(t("ads.api.col_gross_clicks"), format="%d"),
+                    "invalid_clicks": st.column_config.NumberColumn(t("ads.api.col_invalid_clicks"), format="%d"),
+                    "click_pct": st.column_config.NumberColumn(t("ads.api.col_invalid_pct"), format="%.1f%%"),
+                    "gross_impressions": st.column_config.NumberColumn(t("ads.api.col_gross_impr"), format="%d"),
+                    "invalid_impressions": st.column_config.NumberColumn(t("ads.api.col_invalid_impr"), format="%d"),
+                    "impr_pct": st.column_config.NumberColumn(t("ads.api.col_invalid_pct"), format="%.1f%%")})
+        st.caption(t("ads.api.invalid_note"))
 
 # ═══════════════════════════════════════════════════════════════════
 # КАМПАНИИ
