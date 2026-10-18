@@ -1,0 +1,12 @@
+{
+  "name": "Kabinet - Amazon Finances Loader",
+  "description": "Транзакции Amazon (SP-API Finances v2024-06-19, listTransactions) по всем рынкам → dnipro_m.raw_amazon_finances_transactions и raw_amazon_finances_breakdowns, без данных покупателя. Первый прогон — вся история (2 года), дальше окно reorder_params.finances_reread_days. Квоту createReport не трогает. Параметры dry_run=1, since=ГГГГ-ММ-ДД. Источник — nb/finances_loader.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 40 8 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default", "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "finances", "environment_key": "default", "timeout_seconds": 7200,
+     "max_retries": 1, "min_retry_interval_millis": 600000,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Amazon Finances Loader", "source": "WORKSPACE"}}
+  ]
+}

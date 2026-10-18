@@ -1,0 +1,11 @@
+{
+  "name": "Kabinet - Amazon Promotions Loader",
+  "description": "Промо Amazon по ASIN × рынок × день (Data Kiosk, Seller Analytics, блок promotion) → dnipro_m.raw_amazon_seller_analytics_promotions. Окно reorder_params.promotions_reread_days. 08:50 — Data Kiosk свободен (реплика S&T ~10:30, Economics Loader 12:30). Без автоповтора: на 429 Data Kiosk не повторяем. Параметры dry_run=1, since=ГГГГ-ММ-ДД. Источник — nb/promotions_loader.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 50 8 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default", "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "promotions", "environment_key": "default", "timeout_seconds": 3600,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Amazon Promotions Loader", "source": "WORKSPACE"}}
+  ]
+}
