@@ -1,0 +1,12 @@
+{
+  "name": "Kabinet - Ads Replica",
+  "description": "Реплики рекламы Amazon в Lakebase для раздела «Реклама»: кампании × день (SP, SB, SD — все кампании), поисковые запросы за 35 дней, плейсменты SP, недействительный трафик, регуляторный сбор по дням и счета Amazon Ads. Окно reorder_params.ads_replica_days заменяется целиком одной транзакцией. 10:20 — после рекламных джоб аналитика и наших отчётов рекламы. Квоты Amazon не трогает. Параметр dry_run=1. Источник — nb/ads_replica.py.",
+  "max_concurrent_runs": 1,
+  "schedule": {"quartz_cron_expression": "0 20 10 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default", "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0"]}}],
+  "tasks": [
+    {"task_key": "replica", "environment_key": "default", "timeout_seconds": 1800,
+     "max_retries": 2, "min_retry_interval_millis": 600000,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Ads Replica", "source": "WORKSPACE"}}
+  ]
+}
