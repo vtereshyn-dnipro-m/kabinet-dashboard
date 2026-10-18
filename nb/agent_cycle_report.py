@@ -8,7 +8,10 @@
 #   - текст ошибки не содержит токена: requests кладёт URL запроса в текст исключения («…url: /bot<токен>/…»), а
 #     send_error читает приложение и пишет пульс — токен вырезается до записи;
 #   - строка, которая не ушла MAX_ATTEMPTS раз подряд (например, Telegram отвечает 400 на разметку), больше не
-#     отправляется и не красит каждый прогон: она остаётся в таблице с ошибкой, и об этом сказано в пульсе.
+#     отправляется и не красит каждый прогон, но НЕ пропадает молча: на последней неудаче в бот уходит короткое
+#     сообщение без разметки «сводка #id не ушла: <ошибка>»; не ушло и оно — прогон красный;
+#   - у сообщения общий бюджет длины (шапка 200, разделы по 800 знаков до экранирования — около 3 500 при пределе
+#     Telegram 4 096), чтобы длинная сводка не упиралась в «message is too long».
 
 # COMMAND ----------
 
@@ -17,8 +20,7 @@ import psycopg2, requests
 from databricks.sdk import WorkspaceClient
 
 JOB_NAME = "Kabinet - Agent Cycle Report"
-MAX_ATTEMPTS = 5
-PART_LIMIT = 900            # знаков на часть ДО экранирования: резать экранированный HTML нельзя — рвутся сущности
+TITLE_LIMIT, PART_LIMIT = 200, 800   # знаков ДО экранирования: резать экранированный HTML нельзя — рвутся сущности
 w = WorkspaceClient()
 TOKEN = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
 CHAT = dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")
@@ -36,12 +38,25 @@ def clean(text):
     return str(text).replace(TOKEN, "<токен>").replace(str(CHAT), "<чат>")[:200]
 
 
-def part(text):
+def part(text, limit=PART_LIMIT):
     text = (text or "").strip()
-    return text if len(text) <= PART_LIMIT else text[:PART_LIMIT - 1] + "…"
+    return text if len(text) <= limit else text[:limit - 1] + "…"
+
+
+def post(payload):
+    try:
+        r = requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
+                          json={"chat_id": CHAT, "disable_web_page_preview": True, **payload}, timeout=30)
+        return None if r.ok else clean(f"{r.status_code}: {r.text}")
+    except Exception as e:
+        return clean(f"{type(e).__name__}: {e}")
 
 
 with pg() as c, c.cursor() as cur:
+    # предел попыток — настройка в базе, как остальные пороги
+    cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'agent_report_max_attempts'")
+    _r = cur.fetchone()
+    MAX_ATTEMPTS = int(_r[0]) if _r else 5
     cur.execute("""SELECT id, title, done, merged, waiting, problems FROM kabinet_data.agent_cycle_reports
                    WHERE sent_at IS NULL AND attempts < %s ORDER BY id LIMIT 10""", (MAX_ATTEMPTS,))
     rows = cur.fetchall()
@@ -51,23 +66,22 @@ with pg() as c, c.cursor() as cur:
 
 sent, errors, gave_up_now = 0, [], 0
 for rid, title, done, merged, waiting, problems in rows:
-    parts = [f"🤖 <b>{html.escape(part(title))}</b>"]
+    parts = [f"🤖 <b>{html.escape(part(title, TITLE_LIMIT))}</b>"]
     for label, text in (("Сделано", done), ("Смержено само", merged), ("Ждёт вас", waiting), ("Не получилось", problems)):
         if text and text.strip():
             parts.append(f"<b>{label}:</b>\n{html.escape(part(text))}")
-    try:
-        r = requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
-                          json={"chat_id": CHAT, "text": "\n\n".join(parts), "parse_mode": "HTML",
-                                "disable_web_page_preview": True}, timeout=30)
-        err = None if r.ok else clean(f"{r.status_code}: {r.text}")
-    except Exception as e:
-        err = clean(f"{type(e).__name__}: {e}")
+    err = post({"text": "\n\n".join(parts), "parse_mode": "HTML"})
     with pg() as c, c.cursor() as cur:
         if err:
             cur.execute("""UPDATE kabinet_data.agent_cycle_reports SET send_error = %s, attempts = attempts + 1
                            WHERE id = %s RETURNING attempts""", (err, rid))
             if cur.fetchone()[0] >= MAX_ATTEMPTS:
                 gave_up_now += 1
+                # последняя попытка: сводка больше не отправляется — сказать об этом в бот простым текстом, без разметки
+                err2 = post({"text": f"Сводка цикла #{rid} «{part(title, TITLE_LIMIT)}» не ушла после {MAX_ATTEMPTS} "
+                                     f"попыток и больше не отправляется: {err}. Текст — в kabinet_data.agent_cycle_reports."})
+                if err2:
+                    errors.append(f"и уведомление о потере сводки #{rid} не ушло: {err2}")
             errors.append(err)
         else:
             cur.execute("UPDATE kabinet_data.agent_cycle_reports SET sent_at = now(), send_error = NULL WHERE id = %s", (rid,))

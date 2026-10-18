@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS kabinet_data.agent_cycle_reports (
     problems    text,                      -- что не получилось / красные проверки
     sent_at     timestamptz,               -- когда ушло в бот; NULL — ещё не отправлено
     send_error  text,                      -- последняя ошибка отправки (без токена и чата)
-    attempts    int NOT NULL DEFAULT 0     -- неудачных отправок; после 5 строка больше не отправляется
+    attempts    int NOT NULL DEFAULT 0     -- неудачных отправок; после agent_report_max_attempts строка больше не отправляется
 );
 CREATE INDEX IF NOT EXISTS agent_cycle_reports_unsent_idx ON kabinet_data.agent_cycle_reports (id) WHERE sent_at IS NULL;
 -- правило живости 12 ч: ночной перерыв 22:45 → 08:00 — 9 ч 15 мин, дневная остановка видна в тот же день
@@ -27,6 +27,10 @@ GRANT USAGE ON SEQUENCE kabinet_data.agent_cycle_reports_id_seq TO claude_code_r
 GRANT SELECT, UPDATE ON kabinet_data.agent_cycle_reports TO "v.tereshyn@dniprom.com";
 GRANT SELECT ON kabinet_data.agent_cycle_reports TO "583bf6d1-6cd0-4a89-9c44-b387ec5c21cb";
 GRANT SELECT, UPDATE ON kabinet_data.agent_cycle_reports TO "b1698364-6ec5-4240-8cd6-e06dd6e60856";
+
+INSERT INTO kabinet_data.reorder_params (key, value, note) VALUES
+  ('agent_report_max_attempts', 5, 'Сводка цикла агента: после стольких неудачных отправок строка больше не отправляется, в бот уходит короткое уведомление о потере')
+ON CONFLICT (key) DO NOTHING;
 
 -- ── вторая часть: после `databricks jobs create` ──
 INSERT INTO kabinet_data.job_health_rules (job_id, job_name, expected_interval_hours, schedule_description, is_active, note)
