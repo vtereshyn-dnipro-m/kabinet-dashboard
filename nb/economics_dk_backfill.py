@@ -1,14 +1,18 @@
 # Databricks notebook source
 # DBTITLE 1,Добор экономики Amazon из Data Kiosk за два года → economics_daily / economics_fees
 # ═════════════════════════════════════════════════════════════
-# KABINET - ECONOMICS DK BACKFILL — история экономики Amazon (продажи, сборы, выплата) до 15.05.2026
+# KABINET - ECONOMICS DK BACKFILL — история экономики Amazon (продажи, сборы, выплата) до первого загруженного дня
 # Источник: SP-API Data Kiosk, analytics_economics_2024_03_15 — тот же запрос, что в Kabinet - Economics Loader.
 # Пишет:    dnipro_m.kabinet.economics_daily и dnipro_m.kabinet.economics_fees — те же таблицы и колонки, что
 #           Economics Loader; журнал кусков — dnipro_m.kabinet.economics_load_runs (статусы BACKFILL_*).
 # Решения владельца 18.10.2026:
-#   • пишем ТОЛЬКО дни до 15.05.2026 (с этой даты экономику грузит Economics Loader) и только те дни рынка, которых
-#     в economics_daily ещё нет — уже загруженное не перезаписывается;
-#   • в economics_summary история не переносится: ячейка 2 Economics Loader читает с 15.05.2026
+#   • граница — первый загруженный день КАЖДОГО рынка (у большинства 15.05.2026, у GB и IE — 01.06.2026): пишем только
+#     дни раньше неё и только те, которых в economics_daily ещё нет — уже загруженное не перезаписывается. Граница
+#     фиксируется первым прогоном (строка BACKFILL_BOUNDARY в журнале, end_date — последний день добора) ДО любой
+#     записи: иначе после первой ночи «первым загруженным днём» стал бы уже добранный октябрь 2024 и остальная
+#     история выпала бы. Новый рынок без данных получает границу 15.05.2026;
+#   • в economics_summary история не переносится: ячейка 2 Economics Loader читает с 15.05.2026 (GB и IE за 15–31.05
+#     туда попадут — это уже не история до сводки, а её же период)
 #     (nb/patches/2026-10-18_economics_summary_since_Economics_Loader.diff, выложить ДО первой ночи добора);
 #   • окно — ночь 00:30–04:30 Kyiv: Data Kiosk днём занимают реплика Sales & Traffic (~10:30, запасной 11:00) и
 #     Economics Loader (12:30). Новых запросов после reorder_params.econ_backfill_deadline_hhmm не создаём —
@@ -33,7 +37,7 @@ from pyspark.sql.types import DateType, DoubleType, IntegerType, StringType, Str
 
 JOB_NAME = "Kabinet - Economics DK Backfill"
 EP = "https://sellingpartnerapi-eu.amazon.com"
-CUTOFF = dt.date(2026, 5, 15)     # с этой даты экономику грузит Economics Loader; добор пишет только дни раньше
+DEFAULT_CUTOFF = dt.date(2026, 5, 15)   # с этой даты экономику грузит Economics Loader; граница рынка без данных
 CHUNK_DAYS = 31
 DK_PAUSE_SEC = 62                 # 1 createQuery и 1 getDocument в минуту — держим шаг чуть больше минуты
 KYIV = ZoneInfo("Europe/Kyiv")
@@ -73,29 +77,49 @@ if deadline < now_kyiv - dt.timedelta(hours=12):       # запуск вечер
 print(f"рынков {len(MARKETPLACES)}: {sorted(MARKETPLACES.values())}; новых запросов не создаём после "
       f"{deadline:%d.%m %H:%M} Kyiv" + (" (проба — срок не действует)" if DRY_RUN else ""))
 
-# ── что уже есть: дни рынка в economics_daily и куски, закрытые прошлыми ночами ──
+# ── граница каждого рынка: фиксируется один раз, до первой записи добора ──
 EARLIEST = dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=729)   # Amazon: не старше двух лет
+RUNS = "dnipro_m.kabinet.economics_load_runs"
+saved = {r["marketplace"]: r["end_date"] for r in spark.sql(
+    f"SELECT marketplace, max(end_date) end_date FROM {RUNS} WHERE status = 'BACKFILL_BOUNDARY' GROUP BY 1").collect()}
+first_day = {r["marketplace"]: r["d"] for r in spark.sql(
+    "SELECT marketplace, min(sales_date) d FROM dnipro_m.kabinet.economics_daily GROUP BY 1").collect()}
+LAST = {}                                   # последний день добора по рынку (включительно)
+for mk in MARKETPLACES.values():
+    if mk in saved:
+        LAST[mk] = saved[mk]
+    else:
+        LAST[mk] = (first_day.get(mk) or DEFAULT_CUTOFF) - dt.timedelta(days=1)
+        if not DRY_RUN:
+            (spark.createDataFrame([(dt.datetime.now(dt.timezone.utc), mk, None, LAST[mk], "BACKFILL_BOUNDARY", 0,
+                                     f"первый загруженный день {first_day.get(mk) or 'нет данных, взят ' + str(DEFAULT_CUTOFF)}")],
+                                   "run_ts timestamp, marketplace string, start_date date, end_date date, status string, "
+                                   "rows_loaded int, error_message string").write.mode("append").saveAsTable(RUNS))
+print("граница добора (последний день): " + ", ".join(f"{mk} {LAST[mk]}" for mk in sorted(LAST)))
+
+# ── что уже есть: дни рынка до границы и куски, закрытые прошлыми ночами ──
 have_days = {}
 for r in spark.sql(f"""SELECT marketplace, sales_date FROM dnipro_m.kabinet.economics_daily
-                       WHERE sales_date < DATE'{CUTOFF}' GROUP BY 1, 2""").collect():
-    have_days.setdefault(r["marketplace"], set()).add(r["sales_date"])
-done_chunks = set()
-for r in spark.sql("""SELECT marketplace, start_date, end_date FROM dnipro_m.kabinet.economics_load_runs
-                      WHERE status IN ('BACKFILL_DONE', 'BACKFILL_EMPTY')""").collect():
-    done_chunks.add((r["marketplace"], r["start_date"], r["end_date"]))
+                       WHERE sales_date <= DATE'{max(LAST.values())}' GROUP BY 1, 2""").collect():
+    if r["sales_date"] <= LAST.get(r["marketplace"], DEFAULT_CUTOFF):
+        have_days.setdefault(r["marketplace"], set()).add(r["sales_date"])
+done_chunks = {(r["marketplace"], r["end_date"]) for r in spark.sql(
+    f"SELECT marketplace, end_date FROM {RUNS} WHERE status IN ('BACKFILL_DONE', 'BACKFILL_EMPTY')").collect()}
 
+# сетка кусков привязана к границе рынка (от неё назад по 31 дню), а не к «сегодня минус два года»: край истории
+# сдвигается каждый день, и сетка от него давала бы каждую ночь новые куски вместо уже закрытых
 chunks = []
 for mp_id, mk in sorted(MARKETPLACES.items(), key=lambda x: x[1]):
-    d1 = EARLIEST
-    while d1 < CUTOFF:
-        d2 = min(d1 + dt.timedelta(days=CHUNK_DAYS - 1), CUTOFF - dt.timedelta(days=1))
+    d2 = LAST[mk]
+    while d2 >= EARLIEST:
+        d1 = max(d2 - dt.timedelta(days=CHUNK_DAYS - 1), EARLIEST)
         days = {d1 + dt.timedelta(days=i) for i in range((d2 - d1).days + 1)}
-        if (mk, d1, d2) not in done_chunks and not days <= have_days.get(mk, set()):
+        if (mk, d2) not in done_chunks and not days <= have_days.get(mk, set()):
             chunks.append((mp_id, mk, d1, d2))
-        d1 = d2 + dt.timedelta(days=1)
+        d2 = d2 - dt.timedelta(days=CHUNK_DAYS)
+chunks.sort(key=lambda c: (c[1], c[2]))
 total = len(chunks)
-print(f"история с {EARLIEST} по {CUTOFF - dt.timedelta(days=1)}: кусков осталось {total}"
-      + (f", в пробе {min(LIMIT, total)}" if DRY_RUN else ""))
+print(f"история с {EARLIEST}: кусков осталось {total}" + (f", в пробе {min(LIMIT, total)}" if DRY_RUN else ""))
 if DRY_RUN:
     chunks = chunks[:LIMIT]
 
@@ -264,7 +288,7 @@ for mp_id, mk, d1, d2 in chunks:
             if not line.strip():
                 continue
             daily, fees = parse(json.loads(line), mp_id, mk)
-            if daily is None or daily[2] >= CUTOFF or daily[2] in have:
+            if daily is None or daily[2] > LAST[mk] or daily[2] in have:
                 continue                            # день уже загружен или не наш — не трогаем
             daily_rows.append(daily)
             fee_rows.extend(fees)
