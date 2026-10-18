@@ -1111,6 +1111,47 @@ TRANSLATIONS = {
                              "en": "Sales incl. VAT by country — all channels"},
     "cm.all.col_country": {"ru": "Страна", "uk": "Країна", "en": "Country"},
     "cm.all.col_platforms": {"ru": "Площадки", "uk": "Майданчики", "en": "Platforms"},
+    "cm.all.col_refund_units": {"ru": "Возвраты, шт", "uk": "Повернення, шт", "en": "Returns, units"},
+    "cm.all.col_refund_units_help": {
+        "ru": "Quantity Refund отчёта Power BI: возвращённые штуки за период. В Power BI показаны со знаком минус. У Amazon — "
+              "по дате расчёта (settlement), а не по дате заказа.",
+        "uk": "Quantity Refund звіту Power BI: повернені штуки за період. У Power BI показані зі знаком мінус. В Amazon — "
+              "за датою розрахунку (settlement), а не за датою замовлення.",
+        "en": "Quantity Refund in the Power BI report: units returned in the period. Power BI shows them as negative. For "
+              "Amazon — by settlement date, not order date."},
+    "cm.all.col_refund_eur": {"ru": "Возвраты, € с НДС", "uk": "Повернення, € з ПДВ", "en": "Returns, € incl. VAT"},
+    "cm.all.col_refund_eur_help": {
+        "ru": "С НДС. Refund Total VAT Incl отчёта Power BI: сколько денег вернули покупателям за период.",
+        "uk": "З ПДВ. Refund Total VAT Incl звіту Power BI: скільки грошей повернули покупцям за період.",
+        "en": "Incl. VAT. Refund Total VAT Incl in the Power BI report: money refunded to customers in the period."},
+    "cm.all.col_packing": {"ru": "Упаковка", "uk": "Пакування", "en": "Packing"},
+    "cm.all.col_packing_help": {
+        "ru": "Без НДС. Packing Cost отчёта Power BI: упаковка каждой проданной штуки, все каналы. Входит в «Расходы».",
+        "uk": "Без ПДВ. Packing Cost звіту Power BI: пакування кожної проданої штуки, усі канали. Входить у «Витрати».",
+        "en": "Excl. VAT. Packing Cost in the Power BI report: packing of every unit sold, all channels. Part of Expenses."},
+    "cm.all.col_shipping": {"ru": "Доставка", "uk": "Доставка", "en": "Shipping"},
+    "cm.all.col_shipping_help": {
+        "ru": "Без НДС. Shipping Cost отчёта Power BI: доставка покупателю по тарифной сетке (у Amazon — только отгрузки "
+              "со своего склада). Входит в «Расходы».",
+        "uk": "Без ПДВ. Shipping Cost звіту Power BI: доставка покупцю за тарифною сіткою (в Amazon — лише відвантаження "
+              "з власного складу). Входить у «Витрати».",
+        "en": "Excl. VAT. Shipping Cost in the Power BI report: delivery to the customer by the rate card (for Amazon — "
+              "only orders shipped from our own warehouse). Part of Expenses."},
+    "cm.all.col_cancel_comm": {"ru": "Комиссия за отмены", "uk": "Комісія за скасування", "en": "Cancel commission"},
+    "cm.all.col_cancel_comm_help": {
+        "ru": "Без НДС. Cancel Commission отчёта Power BI: комиссия площадки за отменённые заказы.",
+        "uk": "Без ПДВ. Cancel Commission звіту Power BI: комісія майданчика за скасовані замовлення.",
+        "en": "Excl. VAT. Cancel Commission in the Power BI report: marketplace fee on cancelled orders."},
+    "cm.all.col_expenses_help": {
+        "ru": "Без НДС. Expenses отчёта Power BI одной суммой: комиссии, себестоимость, доставка и упаковка (у ManoMano ещё "
+              "скидки продавца). Комиссии Amazon в Power BI — модельные: реферальный процент, digital-сбор и расчётный "
+              "сбор FBA на заказанные штуки.",
+        "uk": "Без ПДВ. Expenses звіту Power BI однією сумою: комісії, собівартість, доставка й пакування (у ManoMano ще "
+              "знижки продавця). Комісії Amazon у Power BI — модельні: реферальний відсоток, digital-збір і розрахунковий "
+              "збір FBA на замовлені штуки.",
+        "en": "Excl. VAT. Expenses in the Power BI report as one sum: fees, cost of goods, shipping and packing (plus seller "
+              "discounts for ManoMano). Amazon fees in Power BI are modelled: referral rate, digital fee and estimated FBA "
+              "fee on ordered units."},
     "cm.all.note_country": {
         "ru": "Как в Power BI: страна — все каналы в ней (Amazon, Leroy Merlin, ManoMano, Carrefour, Wallapop, сайт), "
               "продажи с НДС и без, Contribution Profit и его доля от продаж с НДС. Разрез по маркетплейсам без НДС — "
@@ -1684,6 +1725,8 @@ TRANSLATIONS = {
     "inc.type.pbi_source_incomplete": {"ru": "Витрина Power BI неполная", "uk": "Вітрина Power BI неповна", "en": "Power BI dataset incomplete"},
     "inc.type.pbi_self_heal": {"ru": "Самовосстановление витрины Power BI", "uk": "Самовідновлення вітрини Power BI", "en": "Power BI dataset self-healing"},
     "inc.type.pbi_source_late": {"ru": "Витрина Power BI не обновилась", "uk": "Вітрина Power BI не оновилася", "en": "Power BI dataset not refreshed"},
+    "inc.type.source_silent_fail": {"ru": "Джоба отработала, а таблица не обновилась", "uk": "Джоба відпрацювала, а таблиця не оновилася", "en": "Job succeeded but table not updated"},
+    "inc.type.plan_price_sheet_guard": {"ru": "Plan Matrix: цены не перезаписаны", "uk": "Plan Matrix: ціни не перезаписані", "en": "Plan Matrix: prices not overwritten"},
     "inc.type.pbi_trigger_missed": {"ru": "Реплика Power BI не сработала по записи", "uk": "Репліка Power BI не спрацювала за записом", "en": "Power BI replica did not fire on write"},
     "inc.status.open": {"ru": "Открыт", "uk": "Відкрито", "en": "Open"},
     "inc.status.acknowledged": {"ru": "В работе", "uk": "В роботі", "en": "In progress"},
