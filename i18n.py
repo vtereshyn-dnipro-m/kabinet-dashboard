@@ -1773,6 +1773,7 @@ TRANSLATIONS = {
     "inc.type.pbi_source_incomplete": {"ru": "Витрина Power BI неполная", "uk": "Вітрина Power BI неповна", "en": "Power BI dataset incomplete"},
     "inc.type.pbi_self_heal": {"ru": "Самовосстановление витрины Power BI", "uk": "Самовідновлення вітрини Power BI", "en": "Power BI dataset self-healing"},
     "inc.type.pbi_source_late": {"ru": "Витрина Power BI не обновилась", "uk": "Вітрина Power BI не оновилася", "en": "Power BI dataset not refreshed"},
+    "inc.type.silent_success": {"ru": "Джоба Amazon успешна, но не записала данные", "uk": "Джоба Amazon успішна, але не записала дані", "en": "Amazon job succeeded but wrote no data"},
     "inc.type.source_silent_fail": {"ru": "Джоба отработала, а таблица не обновилась", "uk": "Джоба відпрацювала, а таблиця не оновилася", "en": "Job succeeded but table not updated"},
     "inc.type.plan_price_sheet_guard": {"ru": "Plan Matrix: цены не перезаписаны", "uk": "Plan Matrix: ціни не перезаписані", "en": "Plan Matrix: prices not overwritten"},
     "inc.type.pbi_trigger_missed": {"ru": "Реплика Power BI не сработала по записи", "uk": "Репліка Power BI не спрацювала за записом", "en": "Power BI replica did not fire on write"},
