@@ -14,7 +14,15 @@
 # MAGIC Оба отчёта приходят по всему EU-аккаунту сразу: один запрос, не по рынкам.
 # MAGIC
 # MAGIC Backfill — параметрами джобы: `storage_from` (YYYY-MM), `reimb_from` (YYYY-MM-DD).
-# MAGIC Расписание: ежедневно. Метка `Kabinet - FBA Charges Loader` — в конце, безусловно.
+# MAGIC Расписание: по понедельникам. Метка `Kabinet - FBA Charges Loader` — в конце, безусловно.
+# MAGIC
+# MAGIC **`mode=backfill`** (с 19.10.2026, T-14) — временная джоба `Kabinet - Storage Fees Backfill`, 01:30: детали
+# MAGIC хранения за `reorder_params.storage_backfill_from`…`_to` (ГГГГММ, 202411…202606), от новых месяцев к старым,
+# MAGIC в ту же `raw_amazon_fba_storage_fees` тем же MERGE (без дублей). Только после окончания добора возвратов, в окне
+# MAGIC `returns_backfill_from_hhmm`–`_to_hhmm` (01:20–02:10) и в ОБЩЕМ ночном лимите `returns_backfill_max_reports` (5)
+# MAGIC вместе с ним; на 429 не повторяет; первый CANCELLED — «старше Amazon не отдаёт», добор на нём останавливается.
+# MAGIC Возмещения в этом режиме не трогаются. `dry_run=1` — без createReport и без записи.
+# MAGIC Источник кода — `nb/fba_charges_loader.py` в kabinet-dashboard.
 
 # COMMAND ----------
 
@@ -67,6 +75,18 @@ def _param(name):
         return None
 STORAGE_FROM = _param("storage_from")     # YYYY-MM — backfill
 REIMB_FROM   = _param("reimb_from")       # YYYY-MM-DD — backfill
+MODE = (_param("mode") or "daily").strip().lower()
+assert MODE in ("daily", "backfill"), f"mode={MODE!r}: ждём daily или backfill"
+DRY = (_param("dry_run") or "0").strip() == "1"
+assert not (DRY and MODE == "daily"), "dry_run только для mode=backfill"
+if MODE == "backfill":
+    JOB_NAME = "Kabinet - Storage Fees Backfill"   # одна джоба — одна метка — одно правило
+print(f"режим: {MODE}{' (проба)' if DRY else ''}")
+# сбои, которые не роняют прогон сразу: пульс пишется, прогон падает после него
+_errors = []
+
+class Quota429(RuntimeError):
+    """createReport ответил 429 в доборе — без повтора: квота общая, месяц возьмёт следующая ночь."""
 
 # ── SP-API ────────────────────────────────────────────────────────────────
 LWA_APP_ID    = dbutils.secrets.get("amazon-sp-api", "lwa-app-id")        # noqa: F821
@@ -82,7 +102,7 @@ def token():
     r.raise_for_status(); _tok["v"] = r.json()["access_token"]; _tok["exp"] = time.time() + 3300
     return _tok["v"]
 
-def api(method, path, **kw):
+def api(method, path, retry_create=True, **kw):
     # createReport — один запрос в минуту на весь аккаунт, и квоту делят все
     # загрузчики: SQP Loader в это же время гоняет очередь из сотен отчётов.
     # Поэтому на создании ждём терпеливо, до 40 минут по минуте; остальные
@@ -91,15 +111,17 @@ def api(method, path, **kw):
     tries, pause = (40, 60) if is_create else (10, 15)
     for attempt in range(tries):
         r = requests.request(method, SP_API_EU + path, headers={"x-amz-access-token": token()}, timeout=90, **kw)
+        if r.status_code == 429 and is_create and not retry_create:
+            raise Quota429(f"[QUOTA_429] createReport: 429, без повтора (добор)")
         if r.status_code == 429:
             time.sleep(pause if is_create else min(pause * (attempt + 1), 90)); continue
         r.raise_for_status(); return r.json()
     # [QUOTA_429] — маркер для сторожа: это исчерпанная квота createReport, а не поломка кода
     raise RuntimeError(f"[QUOTA_429] {tries} попыток по {pause} с, всё 429: {path}")
 
-def fetch_report(rtype, start, end):
+def fetch_report(rtype, start, end, retry_create=True):
     """Запросить отчёт, дождаться, скачать. Возвращает (report_id, строки TSV)."""
-    rid = api("post", "/reports/2021-06-30/reports",
+    rid = api("post", "/reports/2021-06-30/reports", retry_create=retry_create,
               json={"reportType": rtype, "marketplaceIds": [MP_ES],
                     "dataStartTime": start, "dataEndTime": end})["reportId"]
     t0 = time.time()
@@ -165,6 +187,76 @@ def month_range(first_ym, last_ym):
 last_closed = (today.replace(day=1) - timedelta(days=1))
 first_ym = STORAGE_FROM or (last_closed.replace(day=1) - timedelta(days=31 * (STORAGE_MONTHS_BACK - 1))).strftime("%Y-%m")
 months = list(month_range(first_ym, last_closed.strftime("%Y-%m")))
+
+# ── Добор (mode=backfill): какие месяцы и сколько отчётов можно этой ночью ──
+UC_BF = "dnipro_m.kabinet_data.storage_backfill_progress"
+_bf_created, _bf_budget, _bf_note = 0, 0, ""
+if MODE == "backfill":
+    import zoneinfo
+    with _pg.cursor() as cur:
+        cur.execute("""SELECT key, value FROM kabinet_data.reorder_params
+                       WHERE key IN ('storage_backfill_from', 'storage_backfill_to', 'returns_backfill_max_reports',
+                                     'returns_backfill_from_hhmm', 'returns_backfill_to_hhmm')""")
+        _bp = {k: int(v) for k, v in cur.fetchall()}
+        # добор возвратов закончен: его метка говорит «осталось кусков 0» или её уже нет (джобу удалили по окончании)
+        cur.execute("SELECT note FROM kabinet_data.system_pulse WHERE job_name = 'Kabinet - Returns Backfill'")
+        _ret = cur.fetchone()
+    _pg.commit()
+    # «Закончен» — метка говорит «осталось кусков 0», либо метки уже нет, но добор БЫЛ (есть его прогресс): джобу
+    # удалили по окончании. Нет ни метки, ни прогресса — добор возвратов ещё не начинался, и квоту ночи держит он.
+    try:
+        _ret_progress = spark.sql("SELECT COUNT(*) FROM dnipro_m.kabinet_data.returns_backfill_progress").collect()[0][0]  # noqa: F821
+    except Exception:
+        _ret_progress = 0
+    _returns_done = ("осталось кусков 0" in (_ret[0] or "")) if _ret is not None else _ret_progress > 0
+    _hhmm = lambda v: f"{v // 100:02d}:{v % 100:02d}"
+    QUIET_FROM = _hhmm(_bp.get("returns_backfill_from_hhmm", 120))
+    QUIET_TO = _hhmm(_bp.get("returns_backfill_to_hhmm", 210))
+    _kyiv_now = lambda: datetime.now(zoneinfo.ZoneInfo("Europe/Kyiv"))
+    # лимит ночи — ОБЩИЙ с добором возвратов: вычитаем то, что он создал сегодня
+    try:
+        _ret_created = spark.sql(f"""
+            SELECT COUNT(*) FROM dnipro_m.kabinet_data.returns_backfill_progress
+            WHERE how LIKE 'created%'
+              AND to_date(from_utc_timestamp(done_at, 'Europe/Kyiv')) = DATE'{_kyiv_now().date().isoformat()}'
+        """).collect()[0][0]  # noqa: F821
+    except Exception:
+        _ret_created = 0          # таблицы ещё нет — добор возвратов не создавал ничего
+    _bf_budget = max(0, _bp.get("returns_backfill_max_reports", 5) - int(_ret_created))
+
+    def _ym(v):
+        v = str(v)
+        return f"{v[:4]}-{v[4:6]}"
+    _bf_from, _bf_to = _ym(_bp.get("storage_backfill_from", 202411)), _ym(_bp.get("storage_backfill_to", 202606))
+    if not DRY:
+        spark.sql(f"""CREATE TABLE IF NOT EXISTS {UC_BF} (
+                          month STRING, status STRING COMMENT 'done / no_data / stop', rows INT, report_id STRING,
+                          done_at TIMESTAMP)
+                      USING DELTA COMMENT 'Добор деталей хранения (Kabinet - Storage Fees Backfill): какие месяцы взяты.'""")  # noqa: F821
+    try:
+        _prog = spark.sql(f"SELECT month, status FROM {UC_BF}").collect()  # noqa: F821
+    except Exception:
+        if not DRY:
+            raise
+        _prog = []
+    _stop = max((r[0] for r in _prog if r[1] == "stop"), default=None)
+    _taken = {r[0] for r in _prog} | {r[0] for r in spark.sql(  # noqa: F821
+        f"SELECT DISTINCT month_of_charge FROM {UC_STORAGE}").collect()}   # уже лежит — не берём второй раз
+    # от новых к старым: CANCELLED на старом месяце значит «глубже Amazon не отдаёт», и добор на нём кончается
+    months = [mm for mm in reversed(list(month_range(_bf_from, _bf_to)))
+              if mm[0] not in _taken and (_stop is None or mm[0] > _stop)]
+    _bf_note = (f"осталось месяцев {len(months)}" + (f", глубже {_stop} Amazon не отдаёт" if _stop else "")
+                + (", ждёт окончания добора возвратов" if not _returns_done else "")
+                + f"; лимит ночи {_bf_budget} (возвраты создали {_ret_created})")
+    print(f"добор хранения {_bf_from}…{_bf_to}: {_bf_note}; окно {QUIET_FROM}–{QUIET_TO}")
+    if DRY:
+        import json as _json
+        dbutils.notebook.exit(_json.dumps({"months": [mm[0] for mm in months], "returns_done": _returns_done,  # noqa: F821
+                                           "budget": _bf_budget, "returns_created_tonight": int(_ret_created),
+                                           "stop": _stop, "window": [QUIET_FROM, QUIET_TO]}, ensure_ascii=False))
+    if not _returns_done:
+        months = []          # квоту ночи держит добор возвратов — хранение ждёт его окончания
+
 print(f"хранение: месяцы {[m[0] for m in months]}")
 
 S_COLS = ["asin","fnsku","product_name","fulfillment_center","country_code","longest_side","median_side","shortest_side",
@@ -198,10 +290,32 @@ def write_storage(rows):
     """)  # noqa: F821
     replicate("raw_amazon_fba_storage_fees", S_COLS, rows, ["asin","fnsku","fulfillment_center","month_of_charge"])
 
+def _bf_mark(ym, status, n, rid):
+    spark.createDataFrame([(ym, status, n, rid)], "month STRING, status STRING, rows INT, report_id STRING") \
+         .selectExpr("*", "current_timestamp() AS done_at").write.mode("append").saveAsTable(UC_BF)  # noqa: F821
+
 for ym, y, m in months:
     last_day = calendar.monthrange(y, m)[1]
-    rid, rows = fetch_report("GET_FBA_STORAGE_FEE_CHARGES_DATA",
-                             f"{ym}-01T00:00:00Z", f"{ym}-{last_day:02d}T23:59:59Z")
+    if MODE == "backfill":
+        # окно и лимит — перед КАЖДЫМ отчётом
+        if not (QUIET_FROM <= _kyiv_now().strftime("%H:%M") < QUIET_TO) or _bf_created >= _bf_budget:
+            break
+        _bf_created += 1
+        try:
+            rid, rows = fetch_report("GET_FBA_STORAGE_FEE_CHARGES_DATA",
+                                     f"{ym}-01T00:00:00Z", f"{ym}-{last_day:02d}T23:59:59Z", retry_create=False)
+        except Quota429 as e:
+            _errors.append(str(e)[:200]); print(f"  ⏸ {ym}: {e} — месяц возьмёт следующая ночь"); break
+        except Exception as e:
+            _errors.append(f"{ym}: {type(e).__name__}: {str(e).split('?')[0][:160]}"); print(f"  ❌ {ym}: {e}"); break
+        if rows is None:
+            # CANCELLED на месяце добора — глубже Amazon этот отчёт не отдаёт: стоп, старше не просим
+            _bf_mark(ym, "stop", 0, rid); storage_months_done.append((ym, "стоп: данных нет"))
+            print(f"  {ym}: CANCELLED — глубже Amazon не отдаёт, добор остановлен, report {rid}")
+            break
+    else:
+        rid, rows = fetch_report("GET_FBA_STORAGE_FEE_CHARGES_DATA",
+                                 f"{ym}-01T00:00:00Z", f"{ym}-{last_day:02d}T23:59:59Z")
     if rows is None:
         storage_months_done.append((ym, "нет данных"))
         print(f"  {ym}: Amazon ответил CANCELLED — за месяц данных пока нет, report {rid}")
@@ -228,12 +342,15 @@ for ym, y, m in months:
     storage_rows += month_rows
     storage_months_done.append((ym, n))
     print(f"  {ym}: строк {n}, report {rid} — записано")
+    if MODE == "backfill":
+        _bf_mark(ym, "done" if n else "no_data", n, rid)      # после записи месяца — не раньше
 
 if storage_rows:
     print(f"✅ хранение: {len(storage_rows)} строк в UC и Lakebase")
 
 # ═══ 2. Возмещения: последние 60 дней (или backfill) ═════════════════════
-r_from = date.fromisoformat(REIMB_FROM) if REIMB_FROM else today - timedelta(days=REIMB_DAYS_BACK)
+r_from = (today if MODE == "backfill"          # в доборе возмещения не трогаем: цикл ниже не выполнится
+          else date.fromisoformat(REIMB_FROM) if REIMB_FROM else today - timedelta(days=REIMB_DAYS_BACK))
 R_COLS = ["approval_date","reimbursement_id","case_id","amazon_order_id","reason","sku","fnsku","asin","product_name",
           "condition","currency_unit","amount_per_unit","amount_total","quantity_reimbursed_cash",
           "quantity_reimbursed_inventory","quantity_reimbursed_total","original_reimbursement_id",
@@ -288,7 +405,9 @@ if reimb_rows:
 
 # ── SYSTEM PULSE: безусловно, последним, на верхнем уровне ───────────────
 _note = (f"storage {', '.join(f'{ym}:{n}' for ym, n in storage_months_done)}; "
-         f"reimb {len(reimb_rows)} rows since {r_from}")
+         + (f"добор: {_bf_note}; создано отчётов {_bf_created}" if MODE == "backfill"
+            else f"reimb {len(reimb_rows)} rows since {r_from}")
+         + (f"; сбои: {' | '.join(_errors)[:400]}" if _errors else ""))
 with _pg.cursor() as cur:
     cur.execute("""
         INSERT INTO kabinet_data.system_pulse (job_name, last_success_at, note, expected_interval_hours)
@@ -297,3 +416,8 @@ with _pg.cursor() as cur:
     """, (JOB_NAME, _note))
 _pg.commit(); _pg.close()
 print(f"\n💓 {JOB_NAME}: {_note}")
+
+# Сбой — красным, но после пульса. 429 в доборе — не сбой: месяц возьмёт следующая ночь (в пульсе записано).
+_real = [e for e in _errors if not (MODE == "backfill" and e.startswith("[QUOTA_429]"))]
+if _real:
+    raise RuntimeError(f"{JOB_NAME}: сбоев {len(_real)}: " + " | ".join(_real)[:900])
