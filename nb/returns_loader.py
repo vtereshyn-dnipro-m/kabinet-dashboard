@@ -14,8 +14,9 @@
 # Источник кода — nb/returns_loader.py в kabinet-dashboard (с 19.10.2026): правка PR'ом, выкладка после мержа.
 # Два режима (параметр mode):
 #   daily    — джоба «Kabinet - Returns Loader», 06:00: окно от последней загруженной даты минус LOOKBACK_DAYS;
-#   backfill — джоба «Kabinet - Returns Backfill», 01:00: история с reorder_params.returns_backfill_from кусками,
-#              не больше returns_backfill_max_reports новых createReport за прогон и только в тихое окно 01:00–02:30;
+#   backfill — джоба «Kabinet - Returns Backfill», 01:20: история с reorder_params.returns_backfill_from кусками,
+#              не больше returns_backfill_max_reports новых createReport за прогон и только в окне
+#              returns_backfill_from_hhmm–returns_backfill_to_hhmm (01:20–02:10, внутри тихого 01:00–02:30);
 #              на 429 не повторяет — кусок ждёт следующей ночи. Кусок, который уже покрывает готовый отчёт из
 #              getReports (их кто-то уже создал), берётся из него без createReport.
 # ═══════════════════════════════════════════════════════════════
@@ -49,6 +50,13 @@ print(f"режим: {MODE}")
 # Сбои отчётов, которые не роняют прогон сразу: данные остальных рынков и пульс пишутся, прогон падает в конце.
 # До 19.10.2026 они печатались «❌ …» в лог, джоба оставалась зелёной, и рынок молча выпадал.
 _errors = []
+
+
+def _err_text(e, n=160):
+    """Текст ошибки для пульса и падения: без query-строк ссылок — в ссылке документа отчёта лежит подпись S3
+    (X-Amz-Signature, Security-Token), а текст уходит в system_pulse, сторожу и дальше в ClickUp."""
+    import re as _re_err
+    return _re_err.sub(r"(https?://[^\s?]+)\?\S*", r"\1?…", str(e))[:n]
 
 
 # ── рынки Amazon — из справочника, не из кода (21.09.2026). Новая страна появляется здесь, как только заведена
@@ -335,8 +343,8 @@ if MODE == "daily":
             all_returns.extend(rows)
             print(f"  ✅ FBA/{label}: {len(rows)} returns")
         except Exception as e:
-            _errors.append(f"FBA/{label}: {str(e)[:160]}")
-            print(f"  ❌ FBA/{label}: {str(e)[:160]}")
+            _errors.append(f"FBA/{label}: {_err_text(e)}")
+            print(f"  ❌ FBA/{label}: {_err_text(e)}")
         time.sleep(2)
 
     print("\n── MFN returns (per marketplace) ──")
@@ -347,15 +355,14 @@ if MODE == "daily":
             all_returns.extend(rows)
             print(f"  {'✅' if rows else '─'} MFN/{mp_code}: {len(rows)}")
         except Exception as e:
-            _errors.append(f"MFN/{mp_code}: {str(e)[:160]}")
-            print(f"  ❌ MFN/{mp_code}: {str(e)[:160]}")
+            _errors.append(f"MFN/{mp_code}: {_err_text(e)}")
+            print(f"  ❌ MFN/{mp_code}: {_err_text(e)}")
         time.sleep(2)
 
 else:
     # ─── Добор истории ───
     import zoneinfo
     _kyiv = datetime.now(zoneinfo.ZoneInfo("Europe/Kyiv"))
-    QUIET_FROM, QUIET_TO = "01:00", "02:30"          # тихое окно createReport (AGENTS.md, «Квота createReport»)
 
     def _params():
         """reorder_params из Lakebase (там же их читают страницы и сторож); своё соединение — шаг короткий."""
@@ -383,6 +390,13 @@ else:
     _from = str(int(_param("returns_backfill_from", 20241101)))
     BACKFILL_FROM = _date(int(_from[:4]), int(_from[4:6]), int(_from[6:8]))
     MAX_REPORTS = int(_param("returns_backfill_max_reports", 5))
+    # Окно новых createReport — внутри тихого 01:00–02:30, но не ближе ~20 минут к чужим прогонам: в 01:00 идёт
+    # Listing Suite SQP Loader v2, в 02:30 — SQP. Числа ЧЧММ (value в reorder_params — numeric).
+    def _hhmm(v):
+        v = int(v)
+        return f"{v // 100:02d}:{v % 100:02d}"
+    QUIET_FROM = _hhmm(_param("returns_backfill_from_hhmm", 120))
+    QUIET_TO = _hhmm(_param("returns_backfill_to_hhmm", 210))
     # MFN-история — только там, где MFN-заказы вообще бывают: рынки, где их за год не меньше
     # returns_backfill_mfn_min_orders (20). На 19.10.2026 это ES, IT, FR, DE; у остальных единицы.
     _min_orders = int(_param("returns_backfill_mfn_min_orders", 20))
@@ -391,7 +405,7 @@ else:
         WHERE fulfillment_channel = 'MFN' AND purchase_date >= current_date() - INTERVAL 365 DAYS
         GROUP BY marketplace_id HAVING COUNT(*) >= {_min_orders}""").collect()}
     MFN_MARKETS = [cc for cc, mid in MARKETPLACES.items() if mid in _mfn_ids]
-    print(f"добор с {BACKFILL_FROM}, не больше {MAX_REPORTS} отчётов, MFN: {MFN_MARKETS}")
+    print(f"добор с {BACKFILL_FROM}, не больше {MAX_REPORTS} отчётов в {QUIET_FROM}–{QUIET_TO}, MFN: {MFN_MARKETS}")
 
     if not DRY:
         spark.sql("""
@@ -447,7 +461,7 @@ else:
     for m in MFN_MARKETS:
         if m in MARKETPLACES:
             todo += _chunks(MFN, m, 60)
-    todo = [c for c in todo if (c[0], c[1], c[2]) not in done]
+    todo = sorted((c for c in todo if (c[0], c[1], c[2]) not in done), key=lambda c: (c[2], c[0], c[1]))
     print(f"кусков осталось: {len(todo)}")
 
     # готовые отчёты, которые уже кто-то создал: кусок внутри их окна берётся без createReport
@@ -478,8 +492,14 @@ else:
             # FBA — по аккаунту, годится отчёт, запрошенный по любому рынку; MFN — только по своему
             if not rep_.get("reportDocumentId") or (rtype == MFN and (rep_.get("marketplaceIds") or [None])[0] != mp):
                 continue
-            st, en = rep_.get("dataStartTime", "")[:10], rep_.get("dataEndTime", "")[:10]
-            if st and en and st <= ws.isoformat() and en >= we.isoformat():
+            try:
+                st = datetime.fromisoformat(rep_["dataStartTime"].replace("Z", "+00:00"))
+                en = datetime.fromisoformat(rep_["dataEndTime"].replace("Z", "+00:00"))
+            except Exception:
+                continue
+            # по точному времени: отчёт, кончающийся в 00:00 дня we, последний день куска не содержит
+            if st <= datetime(ws.year, ws.month, ws.day, tzinfo=timezone.utc) \
+                    and en >= datetime(we.year, we.month, we.day, 23, 59, 0, tzinfo=timezone.utc):
                 return rep_
         return None
 
@@ -501,10 +521,6 @@ else:
                 quiet = QUIET_FROM <= datetime.now(zoneinfo.ZoneInfo("Europe/Kyiv")).strftime("%H:%M") < QUIET_TO and not DRY
                 if not quiet or created >= MAX_REPORTS:
                     continue
-                if _date.today() - ws > timedelta(days=730):
-                    # глубже двух лет Amazon не отдаёт; помечаем, чтобы не просить каждую ночь
-                    progress.append((rtype, source, ws, we, "empty", 0, "older than 2 years"))
-                    continue
                 created += 1
                 rid = request_report(rtype, src_mp[source], ws, we, retry_429=False)
                 how, doc_id = f"created {rid}", wait_for_report(rid, max_wait=1200)
@@ -519,12 +535,12 @@ else:
             print(f"  ✅ {source} {rtype[4:20]} {ws}…{we}: {len(rows)} ({how})")
         except Quota429 as e:
             # не ошибка кода: квота занята, остаток — следующей ночью; прогон не роняем, но пишем в пульс
-            _errors.append(str(e)[:200])
-            print(f"  ⏸ {e} — остальное следующей ночью")
+            _errors.append(_err_text(e, 200))
+            print(f"  ⏸ {_err_text(e, 200)} — остальное следующей ночью")
             break
         except Exception as e:
-            _errors.append(f"{source} {ws}…{we}: {str(e)[:160]}")
-            print(f"  ❌ {source} {ws}…{we}: {str(e)[:160]}")
+            _errors.append(f"{source} {ws}…{we}: {_err_text(e)}")
+            print(f"  ❌ {source} {ws}…{we}: {_err_text(e)}")
         time.sleep(2)
 
     _left = len(todo) - len(progress)
@@ -539,12 +555,14 @@ print(f"\n── Total fetched: {len(all_returns)} return records")
 # FBA Pan-EU возвращает все EU-возвраты без привязки к MP.
 # Определяем MP по order_id из raw_amazon_seller_central_get_orders.
 
+unknown_total = 0     # возвратов FBA без рынка (см. ниже) — для пульса
+
 # Reverse map: marketplace_id -> code
 MP_ID_TO_CODE = {v: k for k, v in MARKETPLACES.items()}
 
 if not all_returns and MODE == "daily" and not _errors:
-    raise RuntimeError("❌ 0 returns fetched across all marketplaces — job forced to FAIL.")
-elif not all_returns:
+    _errors.append("0 возвратов по всем рынкам за окно — так не бывает, проверить отчёты")   # падение — после пульса
+if not all_returns:
     print("строк нет — записывать нечего" + (f" (сбоев: {len(_errors)})" if _errors else ""))
 else:
     now_ts = datetime.now(timezone.utc).isoformat()
@@ -617,8 +635,16 @@ else:
             WHERE transaction_type = 'Refund' AND order_id IS NOT NULL
             GROUP BY order_id
         """)
-        orders_mp = (orders_mp.join(fin_mp, "_oid", "full")
-                     .select("_oid", F.coalesce("mp_code", "mp_fin").alias("mp_code")))
+        # третий — settlement-отчёты: заказ → рынок с 11.2024 по всем рынкам (возврат без возврата денег, например
+        # замена, в Finances как Refund не виден)
+        stl_mp = spark.sql("""
+            SELECT order_id AS _oid, MAX(upper(marketplace)) AS mp_stl
+            FROM dnipro_m.dnipro_m.raw_amazon_settlements
+            WHERE order_id IS NOT NULL AND marketplace IS NOT NULL
+            GROUP BY order_id
+        """)
+        orders_mp = (orders_mp.join(fin_mp, "_oid", "full").join(stl_mp, "_oid", "full")
+                     .select("_oid", F.coalesce("mp_code", "mp_fin", "mp_stl").alias("mp_code")))
 
         # Join
         unresolved_joined = (unresolved
@@ -634,8 +660,12 @@ else:
     else:
         df = resolved_already
 
-    # ── Drop UNKNOWN (orders not in our system) ──
-    df = df.filter(F.col("marketplace") != "UNKNOWN")
+    # ── UNKNOWN: рынок не нашёлся ни по заказу, ни по Finances, ни по settlement ──
+    # Ежедневно — отбрасываем, как раньше (свежий заказ найдётся в заказах), но число — в пульс.
+    # В доборе — сохраняем с marketplace = 'UNKNOWN': иначе кусок станет «взятым», а строки пропадут навсегда.
+    unknown_total = df.filter(F.col("marketplace") == "UNKNOWN").count()
+    if MODE == "daily":
+        df = df.filter(F.col("marketplace") != "UNKNOWN")
 
     # ── Дедупликация: MERGE требует уникальности по ключу (order_id, sku, fulfillment_type) ──
     from pyspark.sql.window import Window
@@ -653,7 +683,7 @@ else:
                    COUNT(*) AS rows, SUM(quantity) AS units, COUNT(return_reason) AS with_reason
             FROM _returns_staging GROUP BY 1, 2, 3 ORDER BY 1, 2, 3""").collect()]
         _out = {"progress": [[str(x) for x in p_] for p_ in progress], "left": _left,
-                "errors": _errors, "staging": _sum}
+                "errors": _errors, "unknown": unknown_total, "staging": _sum}
         print(json.dumps(_out, ensure_ascii=False, default=str)[:20000])
         dbutils.notebook.exit(json.dumps(_out, ensure_ascii=False, default=str)[:60000])
 
@@ -771,6 +801,8 @@ pg_cur.execute("""
 """, (PULSE_NAME,
       f"{len(rows) if returns_df else 0} returns synced"
       + (f"; добор: осталось кусков {_left}" if MODE == "backfill" else "")
+      + (f"; без рынка: {unknown_total}" + (" (сохранены как UNKNOWN)" if MODE == "backfill" else " (отброшены)")
+         if unknown_total else "")
       + (f"; сбои: {' | '.join(_errors)[:400]}" if _errors else "")))
 pg_conn.commit()
 pg_conn.close()
