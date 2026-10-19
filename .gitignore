@@ -21,3 +21,4 @@ __pycache__/
 !.claude/settings.json
 !.claude/hooks/
 !.claude/launch.json
+!.claude/agents/

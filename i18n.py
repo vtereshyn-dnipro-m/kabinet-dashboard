@@ -7,6 +7,7 @@ LANG_LABELS = {"ru": "РУ", "uk": "УКР", "en": "EN"}
 # Ключ: {"ru": "...", "uk": "...", "en": "..."}
 TRANSLATIONS = {
     # --- навигация / app.py ---
+    "app.version": {"ru": "Версия кода: {v}", "uk": "Версія коду: {v}", "en": "Code version: {v}"},
     "app.page_title": {
         "ru": "Кабинет Sales, Demand & Supply — Dnipro-M",
         "uk": "Кабінет Sales, Demand & Supply — Dnipro-M",
