@@ -1748,6 +1748,7 @@ TRANSLATIONS = {
     "inc.type.listing_suppressed": {"ru": "Листинг подавлен", "uk": "Лістинг приховано", "en": "Listing suppressed"},
     "inc.type.manomano_health_degraded": {"ru": "ManoMano: приёмка заказов", "uk": "ManoMano: приймання замовлень", "en": "ManoMano: order acceptance"},
     "inc.type.carrefour_health_degraded": {"ru": "Carrefour: приёмка заказов", "uk": "Carrefour: приймання замовлень", "en": "Carrefour: order acceptance"},
+    "inc.type.leroy_merlin_health_degraded": {"ru": "Leroy Merlin: приёмка заказов", "uk": "Leroy Merlin: приймання замовлень", "en": "Leroy Merlin: order acceptance"},
     "inc.type.carrefour_order_not_accepted": {"ru": "Carrefour: заказ без акцепта", "uk": "Carrefour: замовлення без акцепту", "en": "Carrefour: order not accepted"},
     "inc.type.leroy_merlin_order_not_accepted": {"ru": "LM: заказ без акцепта", "uk": "LM: замовлення без акцепту", "en": "LM: order not accepted"},
     "inc.type.forecast_pace": {"ru": "Продаём быстрее плана", "uk": "Продаємо швидше плану", "en": "Selling ahead of plan"},
