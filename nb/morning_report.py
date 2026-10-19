@@ -171,7 +171,9 @@ top = sorted(groups.items(), key=lambda kv: (-kv[1]["new"], -SEV.get(kv[0][0], 0
 
 # ── текст ──
 lines = [f"🌅 <b>Ночь {w_from:%d.%m} 20:00 → {now:%d.%m %H:%M}</b> — джобы Amazon API"]
-if CHECK_AGE_H is None or CHECK_MAX_H is None or CHECK_AGE_H > CHECK_MAX_H:
+if CHECK_MAX_H is None:
+    lines.append("⚠️ у проверки прогонов (Amazon Run Check) не задан порог — ни правила здоровья, ни пульса")
+elif CHECK_AGE_H is None or CHECK_AGE_H > CHECK_MAX_H:
     lines.append(f"⚠️ проверка прогонов (Amazon Run Check) не работала "
                  + (f"{CHECK_AGE_H:.0f} ч" if CHECK_AGE_H is not None else "ни разу") + " — данные ниже неполные")
 lines.append(f"✅ {len(ok)} · ❌ {len(bad)} · ⏳ {len(wait)}")
