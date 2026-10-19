@@ -1,0 +1,13 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -2602,7 +2602,9 @@
+             else:
+                 _tg_failed = f"HTTP {resp.status_code} {resp.text[:200]}"
+         except Exception as e:
+-            _tg_failed = f"{type(e).__name__}: {str(e)[:200]}"
++            import re as _re_tok   # requests кладёт URL с токеном бота в текст исключения — вырезаем до записи
++            _err_text = _re_tok.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))
++            _tg_failed = f"{type(e).__name__}: {_err_text[:200]}"
+         if _tg_failed:
+             print(f"\n⚠️ Telegram failed: {_tg_failed}")
+     else:

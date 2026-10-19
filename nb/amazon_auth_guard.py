@@ -184,7 +184,9 @@ with pg, pg.cursor() as cur:
                                          "parse_mode": "HTML", "disable_web_page_preview": True}, timeout=30)
                 return None if rr.ok else f"{rr.status_code}: {rr.text[:150]}"
             except Exception as e:
-                return f"{type(e).__name__}: {str(e)[:150]}"
+                import re as _re_tok   # requests кладёт URL с токеном бота в текст исключения — вырезаем до записи
+                _err_text = _re_tok.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))
+                return f"{type(e).__name__}: {_err_text[:150]}"
 
         err = _send(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id"), new_texts)
         if err:

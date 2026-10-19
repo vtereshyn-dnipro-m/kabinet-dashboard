@@ -147,7 +147,9 @@ with pg, pg.cursor() as cur:
             if not r.ok:
                 send_error = f"{r.status_code}: {r.text[:200]}"
         except Exception as e:
-            send_error = f"{type(e).__name__}: {str(e)[:200]}"
+            import re as _re_tok   # requests кладёт URL с токеном бота в текст исключения — вырезаем до записи
+            _err_text = _re_tok.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))
+            send_error = f"{type(e).__name__}: {_err_text[:200]}"
         _sub = tg_to_subscribers("🔴 <b>Вечерние остатки FBA</b>\n" + msg.replace(TOKEN + " ", ""))
         if _sub:
             send_error = (send_error + "; " if send_error else "") + "подписчикам: " + "; ".join(_sub)[:200]

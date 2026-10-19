@@ -389,7 +389,9 @@ def send(text):
         if not r.ok:
             errs["основной"] = f"{r.status_code}: {r.text[:150]}"
     except Exception as e:
-        errs["основной"] = f"{type(e).__name__}: {str(e)[:150]}"
+        import re as _re_tok   # requests кладёт URL с токеном бота в текст исключения — вырезаем до записи
+        _err_text = _re_tok.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))
+        errs["основной"] = f"{type(e).__name__}: {_err_text[:150]}"
     sub = tg_to_subscribers(text)
     if sub:
         errs["подписчики"] = "; ".join(sub)

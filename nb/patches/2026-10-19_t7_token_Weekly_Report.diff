@@ -1,0 +1,13 @@
+--- a/Kabinet - Weekly Report
++++ b/Kabinet - Weekly Report
+@@ -419,7 +419,9 @@
+             if not r.ok:
+                 _беда.append(f"{r.status_code}: {r.text[:200]}")
+         except Exception as e:
+-            _беда.append(f"{type(e).__name__}: {str(e)[:200]}")
++            import re as _re_tok   # requests кладёт URL с токеном бота в текст исключения — вырезаем до записи
++            _err_text = _re_tok.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))
++            _беда.append(f"{type(e).__name__}: {_err_text[:200]}")
+     # те же сообщения — подписчикам бота тревог (kabinet_data.telegram_subscribers); их сбои прогон не роняют
+     for m in сообщения:
+         _sub = tg_to_subscribers(m)
