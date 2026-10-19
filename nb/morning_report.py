@@ -55,30 +55,49 @@ with pg() as c, c.cursor() as cur:
                       "kinds"), r)) for r in cur.fetchall()]
     cur.execute("SELECT job_id, slots FROM kabinet_data.job_schedule_snapshot WHERE NOT coalesce(paused, false)")
     SLOTS = {int(j): (s or []) for j, s in cur.fetchall()}
-    cur.execute("SELECT last_success_at FROM kabinet_data.system_pulse WHERE job_name = 'Kabinet - Amazon Run Check'")
+    # порог «проверка не работала» — из базы: правило здоровья проверки, иначе ожидаемый интервал её пульса
+    cur.execute("""SELECT p.last_success_at, coalesce(r.expected_interval_hours, p.expected_interval_hours)
+                   FROM (SELECT 'Kabinet - Amazon Run Check'::text AS job_name) j
+                   LEFT JOIN kabinet_data.system_pulse p USING (job_name)
+                   LEFT JOIN kabinet_data.job_health_rules r ON r.job_name = j.job_name AND r.is_active""")
     _p = cur.fetchone()
     CHECK_AGE_H = (dt.datetime.now(dt.timezone.utc) - _p[0]).total_seconds() / 3600 if _p and _p[0] else None
-    cur.execute("""SELECT i.severity, i.incident_type, coalesce(t.title, i.incident_type), i.message, i.created_at
+    CHECK_MAX_H = float(_p[1]) if _p and _p[1] is not None else None
+    cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'amazon_check_lag_min'")
+    _r = cur.fetchone()
+    # слот моложе этого — ещё не пропуск: serverless стартует минутами (тот же запас, что у проверки прогонов)
+    SLOT_GRACE = dt.timedelta(minutes=float(_r[0]) if _r else 15)
+    # created_at — timestamp БЕЗ зоны (UTC): сравнивать только через AT TIME ZONE 'UTC'; NULL — как «давно»
+    cur.execute("""SELECT i.severity, i.incident_type, coalesce(t.title, i.incident_type), i.message,
+                          coalesce(i.created_at AT TIME ZONE 'UTC', '1970-01-01'::timestamptz) AS created,
+                          coalesce(i.created_at AT TIME ZONE 'UTC' >= %s, false) AS is_new
                    FROM kabinet_data.incidents i LEFT JOIN kabinet_data.incident_types t USING (incident_type)
-                   WHERE i.status <> 'resolved' AND i.resolved_at IS NULL""")
+                   WHERE i.status <> 'resolved' AND i.resolved_at IS NULL""", (w_from,))
     OPEN = cur.fetchall()
 
 # ── по джобам: последний прогон за ночь ──
-last = {}
+last, night_fail = {}, {}
 for r in RUNS:
     last[r["job_id"]] = r                 # по возрастанию времени — остаётся последний
+    if r["state"] != "SUCCESS":
+        night_fail.setdefault(r["job_id"], []).append(hm(r["started_at"]))
 # Jobs API — только по джобам, которых нет в проверке: идёт сейчас или кончилась позже, чем её проверил Amazon Run Check
 # (он ходит в :50 и берёт прогоны, кончившиеся 15+ минут назад)
-fresh = {}
+RUNNING = {"QUEUED", "PENDING", "RUNNING", "BLOCKED", "WAITING_FOR_RETRY", "TERMINATING"}
+fresh, unread = {}, set()
 for jid in JOBS:
     if jid in last:
         continue
     try:
         a = next(iter(w.jobs.list_runs(job_id=jid, start_time_from=int(w_from.timestamp() * 1000), limit=1)), None)
         if a is not None:
+            life = a.state.life_cycle_state.value if a.state and a.state.life_cycle_state else ""
             res = a.state.result_state.value if a.state and a.state.result_state else None
-            fresh[jid] = (dt.datetime.fromtimestamp(a.start_time / 1000, dt.timezone.utc), res)
+            # None — идёт; иначе итог (SKIPPED/INTERNAL_ERROR без result_state — по life_cycle_state)
+            fresh[jid] = (dt.datetime.fromtimestamp(a.start_time / 1000, dt.timezone.utc),
+                          None if life in RUNNING else (res or life or "UNKNOWN"))
     except Exception as e:
+        unread.add(jid)                    # не знаем — не «прогона нет»
         _errors.append(f"прогоны {JOBS[jid]['job_name']}: {type(e).__name__}")
 
 
@@ -92,7 +111,7 @@ def night_slots(jid):
         hh, mm = map(int, t.split(":"))
         for day in (w_from.date(), now.date()):
             d = dt.datetime(day.year, day.month, day.day, hh, mm, tzinfo=KYIV)
-            if w_from <= d <= now and d.isoweekday() in (sl.get("dows") or []):
+            if w_from <= d <= now - SLOT_GRACE and d.isoweekday() in (sl.get("dows") or []):
                 out.append(d)
     return out
 
@@ -108,17 +127,22 @@ for jid, J in sorted(JOBS.items(), key=lambda kv: kv[1]["job_name"]):
             bad.append(f"❌ {esc(name)} {hm(fresh[jid][0])} — {esc(fresh[jid][1])}")
         elif jid in fresh:
             wait.append(f"⏳ {esc(name)} {hm(fresh[jid][0])} — успешна, запись ещё не проверена")
+        elif jid in unread:
+            wait.append(f"⏳ {esc(name)} — состояние не прочитано (Jobs API)")
         elif night_slots(jid):
             wait.append(f"⏳ {esc(name)} — по расписанию {', '.join(hm(d) for d in night_slots(jid))}, прогона нет")
         continue                           # джоба ночью не ходит — в сводку не попадает
     when = hm(r["started_at"])
+    if r["state"] == "SUCCESS" and night_fail.get(jid):   # последний успешен, но ночью до него были сбои
+        when += f" (ночью сбой: {', '.join(night_fail[jid])})"
     if r["state"] != "SUCCESS":
         bad.append(f"❌ {esc(name)} {when} — {esc(r['state'])}")
     elif r["wrote"] is False:
         bad.append(f"❌ {esc(name)} {when} — зелёная, но таблицы не записаны")
     else:
         ok.append(f"{esc(name)} {when}" + (f" ({esc(r['tables'])})" if r["tables"] else
-                                           (" (запись не проверяется)" if r["wrote"] is None else "")))
+                                           ("" if r["wrote"] is not None else
+                                            " (запись не прочитана)" if J["check_write"] else " (запись не проверяется)")))
 
 q429 = {}
 for r in RUNS:
@@ -130,11 +154,24 @@ SEV = {"critical": 4, "high": 3, "medium": 2, "low": 1}
 by_sev = {}
 for sev, *_x in OPEN:
     by_sev[str(sev).lower()] = by_sev.get(str(sev).lower(), 0) + 1
-top = sorted([o for o in OPEN if str(o[0]).lower() in ("critical", "high")], key=lambda o: (-SEV.get(str(o[0]).lower(), 0), o[4]))
+# critical/high — группами по типу: новые за ночь первыми, внутри — по важности и свежести. Не «8 самых старых»:
+# 10.10.2026 так в сводке сторожа восемь строк «нет остатка» за август закрыли свежие поломки джоб
+groups = {}
+for sev, itype, title, msg, created, is_new in OPEN:
+    if str(sev).lower() not in ("critical", "high"):
+        continue
+    g = groups.setdefault((str(sev).lower(), itype), {"title": title, "n": 0, "new": 0, "last": created, "tok": None})
+    g["n"] += 1
+    g["new"] += 1 if is_new else 0
+    if created >= g["last"]:
+        g["last"] = created
+        m = re.match(r"\[([^\]]+)\]", msg or "")
+        g["tok"] = m.group(1) if m else None
+top = sorted(groups.items(), key=lambda kv: (-kv[1]["new"], -SEV.get(kv[0][0], 0), -kv[1]["last"].timestamp()))
 
 # ── текст ──
 lines = [f"🌅 <b>Ночь {w_from:%d.%m} 20:00 → {now:%d.%m %H:%M}</b> — джобы Amazon API"]
-if CHECK_AGE_H is None or CHECK_AGE_H > 2:
+if CHECK_AGE_H is None or CHECK_MAX_H is None or CHECK_AGE_H > CHECK_MAX_H:
     lines.append(f"⚠️ проверка прогонов (Amazon Run Check) не работала "
                  + (f"{CHECK_AGE_H:.0f} ч" if CHECK_AGE_H is not None else "ни разу") + " — данные ниже неполные")
 lines.append(f"✅ {len(ok)} · ❌ {len(bad)} · ⏳ {len(wait)}")
@@ -147,11 +184,12 @@ else:
     lines.append("🧮 429 за ночь: 0")
 lines.append("🔔 <b>Открытые тревоги:</b> " + (", ".join(f"{s} {by_sev[s]}" for s in ("critical", "high", "medium", "low")
                                                    if by_sev.get(s)) or "нет"))
-for sev, itype, title, msg, created in top[:8]:
-    tok = re.match(r"\[([^\]]+)\]", msg or "")
-    lines.append(f"• {esc(title)}" + (f" — <code>{esc(tok.group(1))}</code>" if tok else "") + f" ({esc(sev)})")
+for (sev, itype), g in top[:8]:
+    lines.append(f"• {esc(g['title'])} ({esc(sev)})" + (f" ×{g['n']}" if g["n"] > 1 else "")
+                 + (f", новых за ночь {g['new']}" if g["new"] else "")
+                 + (f" — <code>{esc(g['tok'])}</code>" if g["tok"] and g["n"] == 1 else ""))
 if len(top) > 8:
-    lines.append(f"  …ещё {len(top) - 8}")
+    lines.append(f"  …ещё типов: {len(top) - 8}")
 if _errors:
     lines.append("⚙️ сбои сводки: " + esc("; ".join(_errors)[:300]))
 # записавшие — последними: при обрезке по длине теряется хвост этого списка, а не сбои и тревоги
@@ -162,6 +200,8 @@ if ok:
 text = ""
 for i, ln in enumerate(lines):
     if len(text) + len(ln) + 1 > LIMIT - 20:
+        if text.endswith("\n<b>Записали:</b>"):     # одинокий заголовок без строк — убрать
+            text = text[: -len("\n<b>Записали:</b>")]
         text += f"\n…ещё строк: {len(lines) - i}"
         break
     text += ("\n" if text else "") + ln
