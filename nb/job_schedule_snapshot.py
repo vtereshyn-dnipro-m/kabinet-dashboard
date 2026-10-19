@@ -812,9 +812,18 @@ if not LOCAL_OUT:
                                  f"{d['source_end']}, запас {d['margin_min']} мин — {mark[d['status']]}")
         token = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")  # noqa: F821
         chat = dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")      # noqa: F821
-        resp = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                             json={"chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML"}, timeout=15)
-        if not resp.ok:
+        # Сетевой сбой не должен оборвать ячейку до пульса (T-8, 19.10.2026): раньше исключение requests уходило
+        # мимо записи метки, и сторож видел «снимок расписания мёртв» вместо «сообщение не ушло». Текст — без токена.
+        try:
+            resp = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                                 json={"chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML"}, timeout=15)
+            _tg_net = None
+        except requests.RequestException as e:
+            import re as _re_tok
+            resp, _tg_net = None, f"{type(e).__name__}: " + _re_tok.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))[:200]
+        if resp is None:
+            _tg_err = f"Telegram не доставлен: {_tg_net}"
+        elif not resp.ok:
             _tg_err = f"Telegram HTTP {resp.status_code} {resp.text[:200]}"
         else:
             _tg_err = None
