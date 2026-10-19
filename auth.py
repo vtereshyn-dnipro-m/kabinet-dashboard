@@ -708,7 +708,8 @@ def guard():
             log_action("card_archived", True, "user", email,
                        f"адрес перешёл к другому Google-аккаунту: прежняя карточка с ролями → {_arch} (выключена)")
             try:
-                _telegram(f"⚠️ Адрес &lt;{email}&gt; теперь у другого Google-аккаунта.\n"
+                import html as _html
+                _telegram(f"⚠️ Адрес &lt;{_html.escape(email)}&gt; теперь у другого Google-аккаунта.\n"
                           f"Карточка прежнего человека с его ролями убрана в архив ({_arch}, выключена); "
                           f"новый человек входит как новый: «Просмотр» в Кабинете и Listing Suite.")
             except Exception as e:
@@ -753,14 +754,18 @@ def _telegram(text: str):
     chat = base64.b64decode(
         w.secrets.get_secret(scope="kabinet-alerts", key="telegram-chat-id").value).decode()
     try:
-        requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                      json={"chat_id": chat, "text": text, "parse_mode": "HTML"}, timeout=10)
+        resp = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                             json={"chat_id": chat, "text": text, "parse_mode": "HTML"}, timeout=10)
     except requests.RequestException as e:
         # requests кладёт URL запроса — с токеном бота — в текст исключения, а вызывающие пишут его в журнал
         # «Доступа», который видно на экране. Наружу — только тип ошибки и текст без токена (T-7, 19.10.2026)
         import re
         raise RuntimeError(f"{type(e).__name__}: "
                            + re.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))[:150]) from None
+    # Ответ 4xx/5xx — тоже недоставка (T-8, 19.10.2026): без этой проверки журнал писал «отправлено», хотя Telegram
+    # отказал (неверный chat_id, бот удалён из чата, ошибка разметки HTML). Тело ответа Telegram токена не содержит.
+    if not resp.ok:
+        raise RuntimeError(f"Telegram HTTP {resp.status_code}: {resp.text[:150]}")
 
 
 def notify_new_user(email, name):
@@ -769,7 +774,8 @@ def notify_new_user(email, name):
     Неудачу кладём в журнал действий, а не глотаем: сторож досылает такие уведомления
     сам, и канал не должен молчать только потому, что грант на скоуп забыли выдать."""
     try:
-        _telegram(f"👤 Новый человек в Кабинете: {name or ''} &lt;{email}&gt;\n"
+        import html as _html   # имя из Google с «<» или «&» ломало разметку HTML — Telegram отвечал 400
+        _telegram(f"👤 Новый человек в Кабинете: {_html.escape(name or '')} &lt;{_html.escape(email)}&gt;\n"
                   f"«Просмотр» в Кабинете и Listing Suite, действий нет. Назначить роль и страны — "
                   f"«Доступ».")
         log_action("notify_new_user", True, "user", email, "отправлено приложением")

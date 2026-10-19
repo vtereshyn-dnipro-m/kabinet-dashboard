@@ -46,8 +46,11 @@ def tg_to_subscribers(text):
             _tg_c.close()
     except Exception as e:
         return [f"подписчики не прочитались: {type(e).__name__}: {str(e)[:120]}"]
-    _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
-    _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
+    try:   # лучшим усилием — и секреты тоже: исключение отсюда оборвало бы ячейку до пульса (T-8)
+        _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
+        _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
+    except Exception as e:
+        return [f"секреты бота не прочитались: {type(e).__name__}"]
     _tg_errs = []
     for _tg_chat in _tg_subs:
         if _tg_chat == _tg_main:
@@ -810,21 +813,30 @@ if not LOCAL_OUT:
                     mark = {"broken": "🔴 порядок нарушен", "warn": "🟡 запас меньше нормы", "ok": "🟢 порядок соблюдён"}
                     lines.append(f"   {_html.escape(d['our_job'])} {d['our_time']}: источник заканчивает "
                                  f"{d['source_end']}, запас {d['margin_min']} мин — {mark[d['status']]}")
-        token = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")  # noqa: F821
-        chat = dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")      # noqa: F821
-        resp = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                             json={"chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML"}, timeout=15)
-        if not resp.ok:
-            _tg_err = f"Telegram HTTP {resp.status_code} {resp.text[:200]}"
-        else:
-            _tg_err = None
-            _sub = tg_to_subscribers("\n".join(lines))
-            if _sub:
-                print("⚠️ подписчикам не ушло: " + "; ".join(_sub))
-            with pg, pg.cursor() as cur:
-                for c in fresh:
-                    cur.execute("UPDATE kabinet_data.job_schedule_changes SET notified_at = now() "
-                                "WHERE job_id = %s AND event_time = %s", (c["job_id"], c["event_time"]))
+        # Ничто в отправке не должно оборвать ячейку до пульса (T-8, 19.10.2026): ни чтение секретов, ни сеть, ни ответ
+        # Telegram, ни отметка notified_at. Раньше исключение уходило мимо записи метки, и сторож видел «снимок
+        # расписания мёртв» вместо «сообщение не ушло». Любой сбой — текстом без токена, падение — после пульса.
+        import re as _re_tok
+        try:
+            token = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")  # noqa: F821
+            chat = dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")      # noqa: F821
+            resp = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                                 json={"chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML"}, timeout=15)
+            if not resp.ok:
+                _tg_err = f"Telegram HTTP {resp.status_code} {resp.text[:200]}"
+            else:
+                _tg_err = None
+                _sub = tg_to_subscribers("\n".join(lines))
+                if _sub:
+                    # не print в лог, который никто не читает, — в примечание пульса
+                    summary = f"{summary}; подписчикам не ушло: {'; '.join(_sub)[:300]}"
+                with pg, pg.cursor() as cur:
+                    for c in fresh:
+                        cur.execute("UPDATE kabinet_data.job_schedule_changes SET notified_at = now() "
+                                    "WHERE job_id = %s AND event_time = %s", (c["job_id"], c["event_time"]))
+        except Exception as e:
+            _tg_err = f"Telegram не доставлен или не отмечен: {type(e).__name__}: " + \
+                _re_tok.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))[:200]
     else:
         _tg_err = None
 
