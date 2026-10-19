@@ -1,0 +1,12 @@
+{
+  "name": "Kabinet - Morning Report",
+  "description": "08:00 Kyiv: утренняя сводка ночи (20:00 вчера — сейчас) в бот одним сообщением — джобы Amazon API ✅ записали / ❌ упали или зелёные без записи / ⏳ идут или не запустились; 429 за ночь; открытые тревоги. Читает kabinet_data.amazon_run_checks (пишет Kabinet - Amazon Run Check) и Jobs API. Amazon не вызывает. Источник — nb/morning_report.py.",
+  "max_concurrent_runs": 1,
+  "timeout_seconds": 900,
+  "schedule": {"quartz_cron_expression": "0 0 8 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default", "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "report", "environment_key": "default", "timeout_seconds": 900, "max_retries": 1, "min_retry_interval_millis": 300000,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Morning Report", "source": "WORKSPACE"}}
+  ]
+}
