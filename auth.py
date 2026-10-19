@@ -708,7 +708,8 @@ def guard():
             log_action("card_archived", True, "user", email,
                        f"адрес перешёл к другому Google-аккаунту: прежняя карточка с ролями → {_arch} (выключена)")
             try:
-                _telegram(f"⚠️ Адрес &lt;{email}&gt; теперь у другого Google-аккаунта.\n"
+                import html as _html
+                _telegram(f"⚠️ Адрес &lt;{_html.escape(email)}&gt; теперь у другого Google-аккаунта.\n"
                           f"Карточка прежнего человека с его ролями убрана в архив ({_arch}, выключена); "
                           f"новый человек входит как новый: «Просмотр» в Кабинете и Listing Suite.")
             except Exception as e:
@@ -773,7 +774,8 @@ def notify_new_user(email, name):
     Неудачу кладём в журнал действий, а не глотаем: сторож досылает такие уведомления
     сам, и канал не должен молчать только потому, что грант на скоуп забыли выдать."""
     try:
-        _telegram(f"👤 Новый человек в Кабинете: {name or ''} &lt;{email}&gt;\n"
+        import html as _html   # имя из Google с «<» или «&» ломало разметку HTML — Telegram отвечал 400
+        _telegram(f"👤 Новый человек в Кабинете: {_html.escape(name or '')} &lt;{_html.escape(email)}&gt;\n"
                   f"«Просмотр» в Кабинете и Listing Suite, действий нет. Назначить роль и страны — "
                   f"«Доступ».")
         log_action("notify_new_user", True, "user", email, "отправлено приложением")
