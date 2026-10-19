@@ -1,0 +1,6 @@
+{
+  "job_id": 907284097553767,
+  "new_settings": {
+    "schedule": {"quartz_cron_expression": "0 5 3 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"}
+  }
+}
