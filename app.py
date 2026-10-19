@@ -1,8 +1,17 @@
 # app.py — роутер + лого + переключатель языка + бейджи в сайдбаре
 import streamlit as st
+# Первой строкой, до импорта модулей проекта: после мержа Streamlit Cloud подтягивает файлы, но не перезапускает
+# процесс — модули и кэши остались бы старыми. Сменился коммит — сброс кэшей и перечитывание модулей (deploy_sync.py).
+import deploy_sync
+deploy_sync.sync()
 from i18n import init_lang, language_toggle, t
 from db.connection import get_connection
 import auth
+import deploy_log
+
+# журнал стартов процесса и перечитываний модулей (kabinet_data.app_deploy_log): по нему видно, доехал ли мерж без
+# ребута — deploy_log.py
+deploy_log.report(get_connection, app="kabinet")
 
 init_lang()
 
@@ -225,4 +234,6 @@ def inject_nav_badges(counts: dict):
 
 
 inject_nav_badges(get_nav_badge_counts())
+# версия кода в сайдбаре: по ней видно, что мерж доехал без ребута (новый номер и подпись на языке, а не ключом)
+st.sidebar.caption(t("app.version", v=deploy_sync.version()))
 pages.run()

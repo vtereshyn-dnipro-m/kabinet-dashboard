@@ -1,0 +1,33 @@
+# Автопроверки Кабинета (T-10, 19.10.2026). Без секретов и без доступа к Databricks/Lakebase: репозиторий публичный,
+# проверки на живой базе — scratchpad/smoke_*.py, их гоняют локально (scratchpad/README.md).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, "ci-check/**"]   # ci-check/** — ветки для проверки самого CI (заведомо сломанный коммит и т.п.)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"      # как serverless-окружение Databricks; к f-строкам строже 3.12
+          cache: pip
+      - name: Зависимости
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - name: Тесты без базы
+        run: python -m pytest -q
