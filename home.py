@@ -217,12 +217,13 @@ def load_money_pbi(days: int = 30, _v: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
-def load_day_status(_v: str = ""):
+def load_day_status(_v: str = "", source: str = "economics"):
     """Граница полных дней и предварительные дни (money_notes.day_status) — по последней загрузке каждого
-    канала: день, по которому не прошли все загрузчики, в цифры и сравнение не берём."""
+    канала: день, по которому не прошли все загрузчики, в цифры и сравнение не берём. Источник загрузки —
+    реплика Power BI, когда цифры из неё (с 19.10.2026), иначе наша экономика."""
     conn = get_connection()
     try:
-        return mn.day_status(conn)
+        return mn.day_status(conn, source)
     except Exception:
         return mn.DayStatus(pd.NaT, pd.NaT, 0.0)
     finally:
@@ -628,7 +629,8 @@ if not money.empty:
     _amz_codes = (set(_ch.loc[_ch["channel"].str.upper() == "AMAZON",
                               "marketplace_code"])
                   if not _ch.empty else set())
-    _dstat = load_day_status(data_version("economics_summary", "updated_at"))
+    _dstat = (load_day_status(data_version("economics_summary", "updated_at")) if pbi.OWN_METHOD
+              else load_day_status(data_version("pbi_spiderweb_report", "loaded_at"), "replica"))
     # сегодня по Киеву — по базе (сервер живёт в UTC); сегодняшний день данными не считается никогда
     _today = _dstat.today if pd.notna(_dstat.today) else pd.Timestamp.now(tz="Europe/Kyiv").normalize().tz_localize(None)
     _b = data_boundary(money, "sales_date", "marketplace", _amz_codes, today=_today)

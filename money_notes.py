@@ -88,17 +88,33 @@ class DayStatus:
     today: pd.Timestamp = pd.NaT   # сегодня по Киеву — по базе, а не по часам сервера (он живёт в UTC)
 
 
+# Откуда берётся «последняя загрузка» площадки. Обе ветки отдают last_run как UTC без зоны.
+_RUNS_ECONOMICS = """
+        SELECT mk.plat, max(e.updated_at) AS last_run, max(e.sales_date) AS last_day
+        FROM kabinet_data.economics_summary e
+        JOIN mk ON mk.code = upper(e.marketplace)
+        WHERE e.sales_date >= CURRENT_DATE - 30
+        GROUP BY 1"""
+# Реплика Power BI (19.10.2026): цифры «Обзора» и «Денег» берутся из неё, значит и граница — по ней. «Загрузка» —
+# сборка витрины, которую реплика скопировала последней полной заменой (status = 'replaced': неполную сборку защита
+# не копирует, и граница тогда остаётся на прежней). Витрина собирается около 10:20 и уже содержит вчерашний день
+# (D+1) по всем площадкам, а экономика Amazon приходит только в ~12:40 — по ней вчерашний день был скрыт ~2 часа.
+_RUNS_REPLICA = """
+        SELECT mk.plat,
+               (SELECT max(m.source_built_at) FROM kabinet_data.pbi_replica_meta m
+                WHERE m.status = 'replaced') AT TIME ZONE 'UTC' AS last_run,
+               max(e.date) AS last_day
+        FROM kabinet_data.pbi_spiderweb_report e
+        JOIN mk ON mk.code = upper(e.marketplace)
+        WHERE e.date >= CURRENT_DATE - 30
+        GROUP BY 1"""
+
 _DAY_STATUS_SQL = """
     WITH mk AS (
         SELECT DISTINCT upper(v.marketplace_code) AS code, lower(p.short_name) AS plat
         FROM kabinet_data.v_marketplaces v
         JOIN kabinet_data.platforms p ON p.full_name = v.channel),
-    runs AS (
-        SELECT mk.plat, max(e.updated_at) AS last_run, max(e.sales_date) AS last_day
-        FROM kabinet_data.economics_summary e
-        JOIN mk ON mk.code = upper(e.marketplace)
-        WHERE e.sales_date >= CURRENT_DATE - 30
-        GROUP BY 1),
+    runs AS ({runs}),
     p AS (SELECT key, value FROM kabinet_data.reorder_params WHERE key LIKE 'kpi_%%')
     SELECT r.plat,
            -- updated_at — UTC без зоны: сначала назвать зону, потом перевести в Киев
@@ -116,8 +132,12 @@ _DAY_STATUS_SQL = """
 """
 
 
-def day_status(conn) -> DayStatus:
+def day_status(conn, source: str = "economics") -> DayStatus:
     """Граница полных дней и «предварительные» дни — по времени ПОСЛЕДНЕЙ загрузки каждого канала.
+
+    `source`: "economics" — загрузка нашей экономики (своя методика маржи, `pbi.OWN_METHOD`); "replica" — сборка
+    витрины Power BI, из реплики которой берутся цифры «Обзора» и «Денег» (с 19.10.2026). Задержки по площадкам
+    и правило одинаковы для обоих источников.
 
     Задержка у каналов разная (замер 06.10.2026 по истории версий сырья — Delta хранит 7 дней): у Amazon
     загрузчик перечитывает последние три дня, на D+1 у дня 98,7 % окончательной суммы (худший 96 %),
@@ -132,8 +152,10 @@ def day_status(conn) -> DayStatus:
     сравнил бы неполный день с полным. По запуску день D полон, только когда КАЖДЫЙ действующий канал
     загружался не раньше D + своя задержка. Канал, не загружавшийся дольше `kpi_channel_active_days` (3),
     границу не держит: мёртвый загрузчик ловят сторож и паспорт, а страница не должна застыть вместе с ним."""
+    assert source in ("economics", "replica"), source
     cur = conn.cursor()
-    cur.execute(_DAY_STATUS_SQL)
+    # .replace, а не .format: фигурные скобки в SQL (квантификатор регулярки) .format принял бы за подстановку
+    cur.execute(_DAY_STATUS_SQL.replace("{runs}", _RUNS_REPLICA if source == "replica" else _RUNS_ECONOMICS))
     rows = cur.fetchall()
     if not rows:
         return DayStatus(pd.NaT, pd.NaT, 0.0)
