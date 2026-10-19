@@ -188,74 +188,97 @@ last_closed = (today.replace(day=1) - timedelta(days=1))
 first_ym = STORAGE_FROM or (last_closed.replace(day=1) - timedelta(days=31 * (STORAGE_MONTHS_BACK - 1))).strftime("%Y-%m")
 months = list(month_range(first_ym, last_closed.strftime("%Y-%m")))
 
-# ── Добор (mode=backfill): какие месяцы и сколько отчётов можно этой ночью ──
+# ── Добор (mode=backfill, T-14): какие месяцы и сколько отчётов можно этой ночью ──
 UC_BF = "dnipro_m.kabinet_data.storage_backfill_progress"
-_bf_created, _bf_budget, _bf_note = 0, 0, ""
+RETURNS_JOB = "Kabinet - Returns Backfill"
+BF_TYPES = ("GET_FBA_FULFILLMENT_CUSTOMER_RETURNS_DATA", "GET_FLAT_FILE_RETURNS_DATA_BY_RETURN_DATE",
+            "GET_FBA_STORAGE_FEE_CHARGES_DATA")
+_bf_created, _bf_budget, _bf_note, _bf_plan, _bf_stop, _bf_done_months = 0, 0, "", [], None, set()
+_returns_done, _why, _bf_all = False, "", []
 if MODE == "backfill":
     import zoneinfo
-    with _pg.cursor() as cur:
-        cur.execute("""SELECT key, value FROM kabinet_data.reorder_params
-                       WHERE key IN ('storage_backfill_from', 'storage_backfill_to', 'returns_backfill_max_reports',
-                                     'returns_backfill_from_hhmm', 'returns_backfill_to_hhmm')""")
-        _bp = {k: int(v) for k, v in cur.fetchall()}
-        # добор возвратов закончен: его метка говорит «осталось кусков 0» или её уже нет (джобу удалили по окончании)
-        cur.execute("SELECT note FROM kabinet_data.system_pulse WHERE job_name = 'Kabinet - Returns Backfill'")
-        _ret = cur.fetchone()
-    _pg.commit()
-    # «Закончен» — метка говорит «осталось кусков 0», либо метки уже нет, но добор БЫЛ (есть его прогресс): джобу
-    # удалили по окончании. Нет ни метки, ни прогресса — добор возвратов ещё не начинался, и квоту ночи держит он.
-    try:
-        _ret_progress = spark.sql("SELECT COUNT(*) FROM dnipro_m.kabinet_data.returns_backfill_progress").collect()[0][0]  # noqa: F821
-    except Exception:
-        _ret_progress = 0
-    _returns_done = ("осталось кусков 0" in (_ret[0] or "")) if _ret is not None else _ret_progress > 0
-    _hhmm = lambda v: f"{v // 100:02d}:{v % 100:02d}"
-    QUIET_FROM = _hhmm(_bp.get("returns_backfill_from_hhmm", 120))
-    QUIET_TO = _hhmm(_bp.get("returns_backfill_to_hhmm", 210))
     _kyiv_now = lambda: datetime.now(zoneinfo.ZoneInfo("Europe/Kyiv"))
-    # лимит ночи — ОБЩИЙ с добором возвратов: вычитаем то, что он создал сегодня
+    QUIET_FROM, QUIET_TO = "01:20", "02:10"
     try:
-        _ret_created = spark.sql(f"""
-            SELECT COUNT(*) FROM dnipro_m.kabinet_data.returns_backfill_progress
-            WHERE how LIKE 'created%'
-              AND to_date(from_utc_timestamp(done_at, 'Europe/Kyiv')) = DATE'{_kyiv_now().date().isoformat()}'
-        """).collect()[0][0]  # noqa: F821
-    except Exception:
-        _ret_created = 0          # таблицы ещё нет — добор возвратов не создавал ничего
-    _bf_budget = max(0, _bp.get("returns_backfill_max_reports", 5) - int(_ret_created))
+        with _pg.cursor() as cur:
+            cur.execute("""SELECT key, value FROM kabinet_data.reorder_params
+                           WHERE key IN ('storage_backfill_from', 'storage_backfill_to', 'returns_backfill_max_reports',
+                                         'returns_backfill_from_hhmm', 'returns_backfill_to_hhmm')""")
+            _bp = {k: int(v) for k, v in cur.fetchall()}
+            cur.execute("SELECT note FROM kabinet_data.system_pulse WHERE job_name = %s", (RETURNS_JOB,))
+            _ret = cur.fetchone()
+        _pg.commit()
+        _hhmm = lambda v: f"{v // 100:02d}:{v % 100:02d}"
+        QUIET_FROM = _hhmm(_bp.get("returns_backfill_from_hhmm", 120))
+        QUIET_TO = _hhmm(_bp.get("returns_backfill_to_hhmm", 210))
 
-    def _ym(v):
-        v = str(v)
-        return f"{v[:4]}-{v[4:6]}"
-    _bf_from, _bf_to = _ym(_bp.get("storage_backfill_from", 202411)), _ym(_bp.get("storage_backfill_to", 202606))
-    if not DRY:
-        spark.sql(f"""CREATE TABLE IF NOT EXISTS {UC_BF} (
-                          month STRING, status STRING COMMENT 'done / no_data / stop', rows INT, report_id STRING,
-                          done_at TIMESTAMP)
-                      USING DELTA COMMENT 'Добор деталей хранения (Kabinet - Storage Fees Backfill): какие месяцы взяты.'""")  # noqa: F821
-    try:
-        _prog = spark.sql(f"SELECT month, status FROM {UC_BF}").collect()  # noqa: F821
-    except Exception:
+        # Добор возвратов закончен — только если его джобы уже нет (удалили по окончании) ИЛИ она сейчас не идёт и её
+        # метка говорит «осталось кусков 0». По прогрессу не судим: он пишется до метки, и упавший прогон возвратов
+        # выглядел бы законченным.
+        _rj = [j for j in _w.jobs.list(name=RETURNS_JOB)]
+        if not _rj:
+            _returns_done, _why = True, "джоба добора возвратов удалена"
+        elif list(_w.jobs.list_runs(job_id=_rj[0].job_id, active_only=True)):
+            _returns_done, _why = False, "добор возвратов сейчас идёт"
+        else:
+            _returns_done = _ret is not None and "осталось кусков 0" in (_ret[0] or "")
+            _why = "добор возвратов закончен" if _returns_done else "ждёт окончания добора возвратов"
+
+        # Ночной лимит — ОБЩИЙ: считаем по самому Amazon все отчёты возвратов и хранения, созданные с начала тихого
+        # окна (01:00 по Киеву), в любом статусе — так учтены и отчёты добора возвратов, и наши прошлые запуски этой
+        # ночью, и попытки, упавшие после createReport.
+        _since = _kyiv_now().replace(hour=1, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+        _created_tonight, _tok_next = 0, None
+        while True:
+            _prm = ({"nextToken": _tok_next} if _tok_next else
+                    {"reportTypes": ",".join(BF_TYPES), "createdSince": _since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                     "pageSize": 100})
+            _lst = api("get", "/reports/2021-06-30/reports", params=_prm)
+            _created_tonight += len(_lst.get("reports", []))
+            _tok_next = _lst.get("nextToken")
+            if not _tok_next:
+                break
+            time.sleep(3)
+        _bf_budget = max(0, _bp.get("returns_backfill_max_reports", 5) - _created_tonight)
+
+        _ym = lambda v: f"{str(v)[:4]}-{str(v)[4:6]}"
+        _bf_from, _bf_to = _ym(_bp.get("storage_backfill_from", 202411)), _ym(_bp.get("storage_backfill_to", 202606))
         if not DRY:
+            spark.sql(f"""CREATE TABLE IF NOT EXISTS {UC_BF} (
+                              month STRING, status STRING COMMENT 'done / no_data / stop', rows INT, report_id STRING,
+                              done_at TIMESTAMP)
+                          USING DELTA COMMENT 'Добор деталей хранения (Kabinet - Storage Fees Backfill): какие месяцы взяты.'""")  # noqa: F821
+        try:
+            _prog = spark.sql(f"SELECT month, status FROM {UC_BF}").collect()  # noqa: F821
+        except Exception:
+            if not DRY:
+                raise
+            _prog = []
+        _bf_stop = max((r[0] for r in _prog if r[1] == "stop"), default=None)
+        _bf_done_months = {r[0] for r in _prog if r[1] in ("done", "no_data")}
+        _taken = _bf_done_months | {r[0] for r in spark.sql(  # noqa: F821
+            f"SELECT DISTINCT month_of_charge FROM {UC_STORAGE}").collect()}   # уже лежит — второй раз не берём
+        # от новых к старым: CANCELLED на старом месяце значит «глубже Amazon не отдаёт», и добор на нём кончается
+        _bf_plan = [mm for mm in reversed(list(month_range(_bf_from, _bf_to)))
+                    if mm[0] not in _taken and (_bf_stop is None or mm[0] > _bf_stop)]
+        print(f"добор хранения {_bf_from}…{_bf_to}: месяцев {len(_bf_plan)}; {_why}; создано с 01:00 {_created_tonight}, "
+              f"лимит {_bf_budget}; окно {QUIET_FROM}–{QUIET_TO}")
+        if DRY:
+            import json as _json
+            dbutils.notebook.exit(_json.dumps({  # noqa: F821
+                "months": [mm[0] for mm in _bf_plan], "returns_done": _returns_done, "why": _why,
+                "created_tonight": _created_tonight, "budget": _bf_budget, "stop": _bf_stop,
+                "window": [QUIET_FROM, QUIET_TO]}, ensure_ascii=False))
+        _bf_all = list(_bf_plan)   # весь остаток — для примечания, даже если этой ночью ждём
+        if not _returns_done:
+            _bf_plan = []        # квоту ночи держит добор возвратов — хранение ждёт его окончания
+    except Exception as e:
+        if DRY:
             raise
-        _prog = []
-    _stop = max((r[0] for r in _prog if r[1] == "stop"), default=None)
-    _taken = {r[0] for r in _prog} | {r[0] for r in spark.sql(  # noqa: F821
-        f"SELECT DISTINCT month_of_charge FROM {UC_STORAGE}").collect()}   # уже лежит — не берём второй раз
-    # от новых к старым: CANCELLED на старом месяце значит «глубже Amazon не отдаёт», и добор на нём кончается
-    months = [mm for mm in reversed(list(month_range(_bf_from, _bf_to)))
-              if mm[0] not in _taken and (_stop is None or mm[0] > _stop)]
-    _bf_note = (f"осталось месяцев {len(months)}" + (f", глубже {_stop} Amazon не отдаёт" if _stop else "")
-                + (", ждёт окончания добора возвратов" if not _returns_done else "")
-                + f"; лимит ночи {_bf_budget} (возвраты создали {_ret_created})")
-    print(f"добор хранения {_bf_from}…{_bf_to}: {_bf_note}; окно {QUIET_FROM}–{QUIET_TO}")
-    if DRY:
-        import json as _json
-        dbutils.notebook.exit(_json.dumps({"months": [mm[0] for mm in months], "returns_done": _returns_done,  # noqa: F821
-                                           "budget": _bf_budget, "returns_created_tonight": int(_ret_created),
-                                           "stop": _stop, "window": [QUIET_FROM, QUIET_TO]}, ensure_ascii=False))
-    if not _returns_done:
-        months = []          # квоту ночи держит добор возвратов — хранение ждёт его окончания
+        _bf_plan = []
+        _errors.append(f"подготовка добора: {type(e).__name__}: {str(e).split('?')[0][:200]}")
+        print(f"  ❌ подготовка добора: {e}")
+    months = []           # ежедневный список месяцев в доборе не нужен — свой план _bf_plan
 
 print(f"хранение: месяцы {[m[0] for m in months]}")
 
@@ -290,36 +313,8 @@ def write_storage(rows):
     """)  # noqa: F821
     replicate("raw_amazon_fba_storage_fees", S_COLS, rows, ["asin","fnsku","fulfillment_center","month_of_charge"])
 
-def _bf_mark(ym, status, n, rid):
-    spark.createDataFrame([(ym, status, n, rid)], "month STRING, status STRING, rows INT, report_id STRING") \
-         .selectExpr("*", "current_timestamp() AS done_at").write.mode("append").saveAsTable(UC_BF)  # noqa: F821
-
-for ym, y, m in months:
-    last_day = calendar.monthrange(y, m)[1]
-    if MODE == "backfill":
-        # окно и лимит — перед КАЖДЫМ отчётом
-        if not (QUIET_FROM <= _kyiv_now().strftime("%H:%M") < QUIET_TO) or _bf_created >= _bf_budget:
-            break
-        _bf_created += 1
-        try:
-            rid, rows = fetch_report("GET_FBA_STORAGE_FEE_CHARGES_DATA",
-                                     f"{ym}-01T00:00:00Z", f"{ym}-{last_day:02d}T23:59:59Z", retry_create=False)
-        except Quota429 as e:
-            _errors.append(str(e)[:200]); print(f"  ⏸ {ym}: {e} — месяц возьмёт следующая ночь"); break
-        except Exception as e:
-            _errors.append(f"{ym}: {type(e).__name__}: {str(e).split('?')[0][:160]}"); print(f"  ❌ {ym}: {e}"); break
-        if rows is None:
-            # CANCELLED на месяце добора — глубже Amazon этот отчёт не отдаёт: стоп, старше не просим
-            _bf_mark(ym, "stop", 0, rid); storage_months_done.append((ym, "стоп: данных нет"))
-            print(f"  {ym}: CANCELLED — глубже Amazon не отдаёт, добор остановлен, report {rid}")
-            break
-    else:
-        rid, rows = fetch_report("GET_FBA_STORAGE_FEE_CHARGES_DATA",
-                                 f"{ym}-01T00:00:00Z", f"{ym}-{last_day:02d}T23:59:59Z")
-    if rows is None:
-        storage_months_done.append((ym, "нет данных"))
-        print(f"  {ym}: Amazon ответил CANCELLED — за месяц данных пока нет, report {rid}")
-        continue
+def _month_rows(rid, rows):
+    """Строки одного месяца отчёта хранения → кортежи S_COLS (одинаково для ежедневного режима и добора)."""
     hdr = [norm_header(h) for h in rows[0]]; idx = {h: i for i, h in enumerate(hdr)}
     seen = set(); n = 0; month_rows = []
     for r in rows[1:]:
@@ -338,12 +333,66 @@ for ym, y, m in months:
             elif c in S_NUM6: rec.append(num(g(c), "0.000001"))
             else: rec.append(g(c) or None)
         month_rows.append(tuple(rec)); n += 1
+    return month_rows
+
+
+def _bf_mark(ym, status, n, rid):
+    spark.createDataFrame([(ym, status, n, rid)], "month STRING, status STRING, rows INT, report_id STRING") \
+         .selectExpr("*", "current_timestamp() AS done_at").write.mode("append").saveAsTable(UC_BF)  # noqa: F821
+
+
+for ym, y, m in months:
+    last_day = calendar.monthrange(y, m)[1]
+    rid, rows = fetch_report("GET_FBA_STORAGE_FEE_CHARGES_DATA",
+                             f"{ym}-01T00:00:00Z", f"{ym}-{last_day:02d}T23:59:59Z")
+    if rows is None:
+        storage_months_done.append((ym, "нет данных"))
+        print(f"  {ym}: Amazon ответил CANCELLED — за месяц данных пока нет, report {rid}")
+        continue
+    month_rows = _month_rows(rid, rows); n = len(month_rows)
     write_storage(month_rows)
     storage_rows += month_rows
     storage_months_done.append((ym, n))
     print(f"  {ym}: строк {n}, report {rid} — записано")
-    if MODE == "backfill":
+
+# ── Добор: месяц за месяцем, каждый в своём try — любой сбой доходит до пульса ──
+for ym, y, m in _bf_plan:
+    # окно и лимит — перед КАЖДЫМ отчётом
+    if not (QUIET_FROM <= _kyiv_now().strftime("%H:%M") < QUIET_TO) or _bf_created >= _bf_budget:
+        break
+    last_day = calendar.monthrange(y, m)[1]
+    try:
+        _bf_created += 1
+        rid, rows = fetch_report("GET_FBA_STORAGE_FEE_CHARGES_DATA",
+                                 f"{ym}-01T00:00:00Z", f"{ym}-{last_day:02d}T23:59:59Z", retry_create=False)
+        if rows is None:
+            if any(dm > ym for dm in _bf_done_months):
+                # CANCELLED на месяце старше уже взятого — глубже Amazon этот отчёт не отдаёт: стоп, старше не просим
+                _bf_mark(ym, "stop", 0, rid); _bf_stop = ym
+                storage_months_done.append((ym, "стоп: глубже данных нет"))
+                print(f"  {ym}: CANCELLED — глубже Amazon не отдаёт, добор остановлен, report {rid}")
+            else:
+                # самый новый месяц добора не может быть «слишком старым»: это сбой Amazon, повторим следующей ночью
+                _errors.append(f"{ym}: CANCELLED без более нового взятого месяца, report {rid} — повтор следующей ночью")
+                print(f"  ⚠️ {ym}: CANCELLED, но более новый месяц ещё не взят — не стоп, повтор следующей ночью")
+            break
+        month_rows = _month_rows(rid, rows); n = len(month_rows)
+        write_storage(month_rows)
+        storage_rows += month_rows
         _bf_mark(ym, "done" if n else "no_data", n, rid)      # после записи месяца — не раньше
+        _bf_done_months.add(ym)
+        storage_months_done.append((ym, n))
+        print(f"  {ym}: строк {n}, report {rid} — записано (добор)")
+    except Quota429 as e:
+        _errors.append(str(e)[:200]); print(f"  ⏸ {ym}: {e} — месяц возьмёт следующая ночь"); break
+    except Exception as e:
+        _errors.append(f"{ym}: {type(e).__name__}: {str(e).split('?')[0][:160]}"); print(f"  ❌ {ym}: {e}"); break
+
+if MODE == "backfill":
+    # примечание — ПОСЛЕ цикла: сигнал «осталось месяцев 0» (джобу удалять) должен появиться в ту же ночь
+    _left_bf = [mm[0] for mm in _bf_all if mm[0] not in _bf_done_months and (_bf_stop is None or mm[0] > _bf_stop)]
+    _bf_note = (f"осталось месяцев {len(_left_bf)}" + (f", глубже {_bf_stop} Amazon не отдаёт" if _bf_stop else "")
+                + (f"; {_why}" if _why else "") + f"; лимит ночи {_bf_budget}")
 
 if storage_rows:
     print(f"✅ хранение: {len(storage_rows)} строк в UC и Lakebase")
