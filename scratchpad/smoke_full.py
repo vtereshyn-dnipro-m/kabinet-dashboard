@@ -40,7 +40,10 @@ dbc.get_connection = lambda: psycopg2.connect(DSN)
 import streamlit as st
 st.page_link = lambda *a, **k: None
 from streamlit.testing.v1 import AppTest
-print(f"проверяется код: {R} (ветка {subprocess.run(['git', '-C', R, 'branch', '--show-current'], capture_output=True, text=True).stdout.strip() or '—'})")
+_ветка = subprocess.run(['git', '-C', R, 'branch', '--show-current'], capture_output=True, text=True).stdout.strip()
+_коммит = subprocess.run(['git', '-C', R, 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()
+# при отделённой голове ветки нет — тогда хотя бы номер коммита, чтобы было видно, ЧТО проверено
+print(f"проверяется код: {R} (ветка {_ветка or '—'}, коммит {_коммит or '—'})")
 SQLISH = ("syntax", "column", "relation", "does not exist", "group by", "psycopg2",
           "operator", "не прочиталось", "undefined")
 # Коды типов инцидентов на экране — признак того, что подпись взята мимо i18n.incident_type_label (своя копия
