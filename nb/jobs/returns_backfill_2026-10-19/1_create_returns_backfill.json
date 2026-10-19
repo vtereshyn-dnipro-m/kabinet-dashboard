@@ -1,0 +1,38 @@
+{
+  "name": "Kabinet - Returns Backfill",
+  "description": "Временная: добирает историю возвратов Amazon (FBA — один отчёт на аккаунт, MFN — по рынкам, где они бывают) с reorder_params.returns_backfill_from в kabinet_data.raw_amazon_returns. Тот же ноутбук, что Kabinet - Returns Loader, с mode=backfill. Новые createReport — не больше returns_backfill_max_reports за ночь и только в окне returns_backfill_from_hhmm–returns_backfill_to_hhmm (01:20–02:10), на 429 без повторов; готовые отчёты из getReports берёт без createReport. Когда в пульсе «осталось кусков 0» — джобу, её правило job_health_rules и строку system_pulse удалить. Источник — nb/returns_loader.py.",
+  "max_concurrent_runs": 1,
+  "timeout_seconds": 9000,
+  "schedule": {
+    "quartz_cron_expression": "0 20 1 * * ?",
+    "timezone_id": "Europe/Kyiv",
+    "pause_status": "UNPAUSED"
+  },
+  "environments": [
+    {
+      "environment_key": "default",
+      "spec": {
+        "client": "2",
+        "dependencies": [
+          "psycopg2-binary",
+          "databricks-sdk>=0.118.0"
+        ]
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "backfill",
+      "environment_key": "default",
+      "timeout_seconds": 9000,
+      "max_retries": 0,
+      "notebook_task": {
+        "notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Returns Loader",
+        "source": "WORKSPACE",
+        "base_parameters": {
+          "mode": "backfill"
+        }
+      }
+    }
+  ]
+}
