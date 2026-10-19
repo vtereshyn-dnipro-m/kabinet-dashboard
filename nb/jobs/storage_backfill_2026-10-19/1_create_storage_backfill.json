@@ -1,0 +1,13 @@
+{
+  "name": "Kabinet - Storage Fees Backfill",
+  "description": "Временная: добирает детали хранения FBA (GET_FBA_STORAGE_FEE_CHARGES_DATA) за reorder_params.storage_backfill_from…_to (202411…202606) в dnipro_m.raw_amazon_fba_storage_fees тем же MERGE, что Kabinet - FBA Charges Loader (тот же ноутбук, mode=backfill). Начинает только после окончания добора возвратов (Kabinet - Returns Backfill), в окне 01:20–02:10 и в общем с ним ночном лимите returns_backfill_max_reports (5); на 429 без повторов; первый CANCELLED — «глубже Amazon не отдаёт», добор останавливается. Когда в пульсе «осталось месяцев 0» — джобу, её правило job_health_rules и строку system_pulse удалить. Источник — nb/fba_charges_loader.py.",
+  "max_concurrent_runs": 1,
+  "timeout_seconds": 5400,
+  "schedule": {"quartz_cron_expression": "0 30 1 * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default", "spec": {"client": "2", "dependencies": ["psycopg2-binary", "requests", "databricks-sdk>=0.118.0"]}}],
+  "tasks": [
+    {"task_key": "backfill", "environment_key": "default", "timeout_seconds": 5400, "max_retries": 0,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - FBA Charges Loader", "source": "WORKSPACE",
+                       "base_parameters": {"mode": "backfill"}}}
+  ]
+}
