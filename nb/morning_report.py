@@ -101,8 +101,23 @@ for jid in JOBS:
         _errors.append(f"прогоны {JOBS[jid]['job_name']}: {type(e).__name__}")
 
 
+_created = {}
+
+
+def created_at(jid):
+    """Когда джоба создана: слот раньше этого — не пропуск (19.10.2026 доборы, созданные днём, иначе дали бы
+    «по расписанию 01:20, прогона нет» за ночь, когда их ещё не было)."""
+    if jid not in _created:
+        try:
+            _created[jid] = dt.datetime.fromtimestamp(w.jobs.get(job_id=jid).created_time / 1000, dt.timezone.utc)
+        except Exception as e:
+            _errors.append(f"создание {JOBS[jid]['job_name']}: {type(e).__name__}")
+            _created[jid] = None
+    return _created[jid]
+
+
 def night_slots(jid):
-    """Слоты расписания джобы в окне ночи (20:00–сейчас), без «после <джобы>»."""
+    """Слоты расписания джобы в окне ночи (20:00–сейчас), без «после <джобы>» и раньше создания джобы."""
     out = []
     for sl in SLOTS.get(jid, []):
         t = sl.get("t")
@@ -113,6 +128,9 @@ def night_slots(jid):
             d = dt.datetime(day.year, day.month, day.day, hh, mm, tzinfo=KYIV)
             if w_from <= d <= now - SLOT_GRACE and d.isoweekday() in (sl.get("dows") or []):
                 out.append(d)
+    if out:
+        born = created_at(jid)
+        out = [d for d in out if born is None or d >= born]   # не прочитали — считаем слот, как раньше
     return out
 
 
@@ -140,7 +158,10 @@ for jid, J in sorted(JOBS.items(), key=lambda kv: kv[1]["job_name"]):
     elif r["wrote"] is False:
         bad.append(f"❌ {esc(name)} {when} — зелёная, но таблицы не записаны")
     else:
-        ok.append(f"{esc(name)} {when}" + (f" ({esc(r['tables'])})" if r["tables"] else
+        _tb = [x.strip() for x in (r["tables"] or "").split(",") if x.strip()]
+        # больше трёх таблиц — числом: 19.10.2026 у Ads (Second) их 20, и список записавших не влезал в сообщение
+        _tbs = (", ".join(_tb) if len(_tb) <= 3 else f"{len(_tb)} таблиц") if _tb else ""
+        ok.append(f"{esc(name)} {when}" + (f" ({esc(_tbs)})" if _tbs else
                                            ("" if r["wrote"] is not None else
                                             " (запись не прочитана)" if J["check_write"] else " (запись не проверяется)")))
 
