@@ -7,6 +7,11 @@ deploy_sync.sync()
 from i18n import init_lang, language_toggle, t
 from db.connection import get_connection
 import auth
+import deploy_log
+
+# журнал стартов процесса и перечитываний модулей (kabinet_data.app_deploy_log): по нему видно, доехал ли мерж без
+# ребута — deploy_log.py
+deploy_log.report(get_connection, app="kabinet")
 
 init_lang()
 
