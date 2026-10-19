@@ -235,18 +235,24 @@ st.title(t("ads.title"))
 passport.banner("ads")
 st.caption(t("ads.subtitle"))
 
+# AMC — необязательный источник (18.10.2026, решение владельца): без него страница не останавливается. Карточки
+# ACOS/TACOS/расхода и блоки «Все рынки» считаются из отчётов Ads API и реплики Power BI и работают всегда; блоки
+# AMC ниже пишут «нет данных». Причина, почему AMC не прочитался, остаётся на экране — молчать о ней нельзя
 attr, ATTR_SRC, _err = load_first("v_amc_attribution", "amc_attribution")
-if attr.empty:
-    st.error(t("ads.err.load", 
+AMC_OK = not attr.empty
+if not AMC_OK:
+    st.warning(t("ads.err.load",
         e=_err or "—", have=", ".join(amc_objects()) or "—"))
-    st.stop()
-if ATTR_SRC != "v_amc_attribution":
-    # Вью считает campaign_status, roas и acos_pct. Без него это придётся
-    # считать здесь, а логика в двух местах однажды разойдётся — поэтому
-    # не считаем, а говорим
-    st.warning(t("ads.err.no_view", src=ATTR_SRC))
-if contract_error(attr, "v_amc_attribution"):
-    st.stop()
+else:
+    if ATTR_SRC != "v_amc_attribution":
+        # Вью считает campaign_status, roas и acos_pct. Без него это придётся
+        # считать здесь, а логика в двух местах однажды разойдётся — поэтому
+        # не считаем, а говорим
+        st.warning(t("ads.err.no_view", src=ATTR_SRC))
+    if contract_error(attr, "v_amc_attribution"):
+        AMC_OK = False
+if not AMC_OK:
+    attr = pd.DataFrame(columns=NEED["v_amc_attribution"])
 
 attr["report_date"] = pd.to_datetime(attr["report_date"], errors="coerce")
 _markets = (sorted({str(m) for m in attr[MK_COL].dropna().unique()})
@@ -292,7 +298,8 @@ _from, _to = PERIOD.start, PERIOD.end
 if not show_prelim:
     _to = min(_to, _closed_to)
 
-st.markdown(f"""
+if _markets:            # плашка про рынки AMC без AMC писала бы «в данных только —»
+    st.markdown(f"""
 <div style="border:1px solid rgba(240,165,0,0.45);border-left:3px solid {AMBER};
             border-radius:10px;padding:10px 16px;margin:10px 0 6px 0;
             background:rgba(240,165,0,0.08);font-size:0.92rem;">
@@ -325,22 +332,23 @@ A = scope(attr)
 # и об этом сказано словами, а не молчанием
 if "acos_threshold" not in A.columns:
     A["acos_threshold"] = np.nan
-    st.warning(t("ads.no_threshold_column"))
+    if AMC_OK:          # без AMC порогу неоткуда взяться — предупреждение о колонке было бы шумом
+        st.warning(t("ads.no_threshold_column"))
 for c in ("spend", "sales_14d", "clicks", "purchases_14d",
           "acos_pct", "reach", "impressions", "acos_threshold"):
     if c in A.columns:
         A[c] = pd.to_numeric(A[c], errors="coerce")
 
-if A.empty:
+if AMC_OK and A.empty:
     # Границы имеющихся данных в сообщении обязательны: без них «за этот
     # период данных нет» неотличимо от «загрузчик умер», и человек идёт
-    # чинить то, что работает
+    # чинить то, что работает. Страницу не останавливаем: карточки ACOS/TACOS и блоки «Все рынки» от AMC не зависят
     _dd = pd.to_datetime(attr["report_date"], errors="coerce").dropna()
-    st.info(t("ads.empty.period_range", 
+    st.info(t("ads.empty.period_range",
         a=_dd.min().strftime("%d.%m.%Y") if len(_dd) else "—",
         b=_dd.max().strftime("%d.%m.%Y") if len(_dd) else "—",
         f=_from.strftime("%d.%m.%Y"), to=_to.strftime("%d.%m.%Y")))
-    st.stop()
+AMC_HAS = AMC_OK and not A.empty
 
 # ═══════════════════════════════════════════════════════════════════
 # КАРТОЧКИ
@@ -356,9 +364,10 @@ _days = max((_to - _from).days + 1, 1)
 # отчётов Ads API по всем рынкам. «Все рынки» — Amazon всех стран плюс реклама ManoMano, ровно периметр Power BI
 # Дарины (сентябрь 2026: 28,0 %), иначе сверить с ней страницу было нечем (05.10.2026)
 _scope_opts = ["page", "all"]
+# без AMC рынков страницы нет — охват «все рынки» без выбора: выбор из одного варианта — обманка
 _scope = st.radio(t("ads.scope.label"), _scope_opts, horizontal=True, key="ads_ratio_scope",
                   format_func=lambda o: t("ads.scope.page", m=", ".join(market_name(m) for m in (_mk or _markets)) or "—")
-                  if o == "page" else t("ads.scope.all"))
+                  if o == "page" else t("ads.scope.all")) if _markets else "all"
 _all_markets = _scope == "all"
 _ar_mk = () if _all_markets else tuple(sorted({("GB" if c == "UK" else c) for c in
                        (MARKETPLACE_ID.get(str(m).strip().upper()) for m in (_mk or _markets)) if c}))
@@ -369,7 +378,7 @@ except Exception:
 _acos = _ar.get("acos")
 _acos = np.inf if (_acos is None and (_ar.get("spend") or 0) > 0) else _acos
 
-ntb = scope(load_amc("amc_ntb_by_asin")[0])
+ntb = scope(load_amc("amc_ntb_by_asin")[0]) if AMC_HAS else pd.DataFrame()
 _ntb_share, _ntb_buys = np.nan, np.nan
 if not ntb.empty and {"total_purchases", "ntb_rate_pct"} <= set(ntb.columns):
     if "ntb_purchases" in ntb.columns:
@@ -573,6 +582,12 @@ if _api_mk_all:
 # КАМПАНИИ
 # ═══════════════════════════════════════════════════════════════════
 st.markdown(f"### {t('ads.camp.title')}")
+if not AMC_HAS:
+    # дальше — только AMC (кампании, действия, товары, справочные разрезы): без данных AMC их нет, а паспорт внизу
+    # страницы должен остаться — он говорит, какой источник отстал
+    st.info(t("ads.amc.no_data"))
+    passport.footer("ads")
+    st.stop()
 mn.chart_note(t("mn.what.amc_campaigns"), None, _ch_amc, "ad_day", _from, _to, extra=t("mn.x.amc_money"))
 
 # Скрытые строки отделяем ДО группировки. У них нет ни campaign_id, ни
