@@ -23,10 +23,10 @@
 
 # COMMAND ----------
 
-import base64, json, re, time, urllib.parse
+import base64, json, re, urllib.parse
 import datetime as dt
 from zoneinfo import ZoneInfo
-import psycopg2, psycopg2.extras, requests
+import psycopg2, psycopg2.extras
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.jobs import ViewsToExport
 
@@ -226,7 +226,9 @@ try:
                    count(*) FILTER (WHERE rn <= 2 AND NOT wrote) AS no_write_2,
                    max(started_at) FILTER (WHERE rn = 1), max(started_at) FILTER (WHERE rn = 2)
             FROM s GROUP BY 1, 2, 3""")
+        _seen = set()
         for jid, name, owner, last_wrote, no2, t1, t2 in cur.fetchall():
+            _seen.add(name)
             if int(jid) in SELF_HEAL:
                 continue
             if no2 == 2:
@@ -236,6 +238,16 @@ try:
                                       resolved_by = 'watchdog-autoclose: прогон записал таблицы'
                                WHERE incident_type = 'silent_success' AND source = 'amazon_run_check'
                                  AND message LIKE %s AND resolved_at IS NULL""", (f"[SILENT:{name}]%",))
+        # джоба выпала из проверки (убрана из реестра, check_write = false, ушла в Self-Heal, 10 дней без прогонов) —
+        # её тревога сама уже не закроется: закрываем здесь
+        _eligible = {J["job_name"] for J in JOBS if J["check_write"] and J["tables"] and int(J["job_id"]) not in SELF_HEAL}
+        cur.execute("""SELECT id, substring(message from '^\\[SILENT:([^\\]]+)\\]') FROM kabinet_data.incidents
+                       WHERE incident_type = 'silent_success' AND source = 'amazon_run_check' AND resolved_at IS NULL""")
+        for _iid, _nm in cur.fetchall():
+            if _nm not in silent and (_nm not in _eligible or _nm not in _seen):
+                cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
+                                      resolved_by = 'watchdog-autoclose: джоба больше не проверяется на запись'
+                               WHERE id = %s""", (_iid,))
         for name, (owner, t1, t2) in silent.items():
             whose = {"darina": " Джоба витрины Power BI — только сообщаем, не перезапускаем.",
                      "listing_suite": " Джоба Listing Suite."}.get(owner, "")
