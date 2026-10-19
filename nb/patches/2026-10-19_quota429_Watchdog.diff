@@ -25,7 +25,7 @@
      return False
  
  job_quota = set()   # имена джоб, чей последний сбой — квота
-@@ -607,6 +609,133 @@
+@@ -607,7 +609,136 @@
            AND (message LIKE %s OR message LIKE %s) AND resolved_at IS NULL
      """, (f"%JOB:{name}]%", f"%QUOTA:{name}]%"))
  pg_conn.commit()
@@ -115,7 +115,7 @@
 +                                  WHERE id = %s""", (_iid,))
 +        pg_conn.commit()
 +    print(f"\n🧮 Квота Amazon: 429, стоившие данных, за сутки — {len(_q_found)}: {sorted(_q_found)}")
-+
+ 
 +    # Понедельник: 429 у джоб Дарины за неделю (они повторяют и дописывают, но давят на общую квоту createReport)
 +    pg_cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'watchdog_weekly_digest_dow'")
 +    _q_dow_row = pg_cur.fetchone()
@@ -126,7 +126,9 @@
 +                     697545970063925: "FBA Inventory Ledger Summary for Tableau",
 +                     917636032470555: "FBA Fees + Listings data for Tableau",
 +                     520728352816387: "Amazon Ads API for Tableau (First)"}
-+        _Q_CNT = _re_q.compile(r"QuotaExceeded|\[429\]|HTTP 429|\"code\"\s*:\s*\"429\"", _re_q.I)
++        # один отказ — одно совпадение, по формату самих джоб: слово QuotaExceeded есть и в строке попытки, и в теле
++        # ответа Amazon, поэтому считать его как есть — вдвое больше отказов (так ошибся первый подсчёт 19.10.2026)
++        _Q_CNT = _re_q.compile(r"попытка \d+: QuotaExceeded|\[429\]|создания отчёта: 429|HTTP 429", _re_q.I)
 +        _wk_since = int((now - timedelta(days=7)).timestamp() * 1000)
 +        _q_parts = []
 +        for _jid, _jname in _Q_DARINA.items():
@@ -156,10 +158,11 @@
 +except Exception as e:
 +    # проверка квоты не должна ронять сторожа — но её сбой должен дойти до чата
 +    _soft_errors.append(("квота Amazon", f"{type(e).__name__}: {str(e)[:200]}"))
- 
++
  # ─── 3a. PAUSED SCHEDULE: расписание стоит, а джоб выглядит живым ───────────
  # Последний успешный прогон и метка в system_pulse обновляются и от ручных
-@@ -2555,6 +2684,11 @@
+ # запусков. Джоб с расписанием на паузе выглядит здоровым ровно до тех пор,
+@@ -2555,6 +2686,11 @@
              if _tg_lines:
                  _tg_lines.append("")
              _tg_lines.append(_uncovered_jobs_msg)
