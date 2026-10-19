@@ -1,31 +1,55 @@
 --- a/Kabinet - Watchdog
 +++ b/Kabinet - Watchdog
-@@ -520,18 +520,20 @@
+@@ -520,24 +520,31 @@
  # 40 минут и падают с маркером [QUOTA_429]. Такой сбой — не поломка кода, а очередь за квотой:
  # для него отдельный тип report_quota (warning), чтобы в Telegram и ClickUp он не выглядел как job_health.
  def _last_failure_is_quota(runs):
-+    # Все неуспешные прогоны с последнего успеха, а не только первый (19.10.2026): 16.10 FBA Shipments упал на
-+    # [QUOTA_429], следом прогон отменили, и проверка по одному «последнему» назвала квоту поломкой (job_health
-+    # critical). И только текст самой ошибки, без трассировки: в трассировке бывает строка кода с маркером
-+    # [QUOTA_429], и 13.10 падение на истёкшем ключе Amazon выглядело бы квотой.
++    # 19.10.2026: решаем по ПОСЛЕДНЕМУ неуспешному прогону, у которого есть текст ошибки (отменённые без ошибки
++    # пропускаем: 16.10 FBA Shipments упал на [QUOTA_429], а следом прогон отменили). Не «любой до успеха»: ранний 429
++    # спрятал бы свежую поломку (403 на истёкшем ключе) под квотой. И только текст самой ошибки, без трассировки — в
++    # трассировке бывает строка кода с маркером [QUOTA_429]. До 19.10 функция не работала вовсе: прогоны брались без
++    # expand_tasks, задач у них не было, и текст ошибки не читался ни разу — отсюда ноль тревог report_quota.
      for run in runs:
          if not (run.state and run.state.result_state): continue
          if run.state.result_state.value == "SUCCESS": return False
          try:
-             for t in (run.tasks or []):
+-            for t in (run.tasks or []):
 -                out = w.jobs.get_run_output(run_id=t.run_id)
 -                err = (out.error or "") + " " + (out.error_trace or "")
 -                if "[QUOTA_429]" in err or "QuotaExceeded" in err or "429 Client Error" in err:
-+                err = w.jobs.get_run_output(run_id=t.run_id).error or ""
-+                if "[QUOTA_429]" in err or "QuotaExceeded" in err or "429 Client Error" in err or "HTTP 429" in err:
-                     return True
+-                    return True
++            errs = [w.jobs.get_run_output(run_id=t.run_id).error or "" for t in (run.tasks or [])]
          except Exception:
-             pass
+-            pass
 -        return False
++            errs = []
++        err = " ".join(e for e in errs if e)
++        if not err:
++            continue
++        return any(m in err for m in ("[QUOTA_429]", "QuotaExceeded", "429 Client Error", "HTTP 429"))
      return False
  
  job_quota = set()   # имена джоб, чей последний сбой — квота
-@@ -607,7 +609,136 @@
+ for job_id, job_name, interval_h, schedule, rule_note, *_extra in job_rules:
+     try:
+-        runs = list(w.jobs.list_runs(job_id=job_id, limit=5))
++        import itertools as _it
++        # limit — размер страницы, а не предел: без islice list() выкачивал всю историю; expand_tasks — иначе у прогона
++        # нет задач и текст ошибки не прочитать (19.10.2026)
++        runs = list(_it.islice(w.jobs.list_runs(job_id=job_id, limit=5, expand_tasks=True), 5))
+         last_ok = None
+         for run in runs:
+             if run.state and run.state.result_state and run.state.result_state.value == "SUCCESS":
+@@ -566,7 +573,7 @@
+     for job_id, name, hours, threshold, schedule, note, *_ in job_violations:
+         is_quota = name in job_quota
+         if is_quota:
+-            itype, sev = "report_quota", "warning"
++            itype, sev = "report_quota", "medium"   # «warning» не проходит incidents_severity_check (19.10.2026)
+             msg = f"[QUOTA:{name}] последний прогон упал на квоте createReport (429) — no success in {hours:.0f}h (threshold {threshold}h). Schedule: {schedule}. Это очередь за общей квотой SP-API, не поломка кода."
+         else:
+             itype, sev = "job_health", "critical"
+@@ -607,7 +614,137 @@
            AND (message LIKE %s OR message LIKE %s) AND resolved_at IS NULL
      """, (f"%JOB:{name}]%", f"%QUOTA:{name}]%"))
  pg_conn.commit()
@@ -47,7 +71,7 @@
 +    import re as _re_q
 +    from zoneinfo import ZoneInfo
 +    _Q429_ERR = _re_q.compile(r"\[QUOTA_429\]|QuotaExceeded|HTTP 429|429 Client Error|\"code\"\s*:\s*\"429\"", _re_q.I)
-+    _Q429_STOP = _re_q.compile(r"\[QUOTA_429\]|QuotaExceeded|квот\w*[^\n]{0,60}\b429\b|\b429\b[^\n]{0,60}(Throttled|квот)", _re_q.I)
++    _Q429_STOP = _re_q.compile(r"\[QUOTA_429\]|QuotaExceeded|квот\w*[^\n]{0,60}\(429\)|\b429\b:\s*\{|\b429\b[^\n]{0,40}Throttled", _re_q.I)
 +
 +    def _q_kind(txt):
 +        if _re_q.search(r"dataKiosk|Data Kiosk", txt, _re_q.I): return "Data Kiosk"
@@ -64,8 +88,8 @@
 +    _q_found = {}      # имя джобы → (вид, когда, текст)
 +    _q_since = int((now - timedelta(hours=26)).timestamp() * 1000)
 +    for job_id, job_name, *_r in job_rules:
-+        if job_name in job_quota or "Backfill" in job_name:
-+            continue       # первое — уже заведено путём здоровья; доборы на 429 переносят кусок на следующую ночь намеренно
++        if job_name in job_quota or job_name in {v[1] for v in job_violations} or "Backfill" in job_name:
++            continue       # нарушившие правило здоровья уже получили тревогу там; доборы на 429 переносят кусок намеренно
 +        try:
 +            for run in w.jobs.list_runs(job_id=job_id, start_time_from=_q_since, expand_tasks=True, completed_only=True):
 +                if not (run.state and run.state.result_state) or run.state.result_state.value == "SUCCESS":
@@ -82,18 +106,19 @@
 +    pg_cur.execute("""SELECT job_name, last_success_at, note FROM kabinet_data.system_pulse
 +                      WHERE last_success_at >= now() - interval '26 hours' AND note IS NOT NULL""")
 +    for job_name, at, note in pg_cur.fetchall():
-+        if job_name in _q_found or job_name in job_quota or "Backfill" in job_name:
++        if job_name in _q_found or job_name in job_quota or job_name in {v[1] for v in job_violations} \
++                or "Backfill" in job_name:
 +            continue
 +        m = _Q429_STOP.search(note or "")
 +        if m:
 +            _when = at.astimezone(ZoneInfo("Europe/Kyiv")).strftime("%d.%m %H:%M")
 +            _ctx = note[max(0, m.start() - 80): m.end() + 60]
 +            _q_found[job_name] = (_q_kind(note), _when, "в пульсе: " + _q_clean(_ctx))
-+
+ 
 +    if not REPORT_ONLY:
 +        for job_name, (kind, when, txt) in _q_found.items():
 +            msg = (f"[QUOTA429:{job_name}] 429 ({kind}) стоил данных: {when} — {txt}. "
-+                   f"Квота общая на аккаунт продавца — смотреть, кто в это время занимал её (карта в AGENTS.md).")
++                   f"Квота общая на аккаунт продавца — смотреть, какие джобы в это время создавали отчёты.")
 +            pg_cur.execute("""SELECT id FROM kabinet_data.incidents
 +                              WHERE incident_type = 'report_quota' AND source = 'watchdog'
 +                                AND message LIKE %s AND resolved_at IS NULL LIMIT 1""", (f"%[QUOTA429:{job_name}]%",))
@@ -115,23 +140,23 @@
 +                                  WHERE id = %s""", (_iid,))
 +        pg_conn.commit()
 +    print(f"\n🧮 Квота Amazon: 429, стоившие данных, за сутки — {len(_q_found)}: {sorted(_q_found)}")
- 
++
 +    # Понедельник: 429 у джоб Дарины за неделю (они повторяют и дописывают, но давят на общую квоту createReport)
 +    pg_cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'watchdog_weekly_digest_dow'")
 +    _q_dow_row = pg_cur.fetchone()
 +    if now.astimezone(ZoneInfo("Europe/Kyiv")).isoweekday() == (int(_q_dow_row[0]) if _q_dow_row else 1):
 +        import base64 as _q_b64, json as _q_json, urllib.parse as _q_url
 +        from databricks.sdk.service.jobs import ViewsToExport as _QViews
-+        _Q_DARINA = {450852904255938: "Sales & Traffic Report for Tableau",
-+                     697545970063925: "FBA Inventory Ledger Summary for Tableau",
-+                     917636032470555: "FBA Fees + Listings data for Tableau",
-+                     520728352816387: "Amazon Ads API for Tableau (First)"}
++        _Q_DARINA = {450852904255938: ("Sales & Traffic Report for Tableau", "createReport, общая квота"),
++                     697545970063925: ("FBA Inventory Ledger Summary for Tableau", "createReport, общая квота"),
++                     917636032470555: ("FBA Fees + Listings data for Tableau", "createReport, общая квота"),
++                     520728352816387: ("Amazon Ads API for Tableau (First)", "Ads API, своя квота")}
 +        # один отказ — одно совпадение, по формату самих джоб: слово QuotaExceeded есть и в строке попытки, и в теле
 +        # ответа Amazon, поэтому считать его как есть — вдвое больше отказов (так ошибся первый подсчёт 19.10.2026)
 +        _Q_CNT = _re_q.compile(r"попытка \d+: QuotaExceeded|\[429\]|создания отчёта: 429|HTTP 429", _re_q.I)
 +        _wk_since = int((now - timedelta(days=7)).timestamp() * 1000)
 +        _q_parts = []
-+        for _jid, _jname in _Q_DARINA.items():
++        for _jid, (_jname, _jkind) in _Q_DARINA.items():
 +            try:
 +                _n429, _runs_hit, _runs = 0, 0, 0
 +                for run in w.jobs.list_runs(job_id=_jid, start_time_from=_wk_since, expand_tasks=True, completed_only=True):
@@ -149,12 +174,12 @@
 +                    _n429 += _hit
 +                    _runs_hit += 1 if _hit else 0
 +                if _n429:
-+                    _q_parts.append(f"• {_jname} — 429 ×{_n429} в {_runs_hit} из {_runs} прогонов")
++                    _q_parts.append(f"• {_jname} ({_jkind}) — 429 ×{_n429} в {_runs_hit} из {_runs} прогонов")
 +            except Exception as e:
 +                _soft_errors.append((f"квота Amazon: {_jname}", f"{type(e).__name__}: {str(e)[:120]}"))
 +        if _q_parts:
-+            _amz_quota_weekly_msg = ("🧮 <b>Квота Amazon у джоб витрины за неделю</b> (данные дописывают, "
-+                                     "но занимают общую квоту):\n" + "\n".join(_q_parts))
++            _amz_quota_weekly_msg = ("🧮 <b>Квота Amazon у джоб витрины за неделю</b> (данные дописывают за счёт "
++                                     "повторов):\n" + "\n".join(_q_parts))
 +except Exception as e:
 +    # проверка квоты не должна ронять сторожа — но её сбой должен дойти до чата
 +    _soft_errors.append(("квота Amazon", f"{type(e).__name__}: {str(e)[:200]}"))
@@ -162,7 +187,7 @@
  # ─── 3a. PAUSED SCHEDULE: расписание стоит, а джоб выглядит живым ───────────
  # Последний успешный прогон и метка в system_pulse обновляются и от ручных
  # запусков. Джоб с расписанием на паузе выглядит здоровым ровно до тех пор,
-@@ -2555,6 +2686,11 @@
+@@ -2555,6 +2692,11 @@
              if _tg_lines:
                  _tg_lines.append("")
              _tg_lines.append(_uncovered_jobs_msg)
