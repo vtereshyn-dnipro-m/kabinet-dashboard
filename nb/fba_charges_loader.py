@@ -20,7 +20,8 @@
 # MAGIC хранения за `reorder_params.storage_backfill_from`…`_to` (ГГГГММ, 202411…202606), от новых месяцев к старым,
 # MAGIC в ту же `raw_amazon_fba_storage_fees` тем же MERGE (без дублей). Только после окончания добора возвратов, в окне
 # MAGIC `returns_backfill_from_hhmm`–`_to_hhmm` (01:20–02:10) и в ОБЩЕМ ночном лимите `returns_backfill_max_reports` (5)
-# MAGIC вместе с ним; на 429 не повторяет; первый CANCELLED — «старше Amazon не отдаёт», добор на нём останавливается.
+# MAGIC вместе с ним (считается по getReports с 01:00); на 429 не повторяет; CANCELLED на месяце старше уже взятого —
+# MAGIC «глубже Amazon не отдаёт», добор на нём останавливается.
 # MAGIC Возмещения в этом режиме не трогаются. `dry_run=1` — без createReport и без записи.
 # MAGIC Источник кода — `nb/fba_charges_loader.py` в kabinet-dashboard.
 
