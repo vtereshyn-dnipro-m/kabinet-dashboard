@@ -154,7 +154,8 @@ def day_status(conn, source: str = "economics") -> DayStatus:
     границу не держит: мёртвый загрузчик ловят сторож и паспорт, а страница не должна застыть вместе с ним."""
     assert source in ("economics", "replica"), source
     cur = conn.cursor()
-    cur.execute(_DAY_STATUS_SQL.format(runs=_RUNS_REPLICA if source == "replica" else _RUNS_ECONOMICS))
+    # .replace, а не .format: фигурные скобки в SQL (квантификатор регулярки) .format принял бы за подстановку
+    cur.execute(_DAY_STATUS_SQL.replace("{runs}", _RUNS_REPLICA if source == "replica" else _RUNS_ECONOMICS))
     rows = cur.fetchall()
     if not rows:
         return DayStatus(pd.NaT, pd.NaT, 0.0)
