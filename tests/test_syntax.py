@@ -10,12 +10,14 @@ import pytest
 
 from conftest import ROOT
 
-SKIP_DIRS = {".git", ".github", "__pycache__", ".venv", "exports", ".claude", "mcp_servers"}
+SKIP_DIRS = {".git", ".github", "__pycache__", ".venv", "exports", "worktrees"}
+# из скрытых папок проверяем только защитный хук: сломанный хук — это отсутствие охраны, и узнали бы о нём не сразу
+HIDDEN_ALLOWED = {".claude"}
 
 
 def _files():
     for base, dirs, files in os.walk(ROOT):
-        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("."))
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and (not d.startswith(".") or d in HIDDEN_ALLOWED))
         for name in sorted(files):
             if name.endswith(".py"):
                 yield os.path.relpath(os.path.join(base, name), ROOT)
