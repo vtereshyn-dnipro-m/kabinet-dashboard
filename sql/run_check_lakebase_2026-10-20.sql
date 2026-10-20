@@ -4,7 +4,8 @@
 -- Listings и Listing Suite Auto Collector каждый успешный прогон писал — ложных «без записи» 0 из 22–30 прогонов.
 -- Settlements и обе SQP законно пишут не каждый прогон (выплаты раз в ~2 недели, SQP — новая неделя раз в неделю):
 -- им правило quiet_days — тревога, если за столько дней ни одной записи. Самый длинный промежуток между записями за 60
--- дней: Settlements 7,0 дн → 10; SQP Loader 3,5 дн → 5; SQP Loader v2 1,0 дн (добор истории), обычный ритм — неделя → 8.
+-- дней: Settlements 7,0 дн → 10. Обе SQP — 9 дней (решение владельца 20.10.2026: недельный отчёт + 2 дня запаса; самый
+-- длинный промежуток у SQP Loader 3,5 дн, у SQP Loader v2 — 1,0 дн, пока шёл добор истории).
 -- Без проверки: Auth Guard (писать нечего, сигнал — пульс), джобы на паузе, доборы, Listing Issues (у listing_issues нет
 -- колонки времени), Sync Catalog Items (за 60 дней fetched_at обновился 2 раза из 11 прогонов при 1 119 товарах — колонка
 -- не отражает запись), Ads API for Tableau (First) (таблиц не пишет, только номера отчётов в файлы тома).
@@ -30,7 +31,7 @@ FROM (VALUES
     (474477518393306,          'listing', 'listing_data.suppressed_listings',   'snapshot_date', NULL),
     (89677076782805,           'listing', 'listing_data.listing_snapshots',     'fetched_at',    NULL),
     (1086798073703615,         'kabinet', 'kabinet_data.raw_amazon_settlements', 'loaded_at',    10),
-    (597550726435861,          'listing', 'listing_data.sqp_reports',           'loaded_at',     5),
-    (45883686210360,           'listing', 'listing_data.sqp_reports_v2',        'loaded_at',     8)
+    (597550726435861,          'listing', 'listing_data.sqp_reports',           'loaded_at',     9),
+    (45883686210360,           'listing', 'listing_data.sqp_reports_v2',        'loaded_at',     9)
 ) AS v(job_id, db, tb, col, q)
 WHERE j.job_id = v.job_id;
