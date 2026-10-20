@@ -56,6 +56,14 @@ def pg():
                             sslmode="require")
 
 
+def pg_ls():
+    """База Listing Suite (listing_data.*) — только чтение для проверки записи."""
+    cred = w.postgres.generate_database_credential(endpoint="projects/listing-suite/branches/production/endpoints/primary")
+    return psycopg2.connect(host="ep-little-lab-d24nnmco.database.us-east-1.cloud.databricks.com", port=5432,
+                            dbname="databricks_postgres", user=w.current_user.me().user_name, password=cred.token,
+                            sslmode="require")
+
+
 def kyiv(ms_or_dt, fmt="%d.%m %H:%M"):
     d = dt.datetime.fromtimestamp(ms_or_dt / 1000, dt.timezone.utc) if isinstance(ms_or_dt, (int, float)) else ms_or_dt
     return d.astimezone(KYIV).strftime(fmt)
@@ -101,10 +109,11 @@ _REG = _wg("registry_json", "")
 assert not (_REG and not DRY), "registry_json — только с dry_run=1"
 with pg() as c, c.cursor() as cur:
     if _REG:
-        JOBS = [dict(zip(("job_id", "job_name", "owner", "check_write", "tables"), r)) for r in json.loads(_REG)]
+        JOBS = [dict(zip(("job_id", "job_name", "owner", "check_write", "tables", "pg_db", "pg_table", "pg_ts_col", "quiet_days"), list(r) + [None] * 4)) for r in json.loads(_REG)]
     else:
-        cur.execute("SELECT job_id, job_name, owner, check_write, tables FROM kabinet_data.amazon_api_jobs WHERE is_active")
-        JOBS = [dict(zip(("job_id", "job_name", "owner", "check_write", "tables"), r)) for r in cur.fetchall()]
+        cur.execute("""SELECT job_id, job_name, owner, check_write, tables, pg_db, pg_table, pg_ts_col, quiet_days
+                       FROM kabinet_data.amazon_api_jobs WHERE is_active""")
+        JOBS = [dict(zip(("job_id", "job_name", "owner", "check_write", "tables", "pg_db", "pg_table", "pg_ts_col", "quiet_days"), r)) for r in cur.fetchall()]
     cur.execute("SELECT job_id FROM kabinet_data.source_job_checks WHERE is_active")
     SELF_HEAL = {int(r[0]) for r in cur.fetchall()}      # их «без записи» ведёт Self-Heal — здесь только строка прогона
     cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'amazon_check_lag_min'")
@@ -156,6 +165,39 @@ def commits(table):
     return _HIST[table]
 
 
+# ── Lakebase: была ли строка с временем записи внутри прогона (с 20.10.2026 — джобы, которые пишут не в UC) ──
+# pg_ts_col типа date (снимок за день) сравнивается с датой начала прогона по Киеву, timestamp — с окном прогона.
+_PGC, _PGT = {}, {}
+
+
+def pg_wrote(db, table, col, st, en):
+    """True/False — была ли запись; None — не прочиталось (сбой — в _errors)."""
+    try:
+        if db not in _PGC:
+            _PGC[db] = pg_ls() if db == "listing" else pg()
+            _PGC[db].set_session(readonly=True, autocommit=True)
+        with _PGC[db].cursor() as cur:
+            if (db, table, col) not in _PGT:
+                sch, tb = table.split(".", 1)
+                cur.execute("""SELECT data_type FROM information_schema.columns
+                               WHERE table_schema = %s AND table_name = %s AND column_name = %s""", (sch, tb, col))
+                _r = cur.fetchone()
+                if not _r:
+                    raise ValueError(f"нет колонки {table}.{col}")
+                _PGT[(db, table, col)] = _r[0]
+            if _PGT[(db, table, col)] == "date":
+                cur.execute(f"SELECT EXISTS (SELECT 1 FROM {table} WHERE {col} = (%s AT TIME ZONE 'Europe/Kyiv')::date)",
+                            (st,))
+            else:
+                cur.execute(f"SELECT EXISTS (SELECT 1 FROM {table} WHERE {col} BETWEEN %s AND %s)",
+                            (st, en + dt.timedelta(minutes=5)))
+            return bool(cur.fetchone()[0])
+    except Exception as e:
+        _errors.append(f"Lakebase {db}:{table}: {type(e).__name__}: {clean(e)}")
+        _PGC.pop(db, None)
+        return None
+
+
 rows = []
 UNREAD = [0]
 for J, r in todo:
@@ -164,15 +206,21 @@ for J, r in todo:
     st = dt.datetime.fromtimestamp(r.start_time / 1000, dt.timezone.utc)
     en = dt.datetime.fromtimestamp(r.end_time / 1000, dt.timezone.utc)
     wrote, tables = None, None
-    if J["check_write"] and J["tables"] and not failed:
+    if J["check_write"] and (J["tables"] or J.get("pg_table")) and not failed:
         hits, unknown = [], False
-        for tb in J["tables"]:
+        for tb in J["tables"] or []:
             cm = commits(tb)
             if cm is None:
                 unknown = True
                 continue
             if any(jid == str(J["job_id"]) and st <= ts <= en + dt.timedelta(minutes=5) for ts, jid in cm):
                 hits.append(tb.split(".")[-1])
+        if J.get("pg_table"):
+            _pw = pg_wrote(J.get("pg_db") or "kabinet", J["pg_table"], J["pg_ts_col"], st, en)
+            if _pw:
+                hits.append(J["pg_table"].split(".")[-1])
+            elif _pw is None:
+                unknown = True
         # история хоть одной таблицы не прочиталась и записей не нашли — «не знаем», а не «не писал»
         wrote = True if hits else (None if unknown else False)
         tables = ", ".join(hits)[:1000] or None
@@ -192,6 +240,11 @@ for J, r in todo:
     rows.append((r.run_id, J["job_id"], J["job_name"], J["owner"], st, en, state, wrote, tables, n429,
                  ", ".join(sorted(kinds)) or None))
 
+for _cn in _PGC.values():
+    try:
+        _cn.close()
+    except Exception:
+        pass
 print(f"проверено: {len(rows)}; без записи: {sum(1 for x in rows if x[7] is False)}; с 429: {sum(1 for x in rows if x[9])}")
 for x in rows:
     if x[7] is False or x[9]:
@@ -213,7 +266,10 @@ try:
 except Exception as e:
     _errors.append(f"запись результатов: {type(e).__name__}: {clean(e)}")
 
-# ── тревоги «зелёная, но без записи»: два подряд успешных прогона без записи ──
+# ── тревоги «зелёная, но без записи»: два подряд успешных прогона без записи; у джоб с quiet_days (законно пишут не
+# каждый прогон: Settlements, SQP) — ни одной записи за quiet_days дней при двух и более успешных прогонах; окно
+# истории — 15 дней, поэтому quiet_days не больше 14 (CHECK в amazon_api_jobs) ──
+QUIET = {J["job_name"]: int(J["quiet_days"]) for J in JOBS if J.get("quiet_days")}
 silent = {}
 try:
     with pg() as c, c.cursor() as cur:
@@ -221,26 +277,41 @@ try:
             WITH s AS (SELECT job_id, job_name, owner, started_at, wrote,
                               row_number() OVER (PARTITION BY job_id ORDER BY started_at DESC) AS rn
                        FROM kabinet_data.amazon_run_checks
-                       WHERE state = 'SUCCESS' AND wrote IS NOT NULL AND started_at >= now() - interval '10 days')
+                       WHERE state = 'SUCCESS' AND wrote IS NOT NULL AND started_at >= now() - interval '15 days')
             SELECT job_id, job_name, owner, bool_or(wrote) FILTER (WHERE rn = 1) AS last_wrote,
                    count(*) FILTER (WHERE rn <= 2 AND NOT wrote) AS no_write_2,
-                   max(started_at) FILTER (WHERE rn = 1), max(started_at) FILTER (WHERE rn = 2)
+                   max(started_at) FILTER (WHERE rn = 1), max(started_at) FILTER (WHERE rn = 2),
+                   max(started_at) FILTER (WHERE wrote) AS last_true, min(started_at) AS first_ck
             FROM s GROUP BY 1, 2, 3""")
         _seen = set()
-        for jid, name, owner, last_wrote, no2, t1, t2 in cur.fetchall():
+        for jid, name, owner, last_wrote, no2, t1, t2, last_true, first_ck in cur.fetchall():
             _seen.add(name)
             if int(jid) in SELF_HEAL:
                 continue
-            if no2 == 2:
+            if name in QUIET:
+                ref = last_true or first_ck           # с последней записи; записи не было — с первого проверенного
+                cur.execute("""SELECT count(*) FROM kabinet_data.amazon_run_checks
+                               WHERE job_id = %s AND state = 'SUCCESS' AND wrote IS NOT NULL AND started_at > %s""",
+                            (jid, ref))
+                _n_after = cur.fetchone()[0]
+                if now - ref > dt.timedelta(days=QUIET[name]) and _n_after >= 2:
+                    silent[name] = (owner, ref, None)
+                    continue
+                last_wrote = bool(last_true and now - last_true <= dt.timedelta(days=QUIET[name]))
+                if not last_wrote:
+                    continue
+            elif no2 == 2:
                 silent[name] = (owner, t1, t2)
-            elif last_wrote:
+                continue
+            if last_wrote:
                 cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
                                       resolved_by = 'watchdog-autoclose: прогон записал таблицы'
                                WHERE incident_type = 'silent_success' AND source = 'amazon_run_check'
                                  AND message LIKE %s AND resolved_at IS NULL""", (f"[SILENT:{name}]%",))
-        # джоба выпала из проверки (убрана из реестра, check_write = false, ушла в Self-Heal, 10 дней без прогонов) —
+        # джоба выпала из проверки (убрана из реестра, check_write = false, ушла в Self-Heal, 15 дней без прогонов) —
         # её тревога сама уже не закроется: закрываем здесь
-        _eligible = {J["job_name"] for J in JOBS if J["check_write"] and J["tables"] and int(J["job_id"]) not in SELF_HEAL}
+        _eligible = {J["job_name"] for J in JOBS
+                     if J["check_write"] and (J["tables"] or J.get("pg_table")) and int(J["job_id"]) not in SELF_HEAL}
         cur.execute("""SELECT id, substring(message from '^\\[SILENT:([^\\]]+)\\]') FROM kabinet_data.incidents
                        WHERE incident_type = 'silent_success' AND source = 'amazon_run_check' AND resolved_at IS NULL""")
         for _iid, _nm in cur.fetchall():
@@ -251,9 +322,14 @@ try:
         for name, (owner, t1, t2) in silent.items():
             whose = {"darina": " Джоба витрины Power BI — только сообщаем, не перезапускаем.",
                      "listing_suite": " Джоба Listing Suite."}.get(owner, "")
-            msg = (f"[SILENT:{name}] два успешных прогона подряд ({kyiv(t2)} и {kyiv(t1)}) не записали ни одной таблицы "
-                   f"Unity Catalog (по истории таблиц). Данные за эти прогоны не обновились — смотреть вывод прогона (429, "
-                   f"пустой ответ, пропуск в try).{whose}")
+            if t2 is None:                           # правило quiet_days
+                msg = (f"[SILENT:{name}] с {kyiv(t1)} — больше {QUIET[name]} дн. — ни один успешный прогон не записал "
+                       f"данные (ни коммита в таблицы Unity Catalog, ни строки в Lakebase во время прогона), хотя обычно "
+                       f"пишет хотя бы раз за этот срок — смотреть вывод прогонов (429, пустой ответ, пропуск в try).{whose}")
+            else:
+                msg = (f"[SILENT:{name}] два успешных прогона подряд ({kyiv(t2)} и {kyiv(t1)}) не записали данные (ни "
+                       f"коммита в таблицы Unity Catalog, ни строки в Lakebase во время прогона) — смотреть вывод прогона "
+                       f"(429, пустой ответ, пропуск в try).{whose}")
             cur.execute("""SELECT id FROM kabinet_data.incidents WHERE incident_type = 'silent_success'
                            AND source = 'amazon_run_check' AND message LIKE %s AND resolved_at IS NULL LIMIT 1""",
                         (f"[SILENT:{name}]%",))
