@@ -51,8 +51,9 @@ def hm(d):
 
 
 with pg() as c, c.cursor() as cur:
-    cur.execute("SELECT job_id, job_name, owner, check_write FROM kabinet_data.amazon_api_jobs WHERE is_active")
-    JOBS = {int(r[0]): dict(zip(("job_id", "job_name", "owner", "check_write"), r)) for r in cur.fetchall()}
+    cur.execute("""SELECT job_id, job_name, owner, check_write, quiet_days FROM kabinet_data.amazon_api_jobs
+                   WHERE is_active""")
+    JOBS = {int(r[0]): dict(zip(("job_id", "job_name", "owner", "check_write", "quiet_days"), r)) for r in cur.fetchall()}
     cur.execute("""SELECT run_id, job_id, job_name, started_at, ended_at, state, wrote, tables, n429, kinds_429
                    FROM kabinet_data.amazon_run_checks WHERE started_at >= %s ORDER BY started_at""", (w_from,))
     RUNS = [dict(zip(("run_id", "job_id", "job_name", "started_at", "ended_at", "state", "wrote", "tables", "n429",
@@ -79,6 +80,14 @@ with pg() as c, c.cursor() as cur:
                    FROM kabinet_data.incidents i LEFT JOIN kabinet_data.incident_types t USING (incident_type)
                    WHERE i.status <> 'resolved' AND i.resolved_at IS NULL""", (w_from,))
     OPEN = cur.fetchall()
+    # продажи SKU за 30 дней по позавчера (с НДС, все каналы) — порядок имён у тревог по SKU: сначала то, что продаётся
+    # больше (решение владельца 20.10.2026). По позавчера, а не по вчера: в 08:00 вчерашний день Amazon ещё не лёг
+    # (Sales & Traffic приходит ~09:30), и окно было бы в 29 дней у Amazon и в 30 у остальных
+    # границы — по Киеву и одним местом для запроса и подписи (CURRENT_DATE базы — UTC, расходится с 00:00 до 03:00)
+    SALES_TO = now.date() - dt.timedelta(days=2)
+    cur.execute("""SELECT norm_sku, sum(sales_vat_incl) FROM kabinet_data.v_sku_sales_vat_incl_daily
+                   WHERE date BETWEEN %s AND %s GROUP BY 1""", (SALES_TO - dt.timedelta(days=29), SALES_TO))
+    SALES30 = {str(k): float(v or 0) for k, v in cur.fetchall()}
 
 # ── по джобам: последний прогон за ночь ──
 last, night_fail = {}, {}
@@ -160,7 +169,9 @@ for jid, J in sorted(JOBS.items(), key=lambda kv: kv[1]["job_name"]):
         when += f" (ночью сбой: {', '.join(night_fail[jid])})"
     if r["state"] != "SUCCESS":
         bad.append(f"❌ {esc(name)} {when} — {esc(r['state'])}")
-    elif r["wrote"] is False:
+    elif r["wrote"] is False and not J["quiet_days"]:
+        # у джоб с quiet_days (Settlements, SQP) прогон без записи — норма; их «давно не пишет» ловит тревога
+        # silent_success в Amazon Run Check (20.10.2026 сводка без этого назвала ❌ обычный прогон SQP)
         bad.append(f"❌ {esc(name)} {when} — зелёная, но таблицы не записаны")
     else:
         ok.append(name)                    # ✅ — только числом (решение владельца 20.10.2026)
@@ -202,7 +213,7 @@ def alert_block(area):
         g = groups.setdefault((sev, itype), {"title": title, "n": 0, "new": 0, "last": created, "tok": None, "names": []})
         g["n"] += 1
         if sev == "critical":
-            g["names"].append((created, who(msg, sku, wh)))
+            g["names"].append((created, who(msg, sku, wh), SALES30.get(str(sku)) if sku else None))
         g["new"] += 1 if is_new else 0
         if created >= g["last"]:
             g["last"] = created
@@ -215,13 +226,22 @@ def alert_block(area):
                 + (f", новых за ночь {g['new']}" if g["new"] else ""))
         # critical — всегда с именами: джоба / рынок / SKU (решение владельца 20.10.2026); свежие первыми, повтор имени
         # не дублируется, «и ещё N» — от числа тревог группы, чтобы сходилось с ×n
-        names = []
-        for _c, x in sorted(g["names"], key=lambda t: t[0], reverse=True):
-            if x and x not in names:
-                names.append(x)
+        # у тревог по SKU («нет остатка») — по продажам за 30 дней, больше первыми, рядом сумма; остальные — свежие первыми
+        by_sales = any(t[2] is not None for t in g["names"])
+        order = (sorted(g["names"], key=lambda t: (-(t[2] or 0), -t[0].timestamp())) if by_sales
+                 else sorted(g["names"], key=lambda t: t[0], reverse=True))
+        names, seen = [], set()
+        for _c, x, s30 in order:
+            if x and x not in seen:
+                seen.add(x)
+                if by_sales and s30:                            # «SKU (склад)» → «SKU (склад, 9 555 €)»
+                    _eur = f"{s30:,.0f}".replace(",", " ") + " €"
+                    x = x[:-1] + f", {_eur})" if x.endswith(")") else f"{x} ({_eur})"
+                names.append(esc(x))
         shown = names[:NAMES_MAX]
         if shown:
-            line += ": " + ", ".join(esc(x) for x in shown) + (
+            line += (f" — по продажам за 30 дн по {SALES_TO:%d.%m} (с НДС, все каналы)" if by_sales else "") \
+                + ": " + ", ".join(shown) + (
                 f" и ещё {g['n'] - len(shown)}" if g["n"] > len(shown) else "")
         elif g["tok"] and g["n"] == 1:
             line += f" — <code>{esc(g['tok'])}</code>"
