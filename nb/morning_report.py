@@ -88,6 +88,32 @@ with pg() as c, c.cursor() as cur:
     cur.execute("""SELECT norm_sku, sum(sales_vat_incl) FROM kabinet_data.v_sku_sales_vat_incl_daily
                    WHERE date BETWEEN %s AND %s GROUP BY 1""", (SALES_TO - dt.timedelta(days=29), SALES_TO))
     SALES30 = {str(k): float(v or 0) for k, v in cur.fetchall()}
+    # последний день с остатком по SKU и складу — «без остатка N дн» (решение владельца 20.10.2026). Остаток считается
+    # как в Kabinet - Stock Loader, который заводит out_of_stock: Amazon — доступное к продаже из MYI
+    # (kabinet_data.fba_inventory: строка рынка ES, иначе первого, пулы EU и UK), площадки — available из stock_local.
+    # Остатка за всю историю снимков не было — дни от первого снимка с «+» (история FBA — с 29.08.2026)
+    cur.execute("""
+        WITH per_asin AS (
+            SELECT snapshot_date AS d, sku, asin, marketplace, afn_fulfillable_qty AS q,
+                   row_number() OVER (PARTITION BY snapshot_date, marketplace, asin ORDER BY sku) AS rn
+            FROM kabinet_data.fba_inventory),
+        pool AS (
+            SELECT d, sku, q, CASE WHEN marketplace = 'co.uk' THEN 'Amazon FBA UK' ELSE 'Amazon FBA EU' END AS wh,
+                   row_number() OVER (PARTITION BY d, asin, marketplace = 'co.uk'
+                                      ORDER BY CASE marketplace WHEN 'es' THEN 0 ELSE 1 END, marketplace) AS pool_rn
+            FROM per_asin WHERE rn = 1),
+        fba AS (
+            SELECT b, wh, max(d) FILTER (WHERE q > 0) AS last_pos, min(d) AS first_d
+            FROM (SELECT d, SUBSTRING(sku FROM '([0-9]{5,})') AS b, wh, sum(q) AS q
+                  FROM pool WHERE pool_rn = 1 GROUP BY 1, 2, 3) x
+            WHERE b IS NOT NULL GROUP BY 1, 2),
+        loc AS (
+            SELECT SUBSTRING(sku FROM '([0-9]{5,})') AS b, warehouse_name AS wh,
+                   max(snapshot_date) FILTER (WHERE quantity > 0 AND availability_status = 'available') AS last_pos,
+                   min(snapshot_date) AS first_d
+            FROM kabinet_data.stock_local WHERE channel <> 'Amazon' GROUP BY 1, 2)
+        SELECT b, wh, last_pos, first_d FROM fba UNION ALL SELECT b, wh, last_pos, first_d FROM loc""")
+    OOS_HIST = {(str(b), wh): (lp, fd) for b, wh, lp, fd in cur.fetchall() if b}
 
 # ── по джобам: последний прогон за ночь ──
 last, night_fail = {}, {}
@@ -198,6 +224,19 @@ def who(msg, sku, wh):
     return None
 
 
+def oos_days(sku, wh):
+    """Сколько дней без остатка: от последнего снимка с остатком; не было за всю историю — от первого снимка с «+».
+    None — истории по SKU и складу нет или остаток есть сегодня (тогда тревога вот-вот закроется)."""
+    h = OOS_HIST.get((str(sku), wh)) if sku and wh else None
+    if not h:
+        return None
+    last_pos, first_d = h
+    if last_pos is not None:
+        n = (now.date() - last_pos).days
+        return str(n) if n > 0 else None
+    return f"{(now.date() - first_d).days}+" if first_d else None
+
+
 def alert_block(area):
     """Строки тревог блока: новые за ночь и все critical — группами по типу (новые первыми, затем важность, свежесть);
     остальное открытое — одной строкой итога по важности. Не «8 самых старых»: 10.10.2026 так в сводке сторожа восемь
@@ -213,7 +252,8 @@ def alert_block(area):
         g = groups.setdefault((sev, itype), {"title": title, "n": 0, "new": 0, "last": created, "tok": None, "names": []})
         g["n"] += 1
         if sev == "critical":
-            g["names"].append((created, who(msg, sku, wh), SALES30.get(str(sku)) if sku else None))
+            g["names"].append((created, who(msg, sku, wh), SALES30.get(str(sku)) if sku else None,
+                               oos_days(sku, wh) if itype == "out_of_stock" else None))
         g["new"] += 1 if is_new else 0
         if created >= g["last"]:
             g["last"] = created
@@ -231,12 +271,16 @@ def alert_block(area):
         order = (sorted(g["names"], key=lambda t: (-(t[2] or 0), -t[0].timestamp())) if by_sales
                  else sorted(g["names"], key=lambda t: t[0], reverse=True))
         names, seen = [], set()
-        for _c, x, s30 in order:
+        for _c, x, s30, days in order:
             if x and x not in seen:
                 seen.add(x)
-                if by_sales and s30:                            # «SKU (склад)» → «SKU (склад, 9 555 €)»
-                    _eur = f"{s30:,.0f}".replace(",", " ") + " €"
-                    x = x[:-1] + f", {_eur})" if x.endswith(")") else f"{x} ({_eur})"
+                extra = []
+                if by_sales and s30:                            # «SKU (склад)» → «SKU (склад, 9 555 €, …)»
+                    extra.append(f"{s30:,.0f}".replace(",", " ") + " €")
+                if days:
+                    extra.append(f"без остатка {days} дн")
+                if extra:
+                    x = x[:-1] + ", " + ", ".join(extra) + ")" if x.endswith(")") else f"{x} ({', '.join(extra)})"
                 names.append(esc(x))
         shown = names[:NAMES_MAX]
         if shown:
