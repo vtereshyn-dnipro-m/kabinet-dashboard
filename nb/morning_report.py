@@ -5,6 +5,10 @@
 # Suite: ✅ записали свои таблицы, ❌ упали или «зелёные, но без записи», ⏳ ещё идут или не запустились по расписанию;
 # 429 за ночь по джобам и видам квоты; открытые тревоги. Источник — kabinet_data.amazon_run_checks (её пишет
 # Kabinet - Amazon Run Check по истории таблиц и выводу прогонов) и Jobs API (что идёт сейчас). Amazon не вызывает.
+# С 20.10.2026 (решение владельца) — два блока: «Техника» (джобы, 429, тревоги area = 'tech') и «Бизнес» (тревоги
+# area = 'business': дефицит, остатки, заказы ждут подтверждения); блок — по incident_types.area, тип без area — в
+# технику, чтобы новый тип заметили. ✅ только числом, расписаны ❌ и ⏳; из тревог — новые за ночь и все critical,
+# остальное одной строкой. Каждая отправка (текст и итог) — в kabinet_data.morning_reports.
 # Секрет бота читает только эта джоба. Не ушло — прогон падает после пульса: молчание канала должно быть красным.
 # dry_run=1 — печатает текст, не отправляет и пульс не пишет.
 # Источник кода — nb/morning_report.py в kabinet-dashboard.
@@ -69,6 +73,7 @@ with pg() as c, c.cursor() as cur:
     SLOT_GRACE = dt.timedelta(minutes=float(_r[0]) if _r else 15)
     # created_at — timestamp БЕЗ зоны (UTC): сравнивать только через AT TIME ZONE 'UTC'; NULL — как «давно»
     cur.execute("""SELECT i.severity, i.incident_type, coalesce(t.title, i.incident_type), i.message,
+                          coalesce(t.area, 'tech') AS area,
                           coalesce(i.created_at AT TIME ZONE 'UTC', '1970-01-01'::timestamptz) AS created,
                           coalesce(i.created_at AT TIME ZONE 'UTC' >= %s, false) AS is_new
                    FROM kabinet_data.incidents i LEFT JOIN kabinet_data.incident_types t USING (incident_type)
@@ -158,12 +163,7 @@ for jid, J in sorted(JOBS.items(), key=lambda kv: kv[1]["job_name"]):
     elif r["wrote"] is False:
         bad.append(f"❌ {esc(name)} {when} — зелёная, но таблицы не записаны")
     else:
-        _tb = [x.strip() for x in (r["tables"] or "").split(",") if x.strip()]
-        # больше трёх таблиц — числом: 19.10.2026 у Ads (Second) их 20, и список записавших не влезал в сообщение
-        _tbs = (", ".join(_tb) if len(_tb) <= 3 else f"{len(_tb)} таблиц") if _tb else ""
-        ok.append(f"{esc(name)} {when}" + (f" ({esc(_tbs)})" if _tbs else
-                                           ("" if r["wrote"] is not None else
-                                            " (запись не прочитана)" if J["check_write"] else " (запись не проверяется)")))
+        ok.append(name)                    # ✅ — только числом (решение владельца 20.10.2026)
 
 q429 = {}
 for r in RUNS:
@@ -172,32 +172,46 @@ for r in RUNS:
         q429[k] = q429.get(k, 0) + int(r["n429"])
 
 SEV = {"critical": 4, "high": 3, "medium": 2, "low": 1}
-by_sev = {}
-for sev, *_x in OPEN:
-    by_sev[str(sev).lower()] = by_sev.get(str(sev).lower(), 0) + 1
-# critical/high — группами по типу: новые за ночь первыми, внутри — по важности и свежести. Не «8 самых старых»:
-# 10.10.2026 так в сводке сторожа восемь строк «нет остатка» за август закрыли свежие поломки джоб
-groups = {}
-for sev, itype, title, msg, created, is_new in OPEN:
-    if str(sev).lower() not in ("critical", "high"):
-        continue
-    g = groups.setdefault((str(sev).lower(), itype), {"title": title, "n": 0, "new": 0, "last": created, "tok": None})
-    g["n"] += 1
-    g["new"] += 1 if is_new else 0
-    if created >= g["last"]:
-        g["last"] = created
-        m = re.match(r"\[([^\]]+)\]", msg or "")
-        g["tok"] = m.group(1) if m else None
-top = sorted(groups.items(), key=lambda kv: (-kv[1]["new"], -SEV.get(kv[0][0], 0), -kv[1]["last"].timestamp()))
+
+
+def alert_block(area):
+    """Строки тревог блока: новые за ночь и все critical — группами по типу (новые первыми, затем важность, свежесть);
+    остальное открытое — одной строкой итога по важности. Не «8 самых старых»: 10.10.2026 так в сводке сторожа восемь
+    строк «нет остатка» за август закрыли свежие поломки джоб."""
+    groups, rest = {}, {}
+    for sev, itype, title, msg, ar, created, is_new in OPEN:
+        if ar != area:
+            continue
+        sev = str(sev).lower()
+        if not (is_new or sev == "critical"):
+            rest[sev] = rest.get(sev, 0) + 1
+            continue
+        g = groups.setdefault((sev, itype), {"title": title, "n": 0, "new": 0, "last": created, "tok": None})
+        g["n"] += 1
+        g["new"] += 1 if is_new else 0
+        if created >= g["last"]:
+            g["last"] = created
+            m = re.match(r"\[([^\]]+)\]", msg or "")
+            g["tok"] = m.group(1) if m else None
+    top = sorted(groups.items(), key=lambda kv: (-kv[1]["new"], -SEV.get(kv[0][0], 0), -kv[1]["last"].timestamp()))
+    out = [f"• {esc(g['title'])} ({esc(sev)})" + (f" ×{g['n']}" if g["n"] > 1 else "")
+           + (f", новых за ночь {g['new']}" if g["new"] else "")
+           + (f" — <code>{esc(g['tok'])}</code>" if g["tok"] and g["n"] == 1 else "") for (sev, itype), g in top]
+    if rest:
+        out.append("• ещё открыто: " + ", ".join(f"{s_} {rest[s_]}" for s_ in ("critical", "high", "medium", "low")
+                                                 if rest.get(s_)))
+    return out
+
 
 # ── текст ──
-lines = [f"🌅 <b>Ночь {w_from:%d.%m} 20:00 → {now:%d.%m %H:%M}</b> — джобы Amazon API"]
+lines = [f"🌅 <b>Ночь {w_from:%d.%m} 20:00 → {now:%d.%m %H:%M}</b>"]
 if CHECK_MAX_H is None:
     lines.append("⚠️ у проверки прогонов (Amazon Run Check) не задан порог — ни правила здоровья, ни пульса")
 elif CHECK_AGE_H is None or CHECK_AGE_H > CHECK_MAX_H:
     lines.append(f"⚠️ проверка прогонов (Amazon Run Check) не работала "
                  + (f"{CHECK_AGE_H:.0f} ч" if CHECK_AGE_H is not None else "ни разу") + " — данные ниже неполные")
-lines.append(f"✅ {len(ok)} · ❌ {len(bad)} · ⏳ {len(wait)}")
+lines.append("🛠 <b>Техника</b>")
+lines.append(f"Джобы Amazon API: ✅ {len(ok)} · ❌ {len(bad)} · ⏳ {len(wait)}")
 lines += bad + wait
 if q429:
     tot = sum(q429.values())
@@ -205,26 +219,17 @@ if q429:
         f"{esc(j)} ×{n}" + (f" ({esc(k)})" if k else "") for (j, k), n in sorted(q429.items(), key=lambda kv: -kv[1])))
 else:
     lines.append("🧮 429 за ночь: 0")
-lines.append("🔔 <b>Открытые тревоги:</b> " + (", ".join(f"{s} {by_sev[s]}" for s in ("critical", "high", "medium", "low")
-                                                   if by_sev.get(s)) or "нет"))
-for (sev, itype), g in top[:8]:
-    lines.append(f"• {esc(g['title'])} ({esc(sev)})" + (f" ×{g['n']}" if g["n"] > 1 else "")
-                 + (f", новых за ночь {g['new']}" if g["new"] else "")
-                 + (f" — <code>{esc(g['tok'])}</code>" if g["tok"] and g["n"] == 1 else ""))
-if len(top) > 8:
-    lines.append(f"  …ещё типов: {len(top) - 8}")
+_tech = alert_block("tech")
+lines += ["🔔 Тревоги:"] + _tech if _tech else ["🔔 Тревог нет"]
+_biz = alert_block("business")
+lines.append("💼 <b>Бизнес</b>")
+lines += _biz if _biz else ["Тревог нет"]
 if _errors:
     lines.append("⚙️ сбои сводки: " + esc("; ".join(_errors)[:300]))
-# записавшие — последними: при обрезке по длине теряется хвост этого списка, а не сбои и тревоги
-if ok:
-    lines.append("<b>Записали:</b>")
-    lines += ["✅ " + x for x in ok]
 # обрезка по строкам, не посреди тега: оборванный <b> Telegram с parse_mode=HTML не примет вовсе
 text = ""
 for i, ln in enumerate(lines):
     if len(text) + len(ln) + 1 > LIMIT - 20:
-        if text.endswith("\n<b>Записали:</b>"):     # одинокий заголовок без строк — убрать
-            text = text[: -len("\n<b>Записали:</b>")]
         text += f"\n…ещё строк: {len(lines) - i}"
         break
     text += ("\n" if text else "") + ln
@@ -246,12 +251,23 @@ try:
 except Exception as e:
     _send_err = f"{type(e).__name__}: " + re.sub(r"bot\d+:[\w-]+", "bot<токен>", str(e))[:200]
 
+# ── текст отправки — в журнал (своё соединение); сбой записи — в пульс и падение после него ──
+_save_err = None
+try:
+    with pg() as c, c.cursor() as cur:
+        cur.execute("""INSERT INTO kabinet_data.morning_reports (report_date, text, sent, error)
+                       VALUES (%s, %s, %s, %s)""", (now.date(), text, _send_err is None, _send_err))
+except Exception as e:
+    _save_err = f"{type(e).__name__}: {str(e)[:200]}"
+
 note = (f"✅ {len(ok)} ❌ {len(bad)} ⏳ {len(wait)}, 429 {sum(q429.values())}, тревог {len(OPEN)}"
-        + (f"; не отправлено: {_send_err}" if _send_err else "") + (f"; сбои: {'; '.join(_errors)[:200]}" if _errors else ""))
+        + (f"; не отправлено: {_send_err}" if _send_err else "") + (f"; сбои: {'; '.join(_errors)[:200]}" if _errors else "")
+        + (f"; журнал не записан: {_save_err}" if _save_err else ""))
 with pg() as c, c.cursor() as cur:
     cur.execute("""INSERT INTO kabinet_data.system_pulse (job_name, last_success_at, note, expected_interval_hours)
                    VALUES (%s, now(), %s, 26)
                    ON CONFLICT (job_name) DO UPDATE SET last_success_at = now(), note = EXCLUDED.note""", (JOB_NAME, note))
 print(f"💓 {JOB_NAME}: {note}")
-if _send_err:
-    raise RuntimeError(f"{JOB_NAME}: сводка не ушла — {_send_err}")
+if _send_err or _save_err:
+    raise RuntimeError(f"{JOB_NAME}: " + "; ".join(x for x in (f"сводка не ушла — {_send_err}" if _send_err else "",
+                                                             f"журнал не записан — {_save_err}" if _save_err else "") if x))
