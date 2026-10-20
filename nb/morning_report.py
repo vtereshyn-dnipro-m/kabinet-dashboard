@@ -73,7 +73,7 @@ with pg() as c, c.cursor() as cur:
     SLOT_GRACE = dt.timedelta(minutes=float(_r[0]) if _r else 15)
     # created_at — timestamp БЕЗ зоны (UTC): сравнивать только через AT TIME ZONE 'UTC'; NULL — как «давно»
     cur.execute("""SELECT i.severity, i.incident_type, coalesce(t.title, i.incident_type), i.message,
-                          coalesce(t.area, 'tech') AS area,
+                          coalesce(t.area, 'tech') AS area, i.sku, i.warehouse_name,
                           coalesce(i.created_at AT TIME ZONE 'UTC', '1970-01-01'::timestamptz) AS created,
                           coalesce(i.created_at AT TIME ZONE 'UTC' >= %s, false) AS is_new
                    FROM kabinet_data.incidents i LEFT JOIN kabinet_data.incident_types t USING (incident_type)
@@ -174,29 +174,52 @@ for r in RUNS:
 SEV = {"critical": 4, "high": 3, "medium": 2, "low": 1}
 
 
+NAMES_MAX = 5                              # имён в строке critical-тревоги, остальные — числом
+
+
+def who(msg, sku, wh):
+    """Кого касается тревога: из метки «[ТИП:имя]» в начале сообщения (джоба, рынок), иначе SKU и склад."""
+    m = re.match(r"\[[A-Z0-9_]+:([^\]]+)\]", msg or "")
+    if m:
+        return m.group(1).removeprefix("Kabinet - ")
+    if sku:
+        return f"{sku} ({wh})" if wh else str(sku)
+    return None
+
+
 def alert_block(area):
     """Строки тревог блока: новые за ночь и все critical — группами по типу (новые первыми, затем важность, свежесть);
     остальное открытое — одной строкой итога по важности. Не «8 самых старых»: 10.10.2026 так в сводке сторожа восемь
     строк «нет остатка» за август закрыли свежие поломки джоб."""
     groups, rest = {}, {}
-    for sev, itype, title, msg, ar, created, is_new in OPEN:
+    for sev, itype, title, msg, ar, sku, wh, created, is_new in OPEN:
         if ar != area:
             continue
         sev = str(sev).lower()
         if not (is_new or sev == "critical"):
             rest[sev] = rest.get(sev, 0) + 1
             continue
-        g = groups.setdefault((sev, itype), {"title": title, "n": 0, "new": 0, "last": created, "tok": None})
+        g = groups.setdefault((sev, itype), {"title": title, "n": 0, "new": 0, "last": created, "tok": None, "names": []})
         g["n"] += 1
+        if sev == "critical":
+            g["names"].append(who(msg, sku, wh))
         g["new"] += 1 if is_new else 0
         if created >= g["last"]:
             g["last"] = created
             m = re.match(r"\[([^\]]+)\]", msg or "")
             g["tok"] = m.group(1) if m else None
     top = sorted(groups.items(), key=lambda kv: (-kv[1]["new"], -SEV.get(kv[0][0], 0), -kv[1]["last"].timestamp()))
-    out = [f"• {esc(g['title'])} ({esc(sev)})" + (f" ×{g['n']}" if g["n"] > 1 else "")
-           + (f", новых за ночь {g['new']}" if g["new"] else "")
-           + (f" — <code>{esc(g['tok'])}</code>" if g["tok"] and g["n"] == 1 else "") for (sev, itype), g in top]
+    out = []
+    for (sev, itype), g in top:
+        line = (f"• {esc(g['title'])} ({esc(sev)})" + (f" ×{g['n']}" if g["n"] > 1 else "")
+                + (f", новых за ночь {g['new']}" if g["new"] else ""))
+        names = sorted({x for x in g["names"] if x})
+        if names:                          # critical — всегда с именами: джоба / рынок / SKU (решение владельца 20.10.2026)
+            line += ": " + ", ".join(esc(x) for x in names[:NAMES_MAX]) + (
+                f" и ещё {len(names) - NAMES_MAX}" if len(names) > NAMES_MAX else "")
+        elif g["tok"] and g["n"] == 1:
+            line += f" — <code>{esc(g['tok'])}</code>"
+        out.append(line)
     if rest:
         out.append("• ещё открыто: " + ", ".join(f"{s_} {rest[s_]}" for s_ in ("critical", "high", "medium", "low")
                                                  if rest.get(s_)))
