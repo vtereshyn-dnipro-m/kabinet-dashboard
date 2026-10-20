@@ -1,0 +1,30 @@
+--- a/Kabinet - Watchdog
++++ b/Kabinet - Watchdog
+@@ -518,7 +518,7 @@
+ 
+ # Квота createReport — общая на аккаунт (CLAUDE.md). Загрузчики с 19.09.2026 на 429 ждут до
+ # 40 минут и падают с маркером [QUOTA_429]. Такой сбой — не поломка кода, а очередь за квотой:
+-# для него отдельный тип report_quota (warning), чтобы в Telegram и ClickUp он не выглядел как job_health.
++# для него отдельный тип report_quota (medium), чтобы в Telegram и ClickUp он не выглядел как job_health.
+ def _last_failure_is_quota(runs):
+     # 19.10.2026: решаем по ПОСЛЕДНЕМУ неуспешному прогону, у которого есть текст ошибки (отменённые без ошибки
+     # пропускаем: 16.10 FBA Shipments упал на [QUOTA_429], а следом прогон отменили). Не «любой до успеха»: ранний 429
+@@ -693,12 +693,16 @@
+         pg_cur.execute("""SELECT id, message FROM kabinet_data.incidents
+                           WHERE incident_type = 'report_quota' AND source = 'watchdog'
+                             AND message LIKE '[QUOTA429:%%' AND resolved_at IS NULL""")
++        _q_viol = {v[1] for v in job_violations}
+         for _iid, _msg in pg_cur.fetchall():
+             _jn = _msg[len("[QUOTA429:"):].split("]", 1)[0]
+             if _jn not in _q_found:
++                # джоба нарушила правило здоровья — тревога не исчезла, а переехала в путь здоровья (job_health или
++                # report_quota [QUOTA:…]); иначе — за сутки 429 действительно не было
++                _why = "перешла в job_health" if _jn in _q_viol else "за сутки 429 нет"
+                 pg_cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
+-                                         resolved_by = 'watchdog-autoclose: за сутки 429 нет'
+-                                  WHERE id = %s""", (_iid,))
++                                         resolved_by = %s
++                                  WHERE id = %s""", (f"watchdog-autoclose: {_why}", _iid))
+         pg_conn.commit()
+     print(f"\n🧮 Квота Amazon: 429, стоившие данных, за сутки — {len(_q_found)}: {sorted(_q_found)}")
+ 
