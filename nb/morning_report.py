@@ -83,10 +83,11 @@ with pg() as c, c.cursor() as cur:
     # продажи SKU за 30 дней по позавчера (с НДС, все каналы) — порядок имён у тревог по SKU: сначала то, что продаётся
     # больше (решение владельца 20.10.2026). По позавчера, а не по вчера: в 08:00 вчерашний день Amazon ещё не лёг
     # (Sales & Traffic приходит ~09:30), и окно было бы в 29 дней у Amazon и в 30 у остальных
-    cur.execute("""SELECT norm_sku, sum(sales_vat_incl) FROM kabinet_data.v_sku_sales_vat_incl_daily
-                   WHERE date >= CURRENT_DATE - 31 AND date < CURRENT_DATE - 1 GROUP BY 1""")
-    SALES30 = {str(k): float(v or 0) for k, v in cur.fetchall()}
+    # границы — по Киеву и одним местом для запроса и подписи (CURRENT_DATE базы — UTC, расходится с 00:00 до 03:00)
     SALES_TO = now.date() - dt.timedelta(days=2)
+    cur.execute("""SELECT norm_sku, sum(sales_vat_incl) FROM kabinet_data.v_sku_sales_vat_incl_daily
+                   WHERE date BETWEEN %s AND %s GROUP BY 1""", (SALES_TO - dt.timedelta(days=29), SALES_TO))
+    SALES30 = {str(k): float(v or 0) for k, v in cur.fetchall()}
 
 # ── по джобам: последний прогон за ночь ──
 last, night_fail = {}, {}
