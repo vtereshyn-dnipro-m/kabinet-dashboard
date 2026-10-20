@@ -88,6 +88,25 @@ with pg() as c, c.cursor() as cur:
     cur.execute("""SELECT norm_sku, sum(sales_vat_incl) FROM kabinet_data.v_sku_sales_vat_incl_daily
                    WHERE date BETWEEN %s AND %s GROUP BY 1""", (SALES_TO - dt.timedelta(days=29), SALES_TO))
     SALES30 = {str(k): float(v or 0) for k, v in cur.fetchall()}
+    # те же продажи по каналу — у «нет остатка» видно, откуда продажи (20.10.2026: у трёх SKU «52+ дн» без FBA все продажи
+    # Amazon оказались FBM, остальное — Leroy Merlin, Carrefour, ManoMano). Подпись канала — из справочника рынков
+    cur.execute("""SELECT s.norm_sku, s.marketplace, coalesce(m.channel, s.marketplace), sum(s.sales_vat_incl)
+                   FROM kabinet_data.v_sku_sales_vat_incl_daily s
+                   LEFT JOIN (SELECT DISTINCT marketplace_code, channel FROM kabinet_data.v_marketplaces) m
+                          ON m.marketplace_code = s.marketplace
+                   WHERE s.date BETWEEN %s AND %s GROUP BY 1, 2, 3""", (SALES_TO - dt.timedelta(days=29), SALES_TO))
+    SALES30_CH = {}
+    for k, mk, chan, v in cur.fetchall():
+        SALES30_CH.setdefault(str(k), []).append((str(mk), str(chan), float(v or 0)))
+    # Amazon: FBA или FBM — по заказам за то же окно (AFN / MFN)
+    cur.execute("""SELECT SUBSTRING(sku FROM '([0-9]{5,})'), marketplace_code, fulfillment_channel
+                   FROM kabinet_data.orders_history
+                   WHERE purchase_date::date BETWEEN %s AND %s AND order_status <> 'Canceled'
+                   GROUP BY 1, 2, 3""", (SALES_TO - dt.timedelta(days=29), SALES_TO))
+    AMZ_FUL = {}
+    for b, mk, fc in cur.fetchall():
+        if b:
+            AMZ_FUL.setdefault((str(b), str(mk)), set()).add({"AFN": "FBA", "MFN": "FBM"}.get(str(fc), str(fc)))
     # последний день с остатком по SKU и складу — «без остатка N дн» (решение владельца 20.10.2026). Остаток считается
     # как в Kabinet - Stock Loader, который заводит out_of_stock: Amazon — доступное к продаже из MYI
     # (kabinet_data.fba_inventory: строка рынка ES, иначе первого, пулы EU и UK), площадки — available из stock_local.
@@ -103,17 +122,23 @@ with pg() as c, c.cursor() as cur:
                                       ORDER BY CASE marketplace WHEN 'es' THEN 0 ELSE 1 END, marketplace) AS pool_rn
             FROM per_asin WHERE rn = 1),
         fba AS (
-            SELECT b, wh, max(d) FILTER (WHERE q > 0) AS last_pos, min(d) AS first_d
+            SELECT b, wh, max(d) FILTER (WHERE q > 0) AS last_pos, min(d) AS first_d,
+                   (SELECT max(snapshot_date) FROM kabinet_data.fba_inventory) AS last_snap
             FROM (SELECT d, SUBSTRING(sku FROM '([0-9]{5,})') AS b, wh, sum(q) AS q
                   FROM pool WHERE pool_rn = 1 GROUP BY 1, 2, 3) x
             WHERE b IS NOT NULL GROUP BY 1, 2),
         loc AS (
-            SELECT SUBSTRING(sku FROM '([0-9]{5,})') AS b, warehouse_name AS wh,
-                   max(snapshot_date) FILTER (WHERE quantity > 0 AND availability_status = 'available') AS last_pos,
-                   min(snapshot_date) AS first_d
-            FROM kabinet_data.stock_local WHERE channel <> 'Amazon' GROUP BY 1, 2)
-        SELECT b, wh, last_pos, first_d FROM fba UNION ALL SELECT b, wh, last_pos, first_d FROM loc""")
-    OOS_HIST = {(str(b), wh): (lp, fd) for b, wh, lp, fd in cur.fetchall() if b}
+            SELECT SUBSTRING(s.sku FROM '([0-9]{5,})') AS b, s.warehouse_name AS wh,
+                   max(s.snapshot_date) FILTER (WHERE s.quantity > 0 AND s.availability_status = 'available') AS last_pos,
+                   min(s.snapshot_date) AS first_d, max(c.last_snap) AS last_snap
+            FROM kabinet_data.stock_local s
+            JOIN (SELECT channel, max(snapshot_date) AS last_snap FROM kabinet_data.stock_local
+                  WHERE channel <> 'Amazon' GROUP BY 1) c ON c.channel = s.channel
+            WHERE s.channel <> 'Amazon' GROUP BY 1, 2)
+        SELECT b, wh, last_pos, first_d, last_snap FROM fba
+        UNION ALL SELECT b, wh, last_pos, first_d, last_snap FROM loc""")
+    # дни — до последнего снимка источника, а не до сегодня: в 08:00 сегодняшнего снимка ещё нет (решение владельца)
+    OOS_HIST = {(str(b), wh): (lp, fd, ls) for b, wh, lp, fd, ls in cur.fetchall() if b}
 
 # ── по джобам: последний прогон за ночь ──
 last, night_fail = {}, {}
@@ -224,17 +249,34 @@ def who(msg, sku, wh):
     return None
 
 
+def channels(sku):
+    """Продажи SKU за окно по каналу, больше первыми: «LM 1 161 · Carrefour ES 198 · Amazon ES FBM 76» (до трёх)."""
+    out = []
+    for mk, chan, v in sorted(SALES30_CH.get(str(sku), []), key=lambda t: -t[2]):
+        if v <= 0:
+            continue
+        if chan == "Amazon":
+            ful = "+".join(sorted(AMZ_FUL.get((str(sku), mk), set())))
+            label = f"Amazon {mk}" + (f" {ful}" if ful else "")
+        else:
+            label = chan + (f" {mk.split('_', 1)[1]}" if "_" in mk else "")
+        out.append(f"{label} " + f"{v:,.0f}".replace(",", " "))
+    return " · ".join(out[:3]) + (" · …" if len(out) > 3 else "")
+
+
 def oos_days(sku, wh):
     """Сколько дней без остатка: от последнего снимка с остатком; не было за всю историю — от первого снимка с «+».
     None — истории по SKU и складу нет или остаток есть сегодня (тогда тревога вот-вот закроется)."""
     h = OOS_HIST.get((str(sku), wh)) if sku and wh else None
     if not h:
         return None
-    last_pos, first_d = h
+    last_pos, first_d, last_snap = h
+    if last_snap is None:
+        return None
     if last_pos is not None:
-        n = (now.date() - last_pos).days
+        n = (last_snap - last_pos).days
         return str(n) if n > 0 else None
-    return f"{(now.date() - first_d).days}+" if first_d else None
+    return f"{(last_snap - first_d).days + 1}+" if first_d else None
 
 
 def alert_block(area):
@@ -253,7 +295,7 @@ def alert_block(area):
         g["n"] += 1
         if sev == "critical":
             g["names"].append((created, who(msg, sku, wh), SALES30.get(str(sku)) if sku else None,
-                               oos_days(sku, wh) if itype == "out_of_stock" else None))
+                               oos_days(sku, wh) if itype == "out_of_stock" else None, sku))
         g["new"] += 1 if is_new else 0
         if created >= g["last"]:
             g["last"] = created
@@ -271,12 +313,13 @@ def alert_block(area):
         order = (sorted(g["names"], key=lambda t: (-(t[2] or 0), -t[0].timestamp())) if by_sales
                  else sorted(g["names"], key=lambda t: t[0], reverse=True))
         names, seen = [], set()
-        for _c, x, s30, days in order:
+        for _c, x, s30, days, _sku in order:
             if x and x not in seen:
                 seen.add(x)
                 extra = []
-                if by_sales and s30:                            # «SKU (склад)» → «SKU (склад, 9 555 €, …)»
-                    extra.append(f"{s30:,.0f}".replace(",", " ") + " €")
+                if by_sales and s30:                            # «SKU (склад)» → «SKU (склад, 9 555 €: …, …)»
+                    _ch = channels(_sku) if _sku else ""
+                    extra.append(f"{s30:,.0f}".replace(",", " ") + " €" + (f": {_ch}" if _ch else ""))
                 if days:
                     extra.append(f"без остатка {days} дн")
                 if extra:
