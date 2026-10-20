@@ -80,11 +80,13 @@ with pg() as c, c.cursor() as cur:
                    FROM kabinet_data.incidents i LEFT JOIN kabinet_data.incident_types t USING (incident_type)
                    WHERE i.status <> 'resolved' AND i.resolved_at IS NULL""", (w_from,))
     OPEN = cur.fetchall()
-    # продажи SKU за 30 полных дней (с НДС, все каналы) — порядок имён у тревог по SKU: сначала то, что продаётся
-    # больше (решение владельца 20.10.2026); сегодняшний день — не день с данными, поэтому без него
+    # продажи SKU за 30 дней по позавчера (с НДС, все каналы) — порядок имён у тревог по SKU: сначала то, что продаётся
+    # больше (решение владельца 20.10.2026). По позавчера, а не по вчера: в 08:00 вчерашний день Amazon ещё не лёг
+    # (Sales & Traffic приходит ~09:30), и окно было бы в 29 дней у Amazon и в 30 у остальных
     cur.execute("""SELECT norm_sku, sum(sales_vat_incl) FROM kabinet_data.v_sku_sales_vat_incl_daily
-                   WHERE date >= CURRENT_DATE - 30 AND date < CURRENT_DATE GROUP BY 1""")
+                   WHERE date >= CURRENT_DATE - 31 AND date < CURRENT_DATE - 1 GROUP BY 1""")
     SALES30 = {str(k): float(v or 0) for k, v in cur.fetchall()}
+    SALES_TO = now.date() - dt.timedelta(days=2)
 
 # ── по джобам: последний прогон за ночь ──
 last, night_fail = {}, {}
@@ -231,12 +233,14 @@ def alert_block(area):
         for _c, x, s30 in order:
             if x and x not in seen:
                 seen.add(x)
-                if by_sales and s30 and x.endswith(")"):        # «SKU (склад)» → «SKU (склад, 9 555 €)»
-                    x = x[:-1] + ", " + f"{s30:,.0f}".replace(",", " ") + " €)"
+                if by_sales and s30:                            # «SKU (склад)» → «SKU (склад, 9 555 €)»
+                    _eur = f"{s30:,.0f}".replace(",", " ") + " €"
+                    x = x[:-1] + f", {_eur})" if x.endswith(")") else f"{x} ({_eur})"
                 names.append(esc(x))
         shown = names[:NAMES_MAX]
         if shown:
-            line += (" — по продажам за 30 дн" if by_sales else "") + ": " + ", ".join(shown) + (
+            line += (f" — по продажам за 30 дн по {SALES_TO:%d.%m} (с НДС, все каналы)" if by_sales else "") \
+                + ": " + ", ".join(shown) + (
                 f" и ещё {g['n'] - len(shown)}" if g["n"] > len(shown) else "")
         elif g["tok"] and g["n"] == 1:
             line += f" — <code>{esc(g['tok'])}</code>"
