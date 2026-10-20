@@ -202,7 +202,7 @@ def alert_block(area):
         g = groups.setdefault((sev, itype), {"title": title, "n": 0, "new": 0, "last": created, "tok": None, "names": []})
         g["n"] += 1
         if sev == "critical":
-            g["names"].append(who(msg, sku, wh))
+            g["names"].append((created, who(msg, sku, wh)))
         g["new"] += 1 if is_new else 0
         if created >= g["last"]:
             g["last"] = created
@@ -213,10 +213,16 @@ def alert_block(area):
     for (sev, itype), g in top:
         line = (f"• {esc(g['title'])} ({esc(sev)})" + (f" ×{g['n']}" if g["n"] > 1 else "")
                 + (f", новых за ночь {g['new']}" if g["new"] else ""))
-        names = sorted({x for x in g["names"] if x})
-        if names:                          # critical — всегда с именами: джоба / рынок / SKU (решение владельца 20.10.2026)
-            line += ": " + ", ".join(esc(x) for x in names[:NAMES_MAX]) + (
-                f" и ещё {len(names) - NAMES_MAX}" if len(names) > NAMES_MAX else "")
+        # critical — всегда с именами: джоба / рынок / SKU (решение владельца 20.10.2026); свежие первыми, повтор имени
+        # не дублируется, «и ещё N» — от числа тревог группы, чтобы сходилось с ×n
+        names = []
+        for _c, x in sorted(g["names"], key=lambda t: t[0], reverse=True):
+            if x and x not in names:
+                names.append(x)
+        shown = names[:NAMES_MAX]
+        if shown:
+            line += ": " + ", ".join(esc(x) for x in shown) + (
+                f" и ещё {g['n'] - len(shown)}" if g["n"] > len(shown) else "")
         elif g["tok"] and g["n"] == 1:
             line += f" — <code>{esc(g['tok'])}</code>"
         out.append(line)
