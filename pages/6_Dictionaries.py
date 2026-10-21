@@ -202,6 +202,7 @@ TR = {
         "tab_vg": "🧬 Вариации",
         "tab_matrix": "🗂 Матрица",
         "tab_sched": "🗓 Расписание",
+        "tab_api": "📡 Amazon API",
         "am_hint": "Ассортиментная матрица по ТЗ 007: допуск SKU на площадку (рамочный) или на marketplace (операционный), признаки «в листинге» "
                    "и «комплиментарный», история неизменяемыми записями с датами. Стартовый срез собран из действующих листингов (source seed); "
                    "решения людей — source manual, загрузчик их не меняет. Исключение — дата в «Исключён»; повторный запуск — новая запись.",
@@ -827,6 +828,7 @@ TR = {
         "tab_vg": "🧬 Варіації",
         "tab_matrix": "🗂 Матриця",
         "tab_sched": "🗓 Розклад",
+        "tab_api": "📡 Amazon API",
         "am_hint": "Асортиментна матриця за ТЗ 007: допуск SKU на майданчик (рамковий) або на marketplace (операційний), ознаки «в лістингу» "
                    "та «компліментарний», історія незмінними записами з датами. Стартовий зріз зібрано з чинних лістингів (source seed); "
                    "рішення людей — source manual, завантажувач їх не змінює. Виключення — дата у «Виключено»; повторний запуск — новий запис.",
@@ -1451,6 +1453,7 @@ TR = {
         "tab_vg": "🧬 Variations",
         "tab_matrix": "🗂 Matrix",
         "tab_sched": "🗓 Schedule",
+        "tab_api": "📡 Amazon API",
         "am_hint": "Assortment matrix per spec 007: SKU admission to a platform (framework) or a marketplace (operational), the «in listing» and "
                    "«complementary» flags, history as immutable dated records. The initial snapshot comes from live listings (source seed); "
                    "human decisions are source manual and the loader never changes them. Exclusion — a date in «Removed»; relaunch — a new record.",
@@ -2767,7 +2770,7 @@ st.caption(_tr("sub"))
 # Разделы — не st.tabs. Вкладки Streamlit исполняются все разом при каждом прогоне: на любое действие
 # страница делала 44 запроса и отправляла в браузер десять таблиц (PeID — 4 076 строк, матрица — 2 204),
 # после каждого сохранения — заново. Здесь исполняется только выбранный раздел (замер 21.09.2026).
-_SECTIONS = ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sched", "sku", "cat", "peid", "vg", "matrix"]
+_SECTIONS = ["wh", "ch", "ctry", "plat", "mp", "pool", "norm", "alerts", "sched", "api", "sku", "cat", "peid", "vg", "matrix"]
 # Раздел можно открыть ссылкой: ?section=sched (так ведёт ссылка «Расписание переехало в Справочники» из паспорта
 # данных). Параметр задаёт только раздел по умолчанию: пока человек на странице, он сам переключает разделы, а
 # default не меняется — иначе Streamlit пересоздал бы виджет и сбросил выбор
@@ -6117,6 +6120,13 @@ def _section_sched():
     schedule_view.render()
 
 
+def _section_api():
+    """Amazon API: отчёты и запросы аккаунта по часам и системам, 429, прогоны джоб (21.10.2026). Только чтение —
+    как «Расписание»: данные готовят Kabinet - Amazon API Journal и Amazon Run Check, правка — в Databricks."""
+    import amazon_api_view
+    amazon_api_view.render()
+
+
 def _section_alerts():
     st.caption(_tr("al_hint"))
     st.caption(_tr("al_hint2"))
@@ -7777,6 +7787,6 @@ def _section_matrix():
                             st.error(_trf("err", e=e))
 
 
-{"wh": _section_wh, "ch": _section_ch, "ctry": _section_ctry, "plat": _section_plat, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sched": _section_sched, "sku": _section_sku, "cat": _section_cat, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
+{"wh": _section_wh, "ch": _section_ch, "ctry": _section_ctry, "plat": _section_plat, "mp": _section_mp, "pool": _section_pool, "norm": _section_norm, "alerts": _section_alerts, "sched": _section_sched, "api": _section_api, "sku": _section_sku, "cat": _section_cat, "peid": _section_peid, "vg": _section_vg, "matrix": _section_matrix}[_sec]()
 
 passport.footer("dictionaries")
