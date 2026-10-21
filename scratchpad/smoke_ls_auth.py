@@ -116,6 +116,14 @@ print(f"действий в коде {len(действия_кода)}, в баз
      + (f" (лишние: {', '.join(лишние)})" if лишние else ""),
      not лишние)
 ждём("роли совпадают", роли_базы <= роли_кода)
+# Экран «Доступ» знает роли LS своим списком (ПРОДУКТЫ): разойдись он с кодом LS — выпадашка не предложит роль,
+# а сохранение строки с незнакомой ролью сбросит её в NULL
+_экран = ast.parse((pathlib.Path(__file__).resolve().parent.parent / "access_screen.py").read_text(encoding="utf-8"))
+_роли_экрана = next((set(ast.literal_eval(у.value)["ls"]["roles"]) for у in _экран.body
+                     if isinstance(у, ast.Assign) and getattr(у.targets[0], "id", "") == "ПРОДУКТЫ"), set())
+ждём("роли LS на экране «Доступ» = роли в коде LS"
+     + (f" (экран {sorted(_роли_экрана)}, код {sorted(роли_кода)})" if _роли_экрана != роли_кода else ""),
+     _роли_экрана == роли_кода)
 
 # У каждого действия должна быть строка на КАЖДУЮ роль: отсутствующая пара читается
 # как запрет, и на экране такой галочки просто нет — различить «запрещено» и
@@ -196,12 +204,14 @@ _админка = dict(cur.fetchall())
      _админка.get("admin") is True
      and not any(v for r, v in _админка.items() if r != "admin"))
 # По определению триггера, не пробой: пробный UPDATE с откатом на живой таблице запрещён (с 19.10.2026)
-cur.execute("""SELECT t.tgenabled, pg_get_functiondef(t.tgfoid)
+cur.execute("""SELECT t.tgenabled, pg_get_functiondef(t.tgfoid), t.tgtype
                  FROM pg_trigger t
                 WHERE t.tgrelid = 'kabinet_data.app_permissions'::regclass AND NOT t.tgisinternal
                   AND t.tgname = 'app_permissions_keep_admin'""")
 _триггер = cur.fetchone()
 ждём("триггер app_permissions_keep_admin есть и включён", bool(_триггер) and _триггер[0] != "D")
+# tgtype: 8 — DELETE, 16 — UPDATE; без них триггер есть, но снятие права не ловит
+ждём("и срабатывает на UPDATE и DELETE", bool(_триггер) and (_триггер[2] & 8) and (_триггер[2] & 16))
 for _пара in (("admin", "admin"), ("ls.admin", "admin")):
     ждём(f"пару «{_пара[1]} × {_пара[0]}» снять нельзя (она в списке триггера)",
          bool(_триггер) and f"ARRAY['{_пара[0]}','{_пара[1]}']" in _триггер[1])

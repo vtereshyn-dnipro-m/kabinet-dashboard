@@ -1,4 +1,4 @@
-# ОТПЕЧАТОК ИСТОЧНИКА: 24bcf8f31e084d625ce92c28ebd89d9db2bc5d29a9abbefb7f354224009f274c
+# ОТПЕЧАТОК ИСТОЧНИКА: 9106e4a87f744b6d14df2dc47b517142f72bc0bca7880d46e7a9eb1e84e8cd35
 # access_screen.py — экран «Доступ»: один на два приложения.
 """Админка доступа (ТЗ 010): люди, роли, матрица прав, тестовый вход, журналы.
 
@@ -995,11 +995,11 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.qa.st_live": "живой",
         "auth.qa.st_revoked": "погашен",
         "auth.role.admin": "Администратор",
-        "auth.role.textgen_pilot": "Пилот генератора текстов",
         "auth.role.approver": "Утверждающий",
         "auth.role.content_manager": "Контент-менеджер",
         "auth.role.country_manager": "Страновой менеджер",
         "auth.role.demand_planner": "Планировщик спроса",
+        "auth.role.textgen_pilot": "Пилот генератора текстов",
         "auth.role.viewer": "Просмотр",
     },
     "uk": {
@@ -1197,11 +1197,11 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.qa.st_live": "живий",
         "auth.qa.st_revoked": "погашений",
         "auth.role.admin": "Адміністратор",
-        "auth.role.textgen_pilot": "Пілот генератора текстів",
         "auth.role.approver": "Затверджувач",
         "auth.role.content_manager": "Контент-менеджер",
         "auth.role.country_manager": "Країновий менеджер",
         "auth.role.demand_planner": "Планувальник попиту",
+        "auth.role.textgen_pilot": "Пілот генератора текстів",
         "auth.role.viewer": "Перегляд",
     },
     "en": {
@@ -1399,11 +1399,11 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.qa.st_live": "live",
         "auth.qa.st_revoked": "revoked",
         "auth.role.admin": "Administrator",
-        "auth.role.textgen_pilot": "Text generator pilot",
         "auth.role.approver": "Approver",
         "auth.role.content_manager": "Content manager",
         "auth.role.country_manager": "Country manager",
         "auth.role.demand_planner": "Demand planner",
+        "auth.role.textgen_pilot": "Text generator pilot",
         "auth.role.viewer": "Viewer",
     },
 }
