@@ -1,0 +1,12 @@
+{
+  "name": "Kabinet - Amazon API Journal",
+  "description": "Каждый час в :40: журнал getReports (отчёты SP-API аккаунта по типам из kabinet_data.amazon_report_types) и Data Kiosk getQueries — какие отчёты и запросы созданы, кем бы ни были (наши, витрины, Listing Suite), статус и время → kabinet_data.amazon_report_log / amazon_dk_query_log. createReport и createQuery не вызывает. Источник — nb/amazon_api_journal.py.",
+  "max_concurrent_runs": 1,
+  "timeout_seconds": 1200,
+  "schedule": {"quartz_cron_expression": "0 40 * * * ?", "timezone_id": "Europe/Kyiv", "pause_status": "UNPAUSED"},
+  "environments": [{"environment_key": "default", "spec": {"client": "2", "dependencies": ["psycopg2-binary", "databricks-sdk>=0.118.0", "requests"]}}],
+  "tasks": [
+    {"task_key": "journal", "environment_key": "default", "timeout_seconds": 1200, "max_retries": 0,
+     "notebook_task": {"notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Amazon API Journal", "source": "WORKSPACE"}}
+  ]
+}
