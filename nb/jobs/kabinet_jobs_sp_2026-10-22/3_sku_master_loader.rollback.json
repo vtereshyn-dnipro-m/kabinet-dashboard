@@ -1,8 +1,6 @@
 {
   "job_id": 909831072825007,
-  "new_settings": {
-    "run_as": {
-      "service_principal_name": "b1698364-6ec5-4240-8cd6-e06dd6e60856"
-    }
-  }
+  "fields_to_remove": [
+    "run_as"
+  ]
 }
