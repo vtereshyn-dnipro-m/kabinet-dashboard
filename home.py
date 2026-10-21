@@ -118,7 +118,7 @@ def table_exists(name: str) -> bool:
 
 
 @st.cache_data(ttl=300)
-def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
+def load_money(days: int = 30, ver: str = "") -> pd.DataFrame:
     if not table_exists("economics_summary"):
         return pd.DataFrame()
     conn = get_connection()
@@ -196,7 +196,7 @@ def load_money(days: int = 30, _v: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
-def load_money_pbi(days: int = 30, _v: str = "") -> pd.DataFrame:
+def load_money_pbi(days: int = 30, ver: str = "") -> pd.DataFrame:
     """Цифры как в Power BI (08.10.2026): день × рынок из реплики его витрины (pbi.py). Колонки названы так же,
     как у load_money, чтобы граница периода, окна и графики работали без второй копии кода: revenue — продажи
     без НДС (до возвратов, у Amazon — продажи с НДС, делённые на ставку страны), cp — Contribution Profit."""
@@ -217,7 +217,7 @@ def load_money_pbi(days: int = 30, _v: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
-def load_day_status(_v: str = "", source: str = "economics"):
+def load_day_status(ver: str = "", source: str = "economics"):
     """Граница полных дней и предварительные дни (money_notes.day_status) — по последней загрузке каждого
     канала: день, по которому не прошли все загрузчики, в цифры и сравнение не берём. Источник загрузки —
     реплика Power BI, когда цифры из неё (с 19.10.2026), иначе наша экономика."""
@@ -241,7 +241,7 @@ def load_ad_ratios(d_from, d_to, v: str = "") -> dict:
 
 
 @st.cache_data(ttl=300)
-def load_plan_month(_v: str = "") -> tuple:   # (строки по маркетплейсам и пулам, порог темпа, текст ошибки или None)
+def load_plan_month(ver: str = "") -> tuple:   # (строки по маркетплейсам и пулам, порог темпа, текст ошибки или None)
     """План текущего месяца против факта с начала месяца — сырьё для трёх разрезов.
 
     Всегда текущий календарный месяц, период страницы сюда не передаётся намеренно.
@@ -262,7 +262,7 @@ def load_plan_month(_v: str = "") -> tuple:   # (строки по маркет�
 
 
 @st.cache_data(ttl=300)
-def load_ordered_sales(days: int = 30, _v: str = "") -> pd.DataFrame:
+def load_ordered_sales(days: int = 30, ver: str = "") -> pd.DataFrame:
     """Витринная выручка — то же число, что видно в Seller Central.
     С НДС, по дате заказа, отменённые не вычитаются."""
     if not table_exists("sales_traffic_daily"):
@@ -317,7 +317,7 @@ def sales_all_extra(sales_all: pd.DataFrame) -> str:
 
 
 @st.cache_data(ttl=300)
-def load_sales_all_channels(days: int = 30, _v: str = "") -> pd.DataFrame:
+def load_sales_all_channels(days: int = 30, ver: str = "") -> pd.DataFrame:
     """Продажи с НДС по ВСЕМ каналам по дате заказа, до возвратов — то, что в Power BI называется
     «Revenue VAT Incl» (07.10.2026). Вью v_sales_vat_incl_daily: Amazon — витрина S&T в евро, Mirakl — строки
     заказов с НДС тем же отбором, что в Power BI; Wallapop и сайт (с 08.10.2026) — заказы Odoo из реплики
@@ -574,7 +574,8 @@ try:
     # чтобы предыдущий период тоже был полным
     _load_days = (DAYS if date_from is None
                   else (today - date_from).days + DAYS + 10)
-    # _v — отметка последней записи: входит в ключ кеша, чтобы Обзор и
+    # ver — отметка последней записи: входит в ключ кеша (имя без подчёркивания —
+    # параметры с «_» Streamlit в ключ не берёт), чтобы Обзор и
     # Деньги обновлялись вместе, а не каждый по своему TTL
     if pbi.OWN_METHOD:
         # наша методика маржи — для будущего документа (pbi.OWN_METHOD)
