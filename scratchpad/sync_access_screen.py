@@ -33,6 +33,15 @@ import os
 ЯЗЫКИ = ("ru", "uk", "en")
 
 
+def роли_экрана(текст: str) -> set:
+    """Все роли обоих продуктов из `ПРОДУКТЫ` экрана — разбором дерева, без импорта."""
+    for узел in ast.parse(текст).body:
+        if isinstance(узел, ast.Assign) and getattr(узел.targets[0], "id", "") == "ПРОДУКТЫ":
+            продукты = ast.literal_eval(узел.value)
+            return {р for п in продукты.values() for р in п["roles"]}
+    raise SystemExit("в access_screen.py не нашёлся ПРОДУКТЫ")
+
+
 def ключи_экрана(текст: str) -> list:
     """Ключи, которые экран зовёт литералом: `t("…")`. Склейки вида `t("x." + y)`
     сюда не попадают намеренно — их собирают из частей, и собрать список заранее
@@ -41,9 +50,9 @@ def ключи_экрана(текст: str) -> list:
     # f-строки вида t(f"auth.admin.mode_{_m}") — добираем известные хвосты руками:
     # их немного, и каждый тут назван, чтобы пропажа была видна глазами
     прямые |= {f"auth.admin.mode_{n}" for n in (0, 1, 2)}
-    прямые |= {f"auth.role.{r}" for r in
-               ("viewer", "country_manager", "demand_planner", "admin",
-                "content_manager", "approver")}
+    # роли — из ПРОДУКТЫ самого экрана, а не своим списком: второй список молча отставал бы от первого
+    # (21.10.2026 так потерялась бы подпись роли textgen_pilot)
+    прямые |= {f"auth.role.{r}" for r in роли_экрана(текст)}
     прямые |= {f"auth.admin.sec.{s}" for s in
                ("forecast", "dictionaries", "ads", "reorder", "incidents", "access",
                 "other", "ls_content", "ls_amazon", "ls_method", "ls_settings",

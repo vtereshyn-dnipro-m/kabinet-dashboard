@@ -9,10 +9,16 @@
 Проверка видит ОБЕ стороны, поэтому живёт здесь, где есть доступ к базе, и знает
 путь к чужому репозиторию. Не найдётся — скажет об этом, а не притворится успешной.
 
+Только чтение (с 21.10.2026): код Listing Suite берётся из `origin/main` того репозитория (`git show`), а не из
+рабочей копии — там может быть чужая ветка окна Listing Suite; в базе — только SELECT и каталог. Защита от
+самоблокировки проверяется по определению триггера, а не пробным UPDATE с откатом: пробы записи на живой базе
+запрещены даже с откатом (AGENTS.md, «Автономия»).
+
 Запуск: python scratchpad/smoke_ls_auth.py
 """
 import json
 import pathlib
+import subprocess
 import sys
 
 import psycopg2
@@ -30,14 +36,29 @@ def ждём(что, условие):
         беда.append(что)
 
 
-if not (КОРЕНЬ_LS / "auth.py").exists():
+if not (КОРЕНЬ_LS / ".git").exists():
     print(f"нет репозитория Listing Suite: {КОРЕНЬ_LS}")
+    sys.exit(2)
+
+
+def из_main(путь: str):
+    """Файл Listing Suite из origin/main (без checkout и без fetch); нет — None."""
+    r = subprocess.run(["git", "-C", str(КОРЕНЬ_LS), "show", f"origin/main:{путь}"], capture_output=True)
+    return r.stdout if r.returncode == 0 else None
+
+
+_main = subprocess.run(["git", "-C", str(КОРЕНЬ_LS), "log", "-1", "--format=%h %cd", "--date=format:%d.%m %H:%M",
+                        "origin/main"], capture_output=True, text=True).stdout.strip()
+print(f"Listing Suite: origin/main {_main} (последний fetch этой копии — сверка не моложе его)")
+_auth = из_main("auth.py")
+if _auth is None:
+    print("в origin/main Listing Suite нет auth.py")
     sys.exit(2)
 
 # auth.py Listing Suite читаем БЕЗ импорта: он тянет streamlit и своё подключение,
 # а нам нужны только объявления. Разбор — по дереву, не регуляркой.
 import ast
-дерево = ast.parse((КОРЕНЬ_LS / "auth.py").read_text(encoding="utf-8"))
+дерево = ast.parse(_auth.decode("utf-8"))
 
 # Константы ролей там названы именами (`ROLES = [VIEWER, …]`), поэтому сначала
 # собираем простые строковые присваивания, а потом подставляем их при разборе.
@@ -77,6 +98,7 @@ for узел in дерево.body:
 роли_кода = set(значения["ROLES"])
 
 c = psycopg2.connect(DSN)
+c.set_session(readonly=True)           # сверка только читает
 cur = c.cursor()
 cur.execute("SELECT action, role, allowed FROM kabinet_data.app_permissions "
             "WHERE action LIKE 'ls.%'")
@@ -94,6 +116,14 @@ print(f"действий в коде {len(действия_кода)}, в баз
      + (f" (лишние: {', '.join(лишние)})" if лишние else ""),
      not лишние)
 ждём("роли совпадают", роли_базы <= роли_кода)
+# Экран «Доступ» знает роли LS своим списком (ПРОДУКТЫ): разойдись он с кодом LS — выпадашка не предложит роль,
+# а сохранение строки с незнакомой ролью сбросит её в NULL
+_экран = ast.parse((pathlib.Path(__file__).resolve().parent.parent / "access_screen.py").read_text(encoding="utf-8"))
+_роли_экрана = next((set(ast.literal_eval(у.value)["ls"]["roles"]) for у in _экран.body
+                     if isinstance(у, ast.Assign) and getattr(у.targets[0], "id", "") == "ПРОДУКТЫ"), set())
+ждём("роли LS на экране «Доступ» = роли в коде LS"
+     + (f" (экран {sorted(_роли_экрана)}, код {sorted(роли_кода)})" if _роли_экрана != роли_кода else ""),
+     _роли_экрана == роли_кода)
 
 # У каждого действия должна быть строка на КАЖДУЮ роль: отсутствующая пара читается
 # как запрет, и на экране такой галочки просто нет — различить «запрещено» и
@@ -115,6 +145,13 @@ print(f"действий в коде {len(действия_кода)}, в баз
      ("ls.amazon.push", "content_manager") not in разрешено)
 ждём("правка настроек — только администратору",
      all(r == "admin" for (a, r) in разрешено if a == "ls.settings.edit"))
+# Роль пилота «Генератор текстов» (21.10.2026): видит одну страницу и ни одного действия, а сам генератор — только она
+# и администратор. Пока SQL роли не применён, этих строк в базе нет — проверка скажет «не заведено», а не «запрещено»
+if "textgen_pilot" in роли_кода:
+    ждём("пилоту генератора разрешено только «Генератор текстов»",
+         {a for (a, r) in разрешено if r == "textgen_pilot"} == {"ls.page.textgen"})
+    ждём("«Генератор текстов» видят только пилот и администратор",
+         {r for (a, r) in разрешено if a == "ls.page.textgen"} == {"admin", "textgen_pilot"})
 
 # Колонки, без которых вход не поднимется
 cur.execute("""SELECT count(*) FROM information_schema.columns
@@ -148,34 +185,36 @@ for таблица, право in (("app_users", "SELECT"), ("app_users", "UPDAT
 # Копия обязана совпадать с источником байт в байт. Это и есть всё «общий код»: две
 # версии одной админки разошлись бы молча, а таблицы у них общие.
 _источник = pathlib.Path(__file__).resolve().parent.parent / "access_screen.py"
-_копия = КОРЕНЬ_LS / "access_screen.py"
+_копия = из_main("access_screen.py")
 ждём("экран «Доступ» есть у источника", _источник.exists())
-ждём("и выложен в Listing Suite", _копия.exists())
-if _источник.exists() and _копия.exists():
-    ждём("копия совпадает с источником побайтно",
-         _источник.read_bytes() == _копия.read_bytes())
-_обёртка = КОРЕНЬ_LS / "pages" / "access.py"
+ждём("и выложен в Listing Suite (origin/main)", _копия is not None)
+if _источник.exists() and _копия is not None:
+    ждём("копия в Listing Suite совпадает с источником побайтно",
+         _источник.read_bytes() == _копия)
+_обёртка = из_main("pages/access.py")
 ждём("страница Listing Suite зовёт общий модуль",
-     _обёртка.exists() and "access_screen.render(" in _обёртка.read_text(encoding="utf-8"))
+     _обёртка is not None and "access_screen.render(" in _обёртка.decode("utf-8"))
 
 # ── право на админку второго продукта и защита от самоблокировки ─────────────
 cur.execute("""SELECT role, allowed FROM kabinet_data.app_permissions
                 WHERE action = 'ls.admin' ORDER BY role""")
 _админка = dict(cur.fetchall())
-ждём("право ls.admin заведено на все роли", len(_админка) == 4)
+ждём("право ls.admin заведено на все роли", set(_админка) == роли_кода)
 ждём("и разрешено только администратору",
      _админка.get("admin") is True
      and not any(v for r, v in _админка.items() if r != "admin"))
+# По определению триггера, не пробой: пробный UPDATE с откатом на живой таблице запрещён (с 19.10.2026)
+cur.execute("""SELECT t.tgenabled, pg_get_functiondef(t.tgfoid), t.tgtype
+                 FROM pg_trigger t
+                WHERE t.tgrelid = 'kabinet_data.app_permissions'::regclass AND NOT t.tgisinternal
+                  AND t.tgname = 'app_permissions_keep_admin'""")
+_триггер = cur.fetchone()
+ждём("триггер app_permissions_keep_admin есть и включён", bool(_триггер) and _триггер[0] != "D")
+# tgtype: 8 — DELETE, 16 — UPDATE; без них триггер есть, но снятие права не ловит
+ждём("и срабатывает на UPDATE и DELETE", bool(_триггер) and (_триггер[2] & 8) and (_триггер[2] & 16))
 for _пара in (("admin", "admin"), ("ls.admin", "admin")):
-    cur.execute("SAVEPOINT s")
-    try:
-        cur.execute("""UPDATE kabinet_data.app_permissions SET allowed = false
-                        WHERE action = %s AND role = %s""", _пара)
-        _отказ = False
-    except Exception:
-        _отказ = True
-    cur.execute("ROLLBACK TO SAVEPOINT s")
-    ждём(f"пару «{_пара[1]} × {_пара[0]}» снять нельзя", _отказ)
+    ждём(f"пару «{_пара[1]} × {_пара[0]}» снять нельзя (она в списке триггера)",
+         bool(_триггер) and f"ARRAY['{_пара[0]}','{_пара[1]}']" in _триггер[1])
 c.rollback()
 
 print()
