@@ -2,9 +2,15 @@
 -- claude-uc-ro и account users работают как прежде, пока джобы переводятся по одной. Применяет ВЛАДЕЛЕЦ, после мержа и
 -- после создания принципала (docs/kabinet-jobs-sp.md, шаги 1–2).
 --
--- Часть A — psql под владельцем базы (переменные :sp / :"sp" / :'sp' — только в psql, SQL-редактор Lakebase их не знает):
---   psql "<строка подключения владельца>" -v sp=<APPLICATION_ID> -v ON_ERROR_STOP=1 -1 -f <часть A этого файла>
--- -1 — одна транзакция: упало на любой строке — не применилось ничего.
+-- Часть A — два файла, по порядку, через psql (переменные :sp / :"sp" / :'sp' понимает только psql, SQL-редактор Lakebase
+-- их не знает). Часть B (Unity Catalog) — ниже, закомментирована, выполняется отдельно на SQL-складе.
+--   1) этот файл (без части B) — под владельцем базы:
+--      psql "<строка подключения владельца>" -v sp=<APPLICATION_ID> -v ON_ERROR_STOP=1 -1 -f sql/kabinet_jobs_sp_2026-10-22.sql
+--   2) sql/kabinet_jobs_sp_2026-10-22_ro.sql — под claude_code_ro (той же строкой, что у прежних грантов):
+--      psql "<строка подключения claude_code_ro>" -v sp=<APPLICATION_ID> -v ON_ERROR_STOP=1 -1 -f sql/kabinet_jobs_sp_2026-10-22_ro.sql
+--   3) проверка чтением — запрос в конце второго файла: 235 строк (219 объектов + 16 последовательностей) и 2 строки прав
+--      по умолчанию. Без неё недовыдачу не увидеть: «no privileges were granted» — WARNING, ON_ERROR_STOP его не ловит.
+-- -1 — одна транзакция на файл: упало на любой строке — из этого файла не применилось ничего.
 --
 -- Права выгружены из каталога Postgres (aclexplode по pg_class.relacl / pg_namespace.nspacl / pg_default_acl), а НЕ из
 -- information_schema.role_table_grants: то видит только гранты с участием спрашивающей роли и 21.10 дало 120 объектов
@@ -12,7 +18,9 @@
 
 -- ── Часть A. Lakebase Кабинета ──
 -- A1. Роль принципала — функцией Databricks (public.databricks_create_role(text, text), есть в базе). Без роли первый
---     же GRANT упадёт. Если роль уже заведена в интерфейсе Lakebase — эту строку пропустить.
+--     же GRANT упадёт. Если роль уже заведена в интерфейсе Lakebase — эту строку пропустить. Если функция откажет внутри
+--     транзакции (-1) — завести роль в интерфейсе Lakebase (Roles → Add → сервисный принципал), строку закомментировать
+--     и запустить файл заново.
 SELECT databricks_create_role(:'sp', 'SERVICE_PRINCIPAL');
 -- A2. Схема — как у claude-uc-ro: только USAGE.
 GRANT USAGE ON SCHEMA kabinet_data TO :"sp";
@@ -237,25 +245,11 @@ GRANT SELECT ON TABLE kabinet_data.v_sku_daily_availability TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.v_sku_lifecycle_current TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.v_sku_sales_vat_incl_daily TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.v_stock_by_channel TO :"sp";
--- A4. Последовательности — ровно как у него (16; UPDATE у него нет ни на одной).
-GRANT SELECT, USAGE ON SEQUENCE kabinet_data.app_action_log_id_seq TO :"sp";
-GRANT SELECT, USAGE ON SEQUENCE kabinet_data.assortment_admissions_id_seq TO :"sp";
-GRANT SELECT, USAGE ON SEQUENCE kabinet_data.assortment_change_log_id_seq TO :"sp";
-GRANT SELECT, USAGE ON SEQUENCE kabinet_data.assortment_representations_id_seq TO :"sp";
-GRANT SELECT, USAGE ON SEQUENCE kabinet_data.clickup_tasks_id_seq TO :"sp";
-GRANT USAGE ON SEQUENCE kabinet_data.forecast_change_log_id_seq TO :"sp";
-GRANT USAGE ON SEQUENCE kabinet_data.forecast_documents_id_seq TO :"sp";
-GRANT USAGE ON SEQUENCE kabinet_data.forecast_register_id_seq TO :"sp";
-GRANT USAGE ON SEQUENCE kabinet_data.morning_reports_id_seq TO :"sp";
-GRANT USAGE ON SEQUENCE kabinet_data.pbi_replica_meta_id_seq TO :"sp";
-GRANT USAGE ON SEQUENCE kabinet_data.plan_price_sheet_log_id_seq TO :"sp";
-GRANT SELECT, USAGE ON SEQUENCE kabinet_data.product_entities_id_seq TO :"sp";
-GRANT SELECT, USAGE ON SEQUENCE kabinet_data.product_entity_change_log_id_seq TO :"sp";
-GRANT SELECT, USAGE ON SEQUENCE kabinet_data.sku_change_log_id_seq TO :"sp";
-GRANT USAGE ON SEQUENCE kabinet_data.variation_group_change_log_id_seq TO :"sp";
-GRANT SELECT, USAGE ON SEQUENCE kabinet_data.variation_groups_id_seq TO :"sp";
--- A5. Права по умолчанию на НОВЫЕ таблицы kabinet_data — как у него: иначе каждая новая таблица без отдельного гранта.
-ALTER DEFAULT PRIVILEGES FOR ROLE claude_code_rw IN SCHEMA kabinet_data GRANT SELECT ON TABLES TO :"sp";
+-- A4 (последовательности) и права по умолчанию от claude_code_rw — в sql/kabinet_jobs_sp_2026-10-22_ro.sql, под
+--     подключением claude_code_ro: последовательности принадлежат ему, а владелец базы его прав не наследует (членство
+--     в claude_code_ro и claude_code_rw — только ADMIN, без INHERIT и SET), поэтому под владельцем GRANT на них молча
+--     выдаст «WARNING: no privileges were granted», а ALTER DEFAULT PRIVILEGES FOR ROLE claude_code_rw упадёт.
+-- A5. Права по умолчанию на НОВЫЕ таблицы, которые создаёт сам владелец: иначе каждая новая таблица без отдельного гранта.
 ALTER DEFAULT PRIVILEGES FOR ROLE "v.tereshyn@dniprom.com" IN SCHEMA kabinet_data GRANT SELECT ON TABLES TO :"sp";
 
 -- ── Часть B. Unity Catalog (SQL-склад, Spark SQL; под владельцем каталога — группа администраторов воркспейса) ──
