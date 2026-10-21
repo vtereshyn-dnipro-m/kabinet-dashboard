@@ -9,10 +9,11 @@
 Чья джоба создала отчёт, Amazon не говорит. Экран сопоставляет по типу и времени: отчёт типа T, созданный в момент
 t, приписан джобе, у которой тип T есть в коде (`amazon_report_types.jobs`) и прогон шёл в момент t. Прогоны в
 `amazon_run_checks` — только завершённые и проверенные (Run Check в :50, 15+ мин после конца), поэтому отчёт идущего
-прогона сопоставить ещё нечем: «ещё не сопоставлен», пока у какой-то из джоб его типа последний проверенный прогон
-начался раньше отчёта (21.10.2026 без этого всё утро отчёты Sales & Traffic for Tableau, 07:00–10:12, шли как «не
-опознан»). «Не опознан» — у всех джоб его типа после отчёта уже есть проверенный прогон, а совпадения нет: ручной
-запуск, проба, отчёт самого Amazon. Владелец — система, а не человек.
+прогона сопоставить ещё нечем: «ещё не сопоставлен», пока он новее «сейчас − (самый долгий проверенный прогон джобы
+его типа за 10 дней + amazon_check_lag_min + час)» (21.10.2026 без этого всё утро отчёты Sales & Traffic for Tableau,
+07:00–10:12, шли как «не опознан»). Джоба без проверенных прогонов за 10 дней (пауза) кандидатом не считается — иначе
+её типы висели бы «ещё не сопоставлен» вечно. «Не опознан» — время ожидания вышло, а совпадения нет: ручной запуск,
+проба, отчёт самого Amazon. Владелец — система, а не человек.
 """
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -48,6 +49,12 @@ def _load():
         runs = pd.read_sql("""SELECT job_id, job_name, owner, started_at, ended_at, state, wrote, n429, kinds_429
                               FROM kabinet_data.amazon_run_checks WHERE started_at >= now() - interval '48 hours'""",
                            conn)
+        # самый долгий проверенный прогон джобы за 10 дней — сколько отчёт может ждать проверки своего прогона
+        dur = pd.read_sql("""SELECT job_id, max(extract(epoch FROM ended_at - started_at)) / 60 AS max_min
+                             FROM kabinet_data.amazon_run_checks
+                             WHERE started_at >= now() - interval '10 days' AND ended_at IS NOT NULL
+                             GROUP BY 1""", conn)
+        lag = pd.read_sql("SELECT value FROM kabinet_data.reorder_params WHERE key = 'amazon_check_lag_min'", conn)
         pulse = pd.read_sql("""SELECT job_name, last_success_at, note FROM kabinet_data.system_pulse
                                WHERE job_name IN ('Kabinet - Amazon API Journal', 'Kabinet - Amazon Run Check')""",
                             conn)
@@ -60,7 +67,9 @@ def _load():
                                        dataset FROM kabinet_data.amazon_dk_query_log
                                 WHERE created_time >= now() - interval '48 hours'""", conn)
             types = pd.read_sql("SELECT report_type, jobs FROM kabinet_data.amazon_report_types", conn)
-        return dict(jobs=jobs, runs=runs, pulse=pulse, rep=rep, dk=dk, types=types)
+        return dict(jobs=jobs, runs=runs, pulse=pulse, rep=rep, dk=dk, types=types,
+                    dur={int(r.job_id): float(r.max_min) for r in dur.itertuples() if not pd.isna(r.max_min)},
+                    lag_min=float(lag.iloc[0, 0]) if len(lag) else 15.0)
     except Exception:
         return None
     finally:
@@ -73,7 +82,8 @@ def _kyiv(v) -> str:
     return pd.Timestamp(v).tz_convert(KYIV).strftime("%d.%m %H:%M")
 
 
-def _attribute(rep: pd.DataFrame, runs: pd.DataFrame, types: pd.DataFrame, jobs: pd.DataFrame) -> pd.DataFrame:
+def _attribute(rep: pd.DataFrame, runs: pd.DataFrame, types: pd.DataFrame, jobs: pd.DataFrame,
+               dur=None, lag_min: float = 15.0, now=None) -> pd.DataFrame:
     """Отчёт → джоба по типу и времени (см. шапку модуля). Колонки job_name и owner; не нашлась — «не опознан»."""
     by_name = {as_text(r.job_name): (int(r.job_id), as_text(r.owner)) for r in jobs.itertuples()}
     type_jobs = {}
@@ -87,7 +97,10 @@ def _attribute(rep: pd.DataFrame, runs: pd.DataFrame, types: pd.DataFrame, jobs:
         end = r.ended_at if not pd.isna(r.ended_at) else pd.Timestamp.now(tz=timezone.utc)
         win.setdefault(int(r.job_id), []).append((r.started_at - SLACK, end + SLACK))
     names = {int(r.job_id): as_text(r.job_name) for r in jobs.itertuples()}
-    last_checked = {jid: max(a for a, _b in w) + SLACK for jid, w in win.items()}   # начало последнего проверенного
+    dur = dur or {}
+    now = now if now is not None else pd.Timestamp.now(tz=timezone.utc)
+    # до какого момента отчёт может ждать проверки своего прогона — по джобе: самый долгий её прогон + задержка + час
+    wait_from = {jid: now - timedelta(minutes=m + lag_min + 60) for jid, m in dur.items()}
     out_job, out_owner = [], []
     for r in rep.itertuples():
         hit, cands = None, type_jobs.get(as_text(r.report_type), [])
@@ -100,9 +113,9 @@ def _attribute(rep: pd.DataFrame, runs: pd.DataFrame, types: pd.DataFrame, jobs:
             out_job.append(hit[0])
             out_owner.append(hit[1])
             continue
-        # прогон, который мог его создать, ещё не проверен: у джобы его типа нет проверенного прогона после отчёта
+        # прогон, который мог его создать, ещё мог не дойти до проверки; джоба без проверенных прогонов — не кандидат
         pending = (not pd.isna(r.created_time)
-                   and any(last_checked.get(jid) is None or last_checked[jid] < r.created_time for jid, _o in cands))
+                   and any(jid in wait_from and r.created_time >= wait_from[jid] for jid, _o in cands))
         out_job.append("")
         out_owner.append("pending" if pending else "unknown")
     rep = rep.copy()
@@ -133,7 +146,7 @@ def render():
     if rep is None:
         st.info(t("api.no_journal"))
     else:
-        rep = _attribute(rep, runs, data["types"], data["jobs"])
+        rep = _attribute(rep, runs, data["types"], data["jobs"], data["dur"], data["lag_min"], now)
     rep24 = rep[pd.to_datetime(rep["created_time"], utc=True) >= since] if rep is not None else None
     dk24 = dk[pd.to_datetime(dk["created_time"], utc=True) >= since] if dk is not None else None
 
