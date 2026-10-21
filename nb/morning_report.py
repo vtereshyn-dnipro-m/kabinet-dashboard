@@ -250,7 +250,7 @@ def who(msg, sku, wh):
 
 
 def channels(sku):
-    """Продажи SKU за окно по каналу, больше первыми: «LM 1 161 · Carrefour ES 198 · Amazon ES FBM 76» (до трёх)."""
+    """Продажи SKU за окно по каналу, больше первыми: «Leroy Merlin 1 161 · Carrefour ES 198» (до двух, остальное «…»)."""
     out = []
     for mk, chan, v in sorted(SALES30_CH.get(str(sku), []), key=lambda t: -t[2]):
         if v <= 0:
@@ -261,7 +261,7 @@ def channels(sku):
         else:
             label = chan + (f" {mk.split('_', 1)[1]}" if "_" in mk else "")
         out.append(f"{label} " + f"{v:,.0f}".replace(",", " "))
-    return " · ".join(out[:3]) + (" · …" if len(out) > 3 else "")
+    return " · ".join(out[:2]) + (" · …" if len(out) > 2 else "")
 
 
 def oos_days(sku, wh):
@@ -318,7 +318,7 @@ def alert_block(area):
                 seen.add(x)
                 extra = []
                 if by_sales and s30:                            # «SKU (склад)» → «SKU (склад, 9 555 €: …, …)»
-                    _ch = channels(_sku) if _sku else ""
+                    _ch = channels(_sku) if _sku and len(names) < 3 else ""   # каналы — у первых трёх SKU
                     extra.append(f"{s30:,.0f}".replace(",", " ") + " €" + (f": {_ch}" if _ch else ""))
                 if days:
                     extra.append(f"без остатка {days} дн")
