@@ -7,8 +7,12 @@
 - `Kabinet - Amazon Run Check` (раз в час) — прогоны джоб Amazon API: успех, запись в таблицы, 429: `amazon_run_checks`.
 
 Чья джоба создала отчёт, Amazon не говорит. Экран сопоставляет по типу и времени: отчёт типа T, созданный в момент
-t, приписан джобе, у которой тип T есть в коде (`amazon_report_types.jobs`) и прогон шёл в момент t. Не нашлась —
-«не опознан» (ручной запуск, проба, отчёт, созданный самим Amazon). Владелец — система, а не человек.
+t, приписан джобе, у которой тип T есть в коде (`amazon_report_types.jobs`) и прогон шёл в момент t. Прогоны в
+`amazon_run_checks` — только завершённые и проверенные (Run Check в :50, 15+ мин после конца), поэтому отчёт идущего
+прогона сопоставить ещё нечем: «ещё не сопоставлен», пока у какой-то из джоб его типа последний проверенный прогон
+начался раньше отчёта (21.10.2026 без этого всё утро отчёты Sales & Traffic for Tableau, 07:00–10:12, шли как «не
+опознан»). «Не опознан» — у всех джоб его типа после отчёта уже есть проверенный прогон, а совпадения нет: ручной
+запуск, проба, отчёт самого Amazon. Владелец — система, а не человек.
 """
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -23,8 +27,9 @@ from util import as_text, grid_height
 
 KYIV = ZoneInfo("Europe/Kyiv")
 # палитра Кабинета (schedule_view.py)
-OWNER_COLOR = {"kabinet": "#1f77b4", "darina": "#f2b134", "listing_suite": "#26a69a", "unknown": "#9aa4b2"}
-OWNERS = ["kabinet", "darina", "listing_suite", "unknown"]
+OWNER_COLOR = {"kabinet": "#1f77b4", "darina": "#f2b134", "listing_suite": "#26a69a", "pending": "#cfd6df",
+               "unknown": "#9aa4b2"}
+OWNERS = ["kabinet", "darina", "listing_suite", "pending", "unknown"]
 WINDOW_H = 24
 SLACK = timedelta(minutes=2)          # createdTime у Amazon и границы прогона Databricks — разные часы
 
@@ -82,16 +87,24 @@ def _attribute(rep: pd.DataFrame, runs: pd.DataFrame, types: pd.DataFrame, jobs:
         end = r.ended_at if not pd.isna(r.ended_at) else pd.Timestamp.now(tz=timezone.utc)
         win.setdefault(int(r.job_id), []).append((r.started_at - SLACK, end + SLACK))
     names = {int(r.job_id): as_text(r.job_name) for r in jobs.itertuples()}
+    last_checked = {jid: max(a for a, _b in w) + SLACK for jid, w in win.items()}   # начало последнего проверенного
     out_job, out_owner = [], []
     for r in rep.itertuples():
-        hit = None
+        hit, cands = None, type_jobs.get(as_text(r.report_type), [])
         if not pd.isna(r.created_time):
-            for jid, owner in type_jobs.get(as_text(r.report_type), []):
+            for jid, owner in cands:
                 if any(a <= r.created_time <= b for a, b in win.get(jid, [])):
                     hit = (names.get(jid, ""), owner)
                     break
-        out_job.append(hit[0] if hit else "")
-        out_owner.append(hit[1] if hit else "unknown")
+        if hit:
+            out_job.append(hit[0])
+            out_owner.append(hit[1])
+            continue
+        # прогон, который мог его создать, ещё не проверен: у джобы его типа нет проверенного прогона после отчёта
+        pending = (not pd.isna(r.created_time)
+                   and any(last_checked.get(jid) is None or last_checked[jid] < r.created_time for jid, _o in cands))
+        out_job.append("")
+        out_owner.append("pending" if pending else "unknown")
     rep = rep.copy()
     rep["job_name"], rep["owner"] = out_job, out_owner
     return rep
