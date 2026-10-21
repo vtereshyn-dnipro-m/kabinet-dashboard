@@ -5390,6 +5390,7 @@ TRANSLATIONS = {
     "auth.action.ls.page.catalog": {"ru": "Страница «Каталог»", "uk": "Сторінка «Каталог»", "en": "Page \u201cCatalog\u201d"},
     "auth.action.ls.page.synthesis": {"ru": "Страница «Синтез»", "uk": "Сторінка «Синтез»", "en": "Page \u201cSynthesis\u201d"},
     "auth.action.ls.page.textgen": {"ru": "Страница «Генератор текстов (пилот)»", "uk": "Сторінка «Генератор текстів (пілот)»", "en": "Page \u201cText Generator (pilot)\u201d"},
+    "auth.action.ls.textgen.accept": {"ru": "Генератор текстов: принять, выгрузить, загрузить паспорт", "uk": "Генератор текстів: прийняти, вивантажити, завантажити паспорт", "en": "Text Generator: accept, export, upload passport"},
     "auth.action.ls.page.photo": {"ru": "Страница «Фото и A+»", "uk": "Сторінка «Фото та A+»", "en": "Page \u201cPhotos & A+\u201d"},
     "auth.action.ls.page.content": {"ru": "Страница «Контент»", "uk": "Сторінка «Контент»", "en": "Page \u201cContent\u201d"},
     "auth.action.ls.page.matrix": {"ru": "Страница «Матрица»", "uk": "Сторінка «Матриця»", "en": "Page \u201cMatrix\u201d"},
