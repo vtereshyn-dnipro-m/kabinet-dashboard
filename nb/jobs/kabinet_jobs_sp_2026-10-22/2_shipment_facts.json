@@ -1,0 +1,8 @@
+{
+  "job_id": 108611324580114,
+  "new_settings": {
+    "run_as": {
+      "service_principal_name": "<APPLICATION_ID kabinet-jobs-sp>"
+    }
+  }
+}
