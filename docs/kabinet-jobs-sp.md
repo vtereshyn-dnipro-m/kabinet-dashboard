@@ -5,8 +5,14 @@
 
 ## Что сейчас (проверено чтением 21.10.2026)
 
-- 20 наших джоб ходят от `claude-uc-ro` (b1698364-…). В Lakebase Кабинета у него прямые гранты на 120 таблиц и вью
-  `kabinet_data` (SELECT на все, запись на часть) и на 16 последовательностей; в базе Listing Suite прямых грантов нет.
+- 20 наших джоб ходят от `claude-uc-ro` (b1698364-…). В Lakebase Кабинета у него прямые гранты на 219 объектов
+  `kabinet_data` — 173 таблицы, 7 секционированных, 39 вью; SELECT на все, запись на 66. Ещё 16 последовательностей
+  (USAGE, SELECT), USAGE на схему и права по умолчанию на новые таблицы (SELECT, от `claude_code_rw` и владельца). В базе
+  Listing Suite прямых грантов нет. Выгружено из каталога (`aclexplode` по `pg_class.relacl` и `pg_default_acl`).
+  `information_schema.role_table_grants` для этого не годится: он показывает только гранты с участием спрашивающей
+  роли. Первая выгрузка 21.10 через него дала 120 объектов — без `system_pulse`, `orders_history`, `raw_lm_*`, `raw_mm_*`.
+- У всех 20 `run_as` в настройках не задан: джоба идёт от своего владельца, а владелец — `claude-uc-ro` (IS_OWNER;
+  у группы `admins` — CAN_MANAGE).
 - В Unity Catalog из этих 20 пишут 9 — каждая в СВОИ таблицы схемы `dnipro_m.dnipro_m` (владелец — `claude-uc-ro`, 14
   таблиц): Settlements, Inventory Age, FBA Shipments, Listing Snapshots Replica, FBA Charges, Odoo Purchase Orders,
   Sales & Traffic Replica, Account Health, Brand Analytics. Остальные 11 в UC только читают.
@@ -21,17 +27,32 @@
    джобы получают токен от Databricks сами.
 3. Permissions принципала → дать себе роль **Service Principal: User** — без неё Databricks не даст поставить «Run as»
    этого принципала в настройках джобы.
-4. Lakebase: проект `kabinet-dashboard` → Permissions → `kabinet-jobs-sp` — право подключаться (CAN USE /
-   «Can connect»), иначе `generate_database_credential` в ноутбуке вернёт отказ.
+4. Право на проект Lakebase, скорее всего, **не нужно**: `claude-uc-ro` подключается без него — хватает роли в базе
+   (шаг 2, A1). Давать CAN USE на проект `kabinet-dashboard`, только если первый прогон упадёт на
+   `generate_database_credential` с отказом в доступе.
 
 ## Шаг 2. Права «только добавить» (владелец, SQL)
 
 `sql/kabinet_jobs_sp_2026-10-22.sql`:
-- **Часть A — Lakebase Кабинета**: роль принципала (`databricks_create_role`), `USAGE` на схему, те же гранты, что у
-  `claude-uc-ro` (120 строк, выгружены из `information_schema`), последовательности.
-- **Часть B — Unity Catalog**: только чтение (`USE CATALOG`, `USE SCHEMA`, `SELECT` на `dnipro_m`, `kabinet`,
-  `kabinet_data`, `listing_data`). Запись (`CREATE TABLE`, `MODIFY` на `dnipro_m.dnipro_m`) — НЕ сейчас: первым пяти
-  джобам она не нужна; для девяти пишущих — вторым PR вместе с передачей владения 14 таблицами.
+- **Часть A — Lakebase Кабинета.** Запуск: `psql "<строка подключения владельца>" -v sp=<Application ID>
+  -v ON_ERROR_STOP=1 -1 -f <часть A>`. Переменные `:"sp"` и `:'sp'` понимает только psql, SQL-редактор Lakebase — нет.
+  `-1` — одна транзакция: при любой ошибке не применится ничего. Состав:
+  - A1 — роль принципала через `databricks_create_role(:'sp', 'SERVICE_PRINCIPAL')`; пропустить, если роль уже
+    заведена в интерфейсе Lakebase;
+  - A2 — USAGE на схему;
+  - A3 — ровно те гранты, что у `claude-uc-ro`: 219 объектов, запись на 66;
+  - A4 — последовательности: USAGE и SELECT;
+  - A5 — права по умолчанию (`ALTER DEFAULT PRIVILEGES FOR ROLE claude_code_rw` и `"v.tereshyn@dniprom.com"`), иначе
+    новые таблицы останутся без гранта.
+- **Часть B — Unity Catalog** (SQL-склад, `<sp>` подставить руками):
+  - чтение — `USE CATALOG`, плюс `USE SCHEMA` и `SELECT` на `dnipro_m`, `kabinet`, `kabinet_data`, `listing_data`.
+    У `claude-uc-ro` явных грантов в UC почти нет (USE CATALOG и `kabinet_data`), остальное он получает через
+    `account users`. Новому принципалу чтение даётся явно, чтобы ничего не пропало, когда `account users` урежут;
+  - запись (`CREATE TABLE`, `MODIFY` на `dnipro_m.dnipro_m`) — **не сейчас**: первым пяти джобам она не нужна, девяти
+    пишущим её дадут вторым PR вместе с передачей владения 14 таблицами.
+
+**«Только чтение» в UC пока на бумаге.** Пока у `account users` на каталог ALL PRIVILEGES и MANAGE, новый принципал (как
+и любой) может писать в UC через группу. По-настоящему ограничение заработает после последнего шага «Дальше».
 
 Ничего не отнимается: `claude-uc-ro` и `account users` работают как прежде.
 
@@ -39,12 +60,23 @@
 
 Для первых пяти: `Kabinet - Dependent Demand`, `Kabinet - Shipment Facts` — ноутбуки в папке `/Users/b1698364-…/`;
 `SKU Master Loader`, `Product Entities Loader`, `Assortment Matrix Loader` — в `/Users/v.tereshyn@dniprom.com/`.
-Каждому ноутбуку (или папке) → Permissions → `kabinet-jobs-sp` — **Can Read**. Секреты первым пяти не нужны.
+**Can Read** для `kabinet-jobs-sp` — каждому из пяти ноутбуков отдельно (ноутбук → Share/Permissions), не папке:
+право на домашнюю папку открыло бы принципалу все ноутбуки в ней.
+- `/Users/b1698364-6ec5-4240-8cd6-e06dd6e60856/Kabinet - Dependent Demand`
+- `/Users/b1698364-6ec5-4240-8cd6-e06dd6e60856/Kabinet - Shipment Facts`
+- `/Users/v.tereshyn@dniprom.com/Kabinet - SKU Master Loader`
+- `/Users/v.tereshyn@dniprom.com/Kabinet - Product Entities Loader`
+- `/Users/v.tereshyn@dniprom.com/Kabinet - Assortment Matrix Loader`
+
+Секреты этим пяти джобам не нужны.
 
 ## Шаг 4. Перевести первые пять джоб (по «мержи», по одной)
 
-`nb/jobs/kabinet_jobs_sp_2026-10-22/N_*.json` — `run_as` = новый принципал (подставить Application ID), рядом
-`N_*.rollback.json` — обратно на `claude-uc-ro`. Почему эти пять: в Unity Catalog не пишут, секретов не читают, идут
+Файлы — в `nb/jobs/kabinet_jobs_sp_2026-10-22/`:
+- `N_*.json` — ставит `run_as` = новый принципал (Application ID подставить);
+- `N_*.rollback.json` — убирает `run_as` (`fields_to_remove`). Без `run_as` джоба снова идёт от владельца, то есть от
+  `claude-uc-ro`. Прямо записать `run_as` = `claude-uc-ro` не получится: нужна роль Service Principal: User на него,
+  а её у владельца нет. Почему эти пять: в Unity Catalog не пишут, секретов не читают, идут
 утром одна за другой и не трогают квоту Amazon:
 
 | # | джоба | расписание (Киев) | пишет |
@@ -63,7 +95,8 @@ id). Не в окна 09:30–11:30 и 16:00–17:30; лучше днём, чт�
 - Ближайший плановый прогон каждой — зелёный, пульс в `system_pulse` свежий, строки в её таблицах Lakebase обновились;
   «Run as» прогона — `kabinet-jobs-sp`. Признак нехватки прав — `permission denied for table …` (Lakebase) или
   `PERMISSION_DENIED` (UC) в ошибке прогона.
-- Откат — `databricks jobs update --json @…rollback.json`: джоба снова от `claude-uc-ro`, права которого не трогались.
+- Откат — `databricks jobs update --json @…rollback.json`: `run_as` убран, джоба снова идёт от владельца
+  (`claude-uc-ro`), его права не трогались.
 
 ## Дальше (отдельными PR, по «мержи»)
 
@@ -71,5 +104,13 @@ id). Не в окна 09:30–11:30 и 16:00–17:30; лучше днём, чт�
    Plan, Buy Box) — плюс READ на их секреты (`odoo`, `kabinet-external`, `clickup`, `amazon-sp-api`).
 2. Девять пишущих в UC — `CREATE TABLE, MODIFY` на `dnipro_m.dnipro_m`, передача владения 14 таблицами
    (`ALTER TABLE … OWNER TO`), READ на `amazon-sp-api`.
-3. Когда все 20 на новом принципале и сутки зелёные: `claude-uc-ro` — убрать запись в Lakebase (REVOKE INSERT/UPDATE/
-   DELETE), в UC оставить USE + SELECT; затем — план для `account users` (только чтение), отдельно.
+3. Владение: у всех 20 джоб владелец — `claude-uc-ro`. Перед тем как урезать его права, передать владение джобами
+   владельцу Кабинета или новому принципалу. Иначе после урезания любая джоба, у которой `run_as` по ошибке сброшен,
+   пойдёт от `claude-uc-ro` с правами только на чтение. Тогда же перенести ноутбуки 9 джоб (2 из первой пятёрки:
+   Dependent Demand и Shipment Facts) из `/Users/b1698364-…/` в общую папку Кабинета и поправить `notebook_path`.
+4. Правило «новая таблица — гранты обоим принципалам» (AGENTS.md) — отдельной правкой AGENTS.md и
+   `docs/facts/platform.md`, по «мержи». На переходный период — трём: приложению, `claude-uc-ro` и `kabinet-jobs-sp`.
+   Права по умолчанию (A5) покрывают таблицы, созданные `claude_code_rw` и владельцем; таблицы других создателей —
+   нет.
+5. Когда все 20 на новом принципале и сутки зелёные: у `claude-uc-ro` убрать запись в Lakebase (REVOKE INSERT,
+   UPDATE, DELETE), в UC оставить USE и SELECT. Затем отдельным планом — `account users` только на чтение.
