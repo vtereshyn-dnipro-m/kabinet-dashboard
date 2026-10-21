@@ -14,8 +14,10 @@
 #
 # Пишет kabinet_data.amazon_report_log (отчёт — строка, статус обновляется: IN_QUEUE → IN_PROGRESS → DONE/FATAL/
 # CANCELLED) и amazon_dk_query_log (запрос Data Kiosk — строка). Чья это джоба, Amazon не говорит — сопоставление по
-# времени и типу делает экран «Amazon API», не журнал. Окно — с последнего виденного создания минус
-# reorder_params.amazon_journal_overlap_h (2 ч), не глубже 26 ч. Пульс — последним, сбои — падение после пульса.
+# времени и типу делает экран «Amazon API», не журнал. Окно — каждый прогон целиком за reorder_params.
+# amazon_journal_window_h (26 ч): так отчёт, который шёл дольше часа, и группа типов, получившая 429 в прошлый час, не
+# теряются, а статусы дозревают сами (проба 21.10: 6 запросов за прогон — в пределах лимита). Пульс — последним, сбои —
+# падение после пульса.
 # dry_run=1 — без записи: печатает, что записал бы. Источник кода — nb/amazon_api_journal.py в kabinet-dashboard.
 
 # COMMAND ----------
@@ -29,7 +31,6 @@ from databricks.sdk import WorkspaceClient
 JOB_NAME = "Kabinet - Amazon API Journal"
 KYIV = ZoneInfo("Europe/Kyiv")
 SP = "https://sellingpartnerapi-eu.amazon.com"
-MAX_BACK_H = 26                      # глубже окна не ходим: журнал ведётся каждый час, сутки с запасом
 w = WorkspaceClient()
 try:
     dbutils.widgets.text("dry_run", "0")  # noqa: F821
@@ -68,21 +69,17 @@ def ts(v):
 
 # ── настройки и окно ──
 with pg() as c, c.cursor() as cur:
-    cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'amazon_journal_overlap_h'")
+    cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'amazon_journal_window_h'")
     _r = cur.fetchone()
-    OVERLAP = dt.timedelta(hours=float(_r[0]) if _r else 2)
+    if _r is None and not _TYPES_JSON:
+        _errors.append("нет reorder_params.amazon_journal_window_h — окно 26 ч")
+    WINDOW = dt.timedelta(hours=float(_r[0]) if _r else 26)
     if _TYPES_JSON:                       # проба до создания таблиц
-        TYPES, _last_rep, _last_dk = sorted(json.loads(_TYPES_JSON)), None, None
+        TYPES = sorted(json.loads(_TYPES_JSON))
     else:
         cur.execute("SELECT report_type FROM kabinet_data.amazon_report_types WHERE is_active ORDER BY 1")
         TYPES = [r[0] for r in cur.fetchall()]
-        cur.execute("SELECT max(created_time) FROM kabinet_data.amazon_report_log")
-        _last_rep = cur.fetchone()[0]
-        cur.execute("SELECT max(created_time) FROM kabinet_data.amazon_dk_query_log")
-        _last_dk = cur.fetchone()[0]
-floor = now - dt.timedelta(hours=MAX_BACK_H)
-since_rep = max(floor, (_last_rep - OVERLAP) if _last_rep else floor)
-since_dk = max(floor, (_last_dk - OVERLAP) if _last_dk else floor)
+since_rep = since_dk = now - WINDOW
 print(f"типов отчётов: {len(TYPES)}; окно отчётов с {since_rep:%d.%m %H:%M} UTC, Data Kiosk с {since_dk:%d.%m %H:%M} UTC")
 
 # ── токен LWA ──
@@ -148,7 +145,8 @@ if _tok:
             nxt = (js.get("pagination") or {}).get("nextToken")
             if not nxt:
                 break
-            prm = {"paginationToken": nxt}
+            # у getQueries, в отличие от getReports, со следующей страницей передаются и прежние параметры
+            prm = {"pageSize": 100, "createdSince": since_dk.strftime("%Y-%m-%dT%H:%M:%SZ"), "paginationToken": nxt}
     except Exception as e:
         _errors.append(f"getQueries: {type(e).__name__}: {clean(e)}")
 

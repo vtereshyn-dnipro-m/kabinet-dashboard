@@ -68,7 +68,7 @@ COMMENT ON TABLE kabinet_data.amazon_dk_query_log IS
   'Журнал Data Kiosk getQueries: запросы аккаунта, статус и время. Пишет Kabinet - Amazon API Journal.';
 
 INSERT INTO kabinet_data.reorder_params (key, value, note) VALUES
-  ('amazon_journal_overlap_h', 2, 'Amazon API Journal: окно getReports/getQueries — с последнего виденного создания минус столько часов (статусы дозревают)')
+  ('amazon_journal_window_h', 26, 'Amazon API Journal: окно getReports/getQueries — каждый прогон целиком за столько часов (долгие отчёты и 429 не теряются, статусы дозревают)')
 ON CONFLICT (key) DO NOTHING;
 
 GRANT SELECT, INSERT, UPDATE ON kabinet_data.amazon_report_types, kabinet_data.amazon_report_log,
@@ -86,3 +86,10 @@ VALUES (:journal_job_id, 'Kabinet - Amazon API Journal', 3, 'каждый час
         'Журнал getReports и Data Kiosk getQueries: какие отчёты и запросы созданы на аккаунте, кем бы ни были')
 ON CONFLICT (job_id) DO UPDATE SET job_name = EXCLUDED.job_name, expected_interval_hours = EXCLUDED.expected_interval_hours,
     schedule_description = EXCLUDED.schedule_description, is_active = true, note = EXCLUDED.note;
+
+-- Сама джоба — тоже джоба Amazon API (docs/facts/monitoring.md: новую заводить в реестр тем же PR): её видит Amazon Run
+-- Check и утренняя сводка. Запись — по seen_at журнала: его обновляет каждый прогон (upsert), без записи значит «не опросил»
+INSERT INTO kabinet_data.amazon_api_jobs (job_id, job_name, owner, check_write, pg_db, pg_table, pg_ts_col, note)
+VALUES (:journal_job_id, 'Kabinet - Amazon API Journal', 'kabinet', true, 'kabinet', 'kabinet_data.amazon_report_log',
+        'seen_at', 'журнал getReports / getQueries с 21.10.2026')
+ON CONFLICT (job_id) DO NOTHING;
