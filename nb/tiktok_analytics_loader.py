@@ -16,7 +16,9 @@
 #
 # Продолжение — по отметке dnipro_m.tiktok.sync_state (поток analytics_*: конец последнего ЦЕЛИКОМ записанного дня)
 # минус tiktok_analytics_overlap_days: TikTok дописывает атрибуцию задним числом. Первый запуск —
-# tiktok_history_days назад (API держит около года). На первом сбойном дне поток останавливается.
+# tiktok_history_days назад, но не глубже окна истории API: у магазина оно не меньше года, а у товаров, SKU, видео и
+# эфиров — tiktok_analytics_lookback_days (180: проба 22.10.2026 — 180 дней отдаётся, 181 — код 28001022). На первом
+# сбойном дне поток останавливается.
 # Креаторы — только creator_id и публичный ник (tiktok_analytics_rows.py). Пульс — последним, безусловно; сбои —
 # падение после пульса. dry_run=1 — без записи и пульса; full=1 — заново с глубины первого запуска.
 # Пока #364 не применён — без расписания, прогоны владелец запускает руками. Источник кода —
@@ -68,11 +70,11 @@ try:
         settings = {k: int(v) for k, v in _cur.fetchall()}
 finally:
     _c.close()
-_need = ("tiktok_history_days", "tiktok_analytics_overlap_days")
+_need = ("tiktok_history_days", "tiktok_analytics_overlap_days", "tiktok_analytics_lookback_days")
 _missing = [k for k in _need if k not in settings]
 if _missing:
-    raise RuntimeError(f"в reorder_params нет {_missing} — сначала SQL sql/tiktok_analytics_2026-10-22.sql")
-HISTORY, OVL = (settings[k] for k in _need)
+    raise RuntimeError(f"в reorder_params нет {_missing} — сначала SQL sql/tiktok_analytics_2026-10-22.sql и sql/tiktok_analytics_lookback_2026-10-22.sql")
+HISTORY, OVL, LOOKBACK = (settings[k] for k in _need)
 
 errors, stats = [], {}
 loaded_at = dt.datetime.now(dt.timezone.utc)
@@ -102,6 +104,8 @@ def merge(table, keys, rows):
 
 def start_day(stream, shop_id):
     first = today - dt.timedelta(days=HISTORY)
+    if stream != "analytics_shop":           # у товаров, SKU, видео и эфиров окно истории API короче
+        first = max(first, today - dt.timedelta(days=LOOKBACK))
     if FULL:
         return first
     row = spark.sql(f"SELECT cast(done_until AS date) AS d FROM {SCHEMA}.sync_state WHERE shop_id = :sid AND stream = :st",
