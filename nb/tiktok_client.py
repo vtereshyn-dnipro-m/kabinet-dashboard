@@ -25,6 +25,7 @@
 import hashlib
 import hmac
 import json
+import logging
 import re
 import time
 
@@ -33,6 +34,9 @@ import requests
 API = "https://open-api.tiktokglobalshop.com"
 AUTH = "https://auth.tiktok-shops.com"
 SCOPE = "tiktok-shop"
+
+# urllib3 на уровне DEBUG пишет полный URL запроса (у авторизации в нём app_secret и auth_code) — не ниже WARNING.
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 ALLOWED = (
     ("GET", "/authorization/202309/shops"),
@@ -51,9 +55,12 @@ TIMEOUT_S = 60
 RETRIES_429 = 4                      # паузы 5, 10, 20, 40 с
 SAVE_RETRIES = 3
 
-_SECRET_HINT = re.compile(r"app[_ ]?secret|app[_ ]?key|sign", re.I)
-_CODE_HINT = re.compile(r"auth[_ ]?code|authorization code|code.*(expired|invalid|used)", re.I)
-_TOKEN_HINT = re.compile(r"access[_ ]?token|credential|token.*(expired|invalid)", re.I)
+# Распознавание причин — по тексту сообщения TikTok: коды ошибок авторизации в доступной документации не сверены.
+# Нераспознанная причина обмена всё равно называет секрет главным подозреваемым (explain_auth_error).
+_SECRET_HINT = re.compile(r"app[_ ]?secret|app[_ ]?key|\bsign(ature)?\b", re.I)
+_CODE_HINT = re.compile(r"auth[_ ]?code|authori[sz]ation code", re.I)
+# Только ошибка САМОГО access-токена: не page_token, не «Invalid credentials» без слова access, не любой HTTP 401.
+_TOKEN_HINT = re.compile(r"access[_ ]?token\b.*\b(expired|invalid)|\b(expired|invalid)\b.*access[_ ]?token", re.I)
 
 
 class TikTokError(Exception):
@@ -69,21 +76,26 @@ class TokenSaveError(Exception):
 
 
 def sign(path, params, app_secret, body=""):
-    """Подпись запроса. body — та же строка, что уходит в запрос ("" для GET)."""
+    """Подпись запроса. body — та же строка, что уходит в запрос ("" для GET). Значения query — только скаляры:
+    None и списки requests отправляет иначе, чем они подписались бы, поэтому они отклоняются (None — убирает call)."""
     q = {k: v for k, v in params.items() if k not in ("sign", "access_token")}
+    bad = [k for k, v in q.items() if v is None or isinstance(v, (list, tuple, dict, set))]
+    if bad:
+        raise ValueError(f"query: значения {bad} — не скаляры, подпись не совпала бы с запросом")
     base = path + "".join(f"{k}{q[k]}" for k in sorted(q)) + (body or "")
     return hmac.new(app_secret.encode(), (app_secret + base + app_secret).encode(), hashlib.sha256).hexdigest()
 
 
 def _template_re(template):
-    return re.compile("^" + re.sub(r"\{[a-z_]+\}", r"[^/]+", template) + "$")
+    # id в пути — только буквы, цифры, «_» и «-»: «..», «%2F», «?», перевод строки в id не пройдут
+    return re.compile(re.sub(r"\\\{[a-z_]+\\\}", "[A-Za-z0-9_-]+", re.escape(template)))
 
 
 _ALLOWED_RE = [(m, _template_re(t)) for m, t in ALLOWED]
 
 
 def check_allowed(method, path):
-    if not any(m == method and rx.match(path) for m, rx in _ALLOWED_RE):
+    if not isinstance(path, str) or not any(m == method and rx.fullmatch(path) for m, rx in _ALLOWED_RE):
         raise PermissionError(f"{method} {path} — не в белом списке клиента TikTok (только чтение)")
 
 
@@ -93,31 +105,40 @@ def as_unix(value, now=None):
     return v if v >= 10 ** 9 else int(now if now is not None else time.time()) + v
 
 
-def explain_auth_error(code, message):
-    """Понятная причина отказа обмена или обновления токена — для владельца, без значений секретов."""
+def explain_auth_error(code, message, step="exchange"):
+    """Понятная причина отказа обмена или обновления токена — для владельца, без значений секретов. Секрет
+    проверяется ПЕРВЫМ; нераспознанный отказ обмена тоже называет секрет главным подозреваемым."""
     m = message or ""
-    if _CODE_HINT.search(m):
-        return "код авторизации неверный, уже использован или истёк — открыть ссылку авторизации заново и сразу запустить обмен"
+    tail = f" [TikTok: code={code}, {m[:200]}]"
     if _SECRET_HINT.search(m):
-        return "СЕКРЕТ НЕВЕРНЫЙ: TikTok отверг app-key или app-secret из скоупа tiktok-shop — перезаписать их"
-    if re.search(r"refresh", m, re.I):
-        return "refresh-токен не принят (истёк или уже заменён) — нужна повторная авторизация"
-    return f"TikTok отказал: code={code}, {m[:200]}"
+        return "СЕКРЕТ НЕВЕРНЫЙ: TikTok отверг app-key или app-secret из скоупа tiktok-shop — перезаписать их" + tail
+    if _CODE_HINT.search(m):
+        return ("код авторизации неверный, уже использован или истёк — открыть ссылку авторизации заново и сразу "
+                "запустить обмен" + tail)
+    if step == "refresh" and re.search(r"refresh", m, re.I):
+        return "refresh-токен не принят (истёк или уже заменён) — нужна повторная авторизация" + tail
+    if step == "exchange":
+        return ("обмен отклонён, причина не распознана. Если код авторизации свежий (получен минуты назад) — "
+                "вероятнее всего СЕКРЕТ НЕВЕРНЫЙ: перезаписать app-key и app-secret в скоупе tiktok-shop" + tail)
+    return "TikTok отказал" + tail
 
 
 def _http(method, url, **kw):
-    """requests без утечки URL (в нём app_secret и auth_code у запросов авторизации) в текст ошибки."""
+    """requests без утечки URL (в нём app_secret и auth_code у запросов авторизации) в текст ошибки. Новая ошибка
+    поднимается ПОСЛЕ блока except: так у неё нет __context__ с исходным исключением и его URL."""
     try:
         return requests.request(method, url, timeout=TIMEOUT_S, **kw)
     except requests.RequestException as e:
-        raise ConnectionError(f"{method} {url.split('?')[0]}: сеть — {type(e).__name__}") from None
+        kind = type(e).__name__
+    raise ConnectionError(f"{method} {url.split('?')[0]}: сеть — {kind}")
 
 
 def _json(r, path):
     try:
         return r.json()
     except ValueError:
-        raise TikTokError(path, r.status_code, None, "ответ не JSON") from None
+        pass
+    raise TikTokError(path, r.status_code, None, "ответ не JSON")
 
 
 class TikTokClient:
@@ -138,8 +159,12 @@ class TikTokClient:
         def get(k):
             try:
                 return dbutils.secrets.get(SCOPE, k)
-            except Exception:
+            except Exception as e:
+                text = str(e)
+            # «ключа нет» — нормальный случай (до первого обмена токенов нет); отказ в доступе — не он
+            if re.search(r"does not exist|not found|RESOURCE_DOES_NOT_EXIST", text, re.I):
                 return None
+            raise PermissionError(f"скоуп {SCOPE}, ключ {k}: чтение не удалось — {text[:200]}")
 
         return cls(get, lambda k, v: ws.secrets.put_secret(SCOPE, k, string_value=str(v)), **kw)
 
@@ -167,7 +192,8 @@ class TikTokClient:
         r = _http("GET", AUTH + path, params={"app_key": self.app_key, "app_secret": self._app_secret, **params})
         j = _json(r, path)
         if r.status_code != 200 or j.get("code") != 0:
-            raise TikTokError(path, r.status_code, j.get("code"), explain_auth_error(j.get("code"), j.get("message")),
+            step = "refresh" if path.endswith("/refresh") else "exchange"
+            raise TikTokError(path, r.status_code, j.get("code"), explain_auth_error(j.get("code"), j.get("message"), step),
                               j.get("request_id"))
         return j["data"]
 
@@ -210,8 +236,9 @@ class TikTokClient:
     def call(self, method, path, query=None, body=None, _retried=False):
         check_allowed(method, path)
         raw = json.dumps(body, separators=(",", ":"), ensure_ascii=False) if body is not None else ""
+        query = {k: v for k, v in (query or {}).items() if v is not None}
         for attempt in range(RETRIES_429 + 1):
-            params = {"app_key": self.app_key, "timestamp": int(time.time()), **(query or {})}
+            params = {"app_key": self.app_key, "timestamp": int(time.time()), **query}
             params["sign"] = sign(path, params, self._app_secret, raw)
             r = _http(method, API + path, params=params, data=raw.encode() if raw else None,
                       headers={"x-tts-access-token": self._access_token(), "content-type": "application/json"})
@@ -223,11 +250,11 @@ class TikTokClient:
         if j.get("code") == 0:
             return j.get("data") or {}
         msg = j.get("message") or ""
-        if not _retried and (r.status_code == 401 or _TOKEN_HINT.search(msg)):
+        if not _retried and _TOKEN_HINT.search(msg):
             self._token = None
             self.refresh()
             return self.call(method, path, query, body, _retried=True)
-        if _SECRET_HINT.search(msg) and "sign" in msg.lower():
+        if re.search(r"\bsign(ature)?\b", msg, re.I):
             msg = "СЕКРЕТ НЕВЕРНЫЙ или подпись не сошлась (app-secret в скоупе tiktok-shop): " + msg
         raise TikTokError(path, r.status_code, j.get("code"), msg, j.get("request_id"))
 

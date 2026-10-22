@@ -52,6 +52,11 @@ def test_allowed(method, path):
     ("POST", "/finance/202309/statements"),
     ("GET", "/product/202309/products/1/extra"),
     ("DELETE", "/order/202309/orders/search"),
+    ("GET", "/product/202309/products/.."),
+    ("GET", "/product/202309/products/1%2Finventory%2Fupdate"),
+    ("GET", "/product/202309/products/1?x=1"),
+    ("POST", "/order/202309/orders/search\n"),
+    ("GET", "/finance/202501/statements//statement_transactions"),
 ])
 def test_not_allowed(method, path):
     with pytest.raises(PermissionError):
@@ -64,8 +69,42 @@ def test_as_unix():
 
 
 def test_explain_auth_error():
-    assert "СЕКРЕТ НЕВЕРНЫЙ" in tt.explain_auth_error(36004004, "Invalid app_secret")
-    assert "код авторизации" in tt.explain_auth_error(36004009, "auth_code is expired")
+    # коды — условные: распознавание идёт по тексту сообщения, коды TikTok в документации не сверены
+    assert "СЕКРЕТ НЕВЕРНЫЙ" in tt.explain_auth_error(None, "Invalid app_secret")
+    assert "СЕКРЕТ НЕВЕРНЫЙ" in tt.explain_auth_error(None, "app_secret invalid for this auth_code")  # секрет — первым
+    assert "код авторизации" in tt.explain_auth_error(None, "auth_code is expired")
+    assert "СЕКРЕТ НЕВЕРНЫЙ" in tt.explain_auth_error(None, "something unexpected")         # обмен: секрет — подозреваемый
+    assert "СЕКРЕТ" not in tt.explain_auth_error(None, "something unexpected", step="refresh")
+
+
+@pytest.mark.parametrize("msg,hit", [
+    ("access_token is expired", True), ("Invalid access token", True),
+    ("page_token is invalid", False), ("Invalid credentials", False), ("Invalid sign", False),
+])
+def test_token_hint(msg, hit):
+    assert bool(tt._TOKEN_HINT.search(msg)) is hit
+
+
+def test_sign_rejects_non_scalars():
+    with pytest.raises(ValueError):
+        tt.sign("/p", {"ids": ["1", "2"]}, SECRET)
+
+
+def test_none_query_dropped(monkeypatch):
+    store = {"app-key": "K", "app-secret": SECRET, "access-token": "AT", "access-expires": "2000000000"}
+    calls = []
+    c = _client(store, monkeypatch, [_Resp(200, {"code": 0, "data": {}})], calls)
+    c.call("GET", "/finance/202309/statements", {"shop_cipher": "C", "page_token": None})
+    assert "page_token" not in calls[0][2]["params"]
+
+
+def test_401_without_token_message_does_not_refresh(monkeypatch):
+    store = {"app-key": "K", "app-secret": SECRET, "access-token": "AT", "access-expires": "2000000000",
+             "refresh-token": "RT1"}
+    c = _client(store, monkeypatch, [_Resp(401, {"code": 105001, "message": "Invalid credentials"})])
+    with pytest.raises(tt.TikTokError):
+        c.call("GET", "/authorization/202309/shops")
+    assert store["refresh-token"] == "RT1"
 
 
 class _Resp:
@@ -117,6 +156,7 @@ def test_network_error_has_no_url(monkeypatch):
     with pytest.raises(ConnectionError) as e:
         c.exchange_auth_code("CODE")
     assert SECRET not in str(e.value) and "CODE" not in str(e.value)
+    assert e.value.__context__ is None and e.value.__cause__ is None     # исходной ошибки с URL в цепочке нет
 
 
 def test_expiring_access_refreshes_and_rotates_refresh(monkeypatch):

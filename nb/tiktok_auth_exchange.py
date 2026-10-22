@@ -8,7 +8,8 @@
 # Что делает: обмен через https://auth.tiktok-shops.com/api/v2/token/get (grant_type=authorized_code), запись в скоуп
 # tiktok-shop — refresh-token, access-token, refresh-expires, access-expires (unix) — и сразу проверочный запрос
 # Get Authorized Shops (подписанный: если он прошёл, подпись и app-secret верны). В вывод — только продавец, регион,
-# сроки токенов и список магазинов (id, имя, регион, тип продавца). Сами токены, app-secret и cipher не выводятся.
+# сроки токенов и список магазинов (id, имя, регион, тип продавца — чтобы убедиться, что авторизован нужный магазин;
+# не секреты). Сами токены, app-secret и cipher не выводятся. После успеха виджет auth_code удаляется.
 # Если TikTok отказал из-за app-key / app-secret — вывод говорит прямо «СЕКРЕТ НЕВЕРНЫЙ».
 #
 # Лежит в одной папке с tiktok_client.py (файл рабочей области) — модуль импортируется из папки ноутбука.
@@ -17,7 +18,7 @@
 # COMMAND ----------
 
 # MAGIC %pip install "databricks-sdk>=0.118.0" requests -q
-dbutils.library.restartPython()
+# MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------
 
@@ -55,3 +56,6 @@ for s in shops:
           f"cipher {'получен' if s.get('cipher') else 'НЕТ'}")
 if not shops:
     raise RuntimeError("обмен прошёл, но Get Authorized Shops вернул пустой список — магазин не авторизовал приложение")
+
+# Код одноразовый и уже использован, но в виджете ему не место
+dbutils.widgets.remove("auth_code")
