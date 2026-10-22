@@ -37,13 +37,24 @@ def test_video_creator_without_display_name():
     assert r["gmv"] == Decimal("559.00") and r["video_id"] == "V1"
 
 
-def test_live_creator_id_from_open_id():
+def test_live_creator_without_open_id():
     s = {"id": 77, "creator": {k: v for k, v in CREATOR.items() if k != "creator_id"},
          "sales_performance": {"live_gmv": {"amount": "0.00", "currency": "EUR"}, "products_sold": 0},
          "traffic": {"viewers": 1408}, "interaction_performance": {"likes": 5}}
     r = ar.live_row(SHOP, "AFFILIATE_ACCOUNTS", s, AT)
-    assert r["creator_id"] == "CID" and r["live_id"] == "77" and r["viewers"] == 1408
-    assert "Juan Pérez" not in r["raw_json"]
+    assert r["creator_id"] is None and r["creator_user_name"] == "juanp" and r["live_id"] == "77" and r["viewers"] == 1408
+    assert "Juan Pérez" not in r["raw_json"] and "CID" not in r["raw_json"] and "open_id" not in r["raw_json"]
+
+
+def test_live_product_sales_block():
+    p = {"id": "P1", "name": "Taladro", "sales": {"direct_gmv": {"amount": "40.63", "currency": "EUR"}, "items_sold": 0}}
+    r = ar.live_product_row(SHOP, "L1", p, AT)
+    assert r["gmv"] == Decimal("40.63") and r["currency"] == "EUR" and r["units_sold"] == 0
+
+
+def test_missing_id_is_none_not_text():
+    r = ar.sku_day_row(SHOP, dt.date(2026, 10, 1), {"gmv": None}, AT)
+    assert r["sku_id"] is None and not ar.has_keys(r, ("shop_id", "date", "sku_id"))
 
 
 def test_sku_ids_as_text():

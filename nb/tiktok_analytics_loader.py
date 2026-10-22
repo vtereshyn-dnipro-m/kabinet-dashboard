@@ -8,8 +8,10 @@
 # - магазин — GMV, заказы, штуки, покупатели, трафик (shop/performance, granularity 1D, куском до 30 дней);
 # - товары и SKU — метрики за день (shop_products/performance, shop_skus/performance);
 # - видео — метрики за день и товары видео с продажами в этот день (shop_videos/…);
-# - эфиры — сессии трёх типов аккаунтов (у ES в API нет «ALL»: OFFICIAL, AFFILIATE, MARKETING) и товары эфиров с
-#   продажами; сессия — строка с итогами, перечитывается окнами не длиннее 60 дней.
+# - эфиры — сессии трёх типов аккаунтов (у ES в API нет «ALL»: OFFICIAL, AFFILIATE, MARKETING), сессия — строка с
+#   итогами, перечитывается окнами не длиннее 60 дней; товары эфира — одним запросом без дат и страниц, только у
+#   официальных и маркетинговых аккаунтов (у эфиров аффилиатов API товаров не отдаёт); сбой товаров одного эфира —
+#   в сбои прогона, но сессии окна пишутся.
 # Оценка магазина (SPS) не грузится: для региона ES API её не отдаёт (проба 22.10.2026, код 38011502).
 #
 # Продолжение — по отметке dnipro_m.tiktok.sync_state (поток analytics_*: конец последнего ЦЕЛИКОМ записанного дня)
@@ -43,6 +45,7 @@ import tiktok_client as tt
 JOB_NAME = "Kabinet - TikTok Shop Analytics Loader"
 SCHEMA = "dnipro_m.tiktok"
 ACCOUNT_TYPES = ("OFFICIAL_ACCOUNTS", "AFFILIATE_ACCOUNTS", "MARKETING_ACCOUNTS")
+LIVE_PRODUCTS_FOR = ("OFFICIAL_ACCOUNTS", "MARKETING_ACCOUNTS")   # товары эфира API отдаёт только для этих аккаунтов
 dbutils.widgets.text("dry_run", "0")
 dbutils.widgets.text("full", "0")
 DRY = dbutils.widgets.get("dry_run").strip() == "1"
@@ -77,6 +80,10 @@ today = dt.date.today()
 
 
 def merge(table, keys, rows):
+    bad = [r for r in rows if not ar.has_keys(r, keys)]
+    if bad:
+        errors.append(f"{table}: {len(bad)} строк без ключа {keys} — пропущены")
+        rows = [r for r in rows if ar.has_keys(r, keys)]
     if not rows:
         return 0
     uniq = {tuple(r[k] for k in keys): r for r in rows}
@@ -194,10 +201,12 @@ for shop in shops:
                 for s in client.pages("GET", "/analytics/202609/shop_lives/performance", "live_stream_sessions",
                                       q_range(q, d0, d1, account_type=at), page_size=50):
                     rows.append(ar.live_row(shop, at, s, loaded_at))
-                    if (ar.integer((s.get("sales_performance") or {}).get("products_sold")) or 0) > 0:
-                        for p in client.pages("GET", f"/analytics/202512/shop/{s['id']}/products_performance", "products",
-                                              q_range(q, d0, d1), page_size=50):
-                            lprods.append(ar.live_product_row(shop, s["id"], p, loaded_at))
+                    if at in LIVE_PRODUCTS_FOR and (ar.integer((s.get("sales_performance") or {}).get("products_sold")) or 0) > 0:
+                        try:
+                            data = client.call("GET", f"/analytics/202512/shop/{s['id']}/products_performance", q)
+                            lprods += [ar.live_product_row(shop, s["id"], p, loaded_at) for p in data.get("products") or []]
+                        except Exception as e:
+                            errors.append(f"{label} товары эфира {s.get('id')}: {str(e)[:200]}")
             merge("raw_analytics_live_products", ("shop_id", "live_id", "product_id"), lprods)
             n += merge("raw_analytics_lives", ("shop_id", "live_id"), rows)
             mark_done("analytics_lives", sid, d1)

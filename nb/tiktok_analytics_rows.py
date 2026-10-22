@@ -6,7 +6,8 @@
 #
 # Креаторы (видео, эфиры) — деловые партнёры, не покупатели (решение владельца 22.10.2026, вариант а): храним
 # `creator_id` и публичный ник `user_name` (плюс тип автора и страну). Отображаемое имя `nick_name` (бывает с настоящим
-# именем) и `open_id` (тот же id ещё раз) в сырьё не пишутся — ни в колонки, ни в raw_json.
+# именем) и `open_id` в сырьё не пишутся — ни в колонки, ни в raw_json. У видео `creator_id` есть (и равен open_id); у
+# эфиров его в ответе НЕТ — только open_id, поэтому у эфиров creator_id пустой, креатор узнаётся по нику.
 # Источник кода — nb/tiktok_analytics_rows.py в kabinet-dashboard.
 import datetime as dt
 import json
@@ -43,18 +44,20 @@ def integer(v):
         return None
 
 
+def text_id(v):
+    """id как текст; пустой — None (не строка «None»: ключевые колонки NOT NULL, MERGE склеил бы такие строки)."""
+    return None if v in (None, "") else str(v)
+
+
 def day(s):
     return dt.date.fromisoformat(str(s)[:10]) if s else None
 
 
 def strip_creator(creator):
-    """Креатор без отображаемого имени и open_id; creator_id берётся из open_id, если своего нет (у эфиров)."""
+    """Креатор без отображаемого имени и open_id: только creator_id (если он есть в ответе), ник, тип, страна."""
     if not isinstance(creator, dict):
         return None
-    out = {k: creator.get(k) for k in CREATOR_KEEP if creator.get(k) is not None}
-    if "creator_id" not in out and creator.get("open_id"):
-        out["creator_id"] = creator["open_id"]
-    return out
+    return {k: creator.get(k) for k in CREATOR_KEEP if creator.get(k) is not None}
 
 
 def _clean(obj):
@@ -93,7 +96,7 @@ def shop_day_row(shop, interval, loaded_at):
 
 def product_day_row(shop, date, p, loaded_at):
     tp = p.get("total_performance") or {}
-    return {**_base(shop, loaded_at), "date": date, "product_id": str(p.get("id")), "currency": money(tp.get("gmv"))[1],
+    return {**_base(shop, loaded_at), "date": date, "product_id": text_id(p.get("id")), "currency": money(tp.get("gmv"))[1],
             "gmv": amt(tp.get("gmv")), "gmv_incl_tax": amt(tp.get("gmv_incl_tax")), "orders": integer(tp.get("orders")),
             "sku_orders": integer(tp.get("sku_orders")), "items_sold": integer(tp.get("items_sold")),
             "product_impressions": integer(tp.get("product_impressions")), "product_clicks": integer(tp.get("product_clicks")),
@@ -106,14 +109,14 @@ def product_day_row(shop, date, p, loaded_at):
 
 
 def sku_day_row(shop, date, s, loaded_at):
-    return {**_base(shop, loaded_at), "date": date, "sku_id": str(s.get("id")), "product_id": str(s.get("product_id")),
+    return {**_base(shop, loaded_at), "date": date, "sku_id": text_id(s.get("id")), "product_id": text_id(s.get("product_id")),
             "currency": money(s.get("gmv"))[1], "gmv": amt(s.get("gmv")), "sku_orders": integer(s.get("sku_orders")),
             "units_sold": integer(s.get("units_sold")), "raw_json": _j(s)}
 
 
 def video_day_row(shop, date, v, loaded_at):
     cr = strip_creator(v.get("creator")) or {}
-    return {**_base(shop, loaded_at), "date": date, "video_id": str(v.get("id")), "creator_id": cr.get("creator_id"),
+    return {**_base(shop, loaded_at), "date": date, "video_id": text_id(v.get("id")), "creator_id": cr.get("creator_id"),
             "creator_user_name": cr.get("user_name"), "author_type": cr.get("author_type"), "title": v.get("title"),
             "video_post_time_local": v.get("video_post_time"), "duration_s": integer(v.get("duration")),
             "currency": money(v.get("gmv"))[1], "gmv": amt(v.get("gmv")), "attributed_gmv": amt(v.get("attributed_gmv")),
@@ -125,7 +128,7 @@ def video_day_row(shop, date, v, loaded_at):
 
 
 def video_product_day_row(shop, date, video_id, p, loaded_at):
-    return {**_base(shop, loaded_at), "date": date, "video_id": str(video_id), "product_id": str(p.get("id")),
+    return {**_base(shop, loaded_at), "date": date, "video_id": text_id(video_id), "product_id": text_id(p.get("id")),
             "currency": money(p.get("gmv"))[1], "gmv": amt(p.get("gmv")), "units_sold": integer(p.get("units_sold")),
             "customers": integer(p.get("customers")), "product_impressions": integer(p.get("product_impressions")),
             "product_clicks": integer(p.get("product_clicks")), "raw_json": _j(p)}
@@ -134,7 +137,7 @@ def video_product_day_row(shop, date, video_id, p, loaded_at):
 def live_row(shop, account_type, s, loaded_at):
     cr = strip_creator(s.get("creator")) or {}
     sp, tr, ip = s.get("sales_performance") or {}, s.get("traffic") or {}, s.get("interaction_performance") or {}
-    return {**_base(shop, loaded_at), "live_id": str(s.get("id")), "account_type": account_type,
+    return {**_base(shop, loaded_at), "live_id": text_id(s.get("id")), "account_type": account_type,
             "creator_id": cr.get("creator_id"), "creator_user_name": cr.get("user_name"), "author_type": cr.get("author_type"),
             "title": s.get("title"), "start_time_local": s.get("start_time"), "end_time_local": s.get("end_time"),
             "currency": money(sp.get("live_gmv"))[1], "live_gmv": amt(sp.get("live_gmv")),
@@ -148,10 +151,15 @@ def live_row(shop, account_type, s, loaded_at):
 
 
 def live_product_row(shop, live_id, p, loaded_at):
-    gmv = p.get("gmv") or p.get("live_gmv") or p.get("attributed_gmv")
-    return {**_base(shop, loaded_at), "live_id": str(live_id), "product_id": str(p.get("id") or p.get("product_id")),
-            "currency": money(gmv)[1], "gmv": amt(gmv), "units_sold": integer(p.get("units_sold") or p.get("items_sold")),
-            "raw_json": _j(p)}
+    """Товар эфира (shop/{live_id}/products_performance 202512): деньги и штуки — в блоке sales."""
+    sl = p.get("sales") or {}
+    return {**_base(shop, loaded_at), "live_id": text_id(live_id), "product_id": text_id(p.get("id")),
+            "currency": money(sl.get("direct_gmv"))[1], "gmv": amt(sl.get("direct_gmv")),
+            "units_sold": integer(sl.get("items_sold")), "raw_json": _j(p)}
+
+
+def has_keys(row, keys):
+    return all(row.get(k) is not None for k in keys)
 
 
 def days(start, end):
