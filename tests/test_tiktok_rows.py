@@ -19,20 +19,23 @@ PII = ("Juan Pérez", "+34600111222", "juan@example.com", "juanito", "Calle Mayo
 ORDER = {
     "id": "O1", "status": "COMPLETED", "create_time": 1760000000, "update_time": 1760003600, "paid_time": 1760000100,
     "buyer_email": PII[2], "buyer_nickname": PII[3], "buyer_avatar": "https://img/a.png", "buyer_message": PII[6],
-    "cpf": PII[5], "cpf_name": PII[0], "user_id": PII[7],
+    "cpf": PII[5], "cpf_name": PII[0], "user_id": PII[7], "seller_note": "llamar al +34600111222",
+    "tracking_number": "TRK-555", "auto_combine_group_id": "GRP-9", "brand_new_field": "juan@example.com",
+    "packages": [{"id": "PK1", "tracking_number": "TRK-555"}],
     "recipient_address": {"name": PII[0], "phone_number": PII[1], "full_address": PII[4], "address_line1": PII[4],
                           "first_name": "Juan", "last_name": "Pérez", "postal_code": "28001", "region_code": "ES"},
     "payment": {"currency": "EUR", "total_amount": "59.90", "sub_total": "54.90", "shipping_fee": "5.00",
                 "seller_discount": "", "platform_discount": "0"},
     "line_items": [{"id": "L1", "sku_id": "S1", "seller_sku": "19420000", "product_id": "P1", "sale_price": "54.90",
-                    "original_price": "59.90", "currency": "EUR", "display_status": "COMPLETED"}],
+                    "original_price": "59.90", "currency": "EUR", "display_status": "COMPLETED",
+                    "tracking_number": "TRK-555", "sub_item_info": {"tracking_number": "TRK-555"}}],
 }
 
 
 def test_order_has_no_pii_anywhere():
     head, lines = tr.order_rows(SHOP, ORDER, AT, SALT)
     blob = json.dumps([head, lines], default=str, ensure_ascii=False)
-    for value in PII + ("Juan", "Pérez", "img/a.png"):
+    for value in PII + ("Juan", "Pérez", "img/a.png", "TRK-555", "GRP-9", "llamar", "brand_new_field"):
         assert value not in blob, value
     assert json.loads(head["raw_json"])["recipient_address"] == {"postal_code": "28001", "region_code": "ES"}
     assert head["postal_code"] == "28001"
@@ -43,7 +46,7 @@ def test_order_values():
     assert (head["shop_id"], head["region"], head["order_id"]) == ("111", "ES", "O1")
     assert head["total_amount"] == Decimal("59.90") and head["seller_discount"] is None
     assert head["platform_discount"] == Decimal("0.00")
-    assert head["create_time"] == dt.datetime(2025, 10, 9, 8, 53, 20)          # UTC без пояса
+    assert head["create_time"] == dt.datetime(2025, 10, 9, 8, 53, 20, tzinfo=dt.timezone.utc)
     assert head["line_items_count"] == 1
     assert lines[0]["line_item_id"] == "L1" and lines[0]["seller_sku"] == "19420000"
     assert lines[0]["sale_price"] == Decimal("54.90")

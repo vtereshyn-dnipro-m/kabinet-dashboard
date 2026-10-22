@@ -8,14 +8,16 @@
 --   руками под своей учёткой.
 -- Часть C — Lakebase Кабинета, под владельцем: настройки загрузчика в reorder_params (пороги живут в БД).
 --
--- Персональные данные покупателя (имя, адрес, телефон, email, ник, налоговый номер, переписка, user_id) в эти таблицы
--- не пишутся — загрузчик срезает их до записи (nb/tiktok_rows.py). Из адреса остаются индекс и код региона; вместо
--- user_id — buyer_hash = sha256(соль + user_id), соль — секрет tiktok-shop/buyer-salt (задаёт владелец, не меняется).
+-- Персональные данные покупателя в открытом виде в эти таблицы не пишутся: у заказов загрузчик берёт только поля белого
+-- списка (nb/tiktok_rows.py). Из адреса остаются индекс и код региона; вместо user_id — buyer_hash = sha256(соль +
+-- user_id), соль — секрет tiktok-shop/buyer-salt (задаёт владелец, не меняется). buyer_hash — псевдоним, по GDPR он
+-- остаётся персональными данными. ДОСТУП: у account users на 22.10.2026 ALL PRIVILEGES на каталог dnipro_m, новая
+-- схема их наследует (чтение и запись у всех пользователей аккаунта) — решение владельца, см. описание PR.
 -- Деньги — DECIMAL(18,2) в валюте магазина (`currency`), время — TIMESTAMP по UTC.
 
 -- ── Часть A. Схема и таблицы (SQL-склад) ──
 CREATE SCHEMA IF NOT EXISTS dnipro_m.tiktok
-  COMMENT 'TikTok Shop — сырьё API (только чтение, Kabinet - TikTok Shop Loader). Без персональных данных покупателей.';
+  COMMENT 'TikTok Shop — сырьё API (только чтение, Kabinet - TikTok Shop Loader). Без персональных данных покупателей в открытом виде; buyer_hash — псевдоним.';
 
 CREATE TABLE IF NOT EXISTS dnipro_m.tiktok.raw_orders (
   shop_id STRING NOT NULL, region STRING, order_id STRING NOT NULL, status STRING,
@@ -27,7 +29,7 @@ CREATE TABLE IF NOT EXISTS dnipro_m.tiktok.raw_orders (
   buyer_hash STRING COMMENT 'sha256(соль + user_id) — покупатель для повторных покупок без user_id в открытом виде',
   line_items_count INT,
   raw_json STRING, loaded_at TIMESTAMP)
-COMMENT 'TikTok Shop: заказы (POST /order/202309/orders/search). Ключ shop_id + order_id; без персональных данных.';
+COMMENT 'TikTok Shop: заказы (POST /order/202309/orders/search). Ключ shop_id + order_id; поля — белый список, без персональных данных в открытом виде.';
 
 CREATE TABLE IF NOT EXISTS dnipro_m.tiktok.raw_order_lines (
   shop_id STRING NOT NULL, region STRING, order_id STRING NOT NULL, line_item_id STRING NOT NULL,
@@ -59,10 +61,15 @@ COMMENT 'TikTok Shop: выписки (GET /finance/202309/statements). Ключ 
 
 CREATE TABLE IF NOT EXISTS dnipro_m.tiktok.raw_finance_statement_transactions (
   shop_id STRING NOT NULL, region STRING, statement_id STRING NOT NULL, transaction_id STRING NOT NULL,
-  type STRING, order_id STRING, order_create_time TIMESTAMP, adjustment_id STRING, currency STRING,
+  type STRING, order_id STRING, order_create_time TIMESTAMP, adjustment_id STRING, adjustment_order_id STRING,
+  currency STRING,
   revenue_amount DECIMAL(18,2), shipping_cost_amount DECIMAL(18,2), fee_tax_amount DECIMAL(18,2),
   adjustment_amount DECIMAL(18,2), settlement_amount DECIMAL(18,2), raw_json STRING, loaded_at TIMESTAMP)
 COMMENT 'TikTok Shop: операции выписок (GET /finance/202501/statements/{id}/statement_transactions). Ключ shop_id + statement_id + transaction_id.';
+
+CREATE TABLE IF NOT EXISTS dnipro_m.tiktok.sync_state (
+  shop_id STRING NOT NULL, stream STRING NOT NULL, done_until TIMESTAMP, updated_at TIMESTAMP)
+COMMENT 'TikTok Shop: отметки продолжения загрузчика — магазин × поток (orders, statements) → конец последнего куска, записанного целиком. Удалить строку = перечитать поток с глубины первого запуска.';
 
 -- ── Часть B. Гранты kabinet-jobs-sp (SQL-склад; только когда принципал создан, #364) ──
 -- Решение владельца 22.10.2026: USE SCHEMA, CREATE TABLE, MODIFY, SELECT — только на dnipro_m.tiktok. USE CATALOG на

@@ -8,12 +8,15 @@
 #
 # Что грузит, по каждому магазину:
 # - заказы — поиск по update_time кусками по tiktok_window_days: первый запуск — tiktok_history_days назад, дальше от
-#   max(update_time) минус tiktok_order_overlap_days (статусы и отмены меняются задним числом); заказ и его строки;
+#   отметки последнего ЦЕЛИКОМ записанного куска минус tiktok_order_overlap_days (статусы и отмены меняются задним
+#   числом); заказ и его строки;
 # - товары — снимок целиком (поиск со статусом ALL; SKU, цены и остатки приходят в нём же);
-# - выписки — по statement_time: первый запуск — tiktok_history_days, дальше от max(statement_time) минус
-#   tiktok_finance_overlap_days (payment_status меняется после выписки); по каждой выписке — её операции.
-# Запись — MERGE по ключу, по частям (кусок заказов, все товары, выписка с операциями): падение на середине не уносит
-# уже записанное, повторный прогон ничего не задваивает. Персональные данные покупателей срезаются до записи
+# - выписки — по statement_time так же, перекрытие tiktok_finance_overlap_days (payment_status меняется после
+#   выписки); по каждой выписке — её операции.
+# Продолжение — по отметке `dnipro_m.tiktok.sync_state` (магазин × поток → done_until — конец последнего куска,
+# записанного целиком), а НЕ по max(update_time): TikTok отдаёт update_time и за пределами запрошенного диапазона, и
+# после сбоя в середине первого прогона max перепрыгнул бы дыру. На первом сбойном куске поток останавливается —
+# следующий прогон начнёт с него. Запись — MERGE по ключу, по частям; строки и операции — раньше заголовков и выписок. Персональные данные покупателей срезаются до записи
 # (tiktok_rows.py); для повторных покупок — buyer_hash = sha256(соль + user_id), соль — tiktok-shop/buyer-salt.
 # Настройки — kabinet_data.reorder_params (tiktok_*), не константы.
 #
@@ -32,6 +35,7 @@
 
 import datetime as dt
 import os
+import re
 import sys
 import time
 
@@ -49,7 +53,7 @@ dbutils.widgets.text("dry_run", "0")
 dbutils.widgets.text("full", "0")
 DRY = dbutils.widgets.get("dry_run").strip() == "1"
 FULL = dbutils.widgets.get("full").strip() == "1"
-spark.conf.set("spark.sql.session.timeZone", "UTC")      # время в строках — UTC без пояса
+spark.conf.set("spark.sql.session.timeZone", "UTC")      # чтение и вывод TIMESTAMP — в UTC
 w = WorkspaceClient()
 
 
@@ -75,7 +79,7 @@ HISTORY, ORD_OVL, FIN_OVL, WIN = (settings[k] for k in _need)
 
 errors, stats = [], {}
 now = int(time.time())
-loaded_at = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+loaded_at = dt.datetime.now(dt.timezone.utc)                  # aware UTC: Spark переводит его верно
 
 
 def merge(table, keys, rows):
@@ -96,21 +100,32 @@ def merge(table, keys, rows):
     return len(uniq)
 
 
-def start_from(table, col, shop_id, overlap_days):
+def start_from(stream, shop_id, overlap_days):
+    """Начало чтения: отметка done_until минус перекрытие; нет отметки или full=1 — глубина первого запуска."""
     if FULL:
         return now - HISTORY * 86400
-    row = spark.sql(f"SELECT max({col}) AS m FROM {SCHEMA}.{table} WHERE shop_id = :sid", args={"sid": shop_id}).first()
-    if not row or row["m"] is None:
+    row = spark.sql(f"SELECT unix_timestamp(done_until) AS u FROM {SCHEMA}.sync_state "
+                    f"WHERE shop_id = :sid AND stream = :st", args={"sid": shop_id, "st": stream}).first()
+    if not row or row["u"] is None:
         return now - HISTORY * 86400
-    last = int(row["m"].replace(tzinfo=dt.timezone.utc).timestamp())
-    return max(last - overlap_days * 86400, now - HISTORY * 86400)
+    return max(int(row["u"]) - overlap_days * 86400, now - HISTORY * 86400)
+
+
+def mark_done(stream, shop_id, until):
+    """Кусок записан целиком — отметка продолжения сдвигается на его конец."""
+    merge("sync_state", ("shop_id", "stream"),
+          [{"shop_id": shop_id, "stream": stream, "done_until": dt.datetime.fromtimestamp(until, tz=dt.timezone.utc),
+            "updated_at": loaded_at}])
 
 
 client = tt.TikTokClient.from_databricks(dbutils)
 try:
     SALT = dbutils.secrets.get(tt.SCOPE, "buyer-salt")      # значение не печатается
-except Exception:
+except Exception as e:
+    _salt_err = str(e)
     SALT = None
+    if not re.search(r"does not exist|not found|RESOURCE_DOES_NOT_EXIST", _salt_err, re.I):
+        raise PermissionError(f"скоуп {tt.SCOPE}, ключ buyer-salt: чтение не удалось — {_salt_err[:200]}")
 if not SALT:
     raise RuntimeError("нет секрета tiktok-shop/buyer-salt — соль для buyer_hash задаёт владелец (docs/tiktok-shop.md)")
 shops = client.get_authorized_shops()
@@ -124,11 +139,11 @@ for shop in shops:
     q = {"shop_cipher": shop["cipher"]}
     label = f"{shop.get('region')}/{sid}"
 
-    # заказы
-    try:
-        t0 = start_from("raw_orders", "update_time", sid, ORD_OVL)
-        n_orders = 0
-        for a, b in tr.windows(t0, now, WIN):
+    # заказы: кусок за куском; первый сбойный кусок останавливает поток, отметка остаётся на последнем целом
+    t0 = start_from("orders", sid, ORD_OVL)
+    n_orders = 0
+    for a, b in tr.windows(t0, now, WIN):
+        try:
             heads, lines = [], []
             for order in client.pages("POST", "/order/202309/orders/search", "orders",
                                       {**q, "sort_field": "update_time", "sort_order": "ASC"},
@@ -136,11 +151,13 @@ for shop in shops:
                 h, ls = tr.order_rows(shop, order, loaded_at, SALT)
                 heads.append(h)
                 lines.extend(ls)
-            n_orders += merge("raw_orders", ("shop_id", "order_id"), heads)
             merge("raw_order_lines", ("shop_id", "line_item_id"), lines)
-        print(f"{label}: заказов {n_orders} с {tt.fmt_ts(t0)}")
-    except Exception as e:
-        errors.append(f"{label} заказы: {str(e)[:300]}")
+            n_orders += merge("raw_orders", ("shop_id", "order_id"), heads)
+            mark_done("orders", sid, b)
+        except Exception as e:
+            errors.append(f"{label} заказы, кусок с {tt.fmt_ts(a)}: {str(e)[:300]}")
+            break
+    print(f"{label}: заказов {n_orders} с {tt.fmt_ts(t0)}")
 
     # товары — снимок целиком
     try:
@@ -156,11 +173,11 @@ for shop in shops:
     except Exception as e:
         errors.append(f"{label} товары: {str(e)[:300]}")
 
-    # выписки и их операции
-    try:
-        t0 = start_from("raw_finance_statements", "statement_time", sid, FIN_OVL)
-        n_st = n_tr = 0
-        for a, b in tr.windows(t0, now, WIN):
+    # выписки и их операции — так же, по кускам с отметкой
+    t0 = start_from("statements", sid, FIN_OVL)
+    n_st = n_tr = 0
+    for a, b in tr.windows(t0, now, WIN):
+        try:
             for st in client.pages("GET", "/finance/202309/statements", "statements",
                                    {**q, "sort_field": "statement_time", "sort_order": "ASC",
                                     "statement_time_ge": a, "statement_time_lt": b}, page_size=100):
@@ -171,9 +188,11 @@ for shop in shops:
                 # операции раньше выписки: выписка без операций не выглядит полной
                 n_tr += merge("raw_finance_statement_transactions", ("shop_id", "statement_id", "transaction_id"), rows)
                 n_st += merge("raw_finance_statements", ("shop_id", "statement_id"), [tr.statement_row(shop, st, loaded_at)])
-        print(f"{label}: выписок {n_st}, операций {n_tr} с {tt.fmt_ts(t0)}")
-    except Exception as e:
-        errors.append(f"{label} финансы: {str(e)[:300]}")
+            mark_done("statements", sid, b)
+        except Exception as e:
+            errors.append(f"{label} финансы, кусок с {tt.fmt_ts(a)}: {str(e)[:300]}")
+            break
+    print(f"{label}: выписок {n_st}, операций {n_tr} с {tt.fmt_ts(t0)}")
 
 if not shops:
     errors.append("Get Authorized Shops вернул пустой список")

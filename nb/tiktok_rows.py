@@ -2,12 +2,15 @@
 # загрузчик (`Kabinet - TikTok Shop Loader`) и проверяют тесты CI (`tests/test_tiktok_rows.py`).
 #
 # Сырьё — «ответ источника как есть» (AGENTS.md, «Слои данных»): типизированные колонки для ключей, статусов, времени
-# и денег, плюс `raw_json` — ответ целиком. С одним исключением: ПЕРСОНАЛЬНЫЕ ДАННЫЕ ПОКУПАТЕЛЯ в сырьё не попадают
-# (PII, GDPR) — имя, адрес, телефон, email, ник, аватар, налоговый номер, переписка, id пользователя срезаются ДО
-# записи и в raw_json, и в колонках. Из адреса остаются только индекс и код региона — для географии продаж.
-# Для повторных покупок вместо user_id пишется buyer_hash = sha256(соль + user_id) (решение владельца 22.10.2026);
-# соль — секрет tiktok-shop/buyer-salt, её значение задаёт владелец и НЕ МЕНЯЕТ: другая соль — другие хеши, и
-# покупатель «до» и «после» смены перестаёт узнаваться.
+# и денег, плюс `raw_json`. У ЗАКАЗОВ raw_json — не ответ целиком, а БЕЛЫЙ СПИСОК полей (ORDER_KEEP, LINE_KEEP):
+# персональные данные покупателя в открытом виде в сырьё не попадают (GDPR) — имя, адрес, телефон, email, ник, аватар,
+# налоговый номер, сообщение, user_id, номер отслеживания, заметка продавца (туда пишут контакты), id группы
+# объединения заказов. Белый список, а не чёрный: новое поле TikTok в сырьё без правки кода не попадёт. Из адреса —
+# только индекс и код региона (география продаж). Для повторных покупок — buyer_hash = sha256(соль + user_id)
+# (решение владельца 22.10.2026). Это ПСЕВДОНИМ, по GDPR (ст. 4(5)) он остаётся персональными данными — поэтому
+# соль хранится отдельно, в секрете tiktok-shop/buyer-salt; значение задаёт владелец и НЕ МЕНЯЕТ: другая соль —
+# другие хеши, и покупатель «до» и «после» смены перестаёт узнаваться. Товары и финансы — ответ целиком (покупателей
+# там нет; order_id в операциях — ключ связи, не персональные данные).
 #
 # Деньги у TikTok — строки ("12.50"), время — unix-секунды (UTC). Пустая строка — NULL, не ноль.
 # Источник кода — nb/tiktok_rows.py в kabinet-dashboard.
@@ -16,8 +19,21 @@ import hashlib
 import json
 from decimal import Decimal, InvalidOperation
 
-ORDER_PII = ("buyer_email", "buyer_nickname", "buyer_avatar", "buyer_message", "cpf", "cpf_name", "user_id",
-             "consultation_id")
+ORDER_KEEP = frozenset((
+    "id", "status", "order_type", "create_time", "update_time", "paid_time", "cancel_time", "delivery_time",
+    "rts_time", "collection_time", "request_cancel_time", "payment", "line_items", "packages", "recipient_address",
+    "fulfillment_type", "delivery_type", "shipping_type", "delivery_option_id", "delivery_option_name",
+    "shipping_provider", "shipping_provider_id", "warehouse_id", "payment_method_name", "cancel_reason",
+    "cancellation_initiator", "is_buyer_request_cancel", "is_cod", "is_sample_order", "is_replacement_order",
+    "replaced_order_id", "is_exchange_order", "exchange_source_order_id", "is_on_hold_order", "split_or_combine_tag",
+    "commerce_platform", "has_updated_recipient_address", "need_upload_invoice", "fast_delivery_program",
+))
+LINE_KEEP = frozenset((
+    "id", "sku_id", "seller_sku", "product_id", "product_name", "sku_name", "sku_type", "currency", "original_price",
+    "sale_price", "seller_discount", "platform_discount", "item_tax", "display_status", "cancel_reason", "cancel_user",
+    "is_gift", "gift_retail_price", "package_id", "package_status", "rts_time", "shipping_provider_id",
+    "shipping_provider_name", "small_order_fee", "buyer_service_fee", "retail_delivery_fee", "product_listing_type",
+))
 ADDRESS_KEEP = ("postal_code", "region_code")
 
 
@@ -31,17 +47,20 @@ def money(v):
 
 
 def ts(v):
+    """unix-секунды → datetime с поясом UTC (aware): Spark переводит его в TIMESTAMP верно при любом поясе драйвера."""
     if v in (None, "", 0):
         return None
-    return dt.datetime.fromtimestamp(int(v), tz=dt.timezone.utc).replace(tzinfo=None)
+    return dt.datetime.fromtimestamp(int(v), tz=dt.timezone.utc)
 
 
 def strip_order_pii(order):
-    """Копия заказа без персональных данных покупателя."""
-    o = {k: v for k, v in order.items() if k not in ORDER_PII}
+    """Копия заказа: только поля белого списка, у строк — тоже; из адреса — индекс и код региона, у посылок — id."""
+    o = {k: v for k, v in order.items() if k in ORDER_KEEP}
     addr = order.get("recipient_address")
-    if isinstance(addr, dict):
-        o["recipient_address"] = {k: addr.get(k) for k in ADDRESS_KEEP if addr.get(k) is not None}
+    o["recipient_address"] = ({k: addr.get(k) for k in ADDRESS_KEEP if addr.get(k) is not None}
+                              if isinstance(addr, dict) else None)
+    o["line_items"] = [{k: v for k, v in li.items() if k in LINE_KEEP} for li in (order.get("line_items") or [])]
+    o["packages"] = [{"id": pk.get("id")} for pk in (order.get("packages") or []) if isinstance(pk, dict)]
     return o
 
 
@@ -133,7 +152,8 @@ def transaction_row(shop, statement_id, currency, tr, loaded_at):
     return {
         "shop_id": shop["id"], "region": shop.get("region"), "statement_id": statement_id, "transaction_id": tr.get("id"),
         "type": tr.get("type"), "order_id": tr.get("order_id"), "order_create_time": ts(tr.get("order_create_time")),
-        "adjustment_id": tr.get("adjustment_id"), "currency": currency,
+        "adjustment_id": tr.get("adjustment_id"), "adjustment_order_id": tr.get("adjustment_order_id"),
+        "currency": currency,
         "revenue_amount": money(tr.get("revenue_amount")), "shipping_cost_amount": money(tr.get("shipping_cost_amount")),
         "fee_tax_amount": money(tr.get("fee_tax_amount")), "adjustment_amount": money(tr.get("adjustment_amount")),
         "settlement_amount": money(tr.get("settlement_amount")), "raw_json": _j(tr), "loaded_at": loaded_at,
