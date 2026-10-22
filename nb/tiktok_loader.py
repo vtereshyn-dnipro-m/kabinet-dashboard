@@ -20,7 +20,10 @@
 # (tiktok_rows.py); для повторных покупок — buyer_hash = sha256(соль + user_id), соль — tiktok-shop/buyer-salt.
 # Настройки — kabinet_data.reorder_params (tiktok_*), не константы.
 #
-# Пульс `Kabinet - TikTok Shop Loader` — последним, безусловно; сбои копятся и роняют прогон ПОСЛЕ пульса.
+# Реплика для страниц Кабинета (с 22.10.2026): после сырья — kabinet_data.raw_tiktok_orders / _order_lines /
+# _finance_tx в Lakebase, upsert по ключу из таблиц сырья целиком (их немного), только колонки страницы, без raw_json.
+# Пульс `Kabinet - TikTok Shop Loader` — последним, безусловно; в заметке пульса — срок access-токена и было ли
+# обновление (их читает утренняя сводка, секрета она не касается). Сбои копятся и роняют прогон ПОСЛЕ пульса.
 # dry_run=1 — без записи в таблицы и без пульса: печатает, сколько записал бы. full=1 — первый запуск заново
 # (tiktok_history_days), даже если в таблицах уже есть данные.
 # Пока #364 не смержен — без расписания, прогоны владелец запускает руками под своей учёткой; потом — джоба под
@@ -40,6 +43,7 @@ import sys
 import time
 
 import psycopg2
+from psycopg2.extras import execute_values
 from databricks.sdk import WorkspaceClient
 
 _nb_dir = os.path.dirname(dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get())
@@ -205,8 +209,49 @@ for shop in shops:
 if not shops:
     errors.append("Get Authorized Shops вернул пустой список")
 
+# Реплика в Lakebase для страниц — из таблиц сырья целиком, upsert по ключу
+REPLICA = (
+    ("raw_tiktok_orders", ("shop_id", "order_id"),
+     f"""SELECT shop_id, order_id, region, status, create_time, update_time, is_sample_order, currency,
+                original_total_product_price, seller_discount, platform_discount, sub_total, total_amount, buyer_hash
+         FROM {SCHEMA}.raw_orders"""),
+    ("raw_tiktok_order_lines", ("shop_id", "line_item_id"),
+     f"""SELECT shop_id, line_item_id, order_id, sku_id, seller_sku, product_name, currency, original_price, sale_price,
+                seller_discount, platform_discount, display_status
+         FROM {SCHEMA}.raw_order_lines"""),
+    ("raw_tiktok_finance_tx", ("shop_id", "statement_id", "transaction_id"),
+     f"""SELECT t.shop_id, t.statement_id, t.transaction_id, t.order_id, t.type, s.statement_time, s.payment_status,
+                t.currency, t.revenue_amount, t.fee_tax_amount, t.shipping_cost_amount, t.adjustment_amount,
+                t.settlement_amount
+         FROM {SCHEMA}.raw_finance_statement_transactions t
+         LEFT JOIN {SCHEMA}.raw_finance_statements s ON s.shop_id = t.shop_id AND s.statement_id = t.statement_id"""),
+)
+for table, keys, select_sql in REPLICA:
+    try:
+        df = spark.sql(select_sql)
+        cols = df.columns
+        rows = [tuple(r[c] for c in cols) for r in df.collect()]
+        stats[f"lakebase.{table}"] = len(rows)
+        if DRY or not rows:
+            continue
+        upd = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in keys) + ", loaded_at = now()"
+        _c = pg()
+        try:
+            with _c.cursor() as _cur:
+                _cur.execute("SET TIME ZONE 'UTC'")      # время из Spark — UTC без пояса
+                execute_values(_cur, f"INSERT INTO kabinet_data.{table} ({', '.join(cols)}) VALUES %s "
+                                     f"ON CONFLICT ({', '.join(keys)}) DO UPDATE SET {upd}", rows, page_size=500)
+            _c.commit()
+        finally:
+            _c.close()
+    except Exception as e:
+        errors.append(f"реплика {table}: {str(e)[:300]}")
+
 # Пульс — последним и безусловно (в той же ячейке: ячейка самодостаточна); сбои — падение после него
-note = (f"магазинов {len(shops)}; " + ", ".join(f"{k} {v}" for k, v in sorted(stats.items()))
+_exp_now = client.expiries()
+_token = (f"access до {tt.fmt_ts(_exp_now['access_expires'])}"
+          + ("; токен обновлён" if _exp_now["access_expires"] != exp["access_expires"] else ""))
+note = (f"{_token}; магазинов {len(shops)}; " + ", ".join(f"{k} {v}" for k, v in sorted(stats.items()))
         + (f"; сбоев {len(errors)}" if errors else ""))[:500]
 if DRY:
     print("dry_run: пульс не пишется —", note)

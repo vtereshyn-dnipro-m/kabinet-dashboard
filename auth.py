@@ -58,6 +58,8 @@ PAGES = [
     # Реклама отдельной страницей, а не вкладкой в «Деньгах»: там считают прибыль,
     # здесь ведут ставки — разные читатели и разные вопросы
     ("ads",          "pages/9_Ads.py",           "nav.ads",          ":material/campaign:"),
+    # TikTok Shop (22.10.2026): данные TikTok Shop API, не Power BI — своя страница, своё право
+    ("tiktok",       "pages/11_TikTok.py",       "nav.tiktok",       ":material/storefront:"),
     ("forecast",     "pages/3_Forecast.py",      "nav.forecast",     ":material/show_chart:"),
     ("reviews",      "pages/7_Reviews.py",       "nav.reviews",      ":material/rate_review:"),
     ("cm",           "pages/8_CM_Dashboard.py",  "nav.cm",           ":material/dashboard:"),
@@ -95,6 +97,9 @@ _MATRIX = {
 # не должно ничего отнять у людей, которые вчера это видели.
 for _ключ, *_ in PAGES:
     _MATRIX["page." + _ключ] = {VIEWER, COUNTRY_MANAGER, DEMAND_PLANNER, ADMIN}
+# TikTok Shop — не всем (решение владельца 22.10.2026): администратор и страновой менеджер. До сверки заказов с
+# Seller Center в базе включён только администратор (sql/tiktok_page_2026-10-22.sql), страновой — галочкой потом.
+_MATRIX["page.tiktok"] = {COUNTRY_MANAGER, ADMIN}
 
 # Действия, где у странового менеджера считаются его страны. У ролей выше страна не
 # проверяется вовсе — у них все.

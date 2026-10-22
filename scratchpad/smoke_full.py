@@ -139,7 +139,7 @@ print(("  ПРОВАЛ " if _без_перевода else "    ок  ") + "пе�
 
 for f in ("home.py", "pages/1_Stock.py", "pages/2_Incidents.py", "pages/3_Forecast.py",
           "pages/4_Reorder.py", "pages/5_Money.py", "pages/7_Reviews.py",
-          "pages/8_CM_Dashboard.py", "pages/9_Ads.py", "pages/10_Access.py"):
+          "pages/8_CM_Dashboard.py", "pages/9_Ads.py", "pages/10_Access.py", "pages/11_TikTok.py"):
     _, плохо = прогнать(f)
     print(("  ПРОВАЛ " if плохо else "    ок  ") + f + ("".join("\n          " + x for x in плохо)))
     беда += bool(плохо)
