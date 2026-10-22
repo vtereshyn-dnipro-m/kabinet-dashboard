@@ -89,3 +89,20 @@ databricks secrets delete-acl tiktok-shop b1698364-6ec5-4240-8cd6-e06dd6e60856
 - Пока #364 не применён — без расписания, прогоны владелец запускает руками под своей учёткой (`dry_run=1` — без
   записи в таблицы и пульса; обновлённые токены клиент записывает и в `dry_run`: иначе повёрнутый refresh-токен
   потерялся бы). Джоба под `kabinet-jobs-sp` и правило здоровья `Kabinet - TikTok Shop Loader` — отдельным PR после #364.
+
+## Аналитика (группа 1, `nb/tiktok_analytics_loader.py`, `nb/tiktok_analytics_rows.py`, `sql/tiktok_analytics_2026-10-22.sql`)
+
+- Отдельный загрузчик `Kabinet - TikTok Shop Analytics Loader`, свой пульс. Только GET, семь путей аналитики в белом
+  списке клиента. Таблицы `raw_analytics_shop_daily`, `_product_daily`, `_sku_daily`, `_video_daily`,
+  `_video_product_daily`, `raw_analytics_lives`, `_live_products`. Дата — день в часовом поясе магазина, до
+  `latest_available_date` из ответа (вчера). Продолжение — потоки `analytics_*` в `sync_state` минус
+  `tiktok_analytics_overlap_days` (7): атрибуция видео и эфиров дописывается задним числом.
+- Пробы 22.10.2026: глубина — около года (январь 2026 отдаётся, октябрь 2025 — «вне окна истории этой версии API»);
+  оценка магазина (SPS) для ES не поддерживается (код 38011502) — не грузим; видео — окно запроса не больше 60 дней;
+  эфиры требуют `account_type` (OFFICIAL / AFFILIATE / MARKETING, «ALL» не поддерживается), на 22.10 эфиры только у
+  креаторов-аффилиатов.
+- **`gmv` аналитики = что заплатил покупатель (`sub_total` заказов), `gmv_with_tiktok_co_funding` = выручка продавца
+  (`sub_total + platform_discount`)** — сверено по дням 17–21.10.2026 до цента; неоплаченные отмены в GMV не входят.
+- Креаторы: `creator_id` и публичный ник `creator_user_name` (решение владельца 22.10.2026); `nick_name` и `open_id` не
+  пишутся. **`creator_id` у одного креатора разный в видео и в эфирах** (TikTok выдаёт id на контекст): склеивать
+  креатора между ними — по нику, не по id.
