@@ -14,7 +14,8 @@
 #   tiktok_finance_overlap_days (payment_status меняется после выписки); по каждой выписке — её операции.
 # Запись — MERGE по ключу, по частям (кусок заказов, все товары, выписка с операциями): падение на середине не уносит
 # уже записанное, повторный прогон ничего не задваивает. Персональные данные покупателей срезаются до записи
-# (tiktok_rows.py). Настройки — kabinet_data.reorder_params (tiktok_*), не константы.
+# (tiktok_rows.py); для повторных покупок — buyer_hash = sha256(соль + user_id), соль — tiktok-shop/buyer-salt.
+# Настройки — kabinet_data.reorder_params (tiktok_*), не константы.
 #
 # Пульс `Kabinet - TikTok Shop Loader` — последним, безусловно; сбои копятся и роняют прогон ПОСЛЕ пульса.
 # dry_run=1 — без записи в таблицы и без пульса: печатает, сколько записал бы. full=1 — первый запуск заново
@@ -106,6 +107,12 @@ def start_from(table, col, shop_id, overlap_days):
 
 
 client = tt.TikTokClient.from_databricks(dbutils)
+try:
+    SALT = dbutils.secrets.get(tt.SCOPE, "buyer-salt")      # значение не печатается
+except Exception:
+    SALT = None
+if not SALT:
+    raise RuntimeError("нет секрета tiktok-shop/buyer-salt — соль для buyer_hash задаёт владелец (docs/tiktok-shop.md)")
 shops = client.get_authorized_shops()
 print(f"магазинов: {len(shops)}; dry_run={int(DRY)} full={int(FULL)}; история {HISTORY} сут, перекрытие заказов "
       f"{ORD_OVL}, выписок {FIN_OVL}, кусок {WIN}")
@@ -126,7 +133,7 @@ for shop in shops:
             for order in client.pages("POST", "/order/202309/orders/search", "orders",
                                       {**q, "sort_field": "update_time", "sort_order": "ASC"},
                                       {"update_time_ge": a, "update_time_lt": b}, page_size=100):
-                h, ls = tr.order_rows(shop, order, loaded_at)
+                h, ls = tr.order_rows(shop, order, loaded_at, SALT)
                 heads.append(h)
                 lines.extend(ls)
             n_orders += merge("raw_orders", ("shop_id", "order_id"), heads)

@@ -5,10 +5,14 @@
 # и денег, плюс `raw_json` — ответ целиком. С одним исключением: ПЕРСОНАЛЬНЫЕ ДАННЫЕ ПОКУПАТЕЛЯ в сырьё не попадают
 # (PII, GDPR) — имя, адрес, телефон, email, ник, аватар, налоговый номер, переписка, id пользователя срезаются ДО
 # записи и в raw_json, и в колонках. Из адреса остаются только индекс и код региона — для географии продаж.
+# Для повторных покупок вместо user_id пишется buyer_hash = sha256(соль + user_id) (решение владельца 22.10.2026);
+# соль — секрет tiktok-shop/buyer-salt, её значение задаёт владелец и НЕ МЕНЯЕТ: другая соль — другие хеши, и
+# покупатель «до» и «после» смены перестаёт узнаваться.
 #
 # Деньги у TikTok — строки ("12.50"), время — unix-секунды (UTC). Пустая строка — NULL, не ноль.
 # Источник кода — nb/tiktok_rows.py в kabinet-dashboard.
 import datetime as dt
+import hashlib
 import json
 from decimal import Decimal, InvalidOperation
 
@@ -41,11 +45,20 @@ def strip_order_pii(order):
     return o
 
 
+def buyer_hash(salt, user_id):
+    """sha256(соль + user_id), hex; без user_id — None. Соль обязательна: без неё хеш подбирается по id."""
+    if not salt:
+        raise ValueError("нет соли tiktok-shop/buyer-salt — buyer_hash без соли не пишем")
+    if user_id in (None, ""):
+        return None
+    return hashlib.sha256((salt + str(user_id)).encode("utf-8")).hexdigest()
+
+
 def _j(x):
     return json.dumps(x, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
-def order_rows(shop, order, loaded_at):
+def order_rows(shop, order, loaded_at, salt):
     """(строка raw_orders, [строки raw_order_lines]) из заказа поиска 202309."""
     o = strip_order_pii(order)
     p = o.get("payment") or {}
@@ -63,6 +76,7 @@ def order_rows(shop, order, loaded_at):
         "payment_method_name": o.get("payment_method_name"), "cancel_reason": o.get("cancel_reason"),
         "cancellation_initiator": o.get("cancellation_initiator"), "is_sample_order": o.get("is_sample_order"),
         "postal_code": (o.get("recipient_address") or {}).get("postal_code"),
+        "buyer_hash": buyer_hash(salt, order.get("user_id")),
         "line_items_count": len(lines), "raw_json": _j(o), "loaded_at": loaded_at,
     }
     out = []

@@ -64,3 +64,18 @@ databricks secrets delete-acl tiktok-shop b1698364-6ec5-4240-8cd6-e06dd6e60856
 
 Статус TTS-ES в «Справочниках» («загрузчика нет», `marketplace_attributes.no_loader_since`) загрузка в сырьё не меняет:
 он смотрит на данные Кабинета, а их этот этап не трогает.
+
+## Загрузчик (PR2, `nb/tiktok_loader.py`, `nb/tiktok_rows.py`, `sql/tiktok_schema_2026-10-22.sql`)
+
+- Таблицы `dnipro_m.tiktok`: `raw_orders`, `raw_order_lines`, `raw_products`, `raw_product_skus`,
+  `raw_finance_statements`, `raw_finance_statement_transactions`. Запись — MERGE по ключу, по частям.
+- Первый запуск — `tiktok_history_days` (90); дальше заказы — от max(update_time) минус `tiktok_order_overlap_days`
+  (3), выписки — от max(statement_time) минус `tiktok_finance_overlap_days` (14), кусками по `tiktok_window_days` (7).
+  Товары — снимок целиком. Настройки — `reorder_params`.
+- **Персональные данные покупателя в сырьё не пишутся** (имя, адрес, телефон, email, ник, аватар, налоговый номер,
+  сообщение, `user_id` — и в колонках, и в `raw_json`). Из адреса — только индекс и код региона. Для повторных покупок
+  — `buyer_hash = sha256(соль + user_id)` (решение владельца 22.10.2026). Соль — секрет `tiktok-shop/buyer-salt`,
+  задаёт владелец; **соль не менять**: другая соль — другие хеши, и прежние покупатели перестают узнаваться. Без соли
+  загрузчик не стартует.
+- Пока #364 не применён — без расписания, прогоны владелец запускает руками под своей учёткой (`dry_run=1` — без
+  записи). Джоба под `kabinet-jobs-sp` и правило здоровья `Kabinet - TikTok Shop Loader` — отдельным PR после #364.

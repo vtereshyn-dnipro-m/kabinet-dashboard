@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(ROOT, "nb"))
 import tiktok_rows as tr  # noqa: E402
 
 SHOP = {"id": "111", "region": "ES"}
+SALT = "test-salt"
 AT = dt.datetime(2026, 10, 22, 12, 0)
 PII = ("Juan Pérez", "+34600111222", "juan@example.com", "juanito", "Calle Mayor 1", "X1234567", "secret note", "U-777")
 
@@ -29,7 +30,7 @@ ORDER = {
 
 
 def test_order_has_no_pii_anywhere():
-    head, lines = tr.order_rows(SHOP, ORDER, AT)
+    head, lines = tr.order_rows(SHOP, ORDER, AT, SALT)
     blob = json.dumps([head, lines], default=str, ensure_ascii=False)
     for value in PII + ("Juan", "Pérez", "img/a.png"):
         assert value not in blob, value
@@ -38,7 +39,7 @@ def test_order_has_no_pii_anywhere():
 
 
 def test_order_values():
-    head, lines = tr.order_rows(SHOP, ORDER, AT)
+    head, lines = tr.order_rows(SHOP, ORDER, AT, SALT)
     assert (head["shop_id"], head["region"], head["order_id"]) == ("111", "ES", "O1")
     assert head["total_amount"] == Decimal("59.90") and head["seller_discount"] is None
     assert head["platform_discount"] == Decimal("0.00")
@@ -50,7 +51,7 @@ def test_order_values():
 
 def test_original_order_not_mutated():
     before = json.dumps(ORDER, sort_keys=True)
-    tr.order_rows(SHOP, ORDER, AT)
+    tr.order_rows(SHOP, ORDER, AT, SALT)
     assert json.dumps(ORDER, sort_keys=True) == before
 
 
@@ -77,3 +78,14 @@ def test_finance_rows():
 def test_windows():
     assert list(tr.windows(0, 10 * 86400, 7)) == [(0, 7 * 86400), (7 * 86400, 10 * 86400)]
     assert list(tr.windows(5, 5, 7)) == []
+
+
+def test_buyer_hash():
+    import hashlib
+    import pytest
+    head, _ = tr.order_rows(SHOP, ORDER, AT, SALT)
+    assert head["buyer_hash"] == hashlib.sha256(("test-salt" + "U-777").encode()).hexdigest()
+    assert tr.order_rows(SHOP, {**ORDER, "user_id": None}, AT, SALT)[0]["buyer_hash"] is None
+    assert tr.buyer_hash("other-salt", "U-777") != head["buyer_hash"]
+    with pytest.raises(ValueError):
+        tr.order_rows(SHOP, ORDER, AT, "")

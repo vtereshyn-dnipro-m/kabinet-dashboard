@@ -9,7 +9,8 @@
 -- Часть C — Lakebase Кабинета, под владельцем: настройки загрузчика в reorder_params (пороги живут в БД).
 --
 -- Персональные данные покупателя (имя, адрес, телефон, email, ник, налоговый номер, переписка, user_id) в эти таблицы
--- не пишутся — загрузчик срезает их до записи (nb/tiktok_rows.py). Из адреса остаются индекс и код региона.
+-- не пишутся — загрузчик срезает их до записи (nb/tiktok_rows.py). Из адреса остаются индекс и код региона; вместо
+-- user_id — buyer_hash = sha256(соль + user_id), соль — секрет tiktok-shop/buyer-salt (задаёт владелец, не меняется).
 -- Деньги — DECIMAL(18,2) в валюте магазина (`currency`), время — TIMESTAMP по UTC.
 
 -- ── Часть A. Схема и таблицы (SQL-склад) ──
@@ -22,7 +23,9 @@ CREATE TABLE IF NOT EXISTS dnipro_m.tiktok.raw_orders (
   currency STRING, total_amount DECIMAL(18,2), sub_total DECIMAL(18,2), original_total_product_price DECIMAL(18,2),
   shipping_fee DECIMAL(18,2), seller_discount DECIMAL(18,2), platform_discount DECIMAL(18,2), tax DECIMAL(18,2),
   fulfillment_type STRING, delivery_type STRING, payment_method_name STRING, cancel_reason STRING,
-  cancellation_initiator STRING, is_sample_order BOOLEAN, postal_code STRING, line_items_count INT,
+  cancellation_initiator STRING, is_sample_order BOOLEAN, postal_code STRING,
+  buyer_hash STRING COMMENT 'sha256(соль + user_id) — покупатель для повторных покупок без user_id в открытом виде',
+  line_items_count INT,
   raw_json STRING, loaded_at TIMESTAMP)
 COMMENT 'TikTok Shop: заказы (POST /order/202309/orders/search). Ключ shop_id + order_id; без персональных данных.';
 
