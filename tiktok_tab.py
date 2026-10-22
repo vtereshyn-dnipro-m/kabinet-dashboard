@@ -54,7 +54,7 @@ def load(d_from, d_to, ver: str = "") -> dict:
         orders = pd.read_sql("""
             SELECT order_id, status, is_sample_order, (create_time AT TIME ZONE 'Europe/Madrid')::date AS day,
                    currency, sub_total, coalesce(platform_discount, 0) AS platform_discount,
-                   coalesce(seller_discount, 0) AS seller_discount, buyer_hash
+                   coalesce(seller_discount, 0) AS seller_discount
             FROM kabinet_data.raw_tiktok_orders
             WHERE (create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s""", conn, params=q)
         lines = pd.read_sql("""

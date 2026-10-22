@@ -255,7 +255,8 @@ for table, keys, select_sql in REPLICA:
 try:
     _exp_now = client.expiries()
     _token = (f"access до {tt.fmt_ts(_exp_now['access_expires'])}"
-              + ("; токен обновлён" if _exp_now["access_expires"] != EXP_BEFORE.get("access_expires") else ""))
+              + ("; токен обновлён" if EXP_BEFORE.get("access_expires") is not None
+                 and _exp_now["access_expires"] != EXP_BEFORE["access_expires"] else ""))
 except Exception as e:                       # срок токена — не повод терять пульс
     _token = "срок токена не прочитан"
     errors.append(f"срок токена: {type(e).__name__}")

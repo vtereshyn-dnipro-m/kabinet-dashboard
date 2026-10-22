@@ -357,9 +357,13 @@ try:
                                                   = (now() AT TIME ZONE 'Europe/Madrid')::date - 1)
                            FROM kabinet_data.raw_tiktok_orders""")
             TT_SALES = cur.fetchone()
-        cur.execute("""SELECT job_name, last_success_at, note, expected_interval_hours FROM kabinet_data.system_pulse
-                       WHERE job_name IN ('Kabinet - TikTok Shop Loader', 'Kabinet - TikTok Shop Analytics Loader')
-                       ORDER BY job_name""")
+        # порог — как у Run Check выше: правило здоровья, если есть, иначе интервал из пульса
+        cur.execute("""SELECT p.job_name, p.last_success_at, p.note,
+                              coalesce(r.expected_interval_hours, p.expected_interval_hours)
+                       FROM kabinet_data.system_pulse p
+                       LEFT JOIN kabinet_data.job_health_rules r ON r.job_name = p.job_name AND r.is_active
+                       WHERE p.job_name IN ('Kabinet - TikTok Shop Loader', 'Kabinet - TikTok Shop Analytics Loader')
+                       ORDER BY p.job_name""")
         TT_PULSE = cur.fetchall()
 except Exception as e:
     _errors.append(f"TikTok: {type(e).__name__}")
@@ -380,7 +384,8 @@ if q429:
         f"{esc(j)} ×{n}" + (f" ({esc(k)})" if k else "") for (j, k), n in sorted(q429.items(), key=lambda kv: -kv[1])))
 else:
     lines.append("🧮 429 за ночь: 0")
-TT_FRESH = True
+# свежесть заказов «за вчера» — по пульсу загрузчика заказов; строки пульса нет — не свежая
+TT_FRESH = any(r[0] == "Kabinet - TikTok Shop Loader" for r in TT_PULSE)
 for _jn, _ts, _note, _max_h in TT_PULSE:
     # порог — из пульса (expected_interval_hours пишет сам загрузчик), не константа; «сбоев N» в заметке — тоже ❌
     _ok = (_ts is not None and _max_h is not None and now - _ts <= dt.timedelta(hours=float(_max_h))

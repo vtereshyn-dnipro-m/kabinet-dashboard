@@ -485,7 +485,9 @@ st.divider()
 
 # TikTok Shop (22.10.2026) — вкладкой здесь, под правом этой страницы, без своего права. До сверки заказов с Seller
 # Center вкладку видит только администратор: флаг tiktok_tab_enabled (1 — все, кто видит «Площадки»)
-_show_tiktok = tiktok_tab.tab_visible_to_all() or auth.can("admin")
+# роль, а не auth.can: в режиме раскатки can() отвечает «да» всем, и вкладку увидели бы коллеги
+_me = auth.current()
+_show_tiktok = tiktok_tab.tab_visible_to_all() or (_me.logged_in and _me.role == auth.ADMIN)
 _tabs = st.tabs([t("cm.tab.summary"), t("cm.tab.parity"), t("cm.tab.lm_health"),
                  t("cm.tab.amazon_health"), t("cm.tab.all_countries")]
                 + ([t("cm.tab.tiktok")] if _show_tiktok else []))
