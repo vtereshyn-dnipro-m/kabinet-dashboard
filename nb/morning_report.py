@@ -384,16 +384,17 @@ if q429:
         f"{esc(j)} ×{n}" + (f" ({esc(k)})" if k else "") for (j, k), n in sorted(q429.items(), key=lambda kv: -kv[1])))
 else:
     lines.append("🧮 429 за ночь: 0")
-# свежесть заказов «за вчера» — по пульсу загрузчика заказов; строки пульса нет — не свежая
-TT_FRESH = any(r[0] == "Kabinet - TikTok Shop Loader" for r in TT_PULSE)
+# «TikTok за вчера» полон, только если загрузчик заказов отработал ПОСЛЕ полуночи по Мадриду (решение владельца
+# 23.10.2026): вечерний прогон вчера не видит заказов конца дня. Иначе (или пульса нет, или в заметке сбои) — пометка
+_MADRID_MIDNIGHT = dt.datetime.now(ZoneInfo("Europe/Madrid")).replace(hour=0, minute=0, second=0, microsecond=0)
+TT_FRESH = any(r[0] == "Kabinet - TikTok Shop Loader" and r[1] is not None and r[1] >= _MADRID_MIDNIGHT
+               and "сбоев" not in (r[2] or "") for r in TT_PULSE)
 for _jn, _ts, _note, _max_h in TT_PULSE:
     # порог — из пульса (expected_interval_hours пишет сам загрузчик), не константа; «сбоев N» в заметке — тоже ❌
     _ok = (_ts is not None and _max_h is not None and now - _ts <= dt.timedelta(hours=float(_max_h))
            and "сбоев" not in (_note or ""))
     _tok = next((x.strip() for x in (_note or "").split(";") if x.strip().startswith(("access до", "токен"))), "")
     _upd = " · токен обновлён" if "токен обновлён" in (_note or "") else ""
-    if _jn.endswith("Shop Loader") and not _ok:
-        TT_FRESH = False
     lines.append(f"{'✅' if _ok else '❌'} {esc(_jn)}: "
                  + (f"загрузка {_ts.astimezone(KYIV):%d.%m %H:%M}" if _ts else "загрузки не было")
                  + (f" · {esc(_tok)}" if _tok and _jn.endswith("Shop Loader") else "") + _upd)
@@ -404,7 +405,7 @@ lines.append("💼 <b>Бизнес</b>")
 if TT_SALES is not None:
     _tt_rev = f"{float(TT_SALES[2] or 0):,.2f}".replace(",", " ")
     lines.append(f"🎵 TikTok Shop за {TT_SALES[0]:%d.%m}: заказов {TT_SALES[1] or 0}, выручка {_tt_rev} € с НДС"
-                 + " (API, не Power BI)" + (" — загрузка не свежая, см. «Технику»" if not TT_FRESH else ""))
+                 + " (API, не Power BI)" + (" — неполные: загрузки после полуночи по Мадриду не было, см. «Технику»" if not TT_FRESH else ""))
 lines += _biz if _biz else ["Тревог нет"]
 if _errors:
     lines.append("⚙️ сбои сводки: " + esc("; ".join(_errors)[:300]))
