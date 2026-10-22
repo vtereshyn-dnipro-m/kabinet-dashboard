@@ -16,6 +16,8 @@ import pbi
 import period as period_mod
 from util import as_text, day_axis, eur, grid_height, show_df
 import catalog
+import auth
+import tiktok_tab
 
 init_lang()
 
@@ -481,10 +483,15 @@ st.markdown(f"""
 
 st.divider()
 
-tab_sum, tab_par, tab_lm, tab_amz, tab_all = st.tabs(
-    [t("cm.tab.summary"), t("cm.tab.parity"), t("cm.tab.lm_health"),
-     t("cm.tab.amazon_health"), t("cm.tab.all_countries")]
-)
+# TikTok Shop (22.10.2026) — вкладкой здесь, под правом этой страницы, без своего права. До сверки заказов с Seller
+# Center вкладку видит только администратор: флаг tiktok_tab_enabled (1 — все, кто видит «Площадки»)
+# роль, а не auth.can: в режиме раскатки can() отвечает «да» всем, и вкладку увидели бы коллеги
+_me = auth.current()
+_show_tiktok = tiktok_tab.tab_visible_to_all() or (_me.logged_in and _me.role == auth.ADMIN)
+_tabs = st.tabs([t("cm.tab.summary"), t("cm.tab.parity"), t("cm.tab.lm_health"),
+                 t("cm.tab.amazon_health"), t("cm.tab.all_countries")]
+                + ([t("cm.tab.tiktok")] if _show_tiktok else []))
+tab_sum, tab_par, tab_lm, tab_amz, tab_all = _tabs[:5]
 
 
 # Каналы в евро, в порядке убывания значимости рынка. Список явный:
@@ -1385,3 +1392,8 @@ with tab_all:
         st.caption(t("cm.all.note") if pbi.OWN_METHOD else t("cm.all.note_pbi"))
 
 passport.footer("cm")
+
+
+if _show_tiktok:
+    with _tabs[5]:
+        tiktok_tab.render(PERIOD)

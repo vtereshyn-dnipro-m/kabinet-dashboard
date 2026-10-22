@@ -339,6 +339,35 @@ def alert_block(area):
     return out
 
 
+# ── TikTok Shop (с 22.10.2026, решение владельца): заказы и выручка за вчера; загрузчики и токен — из пульса ──
+# Выручка продавца = sub_total + platform_discount, с НДС, без отмен и образцов, «вчера» — по дате заказа в Мадриде.
+# Срок access-токена загрузчик пишет в заметку своего пульса: секрета tiktok-shop сводка не касается.
+TT_SALES, TT_PULSE = None, []
+try:
+    with pg() as c, c.cursor() as cur:
+        cur.execute("SELECT to_regclass('kabinet_data.raw_tiktok_orders') IS NOT NULL")
+        if cur.fetchone()[0]:
+            cur.execute("""SELECT ((now() AT TIME ZONE 'Europe/Madrid')::date - 1),
+                                  count(*) FILTER (WHERE coalesce(status, '') <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
+                                                   AND (create_time AT TIME ZONE 'Europe/Madrid')::date
+                                                       = (now() AT TIME ZONE 'Europe/Madrid')::date - 1),
+                                  sum(sub_total + coalesce(platform_discount, 0))
+                                      FILTER (WHERE coalesce(status, '') <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
+                                              AND (create_time AT TIME ZONE 'Europe/Madrid')::date
+                                                  = (now() AT TIME ZONE 'Europe/Madrid')::date - 1)
+                           FROM kabinet_data.raw_tiktok_orders""")
+            TT_SALES = cur.fetchone()
+        # порог — как у Run Check выше: правило здоровья, если есть, иначе интервал из пульса
+        cur.execute("""SELECT p.job_name, p.last_success_at, p.note,
+                              coalesce(r.expected_interval_hours, p.expected_interval_hours)
+                       FROM kabinet_data.system_pulse p
+                       LEFT JOIN kabinet_data.job_health_rules r ON r.job_name = p.job_name AND r.is_active
+                       WHERE p.job_name IN ('Kabinet - TikTok Shop Loader', 'Kabinet - TikTok Shop Analytics Loader')
+                       ORDER BY p.job_name""")
+        TT_PULSE = cur.fetchall()
+except Exception as e:
+    _errors.append(f"TikTok: {type(e).__name__}")
+
 # ── текст ──
 lines = [f"🌅 <b>Ночь {w_from:%d.%m} 20:00 → {now:%d.%m %H:%M}</b>"]
 if CHECK_MAX_H is None:
@@ -355,10 +384,28 @@ if q429:
         f"{esc(j)} ×{n}" + (f" ({esc(k)})" if k else "") for (j, k), n in sorted(q429.items(), key=lambda kv: -kv[1])))
 else:
     lines.append("🧮 429 за ночь: 0")
+# «TikTok за вчера» полон, только если загрузчик заказов отработал ПОСЛЕ полуночи по Мадриду (решение владельца
+# 23.10.2026): вечерний прогон вчера не видит заказов конца дня. Иначе (или пульса нет, или в заметке сбои) — пометка
+_MADRID_MIDNIGHT = dt.datetime.now(ZoneInfo("Europe/Madrid")).replace(hour=0, minute=0, second=0, microsecond=0)
+TT_FRESH = any(r[0] == "Kabinet - TikTok Shop Loader" and r[1] is not None and r[1] >= _MADRID_MIDNIGHT
+               and "сбоев" not in (r[2] or "") for r in TT_PULSE)
+for _jn, _ts, _note, _max_h in TT_PULSE:
+    # порог — из пульса (expected_interval_hours пишет сам загрузчик), не константа; «сбоев N» в заметке — тоже ❌
+    _ok = (_ts is not None and _max_h is not None and now - _ts <= dt.timedelta(hours=float(_max_h))
+           and "сбоев" not in (_note or ""))
+    _tok = next((x.strip() for x in (_note or "").split(";") if x.strip().startswith(("access до", "токен"))), "")
+    _upd = " · токен обновлён" if "токен обновлён" in (_note or "") else ""
+    lines.append(f"{'✅' if _ok else '❌'} {esc(_jn)}: "
+                 + (f"загрузка {_ts.astimezone(KYIV):%d.%m %H:%M}" if _ts else "загрузки не было")
+                 + (f" · {esc(_tok)}" if _tok and _jn.endswith("Shop Loader") else "") + _upd)
 _tech = alert_block("tech")
 lines += ["🔔 Тревоги:"] + _tech if _tech else ["🔔 Тревог нет"]
 _biz = alert_block("business")
 lines.append("💼 <b>Бизнес</b>")
+if TT_SALES is not None:
+    _tt_rev = f"{float(TT_SALES[2] or 0):,.2f}".replace(",", " ")
+    lines.append(f"🎵 TikTok Shop за {TT_SALES[0]:%d.%m}: заказов {TT_SALES[1] or 0}, выручка {_tt_rev} € с НДС"
+                 + " (API, не Power BI)" + (" — неполные: загрузки после полуночи по Мадриду не было, см. «Технику»" if not TT_FRESH else ""))
 lines += _biz if _biz else ["Тревог нет"]
 if _errors:
     lines.append("⚙️ сбои сводки: " + esc("; ".join(_errors)[:300]))

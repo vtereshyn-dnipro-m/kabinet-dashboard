@@ -514,6 +514,34 @@ def load_country_names() -> dict:
 
 
 @st.cache_data(ttl=600)
+def load_tiktok_sales(d_from, d_to, ver: str = "") -> pd.DataFrame:
+    """TikTok Shop для «Обзора» (22.10.2026): выручка продавца по дням из v_tiktok_sales_daily — TikTok Shop API,
+    не Power BI. Пусто, если в reorder_params tiktok_overview_enabled не 1 (до сверки с Seller Center — выключено,
+    решение владельца) или вью ещё нет. Колонки — как у строк реплики Power BI, которые читают блок каналов и
+    таблица стран: revenue — без НДС, sales_vat_incl — с НДС."""
+    if not table_exists("v_tiktok_sales_daily"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        on = pd.read_sql("SELECT value FROM kabinet_data.reorder_params WHERE key = 'tiktok_overview_enabled'", conn)
+        _flag = pd.to_numeric(on["value"], errors="coerce").iloc[0] if not on.empty else None
+        if _flag is None or pd.isna(_flag) or int(_flag) != 1:
+            return pd.DataFrame()
+        df = pd.read_sql("""SELECT date AS sales_date, marketplace, channel, country, sales_vat_incl,
+                                   sales_vat_excl AS revenue
+                            FROM kabinet_data.v_tiktok_sales_daily WHERE date BETWEEN %(a)s AND %(b)s""",
+                         conn, params={"a": d_from, "b": d_to})
+    except Exception as e:
+        # строка TTS-ES не должна исчезать молча: пустой кадр с текстом ошибки — блок каналов покажет подпись
+        return pd.DataFrame({"_error": [f"{type(e).__name__}: {str(e)[:150]}"]})
+    finally:
+        conn.close()
+    if not df.empty:
+        df["sales_date"] = pd.to_datetime(df["sales_date"])
+    return df
+
+
+@st.cache_data(ttl=600)
 def load_channels() -> pd.DataFrame:
     """Справочник рынков: код рынка и канал, к которому он относится.
 
@@ -898,6 +926,15 @@ else:
                              d=", ".join(_hd[:15]) + ("…" if len(_hd) > 15 else "")))
 
     with gr:
+        # TikTok Shop (22.10.2026) — только в этом блоке и в таблице стран, отдельными строками из TikTok Shop API, не
+        # из Power BI: себестоимости и расходов по нему нет, и в карточки маржи и итоги он не входит
+        _tts = (load_tiktok_sales(_w.cur_from.date(), _w.cur_to.date(),
+                                  data_version("raw_tiktok_orders", "loaded_at")) if _pbi else pd.DataFrame())
+        _tts_err = as_text(_tts["_error"].iloc[0]) if "_error" in _tts.columns else ""
+        if _tts_err:
+            _tts = pd.DataFrame()
+        cur_ch = pd.concat([cur, _tts], ignore_index=True) if not _tts.empty else cur
+        rev_ch = float(cur_ch["revenue"].sum())   # база долей каналов — вместе с TikTok, если он показан
         # Канал — это площадка (Amazon, Leroy Merlin, ManoMano, Carrefour),
         # а не страна. Раньше он выводился сравнением с литералом "LM", и
         # каждая новая площадка требовала правки здесь. Теперь берём из
@@ -909,11 +946,16 @@ else:
             c = as_text(code).strip().upper()
             return _label_of.get(c, c)
 
+        if not _tts.empty:   # TikTok нет в v_marketplaces — канал и подпись берём из его вью
+            for _code, _chn in _tts[["marketplace", "channel"]].drop_duplicates().itertuples(index=False):
+                _ch_lookup.setdefault(as_text(_code).strip().upper(), _chn)
+                _label_of.setdefault(as_text(_code).strip().upper(), as_text(_code))
+
         def _channel_of(code) -> str:
             return _ch_lookup.get(as_text(code).strip().upper(),
                                   t("home.sales.channel_other"))
 
-        by_mp = (cur.groupby("marketplace", as_index=False)["revenue"].sum()
+        by_mp = (cur_ch.groupby("marketplace", as_index=False)["revenue"].sum()
                     .sort_values("revenue", ascending=False))
         by_mp["channel"] = by_mp["marketplace"].map(_channel_of)
 
@@ -940,9 +982,10 @@ else:
         # возвратов — база маржи. Без подписи «Amazon · продажи в 6 странах» читалось как
         # то же число, что в карточке, и разница в 12 тыс. € выглядела ошибкой (20.09.2026)
         mn.chart_note(t("mn.what.revenue_by_channel"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
-                      extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns")))
+                      extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns"))
+                      + (" · " + t("home.tts_short") if not _tts.empty else ""))
         for _, r in by_ch.iterrows():
-            share = r["revenue"] / rev_cur * 100 if rev_cur else 0
+            share = r["revenue"] / rev_ch * 100 if rev_ch else 0
             codes = sorted(sold_mp.loc[sold_mp["channel"] == r["channel"],
                                        "marketplace"])
             if not codes:
@@ -1001,7 +1044,7 @@ else:
         # вариантом переключателя: по нему видно, какая площадка дала страну
         _geo_opts = {"country": t("home.geo.by_country"), "market": t("home.geo.by_market")}
         _geo = "market"
-        if _pbi and "country" in cur.columns:
+        if _pbi and "country" in cur_ch.columns:
             _geo = st.segmented_control(t("home.geo.label"), list(_geo_opts), format_func=_geo_opts.get,
                                         default="country", key="home_geo_mode", label_visibility="collapsed")
             if _geo is None:   # повторный клик по выбранному сегменту снимает выбор — оставляем прежний вид
@@ -1011,9 +1054,9 @@ else:
         chips = ""
         if _geo == "country":
             mn.chart_note(t("mn.what.sales_by_country"), mn.VAT_INCL, "all", "order", _w.cur_from, _w.cur_to,
-                          extra=t("mn.x.as_pbi"))
+                          extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else ""))
             _names, _lang = load_country_names(), get_lang()
-            by_cn = (cur.groupby("country", as_index=False)["sales_vat_incl"].sum()
+            by_cn = (cur_ch.groupby("country", as_index=False)["sales_vat_incl"].sum()
                         .sort_values("sales_vat_incl", ascending=False))
             for _, r in by_cn[by_cn["sales_vat_incl"] > 0].iterrows():
                 chips += _chip(pbi.country_label(r["country"], _lang, _names), r["sales_vat_incl"], BLUE)
@@ -1025,7 +1068,7 @@ else:
         else:
             if _pbi:
                 mn.chart_note(t("mn.what.sales_by_market"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
-                              extra=t("mn.x.as_pbi"))
+                              extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else ""))
             # плашки идут в том же порядке, что и строки каналов выше
             for _, r in by_ch.iterrows():
                 col = color_of[r["channel"]]
@@ -1038,6 +1081,10 @@ else:
         st.markdown(
             f'<div style="margin-top:6px;line-height:2">{chips}</div>',
             unsafe_allow_html=True)
+        if not _tts.empty:
+            st.caption(t("home.tts_note"))
+        if _tts_err:
+            st.caption(t("home.tts_error", e=_tts_err))
 
     if ord_cur and rev_cur and _o_clipped:
         st.caption(t("home.sales.ordered_clipped", d=_econ_first.strftime("%d.%m.%Y")))
