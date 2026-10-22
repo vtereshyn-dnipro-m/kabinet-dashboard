@@ -48,6 +48,14 @@ ALLOWED = (
     ("GET", "/finance/202309/statements"),
     ("GET", "/finance/202501/statements/{statement_id}/statement_transactions"),
     ("GET", "/finance/202501/orders/{order_id}/statement_transactions"),
+    # аналитика (группа 1, решение владельца 22.10.2026) — только GET
+    ("GET", "/analytics/202609/shop/performance"),
+    ("GET", "/analytics/202605/shop_products/performance"),
+    ("GET", "/analytics/202509/shop_skus/performance"),
+    ("GET", "/analytics/202605/shop_videos/performance"),
+    ("GET", "/analytics/202509/shop_videos/{video_id}/products/performance"),
+    ("GET", "/analytics/202609/shop_lives/performance"),
+    ("GET", "/analytics/202512/shop/{live_id}/products_performance"),
 )
 
 REFRESH_BEFORE_S = 48 * 3600        # access живёт ~7 суток; обновляем, когда осталось меньше двух
