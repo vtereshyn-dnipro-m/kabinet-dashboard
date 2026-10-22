@@ -1,0 +1,6 @@
+{
+  "job_id": 761137342699876,
+  "fields_to_remove": [
+    "run_as"
+  ]
+}
