@@ -123,6 +123,10 @@ def mark_done(stream, shop_id, until):
 
 
 client = tt.TikTokClient.from_databricks(dbutils)
+try:                                         # срок ДО первого запроса: обновление токена делает именно он
+    EXP_BEFORE = client.expiries()
+except Exception:
+    EXP_BEFORE = {}
 try:
     SALT = dbutils.secrets.get(tt.SCOPE, "buyer-salt")      # значение не печатается
 except Exception as e:
@@ -213,7 +217,7 @@ if not shops:
 REPLICA = (
     ("raw_tiktok_orders", ("shop_id", "order_id"),
      f"""SELECT shop_id, order_id, region, status, create_time, update_time, is_sample_order, currency,
-                original_total_product_price, seller_discount, platform_discount, sub_total, total_amount, buyer_hash
+                original_total_product_price, seller_discount, platform_discount, sub_total, total_amount
          FROM {SCHEMA}.raw_orders"""),
     ("raw_tiktok_order_lines", ("shop_id", "line_item_id"),
      f"""SELECT shop_id, line_item_id, order_id, sku_id, seller_sku, product_name, currency, original_price, sale_price,
@@ -248,9 +252,13 @@ for table, keys, select_sql in REPLICA:
         errors.append(f"реплика {table}: {str(e)[:300]}")
 
 # Пульс — последним и безусловно (в той же ячейке: ячейка самодостаточна); сбои — падение после него
-_exp_now = client.expiries()
-_token = (f"access до {tt.fmt_ts(_exp_now['access_expires'])}"
-          + ("; токен обновлён" if _exp_now["access_expires"] != exp["access_expires"] else ""))
+try:
+    _exp_now = client.expiries()
+    _token = (f"access до {tt.fmt_ts(_exp_now['access_expires'])}"
+              + ("; токен обновлён" if _exp_now["access_expires"] != EXP_BEFORE.get("access_expires") else ""))
+except Exception as e:                       # срок токена — не повод терять пульс
+    _token = "срок токена не прочитан"
+    errors.append(f"срок токена: {type(e).__name__}")
 note = (f"{_token}; магазинов {len(shops)}; " + ", ".join(f"{k} {v}" for k, v in sorted(stats.items()))
         + (f"; сбоев {len(errors)}" if errors else ""))[:500]
 if DRY:

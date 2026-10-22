@@ -524,14 +524,16 @@ def load_tiktok_sales(d_from, d_to, ver: str = "") -> pd.DataFrame:
     conn = get_connection()
     try:
         on = pd.read_sql("SELECT value FROM kabinet_data.reorder_params WHERE key = 'tiktok_overview_enabled'", conn)
-        if on.empty or int(on["value"].iloc[0] or 0) != 1:
+        _flag = pd.to_numeric(on["value"], errors="coerce").iloc[0] if not on.empty else None
+        if _flag is None or pd.isna(_flag) or int(_flag) != 1:
             return pd.DataFrame()
         df = pd.read_sql("""SELECT date AS sales_date, marketplace, channel, country, sales_vat_incl,
                                    sales_vat_excl AS revenue
                             FROM kabinet_data.v_tiktok_sales_daily WHERE date BETWEEN %(a)s AND %(b)s""",
                          conn, params={"a": d_from, "b": d_to})
-    except Exception:
-        return pd.DataFrame()
+    except Exception as e:
+        # строка TTS-ES не должна исчезать молча: пустой кадр с текстом ошибки — блок каналов покажет подпись
+        return pd.DataFrame({"_error": [f"{type(e).__name__}: {str(e)[:150]}"]})
     finally:
         conn.close()
     if not df.empty:
@@ -928,6 +930,9 @@ else:
         # из Power BI: себестоимости и расходов по нему нет, и в карточки маржи и итоги он не входит
         _tts = (load_tiktok_sales(_w.cur_from.date(), _w.cur_to.date(),
                                   data_version("raw_tiktok_orders", "loaded_at")) if _pbi else pd.DataFrame())
+        _tts_err = as_text(_tts["_error"].iloc[0]) if "_error" in _tts.columns else ""
+        if _tts_err:
+            _tts = pd.DataFrame()
         cur_ch = pd.concat([cur, _tts], ignore_index=True) if not _tts.empty else cur
         rev_ch = float(cur_ch["revenue"].sum())   # база долей каналов — вместе с TikTok, если он показан
         # Канал — это площадка (Amazon, Leroy Merlin, ManoMano, Carrefour),
@@ -977,7 +982,8 @@ else:
         # возвратов — база маржи. Без подписи «Amazon · продажи в 6 странах» читалось как
         # то же число, что в карточке, и разница в 12 тыс. € выглядела ошибкой (20.09.2026)
         mn.chart_note(t("mn.what.revenue_by_channel"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
-                      extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns")))
+                      extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns"))
+                      + (" · " + t("home.tts_short") if not _tts.empty else ""))
         for _, r in by_ch.iterrows():
             share = r["revenue"] / rev_ch * 100 if rev_ch else 0
             codes = sorted(sold_mp.loc[sold_mp["channel"] == r["channel"],
@@ -1048,7 +1054,7 @@ else:
         chips = ""
         if _geo == "country":
             mn.chart_note(t("mn.what.sales_by_country"), mn.VAT_INCL, "all", "order", _w.cur_from, _w.cur_to,
-                          extra=t("mn.x.as_pbi"))
+                          extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else ""))
             _names, _lang = load_country_names(), get_lang()
             by_cn = (cur_ch.groupby("country", as_index=False)["sales_vat_incl"].sum()
                         .sort_values("sales_vat_incl", ascending=False))
@@ -1062,7 +1068,7 @@ else:
         else:
             if _pbi:
                 mn.chart_note(t("mn.what.sales_by_market"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
-                              extra=t("mn.x.as_pbi"))
+                              extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else ""))
             # плашки идут в том же порядке, что и строки каналов выше
             for _, r in by_ch.iterrows():
                 col = color_of[r["channel"]]
@@ -1077,6 +1083,8 @@ else:
             unsafe_allow_html=True)
         if not _tts.empty:
             st.caption(t("home.tts_note"))
+        if _tts_err:
+            st.caption(t("home.tts_error", e=_tts_err))
 
     if ord_cur and rev_cur and _o_clipped:
         st.caption(t("home.sales.ordered_clipped", d=_econ_first.strftime("%d.%m.%Y")))

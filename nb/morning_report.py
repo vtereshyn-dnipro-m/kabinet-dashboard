@@ -348,16 +348,16 @@ try:
         cur.execute("SELECT to_regclass('kabinet_data.raw_tiktok_orders') IS NOT NULL")
         if cur.fetchone()[0]:
             cur.execute("""SELECT ((now() AT TIME ZONE 'Europe/Madrid')::date - 1),
-                                  count(*) FILTER (WHERE status <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
+                                  count(*) FILTER (WHERE coalesce(status, '') <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
                                                    AND (create_time AT TIME ZONE 'Europe/Madrid')::date
                                                        = (now() AT TIME ZONE 'Europe/Madrid')::date - 1),
                                   sum(sub_total + coalesce(platform_discount, 0))
-                                      FILTER (WHERE status <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
+                                      FILTER (WHERE coalesce(status, '') <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
                                               AND (create_time AT TIME ZONE 'Europe/Madrid')::date
                                                   = (now() AT TIME ZONE 'Europe/Madrid')::date - 1)
                            FROM kabinet_data.raw_tiktok_orders""")
             TT_SALES = cur.fetchone()
-        cur.execute("""SELECT job_name, last_success_at, note FROM kabinet_data.system_pulse
+        cur.execute("""SELECT job_name, last_success_at, note, expected_interval_hours FROM kabinet_data.system_pulse
                        WHERE job_name IN ('Kabinet - TikTok Shop Loader', 'Kabinet - TikTok Shop Analytics Loader')
                        ORDER BY job_name""")
         TT_PULSE = cur.fetchall()
@@ -380,10 +380,15 @@ if q429:
         f"{esc(j)} ×{n}" + (f" ({esc(k)})" if k else "") for (j, k), n in sorted(q429.items(), key=lambda kv: -kv[1])))
 else:
     lines.append("🧮 429 за ночь: 0")
-for _jn, _ts, _note in TT_PULSE:
-    _ok = _ts is not None and now - _ts <= dt.timedelta(hours=26)
+TT_FRESH = True
+for _jn, _ts, _note, _max_h in TT_PULSE:
+    # порог — из пульса (expected_interval_hours пишет сам загрузчик), не константа; «сбоев N» в заметке — тоже ❌
+    _ok = (_ts is not None and _max_h is not None and now - _ts <= dt.timedelta(hours=float(_max_h))
+           and "сбоев" not in (_note or ""))
     _tok = next((x.strip() for x in (_note or "").split(";") if x.strip().startswith(("access до", "токен"))), "")
     _upd = " · токен обновлён" if "токен обновлён" in (_note or "") else ""
+    if _jn.endswith("Shop Loader") and not _ok:
+        TT_FRESH = False
     lines.append(f"{'✅' if _ok else '❌'} {esc(_jn)}: "
                  + (f"загрузка {_ts.astimezone(KYIV):%d.%m %H:%M}" if _ts else "загрузки не было")
                  + (f" · {esc(_tok)}" if _tok and _jn.endswith("Shop Loader") else "") + _upd)
@@ -392,8 +397,9 @@ lines += ["🔔 Тревоги:"] + _tech if _tech else ["🔔 Тревог не
 _biz = alert_block("business")
 lines.append("💼 <b>Бизнес</b>")
 if TT_SALES is not None:
-    lines.append(f"🎵 TikTok Shop за {TT_SALES[0]:%d.%m}: заказов {TT_SALES[1] or 0}, выручка "
-                 f"{float(TT_SALES[2] or 0):,.2f} € с НДС".replace(",", " ") + " (API, не Power BI)")
+    _tt_rev = f"{float(TT_SALES[2] or 0):,.2f}".replace(",", " ")
+    lines.append(f"🎵 TikTok Shop за {TT_SALES[0]:%d.%m}: заказов {TT_SALES[1] or 0}, выручка {_tt_rev} € с НДС"
+                 + " (API, не Power BI)" + (" — загрузка не свежая, см. «Технику»" if not TT_FRESH else ""))
 lines += _biz if _biz else ["Тревог нет"]
 if _errors:
     lines.append("⚙️ сбои сводки: " + esc("; ".join(_errors)[:300]))
