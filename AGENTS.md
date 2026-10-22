@@ -145,6 +145,7 @@ AGENTS.md — только правила работы и указатель. П
 | `docs/plan-matrix.md` | Plan Matrix: средняя цена |
 | `docs/dictionaries-deletion.md` | удаление и архив в справочниках |
 | `docs/autonomy.md` | схема автономной работы целиком: уровни, цикл, проверяющий, сводка |
+| `docs/tiktok-shop.md` | TikTok Shop: клиент, белый список путей, токены и скоуп, принципал, порядок подключения |
 
 ## Практики Databricks
 
