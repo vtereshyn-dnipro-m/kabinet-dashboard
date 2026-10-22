@@ -140,7 +140,11 @@ for shop in shops:
     label = f"{shop.get('region')}/{sid}"
 
     # заказы: кусок за куском; первый сбойный кусок останавливает поток, отметка остаётся на последнем целом
-    t0 = start_from("orders", sid, ORD_OVL)
+    try:
+        t0 = start_from("orders", sid, ORD_OVL)
+    except Exception as e:                       # сбой чтения отметки — поток пропускаем, остальное идёт дальше
+        errors.append(f"{label} заказы, отметка sync_state: {str(e)[:300]}")
+        t0 = now
     n_orders = 0
     for a, b in tr.windows(t0, now, WIN):
         try:
@@ -174,7 +178,11 @@ for shop in shops:
         errors.append(f"{label} товары: {str(e)[:300]}")
 
     # выписки и их операции — так же, по кускам с отметкой
-    t0 = start_from("statements", sid, FIN_OVL)
+    try:
+        t0 = start_from("statements", sid, FIN_OVL)
+    except Exception as e:
+        errors.append(f"{label} финансы, отметка sync_state: {str(e)[:300]}")
+        t0 = now
     n_st = n_tr = 0
     for a, b in tr.windows(t0, now, WIN):
         try:

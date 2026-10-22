@@ -27,12 +27,15 @@ ORDER_KEEP = frozenset((
     "cancellation_initiator", "is_buyer_request_cancel", "is_cod", "is_sample_order", "is_replacement_order",
     "replaced_order_id", "is_exchange_order", "exchange_source_order_id", "is_on_hold_order", "split_or_combine_tag",
     "commerce_platform", "has_updated_recipient_address", "need_upload_invoice", "fast_delivery_program",
+    "rts_sla_time", "tts_sla_time", "delivery_sla_time", "cancel_order_sla_time", "shipping_due_time",
+    "delivery_due_time", "collection_due_time",
 ))
 LINE_KEEP = frozenset((
     "id", "sku_id", "seller_sku", "product_id", "product_name", "sku_name", "sku_type", "currency", "original_price",
     "sale_price", "seller_discount", "platform_discount", "item_tax", "display_status", "cancel_reason", "cancel_user",
     "is_gift", "gift_retail_price", "package_id", "package_status", "rts_time", "shipping_provider_id",
     "shipping_provider_name", "small_order_fee", "buyer_service_fee", "retail_delivery_fee", "product_listing_type",
+    "shipping_vat_amount", "shipping_vat_rate", "combined_listing_skus",
 ))
 ADDRESS_KEEP = ("postal_code", "region_code")
 
