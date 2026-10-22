@@ -16,7 +16,9 @@
 #
 # Продолжение — по отметке dnipro_m.tiktok.sync_state (поток analytics_*: конец последнего ЦЕЛИКОМ записанного дня)
 # минус tiktok_analytics_overlap_days: TikTok дописывает атрибуцию задним числом. Первый запуск —
-# tiktok_history_days назад (API держит около года). На первом сбойном дне поток останавливается.
+# tiktok_history_days назад, но не глубже окна истории API: у магазина оно не меньше года, а у товаров, SKU, видео и
+# эфиров — tiktok_analytics_lookback_days (180: проба 22.10.2026 — 180 дней отдаётся, 181 — код 28001022). На первом
+# сбойном дне поток останавливается.
 # Креаторы — только creator_id и публичный ник (tiktok_analytics_rows.py). Пульс — последним, безусловно; сбои —
 # падение после пульса. dry_run=1 — без записи и пульса; full=1 — заново с глубины первого запуска.
 # Пока #364 не применён — без расписания, прогоны владелец запускает руками. Источник кода —
@@ -30,6 +32,7 @@
 # COMMAND ----------
 
 import datetime as dt
+from zoneinfo import ZoneInfo
 import os
 import sys
 import time
@@ -68,15 +71,16 @@ try:
         settings = {k: int(v) for k, v in _cur.fetchall()}
 finally:
     _c.close()
-_need = ("tiktok_history_days", "tiktok_analytics_overlap_days")
+_need = ("tiktok_history_days", "tiktok_analytics_overlap_days", "tiktok_analytics_lookback_days")
 _missing = [k for k in _need if k not in settings]
 if _missing:
-    raise RuntimeError(f"в reorder_params нет {_missing} — сначала SQL sql/tiktok_analytics_2026-10-22.sql")
-HISTORY, OVL = (settings[k] for k in _need)
+    raise RuntimeError(f"в reorder_params нет {_missing} — сначала SQL sql/tiktok_analytics_2026-10-22.sql и sql/tiktok_analytics_lookback_2026-10-22.sql")
+HISTORY, OVL, LOOKBACK = (settings[k] for k in _need)
 
 errors, stats = [], {}
 loaded_at = dt.datetime.now(dt.timezone.utc)
-today = dt.date.today()
+# «сегодня» — по Мадриду: даты аналитики — в часовом поясе магазина, а кластер живёт в UTC
+today = dt.datetime.now(ZoneInfo("Europe/Madrid")).date()
 
 
 def merge(table, keys, rows):
@@ -100,8 +104,11 @@ def merge(table, keys, rows):
     return len(uniq)
 
 
-def start_day(stream, shop_id):
+def start_day(stream, shop_id, end):
+    """end — граница по latest_available_date магазина (его «сегодня»): край окна API считаем от неё, с днём запаса."""
     first = today - dt.timedelta(days=HISTORY)
+    if stream != "analytics_shop":           # у товаров, SKU, видео и эфиров окно истории API короче
+        first = max(first, end - dt.timedelta(days=LOOKBACK - 1))
     if FULL:
         return first
     row = spark.sql(f"SELECT cast(done_until AS date) AS d FROM {SCHEMA}.sync_state WHERE shop_id = :sid AND stream = :st",
@@ -123,7 +130,8 @@ def q_range(q, d0, d1, **extra):
 
 client = tt.TikTokClient.from_databricks(dbutils)
 shops = client.get_authorized_shops()
-print(f"магазинов: {len(shops)}; dry_run={int(DRY)} full={int(FULL)}; история {HISTORY} сут, перекрытие {OVL}")
+print(f"магазинов: {len(shops)}; dry_run={int(DRY)} full={int(FULL)}; история {HISTORY} сут, перекрытие {OVL}, "
+      f"окно API товаров/SKU/видео/эфиров {LOOKBACK} сут")
 
 for shop in shops:
     sid, q = shop["id"], {"shop_cipher": shop["cipher"]}
@@ -139,7 +147,7 @@ for shop in shops:
 
     # магазин по дням — кусками до 30 дней
     try:
-        d0 = start_day("analytics_shop", sid)
+        d0 = start_day("analytics_shop", sid, end)
         n = 0
         while d0 < end:
             d1 = min(d0 + dt.timedelta(days=30), end)
@@ -155,7 +163,7 @@ for shop in shops:
     # товары, SKU, видео — день за днём; поток останавливается на первом сбойном дне
     for stream, fn in (("analytics_products", "products"), ("analytics_skus", "skus"), ("analytics_videos", "videos")):
         try:
-            d0 = start_day(stream, sid)
+            d0 = start_day(stream, sid, end)
         except Exception as e:
             errors.append(f"{label} {fn}: отметка sync_state — {str(e)[:300]}")
             continue
@@ -192,7 +200,7 @@ for shop in shops:
 
     # эфиры — сессии окнами до 60 дней, три типа аккаунтов
     try:
-        d0 = start_day("analytics_lives", sid)
+        d0 = start_day("analytics_lives", sid, end)
         n = 0
         while d0 < end:
             d1 = min(d0 + dt.timedelta(days=59), end)
