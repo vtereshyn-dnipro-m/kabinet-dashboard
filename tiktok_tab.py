@@ -195,7 +195,9 @@ def render(P) -> None:
 
     # ── возвраты из финансов ──
     st.subheader(t("tt.refunds"))
-    ref = tx[tx["revenue_amount"] < 0].merge(o[["order_id", "day", "status"]], on="order_id", how="left")
+    # те же заказы, что у плитки «Возвраты» (без отмен и образцов): одно название — одна сумма
+    ref = tx[(tx["revenue_amount"] < 0) & tx["order_id"].isin(real["order_id"])].merge(
+        o[["order_id", "day", "status"]], on="order_id", how="left")
     if ref.empty:
         st.caption(t("tt.none"))
     else:
