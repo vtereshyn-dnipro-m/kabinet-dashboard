@@ -47,7 +47,8 @@ def replica_exists() -> bool:
 
 @st.cache_data(ttl=600)
 def load(d_from, d_to, ver: str = "") -> dict:
-    """Заказы, строки и операции выписок за период (дата создания заказа по Мадриду)."""
+    """Заказы, строки и операции выписок за период (дата создания заказа по Мадриду) и возвраты периода — по дате
+    выписки возврата; возврат без даты выписки (statement_time пуст) — по дате заказа в периоде, refund_day у него пуст."""
     conn = get_connection()
     try:
         q = {"a": d_from, "b": d_to}
@@ -118,7 +119,7 @@ def render(P) -> None:
             k = st.columns(3)
             k[0].metric(t("tt.k.refunds"), eur0(rf["revenue_amount"].sum()))
             k[1].metric(t("tt.k.fee_refunds"), eur0(rf["fee_tax_amount"].sum()))
-            k[2].metric(t("tt.k.payout"), eur0(rf["settlement_amount"].sum()))
+            k[2].metric(t("tt.k.payout"), eur0(rf["settlement_amount"].sum()), help=t("tt.k.payout_help"))
             st.caption(t("tt.refunds_line"))
             refunds_block(rf)
         source_line(data["loaded_at"])
@@ -152,7 +153,8 @@ def render(P) -> None:
     k[0].metric(t("tt.k.fees"), eur0(real["fee"].fillna(0).sum()))
     k[1].metric(t("tt.k.refunds"), eur0(rf["revenue_amount"].sum()))
     k[2].metric(t("tt.k.fee_refunds"), eur0(rf["fee_tax_amount"].sum()))
-    k[3].metric(t("tt.k.payout"), eur0(real["payout"].fillna(0).sum() + rf["settlement_amount"].sum()))
+    k[3].metric(t("tt.k.payout"), eur0(real["payout"].fillna(0).sum() + rf["settlement_amount"].sum()),
+                help=t("tt.k.payout_help"))
     k[4].metric(t("tt.k.paid_share"), f"{real['paid'].mean() * 100:.0f} %" if len(real) else "—")
     st.caption(t("tt.vat_note"))
     st.caption(t("tt.refunds_line"))
@@ -192,6 +194,9 @@ def render(P) -> None:
         return lbl + " · " + t("tt.partial") if end > _last_full or w < pd.Timestamp(d_from) else lbl
 
 
+    # прочее с возврата (выплата по возврату минус возврат и возврат комиссии, например доставка) — колонкой, когда
+    # оно есть: «К выплате» берёт выплату по возврату целиком, и без колонки строка на глаз разошлась бы на эту сумму
+    wk["refund_other"] = wk["refund_payout"].fillna(0) - wk["refund"].fillna(0) - wk["fee_refund"].fillna(0)
     view = pd.DataFrame({
         t("tt.c.week"): wk["week"].map(week_label),
         t("tt.c.orders"): wk["orders"].astype(int),
@@ -207,6 +212,8 @@ def render(P) -> None:
         # неделя без заказов (только возвраты или отмены) — доли нет, пусто, а не 0
         t("tt.c.paid_share"): (wk["paid"].where(wk["orders"] > 0) * 100).round(0),
     })
+    if (wk["refund_other"].abs() >= 0.005).any():
+        view.insert(view.columns.get_loc(t("tt.c.payout")), t("tt.c.refund_other"), wk["refund_other"].round(2) + 0.0)
     st.dataframe(view, hide_index=True, use_container_width=True)
     st.caption(t("tt.weeks_note"))
 
@@ -257,17 +264,21 @@ def nodate_warning(rf) -> None:
 
 def refunds_block(rf) -> None:
     """Возвраты из финансов: те же строки, что у плитки «Возвраты» и колонки недель — по дате выписки возврата, без
-    отмен и образцов; по дате возврата."""
+    отмен и образцов; по дате возврата. Возвраты без даты выписки — в конце, с «без даты» в колонке даты."""
     st.subheader(t("tt.refunds"))
     if rf.empty:
         st.caption(t("tt.none"))
         return
-    st.dataframe(pd.DataFrame({
+    tbl = pd.DataFrame({
         t("tt.c.order"): rf["order_id"], t("tt.c.created"): pd.to_datetime(rf["day"]).dt.strftime("%d.%m.%Y"),
         t("tt.c.refund_day"): rf["refund_day"].dt.strftime("%d.%m.%Y").fillna(t("tt.no_date")),
         t("tt.c.status"): rf["status"], t("tt.c.refunds"): rf["revenue_amount"].round(2),
         t("tt.c.fee_refunds"): rf["fee_tax_amount"].round(2),
-        t("tt.c.payout"): rf["settlement_amount"].round(2)}), hide_index=True, use_container_width=True)
+        t("tt.c.payout"): rf["settlement_amount"].round(2)})
+    other = rf["settlement_amount"] - rf["revenue_amount"] - rf["fee_tax_amount"]
+    if (other.abs() >= 0.005).any():
+        tbl.insert(tbl.columns.get_loc(t("tt.c.payout")), t("tt.c.refund_other"), other.round(2) + 0.0)
+    st.dataframe(tbl, hide_index=True, use_container_width=True)
     st.caption(t("tt.refunds_note"))
 
 
