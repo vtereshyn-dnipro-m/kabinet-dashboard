@@ -67,10 +67,19 @@ def load(d_from, d_to, ver: str = "") -> dict:
             FROM kabinet_data.raw_tiktok_finance_tx x
             JOIN kabinet_data.raw_tiktok_orders o ON o.order_id = x.order_id AND o.shop_id = x.shop_id
             WHERE (o.create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s""", conn, params=q)
+        # возвраты — по дате выписки возврата (Мадрид), а не по дате заказа: заказ июня, возвращённый в июле, — в июле
+        refunds = pd.read_sql("""
+            SELECT x.order_id, (x.statement_time AT TIME ZONE 'Europe/Madrid')::date AS refund_day,
+                   x.revenue_amount, x.fee_tax_amount, x.settlement_amount,
+                   (o.create_time AT TIME ZONE 'Europe/Madrid')::date AS day, o.status
+            FROM kabinet_data.raw_tiktok_finance_tx x
+            JOIN kabinet_data.raw_tiktok_orders o ON o.order_id = x.order_id AND o.shop_id = x.shop_id
+            WHERE x.revenue_amount < 0 AND coalesce(o.status, '') <> 'CANCELLED' AND NOT coalesce(o.is_sample_order, false)
+              AND (x.statement_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s""", conn, params=q)
         meta = pd.read_sql("SELECT max(loaded_at) AS loaded_at FROM kabinet_data.raw_tiktok_orders", conn)
     finally:
         conn.close()
-    return {"orders": orders, "lines": lines, "tx": tx,
+    return {"orders": orders, "lines": lines, "tx": tx, "refunds": refunds,
             "loaded_at": meta["loaded_at"].iloc[0] if not meta.empty else None}
 
 
@@ -105,9 +114,14 @@ def render(P) -> None:
     real = o[~o["sample"] & ~o["cancelled"]].copy()
     for c in ("revenue_amount", "fee_tax_amount", "settlement_amount"):
         tx[c] = pd.to_numeric(tx[c], errors="coerce").fillna(0.0)
-    tx["refund"] = tx["revenue_amount"].where(tx["revenue_amount"] < 0, 0.0)   # возврат — отрицательная выручка выписки
-    by_order = tx.groupby("order_id").agg(fee=("fee_tax_amount", "sum"), payout=("settlement_amount", "sum"),
-                                          refund=("refund", "sum")).reset_index()
+    # начисленные комиссии — с операций продажи (выручка ≥ 0); возврат комиссии — с операций возврата, он отдельно
+    tx["fee_charged"] = tx["fee_tax_amount"].where(tx["revenue_amount"] >= 0, 0.0)
+    by_order = tx.groupby("order_id").agg(fee=("fee_charged", "sum"), payout=("settlement_amount", "sum")).reset_index()
+    rf = data["refunds"].copy()
+    for c in ("revenue_amount", "fee_tax_amount", "settlement_amount"):
+        rf[c] = pd.to_numeric(rf[c], errors="coerce").fillna(0.0)
+    rf["refund_day"] = pd.to_datetime(rf["refund_day"])
+    rf["week"] = rf["refund_day"] - pd.to_timedelta(rf["refund_day"].dt.weekday, unit="D")
     real = real.merge(by_order, on="order_id", how="left")
     real["paid"] = real["payout"].notna()
 
@@ -121,11 +135,12 @@ def render(P) -> None:
     k[1].metric(t("tt.k.revenue"), eur0(real["seller_rev"].sum()))
     k[2].metric(t("tt.k.seller_discount"), eur0(real["seller_discount"].sum()))
     k[3].metric(t("tt.k.platform_discount"), eur0(real["platform_discount"].sum()))
-    k = st.columns(4)
-    k[0].metric(t("tt.k.fees"), eur0(-real["fee"].fillna(0).sum()))
-    k[1].metric(t("tt.k.payout"), eur0(real["payout"].fillna(0).sum()))
-    k[2].metric(t("tt.k.paid_share"), f"{real['paid'].mean() * 100:.0f} %" if len(real) else "—")
-    k[3].metric(t("tt.k.refunds"), eur0(real["refund"].fillna(0).sum()))
+    k = st.columns(5)
+    k[0].metric(t("tt.k.fees"), eur0(real["fee"].fillna(0).sum()))
+    k[1].metric(t("tt.k.refunds"), eur0(rf["revenue_amount"].sum()))
+    k[2].metric(t("tt.k.fee_refunds"), eur0(rf["fee_tax_amount"].sum()))
+    k[3].metric(t("tt.k.payout"), eur0(real["payout"].fillna(0).sum()))
+    k[4].metric(t("tt.k.paid_share"), f"{real['paid'].mean() * 100:.0f} %" if len(real) else "—")
     st.caption(t("tt.vat_note"))
     st.caption(t("tt.refunds_line"))
 
@@ -135,10 +150,12 @@ def render(P) -> None:
     o["week"] = o["day"] - pd.to_timedelta(o["day"].dt.weekday, unit="D")
     wk = real.groupby("week").agg(orders=("order_id", "count"), revenue=("seller_rev", "sum"),
                                   seller_discount=("seller_discount", "sum"), platform_discount=("platform_discount", "sum"),
-                                  fees=("fee", "sum"), payout=("payout", "sum"), refund=("refund", "sum"),
-                                  paid=("paid", "mean")).reset_index()
+                                  fees=("fee", "sum"), payout=("payout", "sum"), paid=("paid", "mean")).reset_index()
+    rw = rf.groupby("week").agg(refund=("revenue_amount", "sum"), fee_refund=("fee_tax_amount", "sum")).reset_index()
     canc = o[o["cancelled"] & ~o["sample"]].groupby("week").size().rename("cancelled").reset_index()
     wk = wk.merge(canc, on="week", how="outer").fillna({"orders": 0, "cancelled": 0}).sort_values("week")
+    wk = wk.merge(rw, on="week", how="outer").fillna({"orders": 0, "cancelled": 0, "refund": 0.0, "fee_refund": 0.0})
+    wk = wk.sort_values("week")
     _today = pd.Timestamp.now(tz=TZ).normalize().tz_localize(None)
     _last_full = min(pd.Timestamp(d_to), _today - pd.Timedelta(days=1))
 
@@ -156,8 +173,9 @@ def render(P) -> None:
         t("tt.c.revenue"): wk["revenue"].round(2),
         t("tt.c.seller_discount"): wk["seller_discount"].round(2),
         t("tt.c.platform_discount"): wk["platform_discount"].round(2),
-        t("tt.c.fees"): (-wk["fees"].fillna(0)).round(2),
+        t("tt.c.fees"): wk["fees"].fillna(0).round(2),
         t("tt.c.refunds"): wk["refund"].fillna(0).round(2),
+        t("tt.c.fee_refunds"): wk["fee_refund"].fillna(0).round(2),
         t("tt.c.payout"): wk["payout"].fillna(0).round(2),
         t("tt.c.paid_share"): (wk["paid"].fillna(0) * 100).round(0),
     })
@@ -195,17 +213,16 @@ def render(P) -> None:
 
     # ── возвраты из финансов ──
     st.subheader(t("tt.refunds"))
-    # те же заказы, что у плитки «Возвраты» (без отмен и образцов): одно название — одна сумма
-    ref = tx[(tx["revenue_amount"] < 0) & tx["order_id"].isin(real["order_id"])].merge(
-        o[["order_id", "day", "status"]], on="order_id", how="left")
-    if ref.empty:
+    # те же строки, что у плитки «Возвраты» и колонки недель: по дате выписки возврата, без отмен и образцов
+    if rf.empty:
         st.caption(t("tt.none"))
     else:
         st.dataframe(pd.DataFrame({
-            t("tt.c.order"): ref["order_id"], t("tt.c.created"): pd.to_datetime(ref["day"]).dt.strftime("%d.%m.%Y"),
-            t("tt.c.statement"): pd.to_datetime(ref["statement_time"]).dt.strftime("%d.%m.%Y"),
-            t("tt.c.status"): ref["status"], t("tt.c.revenue"): ref["revenue_amount"].round(2),
-            t("tt.c.payout"): ref["settlement_amount"].round(2)}), hide_index=True, use_container_width=True)
+            t("tt.c.order"): rf["order_id"], t("tt.c.created"): pd.to_datetime(rf["day"]).dt.strftime("%d.%m.%Y"),
+            t("tt.c.refund_day"): rf["refund_day"].dt.strftime("%d.%m.%Y"),
+            t("tt.c.status"): rf["status"], t("tt.c.refunds"): rf["revenue_amount"].round(2),
+            t("tt.c.fee_refunds"): rf["fee_tax_amount"].round(2),
+            t("tt.c.payout"): rf["settlement_amount"].round(2)}), hide_index=True, use_container_width=True)
         st.caption(t("tt.refunds_note"))
 
     # ── источник ──
