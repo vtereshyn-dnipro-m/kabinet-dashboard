@@ -17,6 +17,7 @@ import plan_fact
 import ad_ratios
 import money_notes as mn
 import pbi
+import auth
 
 init_lang()
 
@@ -514,10 +515,11 @@ def load_country_names() -> dict:
 
 
 @st.cache_data(ttl=600)
-def load_tiktok_sales(d_from, d_to, ver: str = "") -> pd.DataFrame:
+def load_tiktok_sales(d_from, d_to, ver: str = "", admin_preview: bool = False) -> pd.DataFrame:
     """TikTok Shop для «Обзора» (22.10.2026): выручка продавца по дням из v_tiktok_sales_daily — TikTok Shop API,
     не Power BI. Пусто, если в reorder_params tiktok_overview_enabled не 1 (до сверки с Seller Center — выключено,
-    решение владельца) или вью ещё нет. Колонки — как у строк реплики Power BI, которые читают блок каналов и
+    решение владельца) или вью ещё нет. admin_preview — администратор видит строку и при выключенном флаге
+    (решение владельца 23.10.2026, как вкладка на «Площадках»); входит в ключ кеша, поэтому кадры не смешиваются. Колонки — как у строк реплики Power BI, которые читают блок каналов и
     таблица стран: revenue — без НДС, sales_vat_incl — с НДС."""
     if not table_exists("v_tiktok_sales_daily"):
         return pd.DataFrame()
@@ -525,7 +527,8 @@ def load_tiktok_sales(d_from, d_to, ver: str = "") -> pd.DataFrame:
     try:
         on = pd.read_sql("SELECT value FROM kabinet_data.reorder_params WHERE key = 'tiktok_overview_enabled'", conn)
         _flag = pd.to_numeric(on["value"], errors="coerce").iloc[0] if not on.empty else None
-        if _flag is None or pd.isna(_flag) or int(_flag) != 1:
+        _on = _flag is not None and not pd.isna(_flag) and int(_flag) == 1
+        if not _on and not admin_preview:
             return pd.DataFrame()
         df = pd.read_sql("""SELECT date AS sales_date, marketplace, channel, country, sales_vat_incl,
                                    sales_vat_excl AS revenue
@@ -539,6 +542,20 @@ def load_tiktok_sales(d_from, d_to, ver: str = "") -> pd.DataFrame:
     if not df.empty:
         df["sales_date"] = pd.to_datetime(df["sales_date"])
     return df
+
+
+@st.cache_data(ttl=300)
+def tiktok_overview_on() -> bool:
+    """Флаг tiktok_overview_enabled = 1 — строку TikTok видят все, кто видит «Обзор»."""
+    conn = get_connection()
+    try:
+        v = pd.read_sql("SELECT value FROM kabinet_data.reorder_params WHERE key = 'tiktok_overview_enabled'", conn)
+        f = pd.to_numeric(v["value"], errors="coerce").iloc[0] if not v.empty else None
+        return f is not None and not pd.isna(f) and int(f) == 1
+    except Exception:
+        return False
+    finally:
+        conn.close()
 
 
 @st.cache_data(ttl=600)
@@ -928,8 +945,13 @@ else:
     with gr:
         # TikTok Shop (22.10.2026) — только в этом блоке и в таблице стран, отдельными строками из TikTok Shop API, не
         # из Power BI: себестоимости и расходов по нему нет, и в карточки маржи и итоги он не входит
+        # администратор видит TikTok и при выключенном флаге — по роли, а не auth.can(): в режиме раскатки can()
+        # отвечает «да» всем, и строку увидели бы коллеги
+        _me = auth.current()
+        _tts_admin = bool(_me.logged_in and _me.role == auth.ADMIN)
         _tts = (load_tiktok_sales(_w.cur_from.date(), _w.cur_to.date(),
-                                  data_version("raw_tiktok_orders", "loaded_at")) if _pbi else pd.DataFrame())
+                                  data_version("raw_tiktok_orders", "loaded_at"), _tts_admin) if _pbi else pd.DataFrame())
+        _tts_preview = _tts_admin and not _tts.empty and not tiktok_overview_on()
         _tts_err = as_text(_tts["_error"].iloc[0]) if "_error" in _tts.columns else ""
         if _tts_err:
             _tts = pd.DataFrame()
@@ -1083,6 +1105,8 @@ else:
             unsafe_allow_html=True)
         if not _tts.empty:
             st.caption(t("home.tts_note"))
+        if _tts_preview:
+            st.caption(t("home.tts_admin_only"))
         if _tts_err:
             st.caption(t("home.tts_error", e=_tts_err))
 
