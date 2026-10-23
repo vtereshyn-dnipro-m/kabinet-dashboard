@@ -105,7 +105,9 @@ def render(P) -> None:
     real = o[~o["sample"] & ~o["cancelled"]].copy()
     for c in ("revenue_amount", "fee_tax_amount", "settlement_amount"):
         tx[c] = pd.to_numeric(tx[c], errors="coerce").fillna(0.0)
-    by_order = tx.groupby("order_id").agg(fee=("fee_tax_amount", "sum"), payout=("settlement_amount", "sum")).reset_index()
+    tx["refund"] = tx["revenue_amount"].where(tx["revenue_amount"] < 0, 0.0)   # возврат — отрицательная выручка выписки
+    by_order = tx.groupby("order_id").agg(fee=("fee_tax_amount", "sum"), payout=("settlement_amount", "sum"),
+                                          refund=("refund", "sum")).reset_index()
     real = real.merge(by_order, on="order_id", how="left")
     real["paid"] = real["payout"].notna()
 
@@ -123,7 +125,9 @@ def render(P) -> None:
     k[0].metric(t("tt.k.fees"), eur0(-real["fee"].fillna(0).sum()))
     k[1].metric(t("tt.k.payout"), eur0(real["payout"].fillna(0).sum()))
     k[2].metric(t("tt.k.paid_share"), f"{real['paid'].mean() * 100:.0f} %" if len(real) else "—")
+    k[3].metric(t("tt.k.refunds"), eur0(real["refund"].fillna(0).sum()))
     st.caption(t("tt.vat_note"))
+    st.caption(t("tt.refunds_line"))
 
     # ── по неделям ──
     st.subheader(t("tt.weeks"))
@@ -131,7 +135,8 @@ def render(P) -> None:
     o["week"] = o["day"] - pd.to_timedelta(o["day"].dt.weekday, unit="D")
     wk = real.groupby("week").agg(orders=("order_id", "count"), revenue=("seller_rev", "sum"),
                                   seller_discount=("seller_discount", "sum"), platform_discount=("platform_discount", "sum"),
-                                  fees=("fee", "sum"), payout=("payout", "sum"), paid=("paid", "mean")).reset_index()
+                                  fees=("fee", "sum"), payout=("payout", "sum"), refund=("refund", "sum"),
+                                  paid=("paid", "mean")).reset_index()
     canc = o[o["cancelled"] & ~o["sample"]].groupby("week").size().rename("cancelled").reset_index()
     wk = wk.merge(canc, on="week", how="outer").fillna({"orders": 0, "cancelled": 0}).sort_values("week")
     _today = pd.Timestamp.now(tz=TZ).normalize().tz_localize(None)
@@ -152,6 +157,7 @@ def render(P) -> None:
         t("tt.c.seller_discount"): wk["seller_discount"].round(2),
         t("tt.c.platform_discount"): wk["platform_discount"].round(2),
         t("tt.c.fees"): (-wk["fees"].fillna(0)).round(2),
+        t("tt.c.refunds"): wk["refund"].fillna(0).round(2),
         t("tt.c.payout"): wk["payout"].fillna(0).round(2),
         t("tt.c.paid_share"): (wk["paid"].fillna(0) * 100).round(0),
     })
