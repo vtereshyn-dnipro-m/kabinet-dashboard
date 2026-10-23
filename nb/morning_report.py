@@ -349,7 +349,7 @@ try:
     with pg() as c, c.cursor() as cur:
         cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'tiktok_report_enabled'")
         _f = cur.fetchone()
-        TT_ON = bool(_f) and _f[0] is not None and int(_f[0]) == 1
+        TT_ON = bool(_f) and _f[0] == 1          # ровно 1; 1.5 или 0 — выключено
         if TT_ON:
             cur.execute("SELECT to_regclass('kabinet_data.raw_tiktok_orders') IS NOT NULL")
             if cur.fetchone()[0]:
