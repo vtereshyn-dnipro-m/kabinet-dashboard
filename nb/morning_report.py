@@ -342,29 +342,35 @@ def alert_block(area):
 # ── TikTok Shop (с 22.10.2026, решение владельца): заказы и выручка за вчера; загрузчики и токен — из пульса ──
 # Выручка продавца = sub_total + platform_discount, с НДС, без отмен и образцов, «вчера» — по дате заказа в Мадриде.
 # Срок access-токена загрузчик пишет в заметку своего пульса: секрета tiktok-shop сводка не касается.
+# В сводку TikTok идёт только с флагом reorder_params.tiktok_report_enabled = 1 (решение владельца 23.10.2026: до его
+# слова в Telegram не уходит). Нет строки или не 1 — ни «Бизнеса», ни «Техники» по TikTok.
 TT_SALES, TT_PULSE = None, []
 try:
     with pg() as c, c.cursor() as cur:
-        cur.execute("SELECT to_regclass('kabinet_data.raw_tiktok_orders') IS NOT NULL")
-        if cur.fetchone()[0]:
-            cur.execute("""SELECT ((now() AT TIME ZONE 'Europe/Madrid')::date - 1),
-                                  count(*) FILTER (WHERE coalesce(status, '') <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
-                                                   AND (create_time AT TIME ZONE 'Europe/Madrid')::date
-                                                       = (now() AT TIME ZONE 'Europe/Madrid')::date - 1),
-                                  sum(sub_total + coalesce(platform_discount, 0))
-                                      FILTER (WHERE coalesce(status, '') <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
-                                              AND (create_time AT TIME ZONE 'Europe/Madrid')::date
-                                                  = (now() AT TIME ZONE 'Europe/Madrid')::date - 1)
-                           FROM kabinet_data.raw_tiktok_orders""")
-            TT_SALES = cur.fetchone()
-        # порог — как у Run Check выше: правило здоровья, если есть, иначе интервал из пульса
-        cur.execute("""SELECT p.job_name, p.last_success_at, p.note,
-                              coalesce(r.expected_interval_hours, p.expected_interval_hours)
-                       FROM kabinet_data.system_pulse p
-                       LEFT JOIN kabinet_data.job_health_rules r ON r.job_name = p.job_name AND r.is_active
-                       WHERE p.job_name IN ('Kabinet - TikTok Shop Loader', 'Kabinet - TikTok Shop Analytics Loader')
-                       ORDER BY p.job_name""")
-        TT_PULSE = cur.fetchall()
+        cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'tiktok_report_enabled'")
+        _f = cur.fetchone()
+        TT_ON = bool(_f) and _f[0] is not None and int(_f[0]) == 1
+        if TT_ON:
+            cur.execute("SELECT to_regclass('kabinet_data.raw_tiktok_orders') IS NOT NULL")
+            if cur.fetchone()[0]:
+                cur.execute("""SELECT ((now() AT TIME ZONE 'Europe/Madrid')::date - 1),
+                                      count(*) FILTER (WHERE coalesce(status, '') <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
+                                                       AND (create_time AT TIME ZONE 'Europe/Madrid')::date
+                                                           = (now() AT TIME ZONE 'Europe/Madrid')::date - 1),
+                                      sum(sub_total + coalesce(platform_discount, 0))
+                                          FILTER (WHERE coalesce(status, '') <> 'CANCELLED' AND NOT coalesce(is_sample_order, false)
+                                                  AND (create_time AT TIME ZONE 'Europe/Madrid')::date
+                                                      = (now() AT TIME ZONE 'Europe/Madrid')::date - 1)
+                               FROM kabinet_data.raw_tiktok_orders""")
+                TT_SALES = cur.fetchone()
+            # порог — как у Run Check выше: правило здоровья, если есть, иначе интервал из пульса
+            cur.execute("""SELECT p.job_name, p.last_success_at, p.note,
+                                  coalesce(r.expected_interval_hours, p.expected_interval_hours)
+                           FROM kabinet_data.system_pulse p
+                           LEFT JOIN kabinet_data.job_health_rules r ON r.job_name = p.job_name AND r.is_active
+                           WHERE p.job_name IN ('Kabinet - TikTok Shop Loader', 'Kabinet - TikTok Shop Analytics Loader')
+                           ORDER BY p.job_name""")
+            TT_PULSE = cur.fetchall()
 except Exception as e:
     _errors.append(f"TikTok: {type(e).__name__}")
 
