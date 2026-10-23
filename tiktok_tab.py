@@ -112,16 +112,23 @@ def render(P) -> None:
     rf["refund_day"] = pd.to_datetime(rf["refund_day"])
     rf["week"] = rf["refund_day"] - pd.to_timedelta(rf["refund_day"].dt.weekday, unit="D")
     rf = rf.sort_values(["refund_day", "order_id"], na_position="last")
+    # прочее по возврату — выплата по возврату минус возврат и возврат комиссии (например доставка). «К выплате» берёт
+    # выплату по возврату целиком, поэтому, если прочее есть хоть у одного возврата периода, оно показано плиткой,
+    # колонкой в неделях и в таблице возвратов — по одному условию
+    rf["other"] = rf["settlement_amount"] - rf["revenue_amount"] - rf["fee_tax_amount"]
+    has_other = bool((rf["other"].abs() >= 0.005).any())
     if o.empty:
         st.info(t("tt.empty"))
         if not rf.empty:
             nodate_warning(rf)
-            k = st.columns(3)
+            k = st.columns(4 if has_other else 3)
             k[0].metric(t("tt.k.refunds"), eur0(rf["revenue_amount"].sum()))
             k[1].metric(t("tt.k.fee_refunds"), eur0(rf["fee_tax_amount"].sum()))
-            k[2].metric(t("tt.k.payout"), eur0(rf["settlement_amount"].sum()), help=t("tt.k.payout_help"))
+            if has_other:
+                k[2].metric(t("tt.k.refund_other"), eur0(rf["other"].sum()))
+            k[-1].metric(t("tt.k.payout"), eur0(rf["settlement_amount"].sum()), help=t("tt.k.payout_help"))
             st.caption(t("tt.refunds_line"))
-            refunds_block(rf)
+            refunds_block(rf, has_other)
         source_line(data["loaded_at"])
         return
 
@@ -149,13 +156,15 @@ def render(P) -> None:
     k[1].metric(t("tt.k.revenue"), eur0(real["seller_rev"].sum()))
     k[2].metric(t("tt.k.seller_discount"), eur0(real["seller_discount"].sum()))
     k[3].metric(t("tt.k.platform_discount"), eur0(real["platform_discount"].sum()))
-    k = st.columns(5)
+    k = st.columns(6 if has_other else 5)
     k[0].metric(t("tt.k.fees"), eur0(real["fee"].fillna(0).sum()))
     k[1].metric(t("tt.k.refunds"), eur0(rf["revenue_amount"].sum()))
     k[2].metric(t("tt.k.fee_refunds"), eur0(rf["fee_tax_amount"].sum()))
-    k[3].metric(t("tt.k.payout"), eur0(real["payout"].fillna(0).sum() + rf["settlement_amount"].sum()),
-                help=t("tt.k.payout_help"))
-    k[4].metric(t("tt.k.paid_share"), f"{real['paid'].mean() * 100:.0f} %" if len(real) else "—")
+    if has_other:
+        k[3].metric(t("tt.k.refund_other"), eur0(rf["other"].sum()))
+    k[-2].metric(t("tt.k.payout"), eur0(real["payout"].fillna(0).sum() + rf["settlement_amount"].sum()),
+                 help=t("tt.k.payout_help"))
+    k[-1].metric(t("tt.k.paid_share"), f"{real['paid'].mean() * 100:.0f} %" if len(real) else "—")
     st.caption(t("tt.vat_note"))
     st.caption(t("tt.refunds_line"))
 
@@ -194,8 +203,7 @@ def render(P) -> None:
         return lbl + " · " + t("tt.partial") if end > _last_full or w < pd.Timestamp(d_from) else lbl
 
 
-    # прочее с возврата (выплата по возврату минус возврат и возврат комиссии, например доставка) — колонкой, когда
-    # оно есть: «К выплате» берёт выплату по возврату целиком, и без колонки строка на глаз разошлась бы на эту сумму
+    # прочее по возвратам недели — колонкой при том же условии, что плитка (has_other)
     wk["refund_other"] = wk["refund_payout"].fillna(0) - wk["refund"].fillna(0) - wk["fee_refund"].fillna(0)
     view = pd.DataFrame({
         t("tt.c.week"): wk["week"].map(week_label),
@@ -212,7 +220,7 @@ def render(P) -> None:
         # неделя без заказов (только возвраты или отмены) — доли нет, пусто, а не 0
         t("tt.c.paid_share"): (wk["paid"].where(wk["orders"] > 0) * 100).round(0),
     })
-    if (wk["refund_other"].abs() >= 0.005).any():
+    if has_other:
         view.insert(view.columns.get_loc(t("tt.c.payout")), t("tt.c.refund_other"), wk["refund_other"].round(2) + 0.0)
     st.dataframe(view, hide_index=True, use_container_width=True)
     st.caption(t("tt.weeks_note"))
@@ -246,12 +254,13 @@ def render(P) -> None:
         st.dataframe(pd.DataFrame({t("tt.c.status"): smp["status"].value_counts().index,
                                    t("tt.c.orders"): smp["status"].value_counts().values}), hide_index=True)
 
-    refunds_block(rf)
+    refunds_block(rf, has_other)
     source_line(data["loaded_at"])
 
 
 def eur0(v) -> str:
-    return "—" if v is None or pd.isna(v) else f"{v:,.0f} €".replace(",", " ")
+    # round(…) + 0.0 — без «-0 €», когда сумма округляется к нулю с минусом
+    return "—" if v is None or pd.isna(v) else f"{round(float(v)) + 0.0:,.0f} €".replace(",", " ")
 
 
 def nodate_warning(rf) -> None:
@@ -262,7 +271,7 @@ def nodate_warning(rf) -> None:
         st.warning(t("tt.refunds_nodate", n=len(nd), s=eur0(nd["revenue_amount"].sum())))
 
 
-def refunds_block(rf) -> None:
+def refunds_block(rf, has_other: bool) -> None:
     """Возвраты из финансов: те же строки, что у плитки «Возвраты» и колонки недель — по дате выписки возврата, без
     отмен и образцов; по дате возврата. Возвраты без даты выписки — в конце, с «без даты» в колонке даты."""
     st.subheader(t("tt.refunds"))
@@ -275,9 +284,8 @@ def refunds_block(rf) -> None:
         t("tt.c.status"): rf["status"], t("tt.c.refunds"): rf["revenue_amount"].round(2),
         t("tt.c.fee_refunds"): rf["fee_tax_amount"].round(2),
         t("tt.c.payout"): rf["settlement_amount"].round(2)})
-    other = rf["settlement_amount"] - rf["revenue_amount"] - rf["fee_tax_amount"]
-    if (other.abs() >= 0.005).any():
-        tbl.insert(tbl.columns.get_loc(t("tt.c.payout")), t("tt.c.refund_other"), other.round(2) + 0.0)
+    if has_other:
+        tbl.insert(tbl.columns.get_loc(t("tt.c.payout")), t("tt.c.refund_other"), rf["other"].round(2) + 0.0)
     st.dataframe(tbl, hide_index=True, use_container_width=True)
     st.caption(t("tt.refunds_note"))
 
