@@ -545,6 +545,22 @@ def load_tiktok_sales(d_from, d_to, ver: str = "", admin_preview: bool = False) 
 
 
 @st.cache_data(ttl=300)
+def tiktok_as_of(ver: str = "") -> str:
+    """«ДД.ММ ЧЧ:ММ» (Киев) последней загрузки реплики TikTok Shop — max(loaded_at) в raw_tiktok_orders; «—», если
+    прочитать нельзя. Реплику пишет загрузчик TikTok Shop; пока он без расписания (до #364), время показывает, насколько
+    свежи цифры."""
+    conn = get_connection()
+    try:
+        v = pd.read_sql("SELECT max(loaded_at) AS la FROM kabinet_data.raw_tiktok_orders", conn)
+        la = v["la"].iloc[0] if not v.empty else None
+        return "—" if la is None or pd.isna(la) else pd.Timestamp(la).tz_convert("Europe/Kyiv").strftime("%d.%m %H:%M")
+    except Exception:
+        return "—"
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=300)
 def tiktok_overview_on() -> bool:
     """Флаг tiktok_overview_enabled = 1 — строку TikTok видят все, кто видит «Обзор»."""
     conn = get_connection()
@@ -1104,7 +1120,8 @@ else:
             f'<div style="margin-top:6px;line-height:2">{chips}</div>',
             unsafe_allow_html=True)
         if not _tts.empty:
-            st.caption(t("home.tts_note"))
+            st.caption(t("home.tts_note") + " " + t("home.tts_as_of",
+                                                    d=tiktok_as_of(data_version("raw_tiktok_orders", "loaded_at"))))
         if _tts_preview:
             st.caption(t("home.tts_admin_only"))
         if _tts_err:
