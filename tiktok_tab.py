@@ -104,6 +104,7 @@ def render(P) -> None:
         st.error(f"{t('tt.db_error')}: {e}")
         return
 
+    st.caption(t("tt.as_of", d=as_of(data["loaded_at"])))
     o, lines, tx = data["orders"], data["lines"], data["tx"]
     # возвраты идут по дате выписки возврата, поэтому у периода без заказов они могут быть — их показываем всё равно
     rf = data["refunds"].copy()
@@ -288,6 +289,11 @@ def refunds_block(rf, has_other: bool) -> None:
         tbl.insert(tbl.columns.get_loc(t("tt.c.payout")), t("tt.c.refund_other"), rf["other"].round(2) + 0.0)
     st.dataframe(tbl, hide_index=True, use_container_width=True)
     st.caption(t("tt.refunds_note"))
+
+
+def as_of(_la) -> str:
+    """«ДД.ММ ЧЧ:ММ» (Киев) последней загрузки реплики или «—»."""
+    return pd.Timestamp(_la).tz_convert("Europe/Kyiv").strftime("%d.%m %H:%M") if _la is not None and not pd.isna(_la) else "—"
 
 
 def source_line(_la) -> None:
