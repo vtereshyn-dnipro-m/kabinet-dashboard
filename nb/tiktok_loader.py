@@ -213,6 +213,19 @@ for shop in shops:
 if not shops:
     errors.append("Get Authorized Shops вернул пустой список")
 
+# Раскладка комиссий операции (решение владельца 25.10.2026) — из fee_tax_breakdown в raw_json сырья: комиссия TikTok
+# (platform_commission_amount), комиссия аффилиатов (affiliate_commission_amount + affiliate_ads_commission_amount +
+# affiliate_partner_commission_amount) и прочие сборы — остаток до fee_tax_amount (на 25.10.2026 это Smart Promotion и
+# EPR), так что три колонки в сумме всегда равны fee_tax_amount. Нет разбивки в ответе — все три NULL, а не 0.
+_FB = "get_json_object(t.raw_json, '$.fee_tax_breakdown.fee.{}')"
+_HAS_FB = "get_json_object(t.raw_json, '$.fee_tax_breakdown') IS NOT NULL"
+_TT_FEE = f"coalesce(cast({_FB.format('platform_commission_amount')} AS decimal(18,2)), 0)"
+_AFF_FEE = " + ".join(f"coalesce(cast({_FB.format(k)} AS decimal(18,2)), 0)" for k in
+                      ("affiliate_commission_amount", "affiliate_ads_commission_amount", "affiliate_partner_commission_amount"))
+FEE_SPLIT = (f"CASE WHEN {_HAS_FB} THEN {_TT_FEE} END AS commission_tiktok, "
+             f"CASE WHEN {_HAS_FB} THEN {_AFF_FEE} END AS commission_affiliate, "
+             f"CASE WHEN {_HAS_FB} THEN t.fee_tax_amount - {_TT_FEE} - ({_AFF_FEE}) END AS fee_other")
+
 # Реплика в Lakebase для страниц — из таблиц сырья целиком, upsert по ключу
 REPLICA = (
     ("raw_tiktok_orders", ("shop_id", "order_id"),
@@ -226,7 +239,7 @@ REPLICA = (
     ("raw_tiktok_finance_tx", ("shop_id", "statement_id", "transaction_id"),
      f"""SELECT t.shop_id, t.statement_id, t.transaction_id, t.order_id, t.type, s.statement_time, s.payment_status,
                 t.currency, t.revenue_amount, t.fee_tax_amount, t.shipping_cost_amount, t.adjustment_amount,
-                t.settlement_amount
+                t.settlement_amount, {FEE_SPLIT}
          FROM {SCHEMA}.raw_finance_statement_transactions t
          LEFT JOIN {SCHEMA}.raw_finance_statements s ON s.shop_id = t.shop_id AND s.statement_id = t.statement_id"""),
 )
