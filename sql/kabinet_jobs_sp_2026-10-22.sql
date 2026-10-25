@@ -8,7 +8,7 @@
 --      psql "<строка подключения владельца>" -v sp=<APPLICATION_ID> -v ON_ERROR_STOP=1 -1 -f sql/kabinet_jobs_sp_2026-10-22.sql
 --   2) sql/kabinet_jobs_sp_2026-10-22_ro.sql — под claude_code_ro (той же строкой, что у прежних грантов):
 --      psql "<строка подключения claude_code_ro>" -v sp=<APPLICATION_ID> -v ON_ERROR_STOP=1 -1 -f sql/kabinet_jobs_sp_2026-10-22_ro.sql
---   3) проверка чтением — запрос в конце второго файла: 235 строк (219 объектов + 16 последовательностей) и 2 строки прав
+--   3) проверка чтением — запрос в конце второго файла: 239 строк (223 объекта + 16 последовательностей) и 2 строки прав
 --      по умолчанию. Без неё недовыдачу не увидеть: «no privileges were granted» — WARNING, ON_ERROR_STOP его не ловит.
 -- -1 — одна транзакция на файл: упало на любой строке — из этого файла не применилось ничего.
 --
@@ -24,7 +24,7 @@
 SELECT databricks_create_role(:'sp', 'SERVICE_PRINCIPAL');
 -- A2. Схема — как у claude-uc-ro: только USAGE.
 GRANT USAGE ON SCHEMA kabinet_data TO :"sp";
--- A3. Таблицы и вью — ровно те права, что у claude-uc-ro (b1698364-…) на 22.10.2026: 219 объектов, из них с
+-- A3. Таблицы и вью — ровно те права, что у claude-uc-ro (b1698364-…) на 25.10.2026: 223 объекта, из них с
 --     записью 66. SELECT на всё, запись — где она есть у него.
 GRANT SELECT ON TABLE kabinet_data.amc_attribution_sync TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.amc_campaign_asin_sync TO :"sp";
@@ -158,6 +158,9 @@ GRANT SELECT ON TABLE kabinet_data.raw_mm_orders TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.raw_odoo_channel_sales TO :"sp";
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE kabinet_data.raw_odoo_customer_returns TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.raw_odoo_sku_mapping TO :"sp";
+GRANT SELECT ON TABLE kabinet_data.raw_tiktok_finance_tx TO :"sp";
+GRANT SELECT ON TABLE kabinet_data.raw_tiktok_order_lines TO :"sp";
+GRANT SELECT ON TABLE kabinet_data.raw_tiktok_orders TO :"sp";
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE kabinet_data.reconciliation_results TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.reorder_params TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.reorder_recommendations TO :"sp";
@@ -245,6 +248,7 @@ GRANT SELECT ON TABLE kabinet_data.v_sku_daily_availability TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.v_sku_lifecycle_current TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.v_sku_sales_vat_incl_daily TO :"sp";
 GRANT SELECT ON TABLE kabinet_data.v_stock_by_channel TO :"sp";
+GRANT SELECT ON TABLE kabinet_data.v_tiktok_sales_daily TO :"sp";
 -- A4 (последовательности) и права по умолчанию от claude_code_rw — в sql/kabinet_jobs_sp_2026-10-22_ro.sql, под
 --     подключением claude_code_ro: последовательности принадлежат ему, а владелец базы его прав не наследует (членство
 --     в claude_code_ro и claude_code_rw — только ADMIN, без INHERIT и SET), поэтому под владельцем GRANT на них молча

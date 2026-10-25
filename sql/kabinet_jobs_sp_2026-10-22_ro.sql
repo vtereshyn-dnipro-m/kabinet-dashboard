@@ -26,7 +26,7 @@ GRANT SELECT, USAGE ON SEQUENCE kabinet_data.variation_groups_id_seq TO :"sp";
 -- A5 (вторая строка). Права по умолчанию на новые таблицы, которые создаёт claude_code_rw.
 ALTER DEFAULT PRIVILEGES FOR ROLE claude_code_rw IN SCHEMA kabinet_data GRANT SELECT ON TABLES TO :"sp";
 
--- Проверка чтением (после обоих файлов; любым подключением). Ожидается: 235 строк — 219 таблиц и вью плюс 16
+-- Проверка чтением (после обоих файлов; любым подключением). Ожидается: 239 строк — 223 таблицы и вью плюс 16
 -- последовательностей — и пустой результат сравнения с claude-uc-ro; затем 2 строки прав по умолчанию.
 -- SELECT c.relname, c.relkind, a.privilege_type FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace,
 --        aclexplode(c.relacl) a WHERE n.nspname = 'kabinet_data' AND a.grantee = 'b1698364-6ec5-4240-8cd6-e06dd6e60856'::regrole
@@ -34,6 +34,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE claude_code_rw IN SCHEMA kabinet_data GRANT SE
 -- SELECT c.relname, c.relkind, a.privilege_type FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace,
 --        aclexplode(c.relacl) a WHERE n.nspname = 'kabinet_data' AND a.grantee = '<APPLICATION_ID>'::regrole;
 -- SELECT count(DISTINCT c.oid) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace, aclexplode(c.relacl) a
---  WHERE n.nspname = 'kabinet_data' AND a.grantee = '<APPLICATION_ID>'::regrole;                          -- 235
+--  WHERE n.nspname = 'kabinet_data' AND a.grantee = '<APPLICATION_ID>'::regrole;                          -- 239
 -- SELECT pg_get_userbyid(d.defaclrole), a.privilege_type FROM pg_default_acl d, aclexplode(d.defaclacl) a
 --  WHERE a.grantee = '<APPLICATION_ID>'::regrole;                                                          -- 2 строки
