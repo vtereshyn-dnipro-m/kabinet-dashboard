@@ -19,12 +19,7 @@
     {
       "environment_key": "default",
       "spec": {
-        "client": "2",
-        "dependencies": [
-          "databricks-sdk>=0.118.0",
-          "requests",
-          "psycopg2-binary"
-        ]
+        "client": "2"
       }
     }
   ],

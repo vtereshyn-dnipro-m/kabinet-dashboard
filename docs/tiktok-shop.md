@@ -188,6 +188,36 @@ databricks secrets delete-acl tiktok-shop b1698364-6ec5-4240-8cd6-e06dd6e60856
 - секреты — `WRITE` на скоуп `tiktok-shop` (загрузчик переписывает refresh-токен при обновлении);
 - ноутбуки — Can Read на папку `/Users/v.tereshyn@dniprom.com/Kabinet - TikTok Shop` (в ней только TikTok).
 
+Окружение джоб — `client 2` без списка пакетов: пакеты ставит первая ячейка ноутбука (`%pip` + `restartPython()`), а
+вместе со списком `dependencies` она роняет прогон SIGABRT (`docs/facts/monitoring.md`). Так же шли разовые запуски 22–25.10.
+
+Джобы создаёт владелец (CLI под `v.tereshyn@dniprom.com`): тогда он их хозяин, и откат `*.run_as_owner.json` запускает
+джобу от него. Если создатель — другой (например `claude-uc-ro`), откат пойдёт от него, а у него для TikTok прав нет.
+
+Команды владельца (по порядку; `SP` — Application ID принципала, значений секретов нет):
+1. Принципал `kabinet-jobs-sp` в интерфейсе, Entitlements — только Workspace access, себе — Service Principal: User
+   (`docs/kabinet-jobs-sp.md`, шаг 1).
+2. После мержа #364 — оба SQL-файла #364 через psql (там же, шаг 2).
+3. Unity Catalog (SQL-склад, под владельцем; перед этим владелец предупреждает аналитика — каталог `dnipro_m` создавала она):
+   ``GRANT USE CATALOG ON CATALOG dnipro_m TO `<SP>`;`` и
+   ``GRANT USE SCHEMA, CREATE TABLE, MODIFY, SELECT ON SCHEMA dnipro_m.tiktok TO `<SP>`;``
+4. Скоуп: `databricks secrets put-acl tiktok-shop "$SP" WRITE`, проверка — `databricks secrets list-acls tiktok-shop`
+   (владелец MANAGE, `$SP` WRITE).
+5. Папка: `databricks workspace update-permissions directories 1719645100088338 --json
+   '{"access_control_list":[{"service_principal_name":"<SP>","permission_level":"CAN_READ"}]}'` (папка
+   `Kabinet - TikTok Shop`, в ней только TikTok).
+6. После мержа этого PR — агент создаёт джобы (`databricks jobs create --json @…create.json` с подставленным `SP`),
+   владелец применяет `sql/tiktok_jobs_2026-10-25.sql` с их `job_id`, агент запускает каждую один раз (`run-now`).
+
+**WRITE на скоуп первый прогон не проверит.** Access обновляется, когда до конца меньше 48 ч, и тогда загрузчик пишет
+новый refresh-токен в секрет; при access до 29.10.2026 10:01 UTC первая запись — после 27.10 10:01 UTC. Без WRITE
+загрузчик упадёт с `TokenSaveError`, а старый refresh может уже не действовать — повторная авторизация владельцем.
+Поэтому до 27.10 10:01 UTC (13:01 Киев) — `databricks secrets list-acls tiktok-shop` и увидеть `$SP` WRITE.
+
+Обе джобы обновляют один и тот же refresh-токен. Пересечься они могут, только если загрузчик заказов упал и его
+повтор (через 10 мин) идёт в 06:45; тогда обновление токена в обеих — гонка. Если это начнёт мешать — аналитику
+запускать после заказов (условием «по завершении» или в 07:00).
+
 Работает, если: пульс обеих меток обновляется около 06:37 и 06:55, в заметке нет «сбоев N»; у прогона Run as —
 `kabinet-jobs-sp`; сторож (~13:07) — `raw_tiktok_orders` зелёный, тревог `job_health` по TikTok нет. Признак нехватки
 прав — `permission denied for table …` (Lakebase), `PERMISSION_DENIED` (UC) или отказ записи секрета в ошибке прогона.
