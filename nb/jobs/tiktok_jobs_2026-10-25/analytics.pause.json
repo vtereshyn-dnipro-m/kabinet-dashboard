@@ -1,0 +1,10 @@
+{
+  "job_id": "<JOB_ID analytics>",
+  "new_settings": {
+    "schedule": {
+      "quartz_cron_expression": "0 45 6 * * ?",
+      "timezone_id": "Europe/Kyiv",
+      "pause_status": "PAUSED"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "name": "Kabinet - TikTok Shop Analytics Loader",
+  "description": "TikTok Shop: аналитика магазина, товаров, SKU, видео, эфиров → dnipro_m.tiktok.raw_analytics_*. Ежедневно 06:45 Kyiv, после загрузчика заказов. Только чтение у TikTok.",
+  "run_as": {
+    "service_principal_name": "<APPLICATION_ID kabinet-jobs-sp>"
+  },
+  "schedule": {
+    "quartz_cron_expression": "0 45 6 * * ?",
+    "timezone_id": "Europe/Kyiv",
+    "pause_status": "UNPAUSED"
+  },
+  "max_concurrent_runs": 1,
+  "timeout_seconds": 2400,
+  "queue": {
+    "enabled": true
+  },
+  "email_notifications": {},
+  "environments": [
+    {
+      "environment_key": "default",
+      "spec": {
+        "client": "2",
+        "dependencies": [
+          "databricks-sdk>=0.118.0",
+          "requests",
+          "psycopg2-binary"
+        ]
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "load",
+      "environment_key": "default",
+      "notebook_task": {
+        "notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - TikTok Shop/Kabinet - TikTok Shop Analytics Loader",
+        "source": "WORKSPACE",
+        "base_parameters": {
+          "dry_run": "0",
+          "full": "0"
+        }
+      },
+      "timeout_seconds": 2400,
+      "max_retries": 1,
+      "min_retry_interval_millis": 600000,
+      "retry_on_timeout": false
+    }
+  ]
+}
