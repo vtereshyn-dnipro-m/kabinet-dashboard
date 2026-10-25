@@ -45,8 +45,24 @@ def replica_exists() -> bool:
         conn.close()
 
 
+@st.cache_data(ttl=300)
+def fee_split_exists() -> bool:
+    """Колонки раскладки комиссий в реплике операций (sql/tiktok_fee_split_2026-10-25.sql) уже есть."""
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""SELECT count(*) FROM information_schema.columns WHERE table_schema = 'kabinet_data'
+                         AND table_name = 'raw_tiktok_finance_tx' AND column_name IN
+                         ('commission_tiktok', 'commission_affiliate', 'fee_other')""")
+        return int(cur.fetchone()[0]) == 3
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
 @st.cache_data(ttl=600)
-def load(d_from, d_to, ver: str = "") -> dict:
+def load(d_from, d_to, ver: str = "", split: bool = False) -> dict:
     """Заказы, строки и операции выписок за период (дата создания заказа по Мадриду) и возвраты периода — по дате
     выписки возврата; возврат без даты выписки (statement_time пуст) — по дате заказа в периоде, refund_day у него пуст."""
     conn = get_connection()
@@ -63,8 +79,9 @@ def load(d_from, d_to, ver: str = "") -> dict:
             FROM kabinet_data.raw_tiktok_order_lines l
             JOIN kabinet_data.raw_tiktok_orders o ON o.shop_id = l.shop_id AND o.order_id = l.order_id
             WHERE (o.create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s""", conn, params=q)
-        tx = pd.read_sql("""
+        tx = pd.read_sql(f"""
             SELECT x.order_id, x.statement_time, x.payment_status, x.revenue_amount, x.fee_tax_amount, x.settlement_amount
+                   {", x.commission_tiktok, x.commission_affiliate, x.fee_other" if split else ""}
             FROM kabinet_data.raw_tiktok_finance_tx x
             JOIN kabinet_data.raw_tiktok_orders o ON o.order_id = x.order_id AND o.shop_id = x.shop_id
             WHERE (o.create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s""", conn, params=q)
@@ -99,7 +116,7 @@ def render(P) -> None:
     _yday = (pd.Timestamp.now(tz=TZ).normalize() - pd.Timedelta(days=1)).date()
     d_from, d_to = P.start.date(), min(P.end.date(), _yday)
     try:
-        data = load(d_from, d_to, data_version("raw_tiktok_orders", "loaded_at"))
+        data = load(d_from, d_to, data_version("raw_tiktok_orders", "loaded_at"), fee_split_exists())
     except Exception as e:
         st.error(f"{t('tt.db_error')}: {e}")
         return
@@ -146,7 +163,19 @@ def render(P) -> None:
     # с операций возврата (rf), по неделе возврата: так возврат вычитается один раз и строка недели складывается
     # (решение владельца 23.10.2026)
     sale = tx[tx["revenue_amount"] >= 0]
-    by_order = sale.groupby("order_id").agg(fee=("fee_tax_amount", "sum"), payout=("settlement_amount", "sum")).reset_index()
+    # раскладка комиссий (TikTok, аффилиаты, прочие сборы) — только если колонки есть и заполнены у всех операций продажи:
+    # иначе (SQL не применён или загрузчик ещё не дописал колонки) — одной колонкой, как раньше
+    SPLIT = ("commission_tiktok", "commission_affiliate", "fee_other")
+    split_ok = all(c in sale.columns for c in SPLIT) and not sale[list(SPLIT)].isna().any().any() if not sale.empty else False
+    if split_ok:
+        sale = sale.copy()
+        for c in SPLIT:
+            sale[c] = pd.to_numeric(sale[c], errors="coerce").fillna(0.0)
+    agg = {"fee": ("fee_tax_amount", "sum"), "payout": ("settlement_amount", "sum")}
+    if split_ok:
+        agg.update({"fee_tt": ("commission_tiktok", "sum"), "fee_aff": ("commission_affiliate", "sum"),
+                    "fee_oth": ("fee_other", "sum")})
+    by_order = sale.groupby("order_id").agg(**agg).reset_index()
     real = real.merge(by_order, on="order_id", how="left")
     real["paid"] = real["payout"].notna()
 
@@ -158,7 +187,9 @@ def render(P) -> None:
     k[2].metric(t("tt.k.seller_discount"), eur0(real["seller_discount"].sum()))
     k[3].metric(t("tt.k.platform_discount"), eur0(real["platform_discount"].sum()))
     k = st.columns(6 if has_other else 5)
-    k[0].metric(t("tt.k.fees"), eur0(real["fee"].fillna(0).sum()))
+    k[0].metric(t("tt.k.fees"), eur0(real["fee"].fillna(0).sum()),
+                help=t("tt.k.fees_help", a=eur0(real["fee_tt"].fillna(0).sum()), b=eur0(real["fee_aff"].fillna(0).sum()),
+                       c=eur0(real["fee_oth"].fillna(0).sum())) if split_ok else None)
     k[1].metric(t("tt.k.refunds"), eur0(rf["revenue_amount"].sum()))
     k[2].metric(t("tt.k.fee_refunds"), eur0(rf["fee_tax_amount"].sum()))
     if has_other:
@@ -175,14 +206,17 @@ def render(P) -> None:
     o["week"] = o["day"] - pd.to_timedelta(o["day"].dt.weekday, unit="D")
     wk = real.groupby("week").agg(orders=("order_id", "count"), revenue=("seller_rev", "sum"),
                                   seller_discount=("seller_discount", "sum"), platform_discount=("platform_discount", "sum"),
-                                  fees=("fee", "sum"), payout=("payout", "sum"), paid=("paid", "mean")).reset_index()
+                                  fees=("fee", "sum"), payout=("payout", "sum"), paid=("paid", "mean"),
+                                  **({"fee_tt": ("fee_tt", "sum"), "fee_aff": ("fee_aff", "sum"), "fee_oth": ("fee_oth", "sum")}
+                                     if split_ok else {})).reset_index()
     rw = rf[rf["refund_day"].notna()].groupby("week").agg(refund=("revenue_amount", "sum"), fee_refund=("fee_tax_amount", "sum"),
                                                           refund_payout=("settlement_amount", "sum")).reset_index()
     canc = o[o["cancelled"] & ~o["sample"]].groupby("week").size().rename("cancelled").reset_index()
     wk = wk.merge(canc, on="week", how="outer").fillna({"orders": 0, "cancelled": 0}).sort_values("week")
     wk = wk.merge(rw, on="week", how="outer").fillna({"orders": 0, "cancelled": 0, "refund": 0.0, "fee_refund": 0.0,
                                                       "refund_payout": 0.0})
-    wk = wk.fillna({"revenue": 0.0, "seller_discount": 0.0, "platform_discount": 0.0, "fees": 0.0, "payout": 0.0})
+    wk = wk.fillna({"revenue": 0.0, "seller_discount": 0.0, "platform_discount": 0.0, "fees": 0.0, "payout": 0.0,
+                    "fee_tt": 0.0, "fee_aff": 0.0, "fee_oth": 0.0})
     wk = wk.sort_values("week")
     nd = rf[rf["refund_day"].isna()]
     if not nd.empty:
@@ -223,6 +257,12 @@ def render(P) -> None:
     })
     if has_other:
         view.insert(view.columns.get_loc(t("tt.c.payout")), t("tt.c.refund_other"), wk["refund_other"].round(2) + 0.0)
+    if split_ok:
+        # комиссии тремя колонками вместо одной; в сумме — та же «Комиссии, €»
+        _at = view.columns.get_loc(t("tt.c.fees"))
+        view = view.drop(columns=[t("tt.c.fees")])
+        for _i, (_k, _c) in enumerate((("tt.c.fee_tt", "fee_tt"), ("tt.c.fee_aff", "fee_aff"), ("tt.c.fee_oth", "fee_oth"))):
+            view.insert(_at + _i, t(_k), wk[_c].fillna(0).round(2) + 0.0)
     st.dataframe(view, hide_index=True, use_container_width=True)
     st.caption(t("tt.weeks_note"))
 
