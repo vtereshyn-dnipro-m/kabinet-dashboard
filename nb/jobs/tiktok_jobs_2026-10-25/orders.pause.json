@@ -1,0 +1,10 @@
+{
+  "job_id": "<JOB_ID orders>",
+  "new_settings": {
+    "schedule": {
+      "quartz_cron_expression": "0 30 6 * * ?",
+      "timezone_id": "Europe/Kyiv",
+      "pause_status": "PAUSED"
+    }
+  }
+}
