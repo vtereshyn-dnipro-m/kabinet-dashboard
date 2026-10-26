@@ -38,7 +38,6 @@ import tiktok_reference_rows as rr
 JOB_NAME = "Kabinet - TikTok Shop Reference Loader"
 SCHEMA = "dnipro_m.tiktok"
 LOCALE = "es-ES"                     # магазин ES; локаль — для названий категорий и атрибутов
-EXPECTED_H = 192                     # раз в неделю, с днём запаса (как правило в job_health_rules)
 dbutils.widgets.text("dry_run", "0")
 DRY = dbutils.widgets.get("dry_run").strip() == "1"
 spark.conf.set("spark.sql.session.timeZone", "UTC")
@@ -156,10 +155,12 @@ else:
     _c = pg()
     try:
         with _c.cursor() as _cur:
+            # порог ожидания — только в job_health_rules (192 ч, sql/tiktok_reference_2026-10-26.sql, часть B): в пульс
+            # NULL, а не своя константа; сводка и сторож берут порог из правила (AGENTS.md, «Пороги и правила живут в БД»)
             _cur.execute("""INSERT INTO kabinet_data.system_pulse (job_name, last_success_at, note, expected_interval_hours)
-                            VALUES (%s, now(), %s, %s)
+                            VALUES (%s, now(), %s, NULL)
                             ON CONFLICT (job_name) DO UPDATE SET last_success_at = now(), note = EXCLUDED.note""",
-                         (JOB_NAME, note, EXPECTED_H))
+                         (JOB_NAME, note))
         _c.commit()
     finally:
         _c.close()

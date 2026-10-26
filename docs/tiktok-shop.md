@@ -250,3 +250,8 @@ databricks secrets delete-acl tiktok-shop b1698364-6ec5-4240-8cd6-e06dd6e60856
 пульс `Kabinet - TikTok Shop Reference Loader` обновляется по понедельникам около 12:05 без «сбоев N», у прогона Run as —
 `kabinet-jobs-sp`, в семи таблицах `loaded_at` свежий. Опечатка TikTok в атрибутах — `is_requried` — читается вместе с
 `is_required`.
+- **По проверке #389 (27.10.2026):** склад в `raw_json` — белым списком полей (`WAREHOUSE_KEEP`: `id`, `name`, `type`,
+  `sub_type`, `effect_status`, `is_default`, `entity_id` и из адреса только регион и страна) — новое поле TikTok в сырьё
+  само не попадёт. Порог ожидания `Kabinet - TikTok Shop Reference Loader` — только в `job_health_rules` (192 ч): в
+  пульс загрузчик пишет `expected_interval_hours = NULL`, сводка берёт порог из правила (`coalesce(правило, пульс)`).
+  До применения части B SQL (правила ещё нет) сводка для этой метки порога не видит — это ожидаемо, джобы до этого нет.
