@@ -40,6 +40,12 @@ def test_sign_ignores_sign_and_token_and_order():
     ("POST", "/product/202502/products/search"),
     ("GET", "/product/202309/products/1729"),
     ("GET", "/finance/202501/statements/77/statement_transactions"),
+    ("GET", "/logistics/202309/warehouses"),
+    ("GET", "/logistics/202309/warehouses/7628307551415093014/delivery_options"),
+    ("GET", "/logistics/202309/delivery_options/7357984593359669025/shipping_providers"),
+    ("GET", "/product/202309/categories"),
+    ("GET", "/product/202309/categories/979848/attributes"),
+    ("GET", "/product/202309/categories/979848/rules"),
 ])
 def test_allowed(method, path):
     tt.check_allowed(method, path)
@@ -57,6 +63,13 @@ def test_allowed(method, path):
     ("GET", "/product/202309/products/1?x=1"),
     ("POST", "/order/202309/orders/search\n"),
     ("GET", "/finance/202501/statements//statement_transactions"),
+    # группа D — только чтение: запись в логистику и категории и пути вне шаблона не проходят
+    ("POST", "/logistics/202309/warehouses"),
+    ("POST", "/product/202309/categories/recommend"),
+    ("GET", "/product/202309/categories/979848/attributes/1"),
+    ("GET", "/logistics/202309/warehouses/../delivery_options"),
+    ("POST", "/fulfillment/202309/packages/1/ship"),
+    ("GET", "/fulfillment/202309/orders/1/tracking"),
 ])
 def test_not_allowed(method, path):
     with pytest.raises(PermissionError):
