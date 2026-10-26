@@ -1,9 +1,11 @@
 # Databricks notebook source
 # DBTITLE 1,Kabinet - TikTok Shop Reference Loader: склады, доставка, перевозчики, категории → dnipro_m.tiktok
-# Kabinet - TikTok Shop Reference Loader (26.10.2026, группа D плана «все группы TikTok API на чтение»: логистика и
+# Kabinet - TikTok Shop Reference Loader (26.10.2026, шаг 1 из групп 2–5 плана «все группы TikTok API на чтение»: логистика и
 # категории, решение владельца; docs/tiktok-shop.md).
 #
-# Только GET: клиент (tiktok_client.py рядом) вызывает только пути белого списка. Справочники магазина, раз в неделю,
+# Только GET: клиент (tiktok_client.py рядом) вызывает только пути белого списка. Справочники магазина, раз в неделю
+# (пн 12:00 Киев: после окна 09:30–11:30 и далеко от прогонов заказов 06:30 и аналитики 06:45 с их повторами — три
+# джобы делят один refresh-токен, и одновременное обновление токена не должно случиться),
 # снимком (MERGE по ключу, loaded_at — время прогона; исчезнувшая у TikTok строка остаётся со старым loaded_at):
 # - склады (logistics/202309/warehouses) — без адреса и контакта: из адреса только регион и страна;
 # - варианты доставки склада и перевозчики каждого варианта (fulfillment: как отгружаются заказы);
@@ -62,8 +64,8 @@ def merge(table, keys, rows):
     if not rows:
         return 0
     uniq = {tuple(r[k] for k in keys): r for r in rows}
-    stats[table] = stats.get(table, 0) + len(uniq)
     if DRY:
+        stats[table] = stats.get(table, 0) + len(uniq)
         return len(uniq)
     schema = spark.table(f"{SCHEMA}.{table}").schema
     df = spark.createDataFrame([tuple(r.get(f.name) for f in schema.fields) for r in uniq.values()], schema)
@@ -72,6 +74,7 @@ def merge(table, keys, rows):
     on = " AND ".join(f"t.{k} = s.{k}" for k in keys)
     spark.sql(f"MERGE INTO {SCHEMA}.{table} t USING {view} s ON {on} "
               f"WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *")
+    stats[table] = stats.get(table, 0) + len(uniq)        # в заметку пульса — только записанное
     return len(uniq)
 
 
@@ -88,11 +91,17 @@ for shop in shops:
         merge("raw_warehouses", ("shop_id", "warehouse_id"), [rr.warehouse_row(shop, x, loaded_at) for x in whs])
         opts, provs = [], []
         for wh in whs:
-            for d in client.call("GET", f"/logistics/202309/warehouses/{wh['id']}/delivery_options", q).get("delivery_options") or []:
-                opts.append(rr.delivery_option_row(shop, wh["id"], d, loaded_at))
+            try:
+                for d in client.call("GET", f"/logistics/202309/warehouses/{wh['id']}/delivery_options", q).get("delivery_options") or []:
+                    opts.append(rr.delivery_option_row(shop, wh["id"], d, loaded_at))
+            except Exception as e:
+                errors.append(f"{label} варианты доставки склада {wh.get('id')}: {str(e)[:200]}")
         for opt_id in sorted({o["delivery_option_id"] for o in opts if o.get("delivery_option_id")}):
-            for p in client.call("GET", f"/logistics/202309/delivery_options/{opt_id}/shipping_providers", q).get("shipping_providers") or []:
-                provs.append(rr.shipping_provider_row(shop, opt_id, p, loaded_at))
+            try:
+                for p in client.call("GET", f"/logistics/202309/delivery_options/{opt_id}/shipping_providers", q).get("shipping_providers") or []:
+                    provs.append(rr.shipping_provider_row(shop, opt_id, p, loaded_at))
+            except Exception as e:
+                errors.append(f"{label} перевозчики варианта {opt_id}: {str(e)[:200]}")
         merge("raw_delivery_options", ("shop_id", "warehouse_id", "delivery_option_id"), opts)
         merge("raw_shipping_providers", ("shop_id", "delivery_option_id", "provider_id"), provs)
         print(f"{label}: складов {len(whs)}, вариантов доставки {len(opts)}, перевозчиков {len(provs)}")

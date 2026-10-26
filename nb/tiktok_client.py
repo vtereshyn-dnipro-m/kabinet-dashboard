@@ -56,7 +56,7 @@ ALLOWED = (
     ("GET", "/analytics/202509/shop_videos/{video_id}/products/performance"),
     ("GET", "/analytics/202609/shop_lives/performance"),
     ("GET", "/analytics/202512/shop/{live_id}/products_performance"),
-    # логистика и категории (группа D, решение владельца 26.10.2026) — только GET, справочники магазина
+    # логистика и категории (шаг 1 из групп 2–5, решение владельца 26.10.2026) — только GET, справочники магазина
     ("GET", "/logistics/202309/warehouses"),
     ("GET", "/logistics/202309/warehouses/{warehouse_id}/delivery_options"),
     ("GET", "/logistics/202309/delivery_options/{delivery_option_id}/shipping_providers"),

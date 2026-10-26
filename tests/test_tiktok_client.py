@@ -63,7 +63,7 @@ def test_allowed(method, path):
     ("GET", "/product/202309/products/1?x=1"),
     ("POST", "/order/202309/orders/search\n"),
     ("GET", "/finance/202501/statements//statement_transactions"),
-    # группа D — только чтение: запись в логистику и категории и пути вне шаблона не проходят
+    # логистика и категории — только чтение: запись в логистику и категории и пути вне шаблона не проходят
     ("POST", "/logistics/202309/warehouses"),
     ("POST", "/product/202309/categories/recommend"),
     ("GET", "/product/202309/categories/979848/attributes/1"),

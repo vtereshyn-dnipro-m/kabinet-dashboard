@@ -1,11 +1,11 @@
 {
   "name": "Kabinet - TikTok Shop Reference Loader",
-  "description": "TikTok Shop: склады, варианты доставки, перевозчики, дерево категорий (es-ES), категории наших товаров и их атрибуты и правила → dnipro_m.tiktok. Раз в неделю, пн 07:05 Kyiv. Только чтение у TikTok.",
+  "description": "TikTok Shop: склады, варианты доставки, перевозчики, дерево категорий (es-ES), категории наших товаров и их атрибуты и правила → dnipro_m.tiktok. Раз в неделю, пн 12:00 Kyiv. Только чтение у TikTok.",
   "run_as": {
     "service_principal_name": "<APPLICATION_ID kabinet-jobs-sp>"
   },
   "schedule": {
-    "quartz_cron_expression": "0 5 7 ? * MON",
+    "quartz_cron_expression": "0 0 12 ? * MON",
     "timezone_id": "Europe/Kyiv",
     "pause_status": "UNPAUSED"
   },

@@ -1,4 +1,4 @@
--- TikTok Shop, справочники (группа D: логистика и категории, 26.10.2026): таблицы сырья и правило сторожа для
+-- TikTok Shop, справочники (шаг 1 из групп 2–5: логистика и категории, 26.10.2026): таблицы сырья и правило сторожа для
 -- `Kabinet - TikTok Shop Reference Loader` (docs/tiktok-shop.md). Применяет владелец — сам или агентом по прямому
 -- «применяй», только под учёткой владельца. Только добавляет: ничего не удаляет и ни у кого не отнимает.
 --
@@ -50,6 +50,6 @@ COMMENT 'TikTok Shop: правила листовых категорий наш�
 -- psql "<строка владельца>" -v reference_job_id=<id> -v ON_ERROR_STOP=1 -1 -f <файл с этой частью>
 -- Имя = метка пульса = имя джобы (AGENTS.md, «Одно имя джоба в трёх местах»). Раз в неделю — порог 192 ч.
 -- INSERT INTO kabinet_data.job_health_rules (job_id, job_name, expected_interval_hours, schedule_description, is_active, note)
--- VALUES (:reference_job_id, 'Kabinet - TikTok Shop Reference Loader', 192, 'еженедельно, пн 07:05 Kyiv', true,
+-- VALUES (:reference_job_id, 'Kabinet - TikTok Shop Reference Loader', 192, 'еженедельно, пн 12:00 Kyiv', true,
 --         'TikTok Shop: склады, доставка, перевозчики, категории и их атрибуты и правила; run_as kabinet-jobs-sp')
 -- ON CONFLICT (job_id) DO NOTHING;
