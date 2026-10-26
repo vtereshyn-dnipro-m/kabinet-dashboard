@@ -273,7 +273,8 @@ _(пусто)_
 - Статус: ждёт владельца: следующей авторизации в Partner Center — урезать при ней, не отдельно (решение
   владельца 27.10.2026)
 - PR: —
-- Заметки: в токене от 26.10.2026 27 прав, из них 11 на запись и удаление: `seller.affiliate_collaboration.write`,
+- Заметки: в токене от 26.10.2026 27 прав (источник — `granted_scopes` из вывода обмена в ноутбуке
+  `_probe/TikTok — повторная авторизация (проба, 2026-10-26)`, прогон 26.10 12:10; только названия), из них 11 на запись и удаление: `seller.affiliate_collaboration.write`,
   `seller.affiliate_messages.write`, `seller.fulfillment.package.write`, `seller.delivery.status.write`,
   `seller.product.write`, `seller.product.delete`, `seller.global_product.write`, `seller.global_product.delete`,
   `seller.global_product.image_trans_task`, `seller.promotion.write`, `seller.redeem_info.write`. Клиент их не
