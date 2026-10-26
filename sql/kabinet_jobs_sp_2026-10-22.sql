@@ -1,6 +1,7 @@
 -- Сервисный принципал джоб kabinet-jobs-sp (вариант В): SQL «только добавить», МИНИМАЛЬНЫЕ права — только то, что нужно
 -- загрузчикам TikTok (решение владельца 26.10.2026, вариант а). Ничего не забирает — claude-uc-ro и account users
--- работают как прежде. Применяет ВЛАДЕЛЕЦ (или агент по «применяй» под его учёткой), после создания принципала.
+-- работают как прежде. Применяет владелец — сам или агентом по прямому «применяй», только под учёткой владельца
+-- (docs/kabinet-jobs-sp.md, вступление), после создания принципала.
 --
 -- Было (22–25.10.2026): копия всех прав claude-uc-ro — 223 объекта, запись на 66, включая INSERT на app_action_log
 -- (журнал системы входа). Владелец это отклонил: принципал получает только нужное; запись для первых пяти джоб из
@@ -18,7 +19,8 @@
 --   raw_tiktok_order_lines,
 --   raw_tiktok_finance_tx      SELECT, INSERT, UPDATE  — реплика, INSERT … ON CONFLICT DO UPDATE (загрузчик заказов).
 -- DELETE не нужен нигде. Последовательностей у этих таблиц нет. Остальное (сырьё, sync_state) — в Unity Catalog,
--- dnipro_m.tiktok — не здесь. SELECT нужен для ON CONFLICT DO UPDATE (чтение конфликтующей строки и EXCLUDED).
+-- dnipro_m.tiktok — часть B ниже. SELECT нужен для ON CONFLICT DO UPDATE: Postgres проверяет его при любом таком INSERT
+-- (без SELECT — permission denied даже на новой строке; проверено проверяющим на локальном Postgres 16).
 -- reorder_params принадлежит claude_code_ro; владелец выдаёт SELECT на неё через databricks_superuser (у той SELECT с
 -- правом передачи, владелец состоит в ней с INHERIT) — грантующим запишется databricks_superuser.
 
@@ -48,15 +50,12 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "v.tereshyn@dniprom.com" IN SCHEMA kabinet_dat
 --  WHERE a.grantee = '<APPLICATION_ID>'::regrole;                                                        -- 1 строка: SELECT
 
 -- ── Часть B. Unity Catalog (SQL-склад, Spark SQL; под владельцем каталога — группа администраторов воркспейса) ──
--- B1. Чтение. Явных грантов у claude-uc-ro в UC мало (USE CATALOG и USE SCHEMA + SELECT на kabinet_data), остальное он
---     получает через account users. Новому — явно на все четыре схемы: когда account users станет «только чтение»,
---     у него не пропадёт ничего. Сейчас (account users — ALL PRIVILEGES и MANAGE на каталог) «только чтение» у нового
---     принципала по факту ещё не действует — это шаг после перевода всех джоб.
+-- B1. Только то, что нужно загрузчикам TikTok: каталог и их схема dnipro_m.tiktok (сырьё raw_* и sync_state — MERGE).
+--     Чтение других схем (dnipro_m, kabinet, kabinet_data, listing_data) — при переводе первых пяти джоб, не сейчас.
+--     Сейчас (account users — ALL PRIVILEGES и MANAGE на каталог) принципал получит доступ и через группу, поэтому
+--     первый прогон эти гранты не проверит — проверять SHOW GRANTS ON SCHEMA dnipro_m.tiktok.
 -- В Spark SQL подстановки нет — `<sp>` заменить application id руками (в обратных кавычках).
 -- GRANT USE CATALOG ON CATALOG dnipro_m TO `<sp>`;
--- GRANT USE SCHEMA, SELECT ON SCHEMA dnipro_m.dnipro_m TO `<sp>`;
--- GRANT USE SCHEMA, SELECT ON SCHEMA dnipro_m.kabinet TO `<sp>`;
--- GRANT USE SCHEMA, SELECT ON SCHEMA dnipro_m.kabinet_data TO `<sp>`;
--- GRANT USE SCHEMA, SELECT ON SCHEMA dnipro_m.listing_data TO `<sp>`;
--- B2. Запись — НЕ на этом шаге: первые пять джоб в Unity Catalog не пишут. Для девяти пишущих — вторым PR:
+-- GRANT USE SCHEMA, CREATE TABLE, MODIFY, SELECT ON SCHEMA dnipro_m.tiktok TO `<sp>`;
+-- B2. Запись в dnipro_m.dnipro_m — НЕ на этом шаге: первые пять джоб в Unity Catalog не пишут. Для девяти пишущих — вторым PR:
 -- GRANT CREATE TABLE, MODIFY ON SCHEMA dnipro_m.dnipro_m TO `<sp>`;   -- и передача владения их 14 таблицами
