@@ -2,8 +2,10 @@
 
 Запуск из корня рабочей копии (код — из ТОЙ копии, где лежит этот файл, как у smoke_full.py):
     uv run --quiet --with-requirements requirements.txt python scratchpad/home_timing.py
-Выводит: общее время рендера под admin, число запросов к Lakebase, время в базе и двенадцать самых тяжёлых запросов.
-Время pd.read_sql учитывается один раз (без вложенного cursor.execute).
+Выводит: общее время рендера под admin, число запросов к Lakebase, время в базе, сколько новых подключений открыто и
+сколько времени на это ушло, и двенадцать самых тяжёлых запросов. Время pd.read_sql учитывается один раз (без
+вложенного cursor.execute). Подключения — как в приложении: пул до 8 (db/connection.py, с #128), close() возвращает
+подключение в пул; без пула (каждый запрос — новое подключение) первый замер 27.10 завысил время вдвое (34 с против ~16 с).
 """
 import collections
 import json
@@ -50,14 +52,54 @@ class Cur(psycopg2.extensions.cursor):
                 T.append((time.time() - t0, " ".join(str(q).split())[:150]))
 
 
-def conn():
-    c = psycopg2.connect(DSN, cursor_factory=Cur)
-    c.set_session(readonly=True)
-    return c
+CONNECTS = []             # секунды на каждое новое подключение
 
 
+class Pool:
+    """Как пул приложения: до 8 подключений, выданное и закрытое возвращается и выдаётся снова."""
+
+    def __init__(self, size=8):
+        self.free, self.size, self.open = [], size, 0
+
+    def get(self):
+        if self.free:
+            return self.free.pop()
+        t0 = time.time()
+        c = psycopg2.connect(DSN, cursor_factory=Cur)
+        c.set_session(readonly=True)
+        CONNECTS.append(time.time() - t0)
+        self.open += 1
+        return c
+
+    def put(self, c):
+        c.rollback()
+        self.free.append(c)
+
+
+class Pooled:
+    def __init__(self, pool):
+        self._pool, self._conn = pool, pool.get()
+
+    def close(self):
+        if self._conn is not None:
+            self._pool.put(self._conn)
+            self._conn = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        self.close()
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return getattr(self._conn, name)
+
+
+POOL = Pool()
 import db.connection as dbc  # noqa: E402
-dbc.get_connection = conn
+dbc.get_connection = lambda: Pooled(POOL)
 _orig = pd.read_sql
 
 
@@ -85,12 +127,13 @@ exec(compile(open("home.py", encoding="utf-8").read(), "home.py", "exec"))
 '''
 for run in ("холодный", "тёплый"):
     T.clear()
+    CONNECTS.clear()
     at = AppTest.from_string(SRC, default_timeout=600)
     t0 = time.time()
     at.run()
     total = time.time() - t0
     print(f"=== {run}: всего {total:.1f} с, исключений {len(at.exception)}, запросов {len(T)}, "
-          f"в базе {sum(x[0] for x in T):.1f} с")
+          f"в базе {sum(x[0] for x in T):.1f} с, новых подключений {len(CONNECTS)} ({sum(CONNECTS):.1f} с)")
     agg = collections.defaultdict(lambda: [0, 0.0])
     for sec, q in T:
         agg[q][0] += 1
