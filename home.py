@@ -521,9 +521,11 @@ def load_tiktok_sales(d_from, d_to, ver: str = "", admin_preview: bool = False) 
     не Power BI. Пусто, если в reorder_params tiktok_overview_enabled не 1 (до сверки с Seller Center — выключено,
     решение владельца) или вью ещё нет. admin_preview — администратор видит строку и при выключенном флаге
     (решение владельца 23.10.2026, как вкладка на «Площадках»); входит в ключ кеша, поэтому кадры не смешиваются. Колонки — как у строк реплики Power BI, которые читают блок каналов и
-    таблица стран: revenue — без НДС, sales_vat_incl — с НДС."""
+    таблица стран: revenue — без НДС, sales_vat_incl — с НДС. Колонка _refunds_error — почему возвраты не учтены
+    («—» — вью ещё нет, иначе текст ошибки; пусто — учтены)."""
     if not table_exists("v_tiktok_sales_daily"):
         return pd.DataFrame()
+    ref_err = ""
     conn = get_connection()
     try:
         on = pd.read_sql("SELECT value FROM kabinet_data.reorder_params WHERE key = 'tiktok_overview_enabled'", conn)
@@ -537,20 +539,23 @@ def load_tiktok_sales(d_from, d_to, ver: str = "", admin_preview: bool = False) 
                          conn, params={"a": d_from, "b": d_to})
         # возвраты (27.10.2026, решение владельца) — только деньги по выпискам, по дате выписки возврата (Мадрид), как на
         # вкладке TikTok: отдельными строками дня возврата с нулевыми продажами, чтобы блок каналов и таблица стран
-        # сложили их той же группировкой. Нет вью или ошибка чтения — продажи остаются, а пропуск возвратов виден подписью
+        # сложили их той же группировкой. Вью нет или ошибка чтения — продажи остаются, а пропуск возвратов виден подписью
         df["refund_vat_incl"] = 0.0
         df["refund_vat_excl"] = 0.0
-        try:
-            rf = pd.read_sql("""SELECT date AS sales_date, marketplace, channel, country, refund_vat_incl, refund_vat_excl
-                                FROM kabinet_data.v_tiktok_refunds_daily WHERE date BETWEEN %(a)s AND %(b)s""",
-                             conn, params={"a": d_from, "b": d_to})
-            rf["sales_vat_incl"] = 0.0
-            rf["revenue"] = 0.0
-            df = pd.concat([df, rf[df.columns]], ignore_index=True) if not rf.empty else df
-            df["_refunds_error"] = ""
-        except Exception as e:
-            conn.rollback()
-            df["_refunds_error"] = f"{type(e).__name__}: {str(e)[:120]}"
+        if not table_exists("v_tiktok_refunds_daily"):
+            ref_err = "—"            # SQL ещё не применён: подпись без текста ошибки базы
+        else:
+            try:
+                rf = pd.read_sql("""SELECT date AS sales_date, marketplace, channel, country, refund_vat_incl, refund_vat_excl
+                                    FROM kabinet_data.v_tiktok_refunds_daily WHERE date BETWEEN %(a)s AND %(b)s""",
+                                 conn, params={"a": d_from, "b": d_to})
+                rf["sales_vat_incl"] = 0.0
+                rf["revenue"] = 0.0
+                if not rf.empty:
+                    df = pd.concat([df, rf[df.columns]], ignore_index=True)
+            except Exception as e:
+                conn.rollback()
+                ref_err = f"{type(e).__name__}: {str(e)[:120]}"
     except Exception as e:
         # строка TTS-ES не должна исчезать молча: пустой кадр с текстом ошибки — блок каналов покажет подпись
         return pd.DataFrame({"_error": [f"{type(e).__name__}: {str(e)[:150]}"]})
@@ -558,6 +563,10 @@ def load_tiktok_sales(d_from, d_to, ver: str = "", admin_preview: bool = False) 
         conn.close()
     if not df.empty:
         df["sales_date"] = pd.to_datetime(df["sales_date"])
+        df["_refunds_error"] = ref_err
+    elif ref_err:
+        # период без продаж и возвратов: пометка о пропуске возвратов не теряется — одна строка только с ней
+        df = pd.DataFrame({"_refunds_error": [ref_err]})
     return df
 
 
@@ -905,7 +914,8 @@ else:
         _ar = load_ad_ratios(_m_from.date(), _m_to.date(),
                              data_version("ads_market_daily", "updated_at") if pbi.OWN_METHOD
                              else data_version("pbi_spiderweb_report", "loaded_at"))
-        _r1, _r2, _a1, _a2, _a3 = st.columns(5)
+        # в режиме своей методики карточек возвратов нет — прежняя раскладка ряда
+        _r1, _r2, _a1, _a2, _a3 = st.columns(5) if _pbi else (None, None, *st.columns([1, 1, 1, 2])[:3])
         if _pbi:
             # Возвраты и «после возвратов» (27.10.2026, решение владельца): продажи остаются как в Power BI — до
             # возвратов, рядом возвраты витрины (Refund Total VAT Excl) с минусом и разность. Тот же периметр и окно, что
@@ -1000,9 +1010,12 @@ else:
         _tts_err = as_text(_tts["_error"].iloc[0]) if "_error" in _tts.columns else ""
         if _tts_err:
             _tts = pd.DataFrame()
-        _tts_ref_err = (as_text(_tts["_refunds_error"].iloc[0]) if "_refunds_error" in _tts.columns and len(_tts) else "")
+        _tts_ref_err = ""
         if "_refunds_error" in _tts.columns:
-            _tts = _tts.drop(columns="_refunds_error")
+            _tts_ref_err = next((as_text(x) for x in _tts["_refunds_error"] if as_text(x)), "")
+            _tts = _tts.drop(columns="_refunds_error").dropna(how="all")
+            if _tts.empty or "marketplace" not in _tts.columns:
+                _tts = pd.DataFrame()
         cur_ch = pd.concat([cur, _tts], ignore_index=True) if not _tts.empty else cur
         rev_ch = float(cur_ch["revenue"].sum())   # база долей каналов — вместе с TikTok, если он показан
         # Канал — это площадка (Amazon, Leroy Merlin, ManoMano, Carrefour),
@@ -1095,8 +1108,10 @@ else:
                 unsafe_allow_html=True)
         # итог под каналами (27.10.2026): продажи, возвраты, после возвратов — сумма строк выше, без своей арифметики
         _ret_ch = float(by_ch["refund_vat_excl"].sum())
+        _rev_rows = float(by_ch["revenue"].sum())   # сумма строк выше — тот же итог, что rev_ch
         if _pbi and _ret_ch > 0.5:
-            st.caption(t("home.sales.returns_total", s=f"{rev_ch:,.0f}", r=f"{_ret_ch:,.0f}", n=f"{rev_ch - _ret_ch:,.0f}"))
+            st.caption(t("home.sales.returns_total_excl", s=f"{_rev_rows:,.0f}", r=f"{_ret_ch:,.0f}",
+                         n=f"{_rev_rows - _ret_ch:,.0f}"))
 
         # у Amazon страна в коде рынка, у остальных площадок — сам код
         # площадки: подписываем плашки кодом как есть, а группируем цветом
@@ -1177,11 +1192,14 @@ else:
         st.markdown(
             f'<div style="margin-top:6px;line-height:2">{chips}</div>',
             unsafe_allow_html=True)
-        # итог плашек — сумма плашек выше: страны с НДС, рынки без НДС (тот же итог, что под каналами)
-        if _pbi and _geo_tot[1] > 0.5:
-            st.caption(t("home.sales.returns_total", s=f"{_geo_tot[0]:,.0f}", r=f"{_geo_tot[1]:,.0f}",
+        # итог плашек стран — сумма плашек выше, с НДС; у плашек рынков (без НДС) итог тот же, что под каналами, —
+        # второй раз его не пишем
+        if _pbi and _geo == "country" and _geo_tot[1] > 0.5:
+            st.caption(t("home.sales.returns_total_incl", s=f"{_geo_tot[0]:,.0f}", r=f"{_geo_tot[1]:,.0f}",
                          n=f"{_geo_tot[0] - _geo_tot[1]:,.0f}"))
-        if _tts_ref_err:
+        if _tts_ref_err == "—":
+            st.caption(t("home.tts_refunds_pending"))
+        elif _tts_ref_err:
             st.caption(t("home.tts_refunds_error", e=_tts_ref_err))
         if not _tts.empty:
             st.caption(t("home.tts_note") + " " + t("home.tts_as_of",
