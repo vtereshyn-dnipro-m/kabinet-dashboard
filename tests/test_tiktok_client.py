@@ -46,9 +46,17 @@ def test_sign_ignores_sign_and_token_and_order():
     ("GET", "/product/202309/categories"),
     ("GET", "/product/202309/categories/979848/attributes"),
     ("GET", "/product/202309/categories/979848/rules"),
+    ("POST", "/return_refund/202309/returns/search"),
+    ("POST", "/return_refund/202309/cancellations/search"),
 ])
 def test_allowed(method, path):
     tt.check_allowed(method, path)
+
+
+def test_every_post_is_a_search():
+    # POST в белом списке — только поиски (данных не меняют); любой другой POST — уже запись
+    posts = [t for m, t in tt.ALLOWED if m == "POST"]
+    assert posts and all(t.endswith("/search") and "{" not in t for t in posts), posts
 
 
 @pytest.mark.parametrize("method,path", [
@@ -70,6 +78,15 @@ def test_allowed(method, path):
     ("GET", "/logistics/202309/warehouses/../delivery_options"),
     ("POST", "/fulfillment/202309/packages/1/ship"),
     ("GET", "/fulfillment/202309/orders/1/tracking"),
+    # возвраты и отмены — только поиск: решения по возврату и отмене, создание и поиск не тем методом не проходят
+    ("POST", "/return_refund/202309/returns/4035305329223637556/approve"),
+    ("POST", "/return_refund/202309/returns/4035305329223637556/reject"),
+    ("POST", "/return_refund/202309/cancellations/4035299946059766506/approve"),
+    ("POST", "/return_refund/202309/cancellations/4035299946059766506/reject"),
+    ("POST", "/return_refund/202309/returns"),
+    ("POST", "/return_refund/202309/cancellations"),
+    ("GET", "/return_refund/202309/returns/search"),
+    ("POST", "/return_refund/202309/returns/search/1"),
 ])
 def test_not_allowed(method, path):
     with pytest.raises(PermissionError):

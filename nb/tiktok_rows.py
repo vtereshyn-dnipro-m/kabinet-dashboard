@@ -12,6 +12,15 @@
 # другие хеши, и покупатель «до» и «после» смены перестаёт узнаваться. Товары и финансы — ответ целиком (покупателей
 # там нет; order_id в операциях — ключ связи, не персональные данные).
 #
+# Возвраты и отмены (шаг 2, 27.10.2026, решение владельца): тоже БЕЛЫЙ СПИСОК (RETURN_KEEP, CANCEL_KEEP и поля строк).
+# Не пишутся ни в колонки, ни в raw_json: адрес склада возврата, трек-номер обратной отправки, перевозчик возврата (имя
+# и id), сумма обратной доставки, которую платит покупатель, ссылки на картинки товара. Полей покупателя в ответах нет
+# (проба 27.10.2026), а новое поле TikTok в сырьё без правки кода не попадёт. Строка таблицы — одна позиция возврата или
+# отмены; поля самого возврата (статус, причина, итог) повторяются в каждой его позиции. Позиция без id получает заглушку
+# «#номер» (возврат без позиций — одна строка «#0»): заглушки разные, при записи не склеиваются. MERGE ничего не удаляет,
+# поэтому заглушка может остаться рядом с настоящими позициями, если TikTok позже их отдаст: потребитель берёт строки
+# «#…» возврата, только если настоящих у него нет (на 27.10.2026 у всех 23 записей позиция одна и с id).
+#
 # Деньги у TikTok — строки ("12.50"), время — unix-секунды (UTC). Пустая строка — NULL, не ноль.
 # Источник кода — nb/tiktok_rows.py в kabinet-dashboard.
 import datetime as dt
@@ -38,6 +47,30 @@ LINE_KEEP = frozenset((
     "shipping_vat_amount", "shipping_vat_rate", "combined_listing_skus",
 ))
 ADDRESS_KEEP = ("postal_code", "region_code")
+RETURN_KEEP = frozenset((
+    "return_id", "order_id", "combined_return_id", "is_combined_return", "return_type", "return_status",
+    "return_reason", "return_reason_text", "return_method", "handover_method", "shipment_type", "role",
+    "arbitration_status", "create_time", "update_time", "refund_amount", "discount_amount", "shipping_fee_amount",
+    "seller_next_action_response", "return_line_items",
+))
+RETURN_LINE_KEEP = frozenset((
+    "return_line_item_id", "order_line_item_id", "sku_id", "seller_sku", "product_name", "sku_name", "refund_amount",
+))
+CANCEL_KEEP = frozenset((
+    "cancel_id", "order_id", "cancel_type", "cancel_status", "cancel_reason", "cancel_reason_text", "role",
+    "should_replenish_stock", "create_time", "update_time", "refund_amount", "cancel_line_items",
+))
+CANCEL_LINE_KEEP = frozenset((
+    "cancel_line_item_id", "order_line_item_id", "sku_id", "seller_sku", "product_name", "sku_name", "refund_amount",
+))
+# из суммы обратной доставки — только то, что платят продавец и платформа; долю покупателя не пишем
+SHIPPING_FEE_KEEP = ("currency", "seller_paid_return_shipping_fee", "platform_paid_return_shipping_fee")
+NO_LINE = "#0"        # возврат или отмена без позиций — одна строка таблицы с этим id позиции
+
+
+def _line_id(li, key, i):
+    """id позиции; нет id — заглушка «#номер» (номер с единицы), чтобы позиции без id не склеились при MERGE."""
+    return li.get(key) or f"#{i + 1}"
 
 
 def money(v):
@@ -161,6 +194,90 @@ def transaction_row(shop, statement_id, currency, tr, loaded_at):
         "fee_tax_amount": money(tr.get("fee_tax_amount")), "adjustment_amount": money(tr.get("adjustment_amount")),
         "settlement_amount": money(tr.get("settlement_amount")), "raw_json": _j(tr), "loaded_at": loaded_at,
     }
+
+
+def _first(x):
+    """У TikTok часть сумм — список по валютам; берём первый элемент (валюта у магазина одна)."""
+    if isinstance(x, list):
+        return x[0] if x and isinstance(x[0], dict) else {}
+    return x if isinstance(x, dict) else {}
+
+
+def _keep(d, keys):
+    return {k: v for k, v in d.items() if k in keys} if isinstance(d, dict) else {}
+
+
+def strip_return(r):
+    """Копия возврата: только белый список, у позиций — тоже; из суммы обратной доставки — без доли покупателя."""
+    o = _keep(r, RETURN_KEEP)
+    if "shipping_fee_amount" in o:
+        fees = o["shipping_fee_amount"] if isinstance(o["shipping_fee_amount"], list) else [o["shipping_fee_amount"]]
+        o["shipping_fee_amount"] = [{k: f.get(k) for k in SHIPPING_FEE_KEEP if k in f} for f in fees if isinstance(f, dict)]
+    o["return_line_items"] = [_keep(li, RETURN_LINE_KEEP) for li in (r.get("return_line_items") or [])]
+    return o
+
+
+def strip_cancellation(c):
+    o = _keep(c, CANCEL_KEEP)
+    o["cancel_line_items"] = [_keep(li, CANCEL_LINE_KEEP) for li in (c.get("cancel_line_items") or [])]
+    return o
+
+
+def return_rows(shop, r, loaded_at):
+    """[строки raw_returns] — по позиции возврата; без позиций — одна строка с return_line_item_id = NO_LINE."""
+    o = strip_return(r)
+    head_ref, disc, fee = _first(o.get("refund_amount")), _first(o.get("discount_amount")), _first(o.get("shipping_fee_amount"))
+    lines = o["return_line_items"] or [{"return_line_item_id": NO_LINE}]
+    raw = _j(o)
+    out = []
+    for i, li in enumerate(lines):
+        ref = _first(li.get("refund_amount"))
+        out.append({
+            "shop_id": shop["id"], "region": shop.get("region"), "return_id": o.get("return_id"),
+            "return_line_item_id": _line_id(li, "return_line_item_id", i), "order_id": o.get("order_id"),
+            "order_line_item_id": li.get("order_line_item_id"), "sku_id": li.get("sku_id"),
+            "seller_sku": li.get("seller_sku"), "product_name": li.get("product_name"), "sku_name": li.get("sku_name"),
+            "return_type": o.get("return_type"), "return_status": o.get("return_status"),
+            "return_reason": o.get("return_reason"), "return_reason_text": o.get("return_reason_text"),
+            "return_method": o.get("return_method"), "role": o.get("role"),
+            "create_time": ts(o.get("create_time")), "update_time": ts(o.get("update_time")),
+            "currency": ref.get("currency") or head_ref.get("currency"),
+            "refund_total": money(ref.get("refund_total")), "refund_subtotal": money(ref.get("refund_subtotal")),
+            "return_refund_total": money(head_ref.get("refund_total")),
+            "return_refund_shipping_fee": money(head_ref.get("refund_shipping_fee")),
+            "product_seller_discount": money(disc.get("product_seller_discount")),
+            "product_platform_discount": money(disc.get("product_platform_discount")),
+            "seller_paid_return_shipping_fee": money(fee.get("seller_paid_return_shipping_fee")),
+            "platform_paid_return_shipping_fee": money(fee.get("platform_paid_return_shipping_fee")),
+            "lines_count": len(o["return_line_items"]), "raw_json": raw, "loaded_at": loaded_at,
+        })
+    return out
+
+
+def cancellation_rows(shop, c, loaded_at):
+    """[строки raw_cancellations] — по позиции отмены; без позиций — одна строка с cancel_line_item_id = NO_LINE."""
+    o = strip_cancellation(c)
+    head_ref = _first(o.get("refund_amount"))
+    lines = o["cancel_line_items"] or [{"cancel_line_item_id": NO_LINE}]
+    raw = _j(o)
+    srs = o.get("should_replenish_stock")
+    out = []
+    for i, li in enumerate(lines):
+        ref = _first(li.get("refund_amount"))
+        out.append({
+            "shop_id": shop["id"], "region": shop.get("region"), "cancel_id": o.get("cancel_id"),
+            "cancel_line_item_id": _line_id(li, "cancel_line_item_id", i), "order_id": o.get("order_id"),
+            "order_line_item_id": li.get("order_line_item_id"), "sku_id": li.get("sku_id"),
+            "seller_sku": li.get("seller_sku"), "product_name": li.get("product_name"), "sku_name": li.get("sku_name"),
+            "cancel_type": o.get("cancel_type"), "cancel_status": o.get("cancel_status"),
+            "cancel_reason": o.get("cancel_reason"), "cancel_reason_text": o.get("cancel_reason_text"),
+            "role": o.get("role"), "should_replenish_stock": None if srs is None else bool(srs),
+            "create_time": ts(o.get("create_time")), "update_time": ts(o.get("update_time")),
+            "currency": ref.get("currency") or head_ref.get("currency"),
+            "refund_total": money(ref.get("refund_total")), "cancel_refund_total": money(head_ref.get("refund_total")),
+            "lines_count": len(o["cancel_line_items"]), "raw_json": raw, "loaded_at": loaded_at,
+        })
+    return out
 
 
 def windows(start, end, days):

@@ -1,15 +1,18 @@
 # Databricks notebook source
-# DBTITLE 1,Kabinet - TikTok Shop Loader: заказы, товары, финансы → dnipro_m.tiktok.raw_*
+# DBTITLE 1,Kabinet - TikTok Shop Loader: заказы, возвраты, отмены, товары, финансы → dnipro_m.tiktok.raw_*
 # Kabinet - TikTok Shop Loader (22.10.2026, решение владельца: «TikTok Shop — подключаем, только чтение»;
 # docs/tiktok-shop.md).
 #
-# Только чтение у TikTok: клиент (tiktok_client.py рядом) вызывает только пути белого списка — два POST-поиска (заказы,
-# товары) и GET. Магазины — все авторизованные (Get Authorized Shops), shop_cipher — из ответа, не хранится.
+# Только чтение у TikTok: клиент (tiktok_client.py рядом) вызывает только пути белого списка — POST-поиски (заказы,
+# товары, возвраты, отмены) и GET. Магазины — все авторизованные (Get Authorized Shops), shop_cipher — из ответа, не хранится.
 #
 # Что грузит, по каждому магазину:
 # - заказы — поиск по update_time кусками по tiktok_window_days: первый запуск — tiktok_history_days назад, дальше от
 #   отметки последнего ЦЕЛИКОМ записанного куска минус tiktok_order_overlap_days (статусы и отмены меняются задним
 #   числом); заказ и его строки;
+# - возвраты и отмены (шаг 2, 27.10.2026) — поиск по update_time так же кусками и с тем же перекрытием, что у заказов
+#   (статус возврата меняется неделями); строка таблицы — позиция возврата или отмены, без адреса склада возврата,
+#   трек-номера, перевозчика, доли покупателя за доставку и картинок (tiktok_rows.py);
 # - товары — снимок целиком (поиск со статусом ALL; SKU, цены и остатки приходят в нём же);
 # - выписки — по statement_time так же, перекрытие tiktok_finance_overlap_days (payment_status меняется после
 #   выписки); по каждой выписке — её операции.
@@ -170,6 +173,30 @@ for shop in shops:
             errors.append(f"{label} заказы, кусок с {tt.fmt_ts(a)}: {str(e)[:300]}")
             break
     print(f"{label}: заказов {n_orders} с {tt.fmt_ts(t0)}")
+
+    # возвраты и отмены — так же, по update_time кусками с отметкой; первый сбойный кусок останавливает свой поток
+    for stream, path, list_key, to_rows, table, keys in (
+            ("returns", "/return_refund/202309/returns/search", "return_orders", tr.return_rows, "raw_returns",
+             ("shop_id", "return_id", "return_line_item_id")),
+            ("cancellations", "/return_refund/202309/cancellations/search", "cancellations", tr.cancellation_rows,
+             "raw_cancellations", ("shop_id", "cancel_id", "cancel_line_item_id"))):
+        try:
+            t0 = start_from(stream, sid, ORD_OVL)
+        except Exception as e:
+            errors.append(f"{label} {stream}, отметка sync_state: {str(e)[:300]}")
+            continue
+        n_rows = 0
+        for a, b in tr.windows(t0, now, WIN):
+            try:
+                rows = []
+                for item in client.pages("POST", path, list_key, q, {"update_time_ge": a, "update_time_lt": b}):
+                    rows.extend(to_rows(shop, item, loaded_at))
+                n_rows += merge(table, keys, rows)
+                mark_done(stream, sid, b)
+            except Exception as e:
+                errors.append(f"{label} {stream}, кусок с {tt.fmt_ts(a)}: {str(e)[:300]}")
+                break
+        print(f"{label}: {stream} — позиций {n_rows} с {tt.fmt_ts(t0)}")
 
     # товары — снимок целиком
     try:
