@@ -1006,7 +1006,6 @@ else:
         _tts_admin = bool(_me.logged_in and _me.role == auth.ADMIN)
         _tts = (load_tiktok_sales(_w.cur_from.date(), _w.cur_to.date(),
                                   data_version("raw_tiktok_orders", "loaded_at"), _tts_admin) if _pbi else pd.DataFrame())
-        _tts_preview = _tts_admin and not _tts.empty and not tiktok_overview_on()
         _tts_err = as_text(_tts["_error"].iloc[0]) if "_error" in _tts.columns else ""
         if _tts_err:
             _tts = pd.DataFrame()
@@ -1016,6 +1015,8 @@ else:
             _tts = _tts.drop(columns="_refunds_error").dropna(how="all")
             if _tts.empty or "marketplace" not in _tts.columns:
                 _tts = pd.DataFrame()
+        # после очистки от строки-пометки: иначе подпись «только администратору» стояла бы в периоде без строки TikTok
+        _tts_preview = _tts_admin and not _tts.empty and not tiktok_overview_on()
         cur_ch = pd.concat([cur, _tts], ignore_index=True) if not _tts.empty else cur
         rev_ch = float(cur_ch["revenue"].sum())   # база долей каналов — вместе с TikTok, если он показан
         # Канал — это площадка (Amazon, Leroy Merlin, ManoMano, Carrefour),
