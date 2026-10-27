@@ -84,6 +84,12 @@ def test_return_without_lines_is_one_row():
     assert rows[0]["refund_total"] is None and rows[0]["seller_paid_return_shipping_fee"] is None
 
 
+def test_lines_without_id_do_not_collapse():
+    rows = tr.return_rows(SHOP, {"return_id": "R8", "return_line_items": [{"seller_sku": "A"}, {"seller_sku": "B"},
+                                                                         {"return_line_item_id": "RL3"}]}, AT)
+    assert [r["return_line_item_id"] for r in rows] == ["#1", "#2", "RL3"]
+
+
 def test_cancellation_rows():
     rows = tr.cancellation_rows(SHOP, CANCEL, AT)
     assert len(rows) == 1

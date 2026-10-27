@@ -1,5 +1,5 @@
 # Databricks notebook source
-# DBTITLE 1,Kabinet - TikTok Shop Loader: заказы, товары, финансы → dnipro_m.tiktok.raw_*
+# DBTITLE 1,Kabinet - TikTok Shop Loader: заказы, возвраты, отмены, товары, финансы → dnipro_m.tiktok.raw_*
 # Kabinet - TikTok Shop Loader (22.10.2026, решение владельца: «TikTok Shop — подключаем, только чтение»;
 # docs/tiktok-shop.md).
 #

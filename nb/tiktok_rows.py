@@ -16,7 +16,10 @@
 # Не пишутся ни в колонки, ни в raw_json: адрес склада возврата, трек-номер обратной отправки, перевозчик возврата (имя
 # и id), сумма обратной доставки, которую платит покупатель, ссылки на картинки товара. Полей покупателя в ответах нет
 # (проба 27.10.2026), а новое поле TikTok в сырьё без правки кода не попадёт. Строка таблицы — одна позиция возврата или
-# отмены; поля самого возврата (статус, причина, итог) повторяются в каждой его позиции.
+# отмены; поля самого возврата (статус, причина, итог) повторяются в каждой его позиции. Позиция без id получает заглушку
+# «#номер» (возврат без позиций — одна строка «#0»): заглушки разные, при записи не склеиваются. MERGE ничего не удаляет,
+# поэтому заглушка может остаться рядом с настоящими позициями, если TikTok позже их отдаст: потребитель берёт строки
+# «#…» возврата, только если настоящих у него нет (на 27.10.2026 у всех 23 записей позиция одна и с id).
 #
 # Деньги у TikTok — строки ("12.50"), время — unix-секунды (UTC). Пустая строка — NULL, не ноль.
 # Источник кода — nb/tiktok_rows.py в kabinet-dashboard.
@@ -62,7 +65,12 @@ CANCEL_LINE_KEEP = frozenset((
 ))
 # из суммы обратной доставки — только то, что платят продавец и платформа; долю покупателя не пишем
 SHIPPING_FEE_KEEP = ("currency", "seller_paid_return_shipping_fee", "platform_paid_return_shipping_fee")
-NO_LINE = ""          # позиция возврата или отмены без строк — одна строка таблицы с этим id позиции
+NO_LINE = "#0"        # возврат или отмена без позиций — одна строка таблицы с этим id позиции
+
+
+def _line_id(li, key, i):
+    """id позиции; нет id — заглушка «#номер» (номер с единицы), чтобы позиции без id не склеились при MERGE."""
+    return li.get(key) or f"#{i + 1}"
 
 
 def money(v):
@@ -222,11 +230,11 @@ def return_rows(shop, r, loaded_at):
     lines = o["return_line_items"] or [{"return_line_item_id": NO_LINE}]
     raw = _j(o)
     out = []
-    for li in lines:
+    for i, li in enumerate(lines):
         ref = _first(li.get("refund_amount"))
         out.append({
             "shop_id": shop["id"], "region": shop.get("region"), "return_id": o.get("return_id"),
-            "return_line_item_id": li.get("return_line_item_id") or NO_LINE, "order_id": o.get("order_id"),
+            "return_line_item_id": _line_id(li, "return_line_item_id", i), "order_id": o.get("order_id"),
             "order_line_item_id": li.get("order_line_item_id"), "sku_id": li.get("sku_id"),
             "seller_sku": li.get("seller_sku"), "product_name": li.get("product_name"), "sku_name": li.get("sku_name"),
             "return_type": o.get("return_type"), "return_status": o.get("return_status"),
@@ -254,11 +262,11 @@ def cancellation_rows(shop, c, loaded_at):
     raw = _j(o)
     srs = o.get("should_replenish_stock")
     out = []
-    for li in lines:
+    for i, li in enumerate(lines):
         ref = _first(li.get("refund_amount"))
         out.append({
             "shop_id": shop["id"], "region": shop.get("region"), "cancel_id": o.get("cancel_id"),
-            "cancel_line_item_id": li.get("cancel_line_item_id") or NO_LINE, "order_id": o.get("order_id"),
+            "cancel_line_item_id": _line_id(li, "cancel_line_item_id", i), "order_id": o.get("order_id"),
             "order_line_item_id": li.get("order_line_item_id"), "sku_id": li.get("sku_id"),
             "seller_sku": li.get("seller_sku"), "product_name": li.get("product_name"), "sku_name": li.get("sku_name"),
             "cancel_type": o.get("cancel_type"), "cancel_status": o.get("cancel_status"),

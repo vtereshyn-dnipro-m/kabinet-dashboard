@@ -56,7 +56,7 @@ def test_allowed(method, path):
 def test_every_post_is_a_search():
     # POST в белом списке — только поиски (данных не меняют); любой другой POST — уже запись
     posts = [t for m, t in tt.ALLOWED if m == "POST"]
-    assert posts and all(t.endswith("/search") for t in posts), posts
+    assert posts and all(t.endswith("/search") and "{" not in t for t in posts), posts
 
 
 @pytest.mark.parametrize("method,path", [
