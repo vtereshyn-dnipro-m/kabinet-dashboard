@@ -36,6 +36,13 @@ def test_warehouse_without_address_and_contact():
     assert json.loads(raw)["address"] == {"region": "The Kingdom of Spain", "region_code": "ES", "state": "Community of Madrid"}
 
 
+def test_warehouse_raw_json_is_whitelist():
+    w = {**WAREHOUSE, "new_field_from_tiktok": "x", "manager_email": "a@b.c"}
+    raw = json.loads(rr.warehouse_row(SHOP, w, AT)["raw_json"])
+    assert set(raw) <= set(rr.WAREHOUSE_KEEP) | {"address"}
+    assert "new_field_from_tiktok" not in raw and "manager_email" not in raw
+
+
 def test_warehouse_without_address_at_all():
     r = rr.warehouse_row(SHOP, {"id": "1", "type": "RETURN_WAREHOUSE"}, AT)
     assert r["region_code"] is None and "address" not in json.loads(r["raw_json"])

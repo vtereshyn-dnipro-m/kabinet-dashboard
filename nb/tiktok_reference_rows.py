@@ -9,6 +9,8 @@ import json
 
 # из адреса склада — только это; улица, дом, индекс, город, район, телефон, контакт, полный адрес не пишутся
 ADDRESS_KEEP = ("region", "region_code", "state")
+# склад в raw_json — белым списком полей (по проверке #389): новое поле TikTok не попадёт в сырьё, пока его не добавят сюда
+WAREHOUSE_KEEP = ("id", "name", "type", "sub_type", "effect_status", "is_default", "entity_id")
 
 
 def _addr(a):
@@ -31,7 +33,7 @@ def _base(shop, loaded_at):
 
 def warehouse_row(shop, w, loaded_at):
     a = _addr(w.get("address"))
-    clean = {k: v for k, v in w.items() if k != "address"}
+    clean = {k: w[k] for k in WAREHOUSE_KEEP if k in w}
     if a:
         clean["address"] = a
     return {**_base(shop, loaded_at), "warehouse_id": w.get("id"), "name": w.get("name"), "type": w.get("type"),
