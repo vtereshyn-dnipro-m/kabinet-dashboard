@@ -4,7 +4,7 @@
 -- upsert по ключу, только колонки страницы, без raw_json. Адреса склада возврата, трек-номера, перевозчика, доли
 -- покупателя за доставку и картинок нет и в сырье. Применяет владелец или агент по прямому «применяй», под учёткой
 -- владельца, одной транзакцией:
---   psql "<строка владельца>" -v sp=<Application ID kabinet-jobs-sp> -v ON_ERROR_STOP=1 -1 -f <этот файл>
+--   psql "<строка владельца>" -v sp=<Application ID kabinet-jobs-sp> -v ON_ERROR_STOP=1 -f <этот файл>   (транзакция — BEGIN/COMMIT внутри)
 -- Только добавляет. Гранты: приложению и claude_code_ro — SELECT; kabinet-jobs-sp — SELECT, INSERT, UPDATE (INSERT …
 -- ON CONFLICT DO UPDATE; DELETE не нужен), как у трёх реплик TikTok (sql/kabinet_jobs_sp_2026-10-22.sql).
 

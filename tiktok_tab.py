@@ -85,18 +85,18 @@ def load_requests(d_from, d_to, ver: str = "") -> dict:
                    r.seller_paid_return_shipping_fee
             FROM kabinet_data.raw_tiktok_returns r
             WHERE (r.create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s
-              AND NOT (r.return_line_item_id LIKE '#%%' AND EXISTS (
+              AND NOT (left(r.return_line_item_id, 1) = '#' AND EXISTS (
                   SELECT 1 FROM kabinet_data.raw_tiktok_returns x
-                  WHERE x.shop_id = r.shop_id AND x.return_id = r.return_id AND x.return_line_item_id NOT LIKE '#%%'))
+                  WHERE x.shop_id = r.shop_id AND x.return_id = r.return_id AND left(x.return_line_item_id, 1) <> '#'))
             ORDER BY r.create_time, r.return_id, r.return_line_item_id""", conn, params=q)
         cancels = pd.read_sql("""
             SELECT c.cancel_id, c.order_id, (c.create_time AT TIME ZONE 'Europe/Madrid')::date AS day, c.cancel_status,
                    c.cancel_reason_text, c.role, c.seller_sku
             FROM kabinet_data.raw_tiktok_cancellations c
             WHERE (c.create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s
-              AND NOT (c.cancel_line_item_id LIKE '#%%' AND EXISTS (
+              AND NOT (left(c.cancel_line_item_id, 1) = '#' AND EXISTS (
                   SELECT 1 FROM kabinet_data.raw_tiktok_cancellations x
-                  WHERE x.shop_id = c.shop_id AND x.cancel_id = c.cancel_id AND x.cancel_line_item_id NOT LIKE '#%%'))""",
+                  WHERE x.shop_id = c.shop_id AND x.cancel_id = c.cancel_id AND left(x.cancel_line_item_id, 1) <> '#'))""",
                               conn, params=q)
     finally:
         conn.close()
