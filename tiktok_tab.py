@@ -74,18 +74,30 @@ def load_requests(d_from, d_to, ver: str = "") -> dict:
         if not cur.fetchone()[0]:
             return {"returns": None, "cancels": None}
         q = {"a": d_from, "b": d_to}
+        # заглушка позиции «#…» — только у возврата без настоящих позиций (docs/tiktok-shop.md): upsert реплики ничего не
+        # удаляет, и заглушка могла остаться рядом с позициями, пришедшими позже. У возврата без позиций («#0») суммы по
+        # позиции нет — берём сумму возврата целиком
         returns = pd.read_sql("""
-            SELECT return_id, order_id, (create_time AT TIME ZONE 'Europe/Madrid')::date AS day, return_type,
-                   return_status, return_reason_text, seller_sku, product_name, refund_total,
-                   seller_paid_return_shipping_fee
-            FROM kabinet_data.raw_tiktok_returns
-            WHERE (create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s
-            ORDER BY create_time, return_id, return_line_item_id""", conn, params=q)
+            SELECT r.return_id, r.order_id, (r.create_time AT TIME ZONE 'Europe/Madrid')::date AS day, r.return_type,
+                   r.return_status, r.return_reason_text, r.seller_sku, r.product_name,
+                   CASE WHEN r.return_line_item_id = '#0' THEN coalesce(r.refund_total, r.return_refund_total)
+                        ELSE r.refund_total END AS refund_total,
+                   r.seller_paid_return_shipping_fee
+            FROM kabinet_data.raw_tiktok_returns r
+            WHERE (r.create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s
+              AND NOT (r.return_line_item_id LIKE '#%%' AND EXISTS (
+                  SELECT 1 FROM kabinet_data.raw_tiktok_returns x
+                  WHERE x.shop_id = r.shop_id AND x.return_id = r.return_id AND x.return_line_item_id NOT LIKE '#%%'))
+            ORDER BY r.create_time, r.return_id, r.return_line_item_id""", conn, params=q)
         cancels = pd.read_sql("""
-            SELECT cancel_id, order_id, (create_time AT TIME ZONE 'Europe/Madrid')::date AS day, cancel_status,
-                   cancel_reason_text, role, seller_sku
-            FROM kabinet_data.raw_tiktok_cancellations
-            WHERE (create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s""", conn, params=q)
+            SELECT c.cancel_id, c.order_id, (c.create_time AT TIME ZONE 'Europe/Madrid')::date AS day, c.cancel_status,
+                   c.cancel_reason_text, c.role, c.seller_sku
+            FROM kabinet_data.raw_tiktok_cancellations c
+            WHERE (c.create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s
+              AND NOT (c.cancel_line_item_id LIKE '#%%' AND EXISTS (
+                  SELECT 1 FROM kabinet_data.raw_tiktok_cancellations x
+                  WHERE x.shop_id = c.shop_id AND x.cancel_id = c.cancel_id AND x.cancel_line_item_id NOT LIKE '#%%'))""",
+                              conn, params=q)
     finally:
         conn.close()
     return {"returns": returns, "cancels": cancels}
@@ -338,7 +350,7 @@ def requests_block(d_from, d_to) -> None:
     try:
         req = load_requests(d_from, d_to, data_version("raw_tiktok_returns", "loaded_at"))
     except Exception as e:
-        st.caption(t("tt.requests_error", e=f"{type(e).__name__}: {str(e)[:150]}"))
+        st.error(t("tt.requests_error", e=f"{type(e).__name__}: {str(e)[:150]}"))
         return
     rq, cn = req["returns"], req["cancels"]
     if rq is None:
@@ -350,6 +362,8 @@ def requests_block(d_from, d_to) -> None:
     else:
         for c in ("refund_total", "seller_paid_return_shipping_fee"):
             rq[c] = pd.to_numeric(rq[c], errors="coerce")
+        # обратная доставка — на возврат целиком, а не на позицию: показываем один раз, в первой строке возврата
+        rq.loc[rq["return_id"].duplicated(), "seller_paid_return_shipping_fee"] = float("nan")
         st.dataframe(pd.DataFrame({
             t("tt.c.order"): rq["order_id"], t("tt.c.created"): pd.to_datetime(rq["day"]).dt.strftime("%d.%m.%Y"),
             t("tt.c.status"): rq["return_status"], t("tt.c.return_type"): rq["return_type"],

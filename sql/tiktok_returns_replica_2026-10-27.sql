@@ -8,6 +8,8 @@
 -- Только добавляет. Гранты: приложению и claude_code_ro — SELECT; kabinet-jobs-sp — SELECT, INSERT, UPDATE (INSERT …
 -- ON CONFLICT DO UPDATE; DELETE не нужен), как у трёх реплик TikTok (sql/kabinet_jobs_sp_2026-10-22.sql).
 
+BEGIN;
+
 CREATE TABLE IF NOT EXISTS kabinet_data.raw_tiktok_returns (
   shop_id text NOT NULL, return_id text NOT NULL, return_line_item_id text NOT NULL, order_id text, seller_sku text,
   product_name text, return_type text, return_status text, return_reason_text text, role text,
@@ -28,6 +30,8 @@ COMMENT ON TABLE kabinet_data.raw_tiktok_cancellations IS 'Реплика dnipro
 GRANT SELECT ON kabinet_data.raw_tiktok_returns, kabinet_data.raw_tiktok_cancellations
   TO "583bf6d1-6cd0-4a89-9c44-b387ec5c21cb", claude_code_ro;
 GRANT SELECT, INSERT, UPDATE ON kabinet_data.raw_tiktok_returns, kabinet_data.raw_tiktok_cancellations TO :"sp";
+
+COMMIT;
 
 -- Проверка чтением (после применения):
 -- SELECT has_table_privilege(:'sp', 'kabinet_data.raw_tiktok_returns', 'INSERT'),
