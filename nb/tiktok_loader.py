@@ -24,7 +24,7 @@
 # Настройки — kabinet_data.reorder_params (tiktok_*), не константы.
 #
 # Реплика для страниц Кабинета (с 22.10.2026): после сырья — kabinet_data.raw_tiktok_orders / _order_lines /
-# _finance_tx в Lakebase, upsert по ключу из таблиц сырья целиком (их немного), только колонки страницы, без raw_json.
+# _finance_tx, с 27.10.2026 и _returns / _cancellations (заявки на возврат и отмены для вкладки) в Lakebase, upsert по ключу из таблиц сырья целиком (их немного), только колонки страницы, без raw_json.
 # Пульс `Kabinet - TikTok Shop Loader` — последним, безусловно; в заметке пульса — срок access-токена и было ли
 # обновление (их читает утренняя сводка, секрета она не касается). Сбои копятся и роняют прогон ПОСЛЕ пульса.
 # dry_run=1 — без записи в таблицы и без пульса: печатает, сколько записал бы. full=1 — первый запуск заново
@@ -269,6 +269,16 @@ REPLICA = (
                 t.settlement_amount, {FEE_SPLIT}
          FROM {SCHEMA}.raw_finance_statement_transactions t
          LEFT JOIN {SCHEMA}.raw_finance_statements s ON s.shop_id = t.shop_id AND s.statement_id = t.statement_id"""),
+    # заявки на возврат и отмены (27.10.2026) — для вкладки TikTok как операционная картина; в выручку не входят
+    ("raw_tiktok_returns", ("shop_id", "return_id", "return_line_item_id"),
+     f"""SELECT shop_id, return_id, return_line_item_id, order_id, seller_sku, product_name, return_type, return_status,
+                return_reason_text, role, create_time, update_time, currency, refund_total, return_refund_total,
+                seller_paid_return_shipping_fee
+         FROM {SCHEMA}.raw_returns"""),
+    ("raw_tiktok_cancellations", ("shop_id", "cancel_id", "cancel_line_item_id"),
+     f"""SELECT shop_id, cancel_id, cancel_line_item_id, order_id, seller_sku, product_name, cancel_type, cancel_status,
+                cancel_reason_text, role, create_time, update_time, currency, refund_total
+         FROM {SCHEMA}.raw_cancellations"""),
 )
 for table, keys, select_sql in REPLICA:
     try:

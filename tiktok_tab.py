@@ -62,6 +62,36 @@ def fee_split_exists() -> bool:
 
 
 @st.cache_data(ttl=600)
+def load_requests(d_from, d_to, ver: str = "") -> dict:
+    """Заявки на возврат и отмены за период — по дате создания заявки (Мадрид), из реплик raw_tiktok_returns и
+    raw_tiktok_cancellations (27.10.2026). Операционная картина: деньги по заявкам в выручку и «К выплате» не входят
+    (там — возвраты по выпискам). Реплики ещё нет — None, а не пустой кадр: «заявок нет» и «не загружены» — разное."""
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT to_regclass('kabinet_data.raw_tiktok_returns') IS NOT NULL "
+                    "AND to_regclass('kabinet_data.raw_tiktok_cancellations') IS NOT NULL")
+        if not cur.fetchone()[0]:
+            return {"returns": None, "cancels": None}
+        q = {"a": d_from, "b": d_to}
+        returns = pd.read_sql("""
+            SELECT return_id, order_id, (create_time AT TIME ZONE 'Europe/Madrid')::date AS day, return_type,
+                   return_status, return_reason_text, seller_sku, product_name, refund_total,
+                   seller_paid_return_shipping_fee
+            FROM kabinet_data.raw_tiktok_returns
+            WHERE (create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s
+            ORDER BY create_time, return_id, return_line_item_id""", conn, params=q)
+        cancels = pd.read_sql("""
+            SELECT cancel_id, order_id, (create_time AT TIME ZONE 'Europe/Madrid')::date AS day, cancel_status,
+                   cancel_reason_text, role, seller_sku
+            FROM kabinet_data.raw_tiktok_cancellations
+            WHERE (create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s""", conn, params=q)
+    finally:
+        conn.close()
+    return {"returns": returns, "cancels": cancels}
+
+
+@st.cache_data(ttl=600)
 def load(d_from, d_to, ver: str = "", split: bool = False) -> dict:
     """Заказы, строки и операции выписок за период (дата создания заказа по Мадриду) и возвраты периода — по дате
     выписки возврата; возврат без даты выписки (statement_time пуст) — по дате заказа в периоде, refund_day у него пуст."""
@@ -147,6 +177,7 @@ def render(P) -> None:
             k[-1].metric(t("tt.k.payout"), eur0(rf["settlement_amount"].sum()), help=t("tt.k.payout_help"))
             st.caption(t("tt.refunds_line"))
             refunds_block(rf, has_other)
+        requests_block(d_from, d_to)
         source_line(data["loaded_at"])
         return
 
@@ -296,7 +327,45 @@ def render(P) -> None:
                                    t("tt.c.orders"): smp["status"].value_counts().values}), hide_index=True)
 
     refunds_block(rf, has_other)
+    requests_block(d_from, d_to)
     source_line(data["loaded_at"])
+
+
+def requests_block(d_from, d_to) -> None:
+    """Заявки на возврат (по позициям) и отмены за период — по дате заявки. Деньги здесь — сумма заявки, а не выплата:
+    в плитки, недели и «К выплате» они не входят (возврат учитывается по выписке, решение владельца 27.10.2026)."""
+    st.subheader(t("tt.requests"))
+    try:
+        req = load_requests(d_from, d_to, data_version("raw_tiktok_returns", "loaded_at"))
+    except Exception as e:
+        st.caption(t("tt.requests_error", e=f"{type(e).__name__}: {str(e)[:150]}"))
+        return
+    rq, cn = req["returns"], req["cancels"]
+    if rq is None:
+        st.caption(t("tt.requests_no_replica"))
+        return
+    st.caption(t("tt.requests_note"))
+    if rq.empty:
+        st.caption(t("tt.requests_none"))
+    else:
+        for c in ("refund_total", "seller_paid_return_shipping_fee"):
+            rq[c] = pd.to_numeric(rq[c], errors="coerce")
+        st.dataframe(pd.DataFrame({
+            t("tt.c.order"): rq["order_id"], t("tt.c.created"): pd.to_datetime(rq["day"]).dt.strftime("%d.%m.%Y"),
+            t("tt.c.status"): rq["return_status"], t("tt.c.return_type"): rq["return_type"],
+            t("tt.c.reason"): rq["return_reason_text"], t("tt.c.sku"): rq["seller_sku"], t("tt.c.name"): rq["product_name"],
+            t("tt.c.requested"): rq["refund_total"].round(2),
+            t("tt.c.seller_shipping"): rq["seller_paid_return_shipping_fee"].round(2)}), hide_index=True,
+            use_container_width=True)
+    if cn.empty:
+        st.caption(t("tt.cancels_none"))
+    else:
+        by = (cn.groupby(["cancel_reason_text", "role"], dropna=False)["cancel_id"].nunique()
+                .rename("n").reset_index().sort_values("n", ascending=False))
+        st.caption(t("tt.cancels_n", n=int(cn["cancel_id"].nunique())))
+        st.dataframe(pd.DataFrame({t("tt.c.reason"): by["cancel_reason_text"].fillna("—"),
+                                   t("tt.c.role"): by["role"].fillna("—"), t("tt.c.orders"): by["n"].astype(int)}),
+                     hide_index=True)
 
 
 def eur0(v) -> str:
