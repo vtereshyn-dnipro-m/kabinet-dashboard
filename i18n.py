@@ -1224,6 +1224,43 @@ TRANSLATIONS = {
         "en": "Excl. VAT. Sales of all channels before returns — Revenue VAT Excl in the Power BI report. For Amazon it is "
               "sales incl. VAT divided by the country VAT rate (ES 21 %, IT 22 %, FR 20 %, DE 19 %…); for Leroy Merlin, "
               "ManoMano, Carrefour, Wallapop and the website — order totals excl. VAT. Period {f}–{to}, compared with {pf}–{pt}."},
+    "home.kpi.returns_pbi": {"ru": "Возвраты без НДС", "uk": "Повернення без ПДВ", "en": "Returns excl. VAT"},
+    "home.kpi.returns_help_pbi": {
+        "ru": "Без НДС. Возвраты всех каналов Power BI — Refund Total VAT Excl его витрины, за тот же период, что «Продажи без "
+              "НДС». Дата — как в витрине: у Amazon — дата расчёта settlement, поэтому возвраты приходят в прошлые недели "
+              "задним числом и процента изменения нет. TikTok Shop сюда не входит, как и в «Продажи без НДС»: его возвраты — в "
+              "блоке каналов, по дате выписки возврата.",
+        "uk": "Без ПДВ. Повернення всіх каналів Power BI — Refund Total VAT Excl його вітрини, за той самий період, що «Продажі "
+              "без ПДВ». Дата — як у вітрині: в Amazon — дата розрахунку settlement, тому повернення приходять у минулі тижні "
+              "заднім числом і відсотка зміни немає. TikTok Shop сюди не входить, як і в «Продажі без ПДВ»: його повернення — "
+              "у блоці каналів, за датою виписки повернення.",
+        "en": "Excl. VAT. Returns of all Power BI channels — Refund Total VAT Excl of its data mart, for the same period as "
+              "“Sales excl. VAT”. The date is the data mart's: for Amazon, the settlement date, so returns land in past weeks "
+              "retroactively and there is no change percentage. TikTok Shop is not included, as in “Sales excl. VAT”: its "
+              "returns are in the channel block, by refund statement date."},
+    "home.kpi.after_returns_pbi": {"ru": "После возвратов без НДС", "uk": "Після повернень без ПДВ", "en": "After returns excl. VAT"},
+    "home.kpi.after_returns_help_pbi": {
+        "ru": "Без НДС. «Продажи без НДС» минус «Возвраты без НДС» — обе цифры из витрины Power BI, за один период. Продажи — "
+              "по дате заказа, возвраты — по дате витрины (у Amazon — расчёта), поэтому возврат заказа прошлого месяца "
+              "уменьшает этот период.",
+        "uk": "Без ПДВ. «Продажі без ПДВ» мінус «Повернення без ПДВ» — обидві цифри з вітрини Power BI, за один період. "
+              "Продажі — за датою замовлення, повернення — за датою вітрини (в Amazon — розрахунку), тому повернення "
+              "замовлення минулого місяця зменшує цей період.",
+        "en": "Excl. VAT. “Sales excl. VAT” minus “Returns excl. VAT” — both from the Power BI data mart, for one period. Sales "
+              "are by order date, returns by the data mart's date (Amazon: settlement), so a return of last month's order "
+              "reduces this period."},
+    "mn.x.sales_minus_returns": {"ru": "продажи минус возвраты", "uk": "продажі мінус повернення", "en": "sales minus returns"},
+    "mn.x.returns_split": {"ru": "до возвратов, возвраты — под суммой", "uk": "до повернень, повернення — під сумою",
+                           "en": "before returns, returns below the amount"},
+    "home.sales.returns_line": {"ru": "возвраты −{r} € · после возвратов {n} €", "uk": "повернення −{r} € · після повернень {n} €",
+                                "en": "returns −{r} € · after returns {n} €"},
+    "home.sales.returns_total": {"ru": "Итого: продажи {s} € · возвраты −{r} € · после возвратов {n} €",
+                                 "uk": "Разом: продажі {s} € · повернення −{r} € · після повернень {n} €",
+                                 "en": "Total: sales {s} € · returns −{r} € · after returns {n} €"},
+    "home.sales.chip_returns_hint": {"ru": "возвраты за период", "uk": "повернення за період", "en": "returns in the period"},
+    "home.tts_refunds_error": {"ru": "Возвраты TikTok Shop не учтены: ошибка чтения — {e}",
+                               "uk": "Повернення TikTok Shop не враховано: помилка читання — {e}",
+                               "en": "TikTok Shop returns not included: read error — {e}"},
     "home.kpi.margin_pbi": {"ru": "Contribution Profit и доля", "uk": "Contribution Profit і частка", "en": "Contribution Profit and share"},
     "home.kpi.margin_help_pbi": {
         "ru": "Без НДС. Contribution Profit отчёта Power BI: продажи без НДС минус расходы (комиссии, себестоимость, доставка, "
@@ -3769,9 +3806,9 @@ TRANSLATIONS = {
     "home.tts_admin_only": {"ru": "TikTok Shop сейчас видно только администратору: для остальных строка выключена до сверки.",
                             "uk": "TikTok Shop зараз видно лише адміністратору: для інших рядок вимкнено до звірки.",
                             "en": "TikTok Shop is visible to administrators only for now: hidden for others until reconciliation."},
-    "home.tts_note": {"ru": "TikTok Shop — из TikTok Shop API, не из Power BI: выручка продавца, без отмен и образцов, до возвратов.",
-                      "uk": "TikTok Shop — з TikTok Shop API, не з Power BI: виторг продавця, без скасувань і зразків, до повернень.",
-                      "en": "TikTok Shop — from the TikTok Shop API, not Power BI: seller revenue, excluding cancellations and samples, before refunds."},
+    "home.tts_note": {"ru": "TikTok Shop — из TikTok Shop API, не из Power BI: выручка продавца, без отмен и образцов; возвраты — только деньги по выпискам, по дате выписки возврата (Мадрид).",
+                      "uk": "TikTok Shop — з TikTok Shop API, не з Power BI: виторг продавця, без скасувань і зразків; повернення — лише гроші за виписками, за датою виписки повернення (Мадрид).",
+                      "en": "TikTok Shop — from the TikTok Shop API, not Power BI: seller revenue, excluding cancellations and samples; returns — only money in statements, by refund statement date (Madrid)."},
     "ads.title": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
     "ads.subtitle": {"ru": "Что отключить и куда добавить", "uk": "Що вимкнути і куди додати", "en": "What to switch off and where to add"},
     "ads.limits": {
