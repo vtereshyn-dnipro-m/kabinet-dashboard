@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
 
 from db.connection import get_connection
@@ -248,6 +247,9 @@ def load_stock() -> pd.DataFrame:
         conn.close()
 
 
+# Окно, за которое Kabinet - Mirakl Health считает показатели каждого дня (HEALTH_WINDOW_DAYS в ноутбуке, 28.10.2026):
+# строка calc_date — скользящий снимок за столько дней, а не показатели одного дня и не выбранного периода
+LM_HEALTH_WINDOW_DAYS = 60
 LM_HEALTH_COLS = ("orders_total", "acceptance_rate_pct", "avg_acceptance_h", "p90_acceptance_h", "tracking_rate_pct",
                   "on_time_ship_pct", "incident_rate_pct", "open_incidents", "waiting_acceptance")
 
@@ -1001,8 +1003,9 @@ with tab_lm:
             st.info(t("common.no_data"))
         else:
             last = lm.iloc[-1]
-            st.caption(t("cm.lm.as_of", 
-                d=pd.to_datetime(last["calc_date"]).strftime("%d.%m.%Y")))
+            # показатели — скользящее окно сбора, а не выбранный период: так и пишем (28.10.2026)
+            st.caption(t("cm.lm.window_note", n=LM_HEALTH_WINDOW_DAYS,
+                         d=pd.to_datetime(last["calc_date"]).strftime("%d.%m.%Y")))
 
             # в метриках значение вчерашнее — список заказов актуальнее,
             # поэтому счётчик берём из него
@@ -1036,38 +1039,36 @@ with tab_lm:
 
             st.markdown("")
             o1, o2, o3 = st.columns(3)
-            o1.metric(t("cm.lm.orders"), f"{int(last.get('orders_total') or 0):,}")
-            o2.metric(t("cm.lm.on_time"),
-                      f"{float(last.get('on_time_ship_pct') or 0):.0f}%")
-            o3.metric(t("cm.lm.open_incidents"),
-                      f"{int(last.get('open_incidents') or 0):,}")
+
+            def _num(field, fmt):
+                v = last.get(field)       # пусто (NULL, NaN) — прочерк, а не «nan%» и не ноль
+                return "—" if v is None or pd.isna(v) else fmt.format(float(v))
+            o1.metric(t("cm.lm.orders_window", n=LM_HEALTH_WINDOW_DAYS), _num("orders_total", "{:,.0f}"))
+            o2.metric(t("cm.lm.on_time"), _num("on_time_ship_pct", "{:.0f}%"))
+            o3.metric(t("cm.lm.open_incidents"), _num("open_incidents", "{:,.0f}"))
 
             st.divider()
 
             # ---- тренд по дням ----
-            st.markdown(f"**{t('cm.lm.trend')}**")
+            st.markdown(f"**{t('cm.lm.trend_window', n=LM_HEALTH_WINDOW_DAYS)}**")
             # Ось на весь период, а не только дни со снимком здоровья.
             # День без снимка — не ноль заказов и не ноль процентов, а
             # пропуск: сборщик за него не отработал. Заполнив нулём, мы
             # нарисовали бы обвал приёмки там, где её просто не измеряли
             lm_ax = day_axis(lm, "calc_date", PERIOD.start, PERIOD.end)
-            fig = make_subplots(specs=[[{"secondary_y": True}]])
-            fig.add_trace(go.Bar(name=t("cm.lm.orders"), x=lm_ax["calc_date"],
-                                 y=lm_ax["orders_total"], marker_color=BLUE),
-                          secondary_y=False)
+            # Только доли (приёмка, трекинг): каждая точка — снимок за скользящее окно. Столбики «заказов» здесь были бы
+            # суммой за окно (~300), а не заказами дня (2–10) и читались бы как «300 заказов в день» (28.10.2026)
+            fig = go.Figure()
             fig.add_trace(go.Scatter(name=t("cm.lm.acceptance"), x=lm_ax["calc_date"],
                                      y=lm_ax["acceptance_rate_pct"], mode="lines+markers",
-                                     line=dict(color=GREEN, width=2)), secondary_y=True)
+                                     line=dict(color=GREEN, width=2)))
             fig.add_trace(go.Scatter(name=t("cm.lm.tracking"), x=lm_ax["calc_date"],
                                      y=lm_ax["tracking_rate_pct"], mode="lines+markers",
-                                     line=dict(color=AMBER, width=2, dash="dot")),
-                          secondary_y=True)
-            fig.update_layout(height=340, margin=dict(l=10, r=10, t=10, b=10),
+                                     line=dict(color=AMBER, width=2, dash="dot")))
+            fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10),
                               hovermode="x unified",
                               legend=dict(orientation="h", y=1.14))
-            fig.update_yaxes(title_text=t("cm.lm.orders"), secondary_y=False)
-            fig.update_yaxes(range=[0, 105], ticksuffix="%", showgrid=False,
-                             secondary_y=True)
+            fig.update_yaxes(range=[0, 105], ticksuffix="%")
             st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CFG)
 
             # ---- заказы, ждущие акцепта ----
