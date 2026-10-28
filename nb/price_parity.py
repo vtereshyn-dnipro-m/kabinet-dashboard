@@ -64,10 +64,12 @@ try:
     with _c.cursor() as cur:
         cur.execute("""SELECT key, value FROM kabinet_data.reorder_params
                        WHERE key IN ('parity_promo_pause_days', 'parity_shrink_guard_pct', 'parity_outlier_pct',
-                                     'parity_offer_run_window_min')""")
+                                     'parity_offer_run_window_min', 'parity_amz_snapshot_max_age_h',
+                                     'parity_amz_min_markets')""")
         _p = {k: v for k, v in cur.fetchall()}
         _miss = [k for k in ("parity_promo_pause_days", "parity_shrink_guard_pct", "parity_outlier_pct",
-                             "parity_offer_run_window_min") if k not in _p]
+                             "parity_offer_run_window_min", "parity_amz_snapshot_max_age_h",
+                             "parity_amz_min_markets") if k not in _p]
         if _miss:
             raise RuntimeError(f"в reorder_params нет {_miss} — сначала SQL sql/price_parity_promo_2026-10-28.sql")
         PAUSE_DAYS = int(_p["parity_promo_pause_days"])
@@ -75,6 +77,8 @@ try:
         SHRINK_GUARD = float(_p["parity_shrink_guard_pct"]) / 100
         OUTLIER_PCT = float(_p["parity_outlier_pct"])
         RUN_WINDOW_S = float(_p["parity_offer_run_window_min"]) * 60
+        AMZ_MAX_AGE_H = float(_p["parity_amz_snapshot_max_age_h"])
+        AMZ_MIN_MARKETS = int(_p["parity_amz_min_markets"])
         cur.execute("SELECT sku, marketplace_code, price FROM kabinet_data.raw_mm_offers WHERE offer_is_online = true AND price > 0")
         mm_rows = cur.fetchall()
         cur.execute("""SELECT shop_sku, price, origin_price, discount_price, discount_start, discount_end, loaded_at
@@ -94,17 +98,29 @@ try:
 finally:
     _c.close()
 
-# 2. Цены Amazon — SP-API Listings Items, последний снимок дня (один на все рынки)
-_li = spark.sql("""SELECT marketplace, seller_sku, status, our_price, discounted_price, discount_start, discount_end,
-                            snapshot_date
-                     FROM dnipro_m.dnipro_m.raw_amazon_listing_offers
-                     WHERE audience = 'ALL' AND snapshot_date = (SELECT max(snapshot_date)
-                                                                FROM dnipro_m.dnipro_m.raw_amazon_listing_offers)""").collect()
+# 2. Цены Amazon — SP-API Listings Items: по каждому рынку его последний снимок. Plan Matrix не трогает рынок, который у
+# него упал, — такой рынок берётся из своего последнего снимка, а не выпадает молча; снимок старше
+# parity_amz_snapshot_max_age_h или рынков меньше parity_amz_min_markets — сбой (красный прогон после пульса)
+_li = spark.sql("""WITH last AS (SELECT marketplace, max(snapshot_date) AS d, max(loaded_at) AS la
+                                  FROM dnipro_m.dnipro_m.raw_amazon_listing_offers GROUP BY marketplace)
+                     SELECT o.marketplace, o.seller_sku, o.status, o.our_price, o.discounted_price, o.discount_start,
+                            o.discount_end, l.d AS snapshot_date, l.la AS snapshot_loaded
+                     FROM dnipro_m.dnipro_m.raw_amazon_listing_offers o
+                     JOIN last l ON l.marketplace = o.marketplace AND l.d = o.snapshot_date
+                     WHERE o.audience = 'ALL'""").collect()
 amz_rows = [(r["marketplace"], r["seller_sku"], r["status"], r["our_price"], r["discounted_price"], r["discount_start"],
              r["discount_end"]) for r in _li]
-AMZ_SNAPSHOT = str(_li[0]["snapshot_date"]) if _li else None
-if not amz_rows:
-    errors.append("снимок SP-API Listings Items пуст — цен Amazon в паритете нет")
+_snap = {}
+for r in _li:
+    _snap[r["marketplace"]] = (r["snapshot_date"], r["snapshot_loaded"])
+AMZ_SNAPSHOT = ", ".join(f"{m} {d}" for m, (d, _) in sorted(_snap.items())) or None
+for m, (d, la) in sorted(_snap.items()):
+    _la = la if la.tzinfo else la.replace(tzinfo=dt.timezone.utc)
+    if (now - _la).total_seconds() / 3600 > AMZ_MAX_AGE_H:
+        errors.append(f"снимок SP-API Amazon {m} от {d} старше {AMZ_MAX_AGE_H:.0f} ч — цены Amazon {m} устарели")
+if len(_snap) < AMZ_MIN_MARKETS:
+    errors.append(f"снимок SP-API Amazon — рынков {len(_snap)} ({', '.join(sorted(_snap)) or 'нет'}), "
+                  f"ждём не меньше {AMZ_MIN_MARKETS}")
 
 # 3. Недавние скидки LM из истории снимков: LM в паузе очищает поля скидки, и пауза видна только по истории
 recent_lm = set()

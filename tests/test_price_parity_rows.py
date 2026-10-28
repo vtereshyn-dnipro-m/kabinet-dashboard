@@ -114,3 +114,8 @@ def test_amazon_price_sp_api():
     assert pp.amazon_price("BUYABLE", 63.98, 57.99, "2026-11-01T00:00:00Z", None, T28) == 63.98
     assert pp.amazon_price("BUYABLE", None, None, None, None, T28) is None
     assert pp.amazon_price(None, 10.0, None, None, None, T28) is None
+
+
+def test_amazon_unparsed_discount_date_ignored():
+    assert pp.amazon_price("BUYABLE", 63.98, 57.99, "не дата", None, T28) == 63.98
+    assert pp.amazon_price("BUYABLE", 63.98, 57.99, None, "2026-13-45", T28) == 63.98

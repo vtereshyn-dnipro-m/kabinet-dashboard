@@ -61,7 +61,10 @@ def amazon_price(status, our_price, discounted_price, discount_start, discount_e
     p = _f(our_price)
     if p is None or p <= 0:
         return None
-    if promo_active(discounted_price, _ts_any(discount_start), _ts_any(discount_end), now):
+    a, b = _ts_any(discount_start), _ts_any(discount_end)
+    # дата скидки есть, но не разобралась — скидку не берём: надёжнее обычная цена, чем скидка без срока
+    unparsed = any(isinstance(v, str) and v.strip() and t is None for v, t in ((discount_start, a), (discount_end, b)))
+    if not unparsed and promo_active(discounted_price, a, b, now):
         p = min(p, _f(discounted_price))
     return p
 
