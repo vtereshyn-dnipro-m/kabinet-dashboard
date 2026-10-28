@@ -24,6 +24,6 @@ COMMIT;
 -- Имя = метка пульса = имя джобы (AGENTS.md, «Одно имя джоба в трёх местах»). Три прогона в сутки — порог 26 ч (один
 -- пропущенный день виден, один упавший прогон из трёх — нет: его видно по красному прогону и тексту ошибки).
 -- INSERT INTO kabinet_data.job_health_rules (job_id, job_name, expected_interval_hours, schedule_description, is_active, note)
--- VALUES (:parity_job_id, 'Kabinet - Price Parity', 26, 'ежедневно 08:20, 10:20, 16:20 Kyiv', true,
---         'Паритет цен: Amazon (Listing Suite), MM, LM, CF; цена LM/CF по сроку скидки; T-37')
+-- VALUES (:parity_job_id, 'Kabinet - Price Parity', 26, 'ежедневно 08:50, 10:50, 16:50 Kyiv', true,
+--         'Паритет цен: Amazon (SP-API Listings Items), MM, LM, CF; цена LM/CF по сроку скидки; T-37')
 -- ON CONFLICT (job_id) DO NOTHING;

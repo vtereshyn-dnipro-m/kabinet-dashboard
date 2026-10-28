@@ -102,3 +102,15 @@ def test_outlier_pct_parameter():
     d = {"mm_es": 100.0, "lm_es": 115.0}
     assert pp.parity_row("1", d, set(), outlier_pct=20)["outlier_channels"] is None
     assert "lm_es" in pp.parity_row("1", d, set(), outlier_pct=10)["outlier_channels"]
+
+
+def test_amazon_price_sp_api():
+    # 28.10.2026, снимок SP-API 27.10: 81123011 ES — DISCOVERABLE (не в продаже), FR — в продаже 65,95
+    assert pp.amazon_price("DISCOVERABLE", 38.98, None, None, None, T28) is None
+    assert pp.amazon_price("BUYABLE,DISCOVERABLE", 65.95, None, None, None, T28) == 65.95
+    # скидка действует — меньшая из двух; кончилась или ещё не началась — обычная
+    assert pp.amazon_price("BUYABLE", 63.98, 57.99, "2026-10-20T00:00:00Z", "2026-11-01T00:00:00Z", T28) == 57.99
+    assert pp.amazon_price("BUYABLE", 63.98, 57.99, "2026-10-01T00:00:00Z", "2026-10-20T00:00:00Z", T28) == 63.98
+    assert pp.amazon_price("BUYABLE", 63.98, 57.99, "2026-11-01T00:00:00Z", None, T28) == 63.98
+    assert pp.amazon_price("BUYABLE", None, None, None, None, T28) is None
+    assert pp.amazon_price(None, 10.0, None, None, None, T28) is None

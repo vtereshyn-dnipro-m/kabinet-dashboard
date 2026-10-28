@@ -1,8 +1,8 @@
 {
   "name": "Kabinet - Price Parity",
-  "description": "Паритет цен Amazon / ManoMano / Leroy Merlin / Carrefour → kabinet_data.price_parity. После каждой загрузки офферов (08:20, 10:20, 16:20 Kyiv). Цена LM и CF — по сроку скидки; пауза между акциями не выброс (T-37).",
+  "description": "Паритет цен Amazon / ManoMano / Leroy Merlin / Carrefour → kabinet_data.price_parity. После загрузок офферов и снимка SP-API (08:50, 10:50, 16:50 Kyiv). Цена LM и CF — по сроку скидки; пауза между акциями не выброс (T-37).",
   "schedule": {
-    "quartz_cron_expression": "0 20 8,10,16 * * ?",
+    "quartz_cron_expression": "0 50 8,10,16 * * ?",
     "timezone_id": "Europe/Kyiv",
     "pause_status": "PAUSED"
   },
