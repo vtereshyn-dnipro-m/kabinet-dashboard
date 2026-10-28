@@ -264,6 +264,7 @@
 ### T-39. Worten (Mirakl): загрузчик офферов и заказов (PR1 из трёх)
 - Уровень: ждёт меня
 - Критерий: после мержа, SQL `sql/worten_uc_2026-10-28.sql` и `sql/worten_2026-10-28.sql` по «применяй» и выкладки —
+  (правила — `sql/worten_rules_2026-10-28.sql`, после первого прогона)
   первый прогон `Kabinet - Worten Loader` под `kabinet-jobs-sp` без «сбоев N»; в `dnipro_m.worten.raw_offers` 139
   офферов (на 28.10.2026), у 41324000 цена 31,99 и `promo_active`; в `raw_orders` заказ на 65,99 €; в `raw_json` нет
   имени, адреса кроме индекса и страны, телефона, email и трек-номера; реплики `kabinet_data.raw_worten_*` заполнены.

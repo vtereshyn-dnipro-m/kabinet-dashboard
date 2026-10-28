@@ -12,7 +12,8 @@
 - `nb/worten_loader.py` — ноутбук `Kabinet - Worten Loader`: офферы и заказы в `dnipro_m.worten.raw_*`, реплики
   `kabinet_data.raw_worten_*` для страниц, пульс последним. Джоба — `nb/jobs/worten_2026-10-28/`, 07:20 и 15:20 Киев,
   под `kabinet-jobs-sp`.
-- SQL: `sql/worten_uc_2026-10-28.sql` (Unity Catalog, первым) и `sql/worten_2026-10-28.sql` (Lakebase).
+- SQL: `sql/worten_uc_2026-10-28.sql` (Unity Catalog, первым), `sql/worten_2026-10-28.sql` (Lakebase) и
+  `sql/worten_rules_2026-10-28.sql` (правило сторожа и свежести — после первого прогона джобы).
 
 ## Только чтение: белый список
 
@@ -73,7 +74,7 @@ Carrefour: рабочие колонки `created_at`, `updated_at`, `shipped_at
    `worten_client.py`, `worten_rows.py` файлами рабочей области в `/Users/v.tereshyn@dniprom.com/Kabinet - Worten/`,
    побайтная сверка; Can Read на папку для `kabinet-jobs-sp`; `SHOW GRANTS ON SCHEMA dnipro_m.worten` — у принципала
    ровно USE SCHEMA, MODIFY, SELECT (первый прогон гранты не проверит: у `account users` на каталоге шире); проба
-   `dry_run=1`; создание джобы; после первого прогона — часть C SQL (правило сторожа и свежести) с job_id.
+   `dry_run=1`; создание джобы; после первого прогона — `sql/worten_rules_2026-10-28.sql` с job_id.
 2. PR2 — Plan Matrix: только своя вкладка `avg_Worten_PT`, в таблицы аналитика не писать. Перед PR2 подтвердить с
    аналитиком, что её джоба вкладку не перезаписывает.
 3. PR3 — показ на «Площадках» и справочники (платформа, маркетплейс). На «Обзор» — только после сверки с кабинетом
