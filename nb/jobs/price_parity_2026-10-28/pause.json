@@ -2,7 +2,7 @@
   "job_id": "<JOB_ID Kabinet - Price Parity>",
   "new_settings": {
     "schedule": {
-      "quartz_cron_expression": "0 20 8,10,16 * * ?",
+      "quartz_cron_expression": "0 50 8,10,16 * * ?",
       "timezone_id": "Europe/Kyiv",
       "pause_status": "PAUSED"
     }
