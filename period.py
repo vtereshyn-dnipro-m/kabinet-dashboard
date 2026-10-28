@@ -108,18 +108,22 @@ def control(*, key: str = WIDGET, columns=None) -> Period:
         # страницу диапазон молча схлопывается в последние 30 дней
         saved_r = st.session_state.get(STATE_RANGE) or (
             (today - pd.Timedelta(days=29)).date(), today.date())
+        # Две даты — два поля, а не одно поле-диапазон (28.10.2026). У диапазона
+        # было полувыбранное состояние: кликнули в календаре первую дату и ушли —
+        # в поле «01.10.2026 – дд.мм.гггг», а страница молча считала по прошлому
+        # периоду, пока не выберут вторую дату или не нажмут Enter. Одиночная дата
+        # применяется сразу при выборе, и полувыбора нет
         with c2:
-            picked = st.date_input(t("period.range"), value=saved_r,
-                                   max_value=today, format="DD.MM.YYYY",
-                                   key=f"{key}_range")
-        if isinstance(picked, (list, tuple)) and len(picked) == 2:
-            d_from, d_to = pd.Timestamp(picked[0]), pd.Timestamp(picked[1])
-            st.session_state[STATE_RANGE] = (d_from.date(), d_to.date())
-        else:
-            # пока кликнули только первую границу, держим прошлый диапазон.
-            # Схлопывать окно в один день на середине выбора — значит
-            # мигнуть пустой страницей и напугать без причины
-            d_from, d_to = (pd.Timestamp(saved_r[0]), pd.Timestamp(saved_r[1]))
+            fa, fb = st.columns(2)
+            p_from = fa.date_input(t("period.from"), value=saved_r[0], max_value=today,
+                                   format="DD.MM.YYYY", key=f"{key}_from")
+            p_to = fb.date_input(t("period.to"), value=saved_r[1], max_value=today,
+                                 format="DD.MM.YYYY", key=f"{key}_to")
+        # поле очистили — держим прошлую границу; перепутали местами — меняем
+        p_from = p_from or saved_r[0]
+        p_to = p_to or saved_r[1]
+        d_from, d_to = sorted((pd.Timestamp(p_from), pd.Timestamp(p_to)))
+        st.session_state[STATE_RANGE] = (d_from.date(), d_to.date())
     else:
         return Period(choice=choice, days=int(choice))
 

@@ -180,6 +180,10 @@ def render(P) -> None:
     real["paid"] = real["payout"].notna()
 
     nodate_warning(rf)
+    # срез — словами над плитками (28.10.2026): «57» за 01.10–27.10 и «59» за 30 дней (28.09–27.10) — оба верны, но без
+    # периода и отсева рядом с числом выглядели расхождением
+    st.caption(t("tt.slice", a=d_from.strftime("%d.%m.%Y"), b=d_to.strftime("%d.%m.%Y"), n=len(real),
+                 c=int((o["cancelled"] & ~o["sample"]).sum()), s=int(o["sample"].sum())))
     # ── плитки: два ряда, в целых евро (центы — в таблицах ниже) ──
     k = st.columns(4)
     k[0].metric(t("tt.k.orders"), f"{len(real)}")
