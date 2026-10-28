@@ -1053,6 +1053,7 @@ TRANSLATIONS = {
     "mn.help_lead.excl": {"ru": "Без НДС.", "uk": "Без ПДВ.", "en": "Excl. VAT."},
     "mn.ch.amazon": {"ru": "Amazon", "uk": "Amazon", "en": "Amazon"},
     "mn.ch.all": {"ru": "все каналы", "uk": "усі канали", "en": "all channels"},
+    "mn.ch.all_no_tts": {"ru": "все каналы, кроме TikTok Shop", "uk": "усі канали, крім TikTok Shop", "en": "all channels except TikTok Shop"},
     "mn.ch.fba_madrid": {"ru": "запас FBA и Мадрида", "uk": "запас FBA і Мадрида", "en": "FBA and Madrid stock"},
     "mn.basis.order": {"ru": "по дате заказа", "uk": "за датою замовлення", "en": "by order date"},
     "mn.basis.shipment": {"ru": "по дате отгрузки", "uk": "за датою відвантаження", "en": "by shipment date"},
@@ -1431,6 +1432,10 @@ TRANSLATIONS = {
         "ru": "Продажи Amazon по заказам", "uk": "Продажі Amazon за замовленнями", "en": "Amazon ordered sales"},
     # Продажи с НДС по всем каналам — то, что в Power BI Дарины «Revenue VAT Incl» (07.10.2026)
     "home.kpi.sales_all": {"ru": "Продажи с НДС, все каналы", "uk": "Продажі з ПДВ, усі канали", "en": "Sales incl. VAT, all channels"},
+    "home.kpi.sales_all_no_tts": {"ru": "Продажи с НДС, без TikTok", "uk": "Продажі з ПДВ, без TikTok", "en": "Sales incl. VAT, excl. TikTok"},
+    "home.kpi.no_tts_help": {"ru": "TikTok Shop сюда не входит: его нет в Power BI, он показан отдельной строкой в блоке каналов.",
+                             "uk": "TikTok Shop сюди не входить: його немає в Power BI, він показаний окремим рядком у блоці каналів.",
+                             "en": "TikTok Shop is not included: it is not in Power BI and is shown as a separate row in the channel block."},
     "home.kpi.sales_all_extra": {"ru": "до возвратов", "uk": "до повернень", "en": "before returns"},
     # оговорка о каналах, которых ещё нет; уходит сама, когда их строки появятся в продажах (home.py)
     "home.kpi.sales_all_missing": {"ru": "без {what} — подключаем", "uk": "без {what} — підключаємо", "en": "without {what} — being connected"},
@@ -3615,6 +3620,8 @@ TRANSLATIONS = {
     "period.month": {"ru": "Этот месяц", "uk": "Цей місяць", "en": "This month"},
     "period.custom": {"ru": "Свой период", "uk": "Свій період", "en": "Custom"},
     "period.range": {"ru": "С какого по какое", "uk": "З якого по яке", "en": "Date range"},
+    "period.from": {"ru": "С", "uk": "З", "en": "From"},
+    "period.to": {"ru": "По", "uk": "По", "en": "To"},
     "period.title_days": {"ru": "за {d} дней", "uk": "за {d} днів", "en": "over {d} days"},
     "period.title_range": {"ru": "за {a}—{b}", "uk": "за {a}—{b}", "en": "for {a}—{b}"},
     "period.gap_none": {"ru": "Данных {p} нет вообще — не пусто по фильтру, а нечего показывать: за это окно в базу не попало ни одной строки.", "uk": "Даних {p} немає взагалі — не порожньо за фільтром, а нема чого показувати: за це вікно до бази не потрапило жодного рядка.", "en": "There is no data {p} at all — not an empty filter, but nothing to show: not a single row landed in the database for this window."},
@@ -3699,6 +3706,11 @@ TRANSLATIONS = {
                       "en": "No TikTok Shop data in the Cabinet yet: the replica has not been created."},
     "tt.empty": {"ru": "За период заказов TikTok Shop нет.", "uk": "За період замовлень TikTok Shop немає.", "en": "No TikTok Shop orders in this period."},
     "tt.k.orders": {"ru": "Заказов", "uk": "Замовлень", "en": "Orders"},
+    "tt.slice": {
+        "ru": "Период {a}–{b} · по дате заказа (Мадрид) · заказов {n}, не считаются: отмены — {c}, образцы — {s}.",
+        "uk": "Період {a}–{b} · за датою замовлення (Мадрид) · замовлень {n}, не рахуються: скасування — {c}, зразки — {s}.",
+        "en": "Period {a}–{b} · by order date (Madrid) · {n} orders; not counted: cancellations — {c}, samples — {s}.",
+    },
     "tt.k.revenue": {"ru": "Выручка продавца, с НДС", "uk": "Виторг продавця, з ПДВ", "en": "Seller revenue, VAT incl."},
     "tt.k.seller_discount": {"ru": "Скидки продавца", "uk": "Знижки продавця", "en": "Seller discounts"},
     "tt.k.platform_discount": {"ru": "Скидки платформы", "uk": "Знижки платформи", "en": "Platform discounts"},
@@ -3763,6 +3775,14 @@ TRANSLATIONS = {
     "tt.as_of": {"ru": "Данные на {d} (Киев) — время последней загрузки из TikTok Shop.",
                  "uk": "Дані на {d} (Київ) — час останнього завантаження з TikTok Shop.",
                  "en": "Data as of {d} (Kyiv) — last load from TikTok Shop."},
+    "home.tts_not_in_cards": {
+        "ru": "Строки каналов вместе с TikTok Shop ({x} €) больше «Продаж без НДС» сверху: TikTok Shop — из TikTok Shop API, "
+              "в Power BI его нет, поэтому в карточки и график по дням он не входит.",
+        "uk": "Рядки каналів разом із TikTok Shop ({x} €) більші за «Продажі без ПДВ» угорі: TikTok Shop — з TikTok Shop API, "
+              "у Power BI його немає, тому до карток і графіка по днях він не входить.",
+        "en": "The channel rows including TikTok Shop ({x} €) add up to more than “Sales excl. VAT” above: TikTok Shop comes "
+              "from the TikTok Shop API, not Power BI, so it is not in the cards or the daily chart.",
+    },
     "home.tts_short": {"ru": "TikTok Shop — API, не Power BI", "uk": "TikTok Shop — API, не Power BI", "en": "TikTok Shop — API, not Power BI"},
     "home.tts_error": {"ru": "TikTok Shop не показан: ошибка чтения — {e}", "uk": "TikTok Shop не показано: помилка читання — {e}",
                        "en": "TikTok Shop not shown: read error — {e}"},
