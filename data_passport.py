@@ -181,7 +181,10 @@ PAGES = {
         # блоки «Все рынки — по отчётам Amazon Ads» (18.10.2026): реплики отчётов рекламы, счетов и сборов (ads_report.py)
         Source("ads_api", "ads_campaign_daily", "date", "Kabinet - Ads Replica", 72,
                ("real_cost", "api_ratios", "placements", "invalid")),
-        Source("ads_terms", "ads_search_term_daily", "date", "Kabinet - Ads Replica", 96, ("wasted",)),
+        # возраст поисковых запросов — по времени загрузки реплики, а не по дате данных (28.10.2026): правило свежести
+        # проверяет только loaded_at (30 ч) — по содержимому не проверяем, Amazon отдаёт запросы с задержкой. С якорем
+        # date вчерашние данные «старели» больше 30 ч каждый день с 06:00, и на «Рекламе» висел ложный баннер
+        Source("ads_terms", "ads_search_term_daily", "loaded_at", "Kabinet - Ads Replica", 96, ("wasted",)),
         # сбор приходит со счётом, а счёт — по порогу ~500 € раз в 2–7 дней: «давно» у него норма, не тревога
         Source("ads_fees", "ads_fees_daily", "date", "Kabinet - Ads Replica", 240, ("real_cost",), watch=False),
         Source("ads_alerts", "ads_alerts", "calc_date", "Kabinet - Ads Alerts", 48, ("alerts",)),

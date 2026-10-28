@@ -248,17 +248,23 @@ def load_stock() -> pd.DataFrame:
         conn.close()
 
 
+LM_HEALTH_COLS = ("orders_total", "acceptance_rate_pct", "avg_acceptance_h", "p90_acceptance_h", "tracking_rate_pct",
+                  "on_time_ship_pct", "incident_rate_pct", "open_incidents", "waiting_acceptance")
+
+
 @st.cache_data(ttl=600)
 def load_lm_health(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
-    """Показатели канала. Берём все колонки — состав таблицы может меняться."""
+    """Показатели канала Leroy Merlin. С 28.10.2026 — из mirakl_health_daily (джоба Kabinet - Mirakl Health, строка на
+    канал × день), строки LM-ES: прежняя lm_health_daily осталась от выключенной Kabinet - LM Health, и вкладка
+    писала «мониторинг не запущен», хотя показатели собираются каждый день."""
     conn = get_connection()
     try:
         where = (f"calc_date BETWEEN '{d_from}' AND '{d_to}'" if d_from
                  else f"calc_date >= CURRENT_DATE - INTERVAL '{days} days'")
         df = pd.read_sql(f"""
-            SELECT *
-            FROM kabinet_data.lm_health_daily
-            WHERE {where}
+            SELECT calc_date, {", ".join(LM_HEALTH_COLS)}
+            FROM kabinet_data.mirakl_health_daily
+            WHERE marketplace_code = 'LM-ES' AND {where}
             ORDER BY calc_date
         """, conn)
     except Exception:
@@ -266,9 +272,7 @@ def load_lm_health(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
     finally:
         conn.close()
     # недостающие показатели добавляем пустыми, чтобы страница не падала
-    for col in ("orders_total", "acceptance_rate_pct", "avg_acceptance_h",
-                "p90_acceptance_h", "tracking_rate_pct", "on_time_ship_pct",
-                "incident_rate_pct", "open_incidents", "waiting_acceptance"):
+    for col in LM_HEALTH_COLS:
         if col not in df.columns:
             df[col] = np.nan
     return df
@@ -989,7 +993,7 @@ with tab_lm:
     # фильтр: здесь операционное здоровье канала, и выгрузка с приёмкой
     # заказов приходит только по Leroy Merlin
     st.caption(t("cm.lm.scope"))
-    if not table_exists("lm_health_daily"):
+    if not table_exists("mirakl_health_daily"):
         st.info(t("cm.lm.no_table"))
     else:
         lm = load_lm_health(DAYS, D_FROM, D_TO)
