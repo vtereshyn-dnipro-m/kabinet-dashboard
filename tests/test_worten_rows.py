@@ -69,7 +69,9 @@ def test_order_has_no_buyer_data():
     assert json.loads(head["raw_json"])["shipping_address"] == {"zip_code": "3100-095", "country": "PT"}
     assert (head["postal_code"], head["country"], head["total_price"], head["total_commission"]) == (
         "3100-095", "PT", Decimal("65.99"), Decimal("9.90"))
-    assert head["created_at"] == dt.datetime(2026, 10, 21, 19, 17, 24, tzinfo=dt.timezone.utc)
+    # правило сырья Mirakl: рабочая колонка — часы Мадрида как UTC (21.10 летнее время, +2), исходный момент — *_utc
+    assert head["created_at_utc"] == dt.datetime(2026, 10, 21, 19, 17, 24, tzinfo=dt.timezone.utc)
+    assert head["created_at"] == dt.datetime(2026, 10, 21, 21, 17, 24, tzinfo=dt.timezone.utc)
     (l,) = lines
     assert (l["shop_sku"], l["quantity"], l["tax_amount"], l["commission_fee"]) == ("80625040", 1, Decimal("12.34"), Decimal("9.90"))
 
@@ -79,3 +81,17 @@ def test_windows_and_iso():
     w = list(wr.windows(a, a + dt.timedelta(days=10), 7))
     assert len(w) == 2 and w[-1][1] == a + dt.timedelta(days=10)
     assert wr.iso(a) == "2026-10-01T00:00:00Z"
+
+
+def test_madrid_hours_as_utc():
+    utc = dt.timezone.utc
+    # 23:30 UTC 21.10 (лето, +2) — уже 22.10 по Мадриду; зимой (+1) 23:30 UTC 10.11 — 00:30 11.11
+    assert wr.madrid(dt.datetime(2026, 10, 21, 23, 30, tzinfo=utc)) == dt.datetime(2026, 10, 22, 1, 30, tzinfo=utc)
+    assert wr.madrid(dt.datetime(2026, 11, 10, 23, 30, tzinfo=utc)) == dt.datetime(2026, 11, 11, 0, 30, tzinfo=utc)
+    assert wr.madrid(None) is None
+    order = {"order_id": "X-A", "created_date": "2026-11-10T23:30:00Z",
+             "order_lines": [{"order_line_id": "X-A-1", "shipped_date": "2026-11-11T08:00:00Z"}]}
+    head, (line,) = wr.order_rows(18499, order, AT)
+    assert head["created_at"].date() == dt.date(2026, 11, 11) and head["created_at_utc"].date() == dt.date(2026, 11, 10)
+    assert line["shipped_at"].hour == 9 and line["shipped_at_utc"].hour == 8 and line["received_at_utc"] is None
+    assert line["offer_id"] is None and wr.offer_row(1, {"price": 1}, AT)["offer_id"] is None

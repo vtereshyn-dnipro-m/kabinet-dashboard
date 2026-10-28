@@ -17,7 +17,9 @@ COMMENT 'Worten: офферы магазина (GET /api/offers, OF21). Ключ
 
 CREATE TABLE IF NOT EXISTS dnipro_m.worten.raw_orders (
   shop_id STRING NOT NULL, order_id STRING NOT NULL, commercial_id STRING, order_state STRING, channel_code STRING,
-  created_at TIMESTAMP, updated_at TIMESTAMP, currency STRING, price DECIMAL(18,2), shipping_price DECIMAL(18,2),
+  created_at TIMESTAMP COMMENT 'часы Мадрида, записанные как UTC (правило сырья Mirakl, docs/madrid-time.md): DATE() — день Мадрида',
+  updated_at TIMESTAMP COMMENT 'часы Мадрида как UTC', created_at_utc TIMESTAMP COMMENT 'исходный момент; длительности — по нему',
+  updated_at_utc TIMESTAMP, currency STRING, price DECIMAL(18,2), shipping_price DECIMAL(18,2),
   total_price DECIMAL(18,2), total_commission DECIMAL(18,2), order_tax_mode STRING, fully_refunded BOOLEAN,
   has_incident BOOLEAN, postal_code STRING, country STRING, lines_count INT, raw_json STRING, loaded_at TIMESTAMP)
 COMMENT 'Worten: заказы (GET /api/orders, OR11), без данных покупателя — из адреса индекс и страна. Ключ shop_id + order_id.';
@@ -26,7 +28,8 @@ CREATE TABLE IF NOT EXISTS dnipro_m.worten.raw_order_lines (
   shop_id STRING NOT NULL, order_id STRING NOT NULL, order_line_id STRING NOT NULL, order_line_state STRING,
   offer_id STRING, shop_sku STRING, product_title STRING, quantity INT, price_unit DECIMAL(18,2), price DECIMAL(18,2),
   shipping_price DECIMAL(18,2), total_price DECIMAL(18,2), commission_fee DECIMAL(18,2), commission_vat DECIMAL(18,2),
-  tax_amount DECIMAL(18,2), shipped_at TIMESTAMP, received_at TIMESTAMP, raw_json STRING, loaded_at TIMESTAMP)
+  tax_amount DECIMAL(18,2), shipped_at TIMESTAMP COMMENT 'часы Мадрида как UTC', received_at TIMESTAMP COMMENT 'часы Мадрида как UTC',
+  shipped_at_utc TIMESTAMP, received_at_utc TIMESTAMP, raw_json STRING, loaded_at TIMESTAMP)
 COMMENT 'Worten: строки заказов. Ключ shop_id + order_line_id.';
 
 CREATE TABLE IF NOT EXISTS dnipro_m.worten.sync_state (
@@ -36,3 +39,5 @@ COMMENT 'Worten: отметка продолжения — конец после
 -- USE CATALOG на dnipro_m у принципала — из sql/kabinet_jobs_sp_2026-10-22.sql. Таблицы заводит владелец здесь же,
 -- поэтому CREATE TABLE принципалу не нужен (у TikTok он был — таблицы заводил загрузчик).
 GRANT USE SCHEMA, MODIFY, SELECT ON SCHEMA dnipro_m.worten TO `<sp>`;
+-- MODIFY в UC включает и удаление строк — загрузчик его не делает (только MERGE), отдельного права «без удаления» в UC
+-- нет. Проверка после применения: SHOW GRANTS ON SCHEMA dnipro_m.worten; — у принципала ровно USE SCHEMA, MODIFY, SELECT.

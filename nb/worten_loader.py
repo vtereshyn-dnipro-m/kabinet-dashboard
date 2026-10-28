@@ -13,7 +13,8 @@
 #   от отметки последнего ЦЕЛИКОМ записанного куска минус worten_order_overlap_days (статусы меняются задним числом);
 #   заказ и его строки, без данных покупателя (из адреса — индекс и страна). Отметка — dnipro_m.worten.sync_state.
 # Реплика для страниц Кабинета — kabinet_data.raw_worten_offers / _orders / _order_lines в Lakebase, upsert из сырья
-# целиком (данных немного), только колонки страниц, без raw_json. Хост базы и пользователь не зашиты: хост — из описания
+# целиком (данных немного), только колонки страниц, без raw_json; loaded_at — из сырья (время снимка). Время заказов —
+# по правилу сырья Mirakl: рабочая колонка — часы Мадрида как UTC, *_utc — исходный момент (docs/madrid-time.md). Хост базы и пользователь не зашиты: хост — из описания
 # endpoint Lakebase, пользователь — тот, под кем идёт джоба. Настройки — reorder_params (worten_*), не константы.
 # Пульс `Kabinet - Worten Loader` — последним и безусловно; порог — только в job_health_rules (в пульсе NULL). Сбои
 # копятся и роняют прогон ПОСЛЕ пульса. dry_run=1 — без записи и без пульса. Источник кода — nb/worten_loader.py.
@@ -158,15 +159,15 @@ REPLICA = (
     ("raw_worten_offers", ("shop_id", "offer_id"),
      f"""SELECT shop_id, offer_id, shop_sku, product_title, category_code, active, quantity, channel_code, price,
                 origin_price, discount_price, discount_start, discount_end, promo_active, currency,
-                loaded_at = (SELECT max(loaded_at) FROM {SCHEMA}.raw_offers) AS in_last_load
+                loaded_at = (SELECT max(loaded_at) FROM {SCHEMA}.raw_offers) AS in_last_load, loaded_at
          FROM {SCHEMA}.raw_offers"""),
     ("raw_worten_orders", ("shop_id", "order_id"),
-     f"""SELECT shop_id, order_id, order_state, channel_code, created_at, updated_at, currency, price, shipping_price,
-                total_price, total_commission, country
+     f"""SELECT shop_id, order_id, order_state, channel_code, created_at, updated_at, created_at_utc, updated_at_utc,
+                currency, price, shipping_price, total_price, total_commission, country, loaded_at
          FROM {SCHEMA}.raw_orders"""),
     ("raw_worten_order_lines", ("shop_id", "order_line_id"),
      f"""SELECT shop_id, order_line_id, order_id, order_line_state, shop_sku, product_title, quantity, price_unit, price,
-                total_price, commission_fee, tax_amount, shipped_at
+                total_price, commission_fee, tax_amount, shipped_at, shipped_at_utc, loaded_at
          FROM {SCHEMA}.raw_order_lines"""),
 )
 for table, keys, select_sql in REPLICA:
@@ -177,7 +178,8 @@ for table, keys, select_sql in REPLICA:
         stats[f"lakebase.{table}"] = len(rows)
         if DRY or not rows:
             continue
-        upd = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in keys) + ", loaded_at = now()"
+        # loaded_at — из сырья, не now(): правило свежести видит возраст снимка, а не время записи реплики
+        upd = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in keys)
         _c = pg()
         try:
             with _c.cursor() as _cur:
