@@ -1,0 +1,44 @@
+{
+  "name": "Kabinet - Worten Loader",
+  "description": "Worten Marketplace (Mirakl): офферы и заказы → dnipro_m.worten.raw_* и реплики kabinet_data.raw_worten_*. Ежедневно 07:20 и 15:20 Kyiv. Только чтение у Worten (A01, OF21, OR11).",
+  "run_as": {
+    "service_principal_name": "<APPLICATION_ID kabinet-jobs-sp>"
+  },
+  "schedule": {
+    "quartz_cron_expression": "0 20 7,15 * * ?",
+    "timezone_id": "Europe/Kyiv",
+    "pause_status": "UNPAUSED"
+  },
+  "max_concurrent_runs": 1,
+  "timeout_seconds": 1800,
+  "queue": {
+    "enabled": true
+  },
+  "email_notifications": {},
+  "environments": [
+    {
+      "environment_key": "default",
+      "spec": {
+        "client": "2"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "load",
+      "environment_key": "default",
+      "notebook_task": {
+        "notebook_path": "/Users/v.tereshyn@dniprom.com/Kabinet - Worten/Kabinet - Worten Loader",
+        "source": "WORKSPACE",
+        "base_parameters": {
+          "dry_run": "0",
+          "full": "0"
+        }
+      },
+      "timeout_seconds": 1800,
+      "max_retries": 1,
+      "min_retry_interval_millis": 600000,
+      "retry_on_timeout": false
+    }
+  ]
+}

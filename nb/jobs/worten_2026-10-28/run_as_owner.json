@@ -1,0 +1,6 @@
+{
+  "job_id": "<JOB_ID worten>",
+  "fields_to_remove": [
+    "run_as"
+  ]
+}
