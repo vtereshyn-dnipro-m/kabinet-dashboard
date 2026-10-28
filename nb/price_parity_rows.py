@@ -42,6 +42,33 @@ def _ts(v):
     return None
 
 
+def _ts_any(v):
+    """datetime или строка ISO (SP-API отдаёт даты скидки строкой) → datetime с поясом; иначе None."""
+    if isinstance(v, str) and v.strip():
+        try:
+            return _ts(dt.datetime.fromisoformat(v.strip().replace("Z", "+00:00")))
+        except ValueError:
+            return None
+    return _ts(v)
+
+
+def amazon_price(status, our_price, discounted_price, discount_start, discount_end, now):
+    """Цена Amazon для паритета — наша цена из SP-API Listings Items (снимок дня, все рынки разом), по правилам Plan
+    Matrix (решение владельца 14.10.2026): только листинг в продаже (BUYABLE), меньшая из our_price и скидки, если
+    скидка действует сейчас. Не в продаже — None: цены для покупателя нет (28.10.2026: 81123011 в ES — DISCOVERABLE)."""
+    if "BUYABLE" not in str(status or "").upper().split(","):
+        return None
+    p = _f(our_price)
+    if p is None or p <= 0:
+        return None
+    a, b = _ts_any(discount_start), _ts_any(discount_end)
+    # дата скидки есть, но не разобралась — скидку не берём: надёжнее обычная цена, чем скидка без срока
+    unparsed = any(isinstance(v, str) and v.strip() and t is None for v, t in ((discount_start, a), (discount_end, b)))
+    if not unparsed and promo_active(discounted_price, a, b, now):
+        p = min(p, _f(discounted_price))
+    return p
+
+
 def promo_active(discount_price, discount_start, discount_end, now):
     """Скидка действует сейчас: цена скидки есть, начало не в будущем, конец не в прошлом (пустые даты — без ограничения)."""
     if _f(discount_price) is None or _f(discount_price) <= 0:
