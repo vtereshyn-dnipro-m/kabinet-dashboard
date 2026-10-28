@@ -1250,8 +1250,22 @@ TRANSLATIONS = {
               "are by order date, returns by the data mart's date (Amazon: settlement), so a return of last month's order "
               "reduces this period."},
     "mn.x.sales_minus_returns": {"ru": "продажи минус возвраты", "uk": "продажі мінус повернення", "en": "sales minus returns"},
-    "mn.x.returns_split": {"ru": "до возвратов, возвраты — под суммой", "uk": "до повернень, повернення — під сумою",
-                           "en": "before returns, returns below the amount"},
+    "mn.x.not_in_pbi": {"ru": "в Power BI этого нет", "uk": "у Power BI цього немає", "en": "not in Power BI"},
+    "home.returns.toggle": {"ru": "Показать возвраты", "uk": "Показати повернення", "en": "Show returns"},
+    "home.returns.toggle_help": {
+        "ru": "Рядом с продажами — возвраты с минусом и «после возвратов»: в карточках, по каналам, странам и рынкам. В Power "
+              "BI этого нет: его продажи — до возвратов, и цифры без переключателя сходятся с ним 1:1. Возвраты каналов Power "
+              "BI — колонка Refund Total его витрины по дате витрины (у Amazon — дата расчёта), TikTok Shop — деньги по "
+              "выпискам, по дате выписки возврата; заявки на возврат не вычитаются.",
+        "uk": "Поруч із продажами — повернення з мінусом і «після повернень»: у картках, за каналами, країнами й ринками. У "
+              "Power BI цього немає: його продажі — до повернень, і цифри без перемикача сходяться з ним 1:1. Повернення "
+              "каналів Power BI — колонка Refund Total його вітрини за датою вітрини (в Amazon — дата розрахунку), TikTok "
+              "Shop — гроші за виписками, за датою виписки повернення; заявки на повернення не віднімаються.",
+        "en": "Shows returns (negative) and “after returns” next to sales: in the cards, by channel, country and marketplace. "
+              "This is not in Power BI: its sales are before returns, and without the switch the figures match it 1:1. "
+              "Returns of Power BI channels are the Refund Total column of its data mart by the data mart's date (Amazon: "
+              "settlement date); TikTok Shop — money in statements, by refund statement date; return requests are not "
+              "deducted."},
     "home.sales.returns_line": {"ru": "возвраты −{r} € · после возвратов {n} €", "uk": "повернення −{r} € · після повернень {n} €",
                                 "en": "returns −{r} € · after returns {n} €"},
     "home.sales.returns_total_excl": {"ru": "Итого без НДС: продажи {s} € · возвраты −{r} € · после возвратов {n} €",
@@ -1260,6 +1274,9 @@ TRANSLATIONS = {
     "home.sales.returns_total_incl": {"ru": "Итого с НДС: продажи {s} € · возвраты −{r} € · после возвратов {n} €",
                                       "uk": "Разом з ПДВ: продажі {s} € · повернення −{r} € · після повернень {n} €",
                                       "en": "Total incl. VAT: sales {s} € · returns −{r} € · after returns {n} €"},
+    "home.tts_refunds_note": {"ru": "Возвраты TikTok — только деньги по выпискам, по дате выписки возврата (Мадрид).",
+                              "uk": "Повернення TikTok — лише гроші за виписками, за датою виписки повернення (Мадрид).",
+                              "en": "TikTok returns — only money in statements, by refund statement date (Madrid)."},
     "home.tts_refunds_pending": {"ru": "Возвраты TikTok Shop пока не учтены: их подключение ещё не завершено.",
                                  "uk": "Повернення TikTok Shop поки не враховано: їх підключення ще не завершено.",
                                  "en": "TikTok Shop returns are not included yet: their connection is not finished."},
@@ -3812,9 +3829,9 @@ TRANSLATIONS = {
     "home.tts_admin_only": {"ru": "TikTok Shop сейчас видно только администратору: для остальных строка выключена до сверки.",
                             "uk": "TikTok Shop зараз видно лише адміністратору: для інших рядок вимкнено до звірки.",
                             "en": "TikTok Shop is visible to administrators only for now: hidden for others until reconciliation."},
-    "home.tts_note": {"ru": "TikTok Shop — из TikTok Shop API, не из Power BI: выручка продавца, без отмен и образцов; возвраты — только деньги по выпискам, по дате выписки возврата (Мадрид).",
-                      "uk": "TikTok Shop — з TikTok Shop API, не з Power BI: виторг продавця, без скасувань і зразків; повернення — лише гроші за виписками, за датою виписки повернення (Мадрид).",
-                      "en": "TikTok Shop — from the TikTok Shop API, not Power BI: seller revenue, excluding cancellations and samples; returns — only money in statements, by refund statement date (Madrid)."},
+    "home.tts_note": {"ru": "TikTok Shop — из TikTok Shop API, не из Power BI: выручка продавца, без отмен и образцов, до возвратов.",
+                      "uk": "TikTok Shop — з TikTok Shop API, не з Power BI: виторг продавця, без скасувань і зразків, до повернень.",
+                      "en": "TikTok Shop — from the TikTok Shop API, not Power BI: seller revenue, excluding cancellations and samples, before refunds."},
     "ads.title": {"ru": "Реклама", "uk": "Реклама", "en": "Ads"},
     "ads.subtitle": {"ru": "Что отключить и куда добавить", "uk": "Що вимкнути і куди додати", "en": "What to switch off and where to add"},
     "ads.limits": {
