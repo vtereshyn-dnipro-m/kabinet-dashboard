@@ -60,20 +60,24 @@ _c = connect(KABINET_EP)
 try:
     with _c.cursor() as cur:
         cur.execute("""SELECT key, value FROM kabinet_data.reorder_params
-                       WHERE key IN ('parity_promo_pause_days', 'parity_shrink_guard_pct')""")
+                       WHERE key IN ('parity_promo_pause_days', 'parity_shrink_guard_pct', 'parity_outlier_pct',
+                                     'parity_offer_run_window_min')""")
         _p = {k: v for k, v in cur.fetchall()}
-        _miss = [k for k in ("parity_promo_pause_days", "parity_shrink_guard_pct") if k not in _p]
+        _miss = [k for k in ("parity_promo_pause_days", "parity_shrink_guard_pct", "parity_outlier_pct",
+                             "parity_offer_run_window_min") if k not in _p]
         if _miss:
             raise RuntimeError(f"в reorder_params нет {_miss} — сначала SQL sql/price_parity_promo_2026-10-28.sql")
         PAUSE_DAYS = int(_p["parity_promo_pause_days"])
         # сборка меньше этой доли прежней — пропавшие SKU не удаляем (источник ответил не весь)
         SHRINK_GUARD = float(_p["parity_shrink_guard_pct"]) / 100
+        OUTLIER_PCT = float(_p["parity_outlier_pct"])
+        RUN_WINDOW_S = float(_p["parity_offer_run_window_min"]) * 60
         cur.execute("SELECT sku, marketplace_code, price FROM kabinet_data.raw_mm_offers WHERE offer_is_online = true AND price > 0")
         mm_rows = cur.fetchall()
-        cur.execute("""SELECT shop_sku, price, origin_price, discount_price, discount_start, discount_end
+        cur.execute("""SELECT shop_sku, price, origin_price, discount_price, discount_start, discount_end, loaded_at
                        FROM kabinet_data.raw_lm_offers WHERE active = true AND quantity > 0""")
         lm_rows = cur.fetchall()
-        cur.execute("""SELECT shop_sku, price, origin_price, discount_price, discount_start, discount_end
+        cur.execute("""SELECT shop_sku, price, origin_price, discount_price, discount_start, discount_end, loaded_at
                        FROM kabinet_data.raw_cf_offers WHERE active = true AND quantity > 0""")
         cf_rows = cur.fetchall()
         # ASIN → seller_sku: отсюда ключ варианта для амазоновских цен
@@ -132,10 +136,9 @@ for sku, mc, price in mm_rows:
         D.setdefault(ns, {})[ch] = float(price)
 for col, rows_, recent in (("lm_es", lm_rows, recent_lm), ("cf_es", cf_rows, set())):
     n_promo = n_pause = 0
-    for sku, price, origin, disc, d_start, d_end in rows_:
-        ns = pr.norm_sku(sku)
-        if not ns:
-            continue
+    picked = pr.pick_offers(rows_, RUN_WINDOW_S)       # последняя загрузка, один самый свежий оффер на norm_sku
+    stats[f"{col}_stale_or_dup"] = len(rows_) - len(picked)
+    for ns, (sku, price, origin, disc, d_start, d_end, _la) in picked.items():
         p, active = pr.mirakl_price(price, origin, disc, d_start, d_end, now)
         if not p:
             continue
@@ -146,7 +149,7 @@ for col, rows_, recent in (("lm_es", lm_rows, recent_lm), ("cf_es", cf_rows, set
             n_pause += 1
     stats[f"{col}_promo"], stats[f"{col}_pause"] = n_promo, n_pause
 
-rows = [r for r in (pr.parity_row(ns, d, PAUSED.get(ns, set())) for ns, d in D.items()) if r]
+rows = [r for r in (pr.parity_row(ns, d, PAUSED.get(ns, set()), OUTLIER_PCT) for ns, d in D.items()) if r]
 stats["rows"] = len(rows)
 print(f"строк {len(rows)} (было {prev_count}); " + ", ".join(f"{k} {v}" for k, v in sorted(stats.items())))
 

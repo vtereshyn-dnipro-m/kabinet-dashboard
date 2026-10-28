@@ -901,6 +901,9 @@ with tab_par:
             P["flag"] = np.where(P["spread"] > PARITY_BAD, "🔴",
                                  np.where(P["spread"] > PARITY_ALERT,
                                           "🟡", "·"))
+            if _has_pause:   # «lm_es, cf_es» → «LM · ES, CF · ES» — как заголовки колонок цен
+                P["promo_pause_channels"] = P["promo_pause_channels"].map(
+                    lambda v: ", ".join(x.strip().upper().replace("_", " · ") for x in as_text(v).split(",") if x.strip()))
             P["photo"] = catalog.image_series(skus=P["norm_sku"])
             P["asin_url"] = catalog.url_series(skus=P["norm_sku"])
             show = (["flag", "photo", "norm_sku", "asin_url", "product_name"]

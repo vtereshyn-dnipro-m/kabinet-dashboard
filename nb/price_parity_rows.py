@@ -16,7 +16,7 @@ import re
 PCOLS = ["amz_es", "amz_fr", "amz_de", "amz_it", "amz_gb", "mm_es", "mm_fr", "lm_es", "cf_es"]
 EUR = [c for c in PCOLS if c != "amz_gb"]
 COUNTRY = {"ES": ["amz_es", "lm_es", "mm_es", "cf_es"], "FR": ["amz_fr", "mm_fr"]}
-OUTLIER_PCT = 20          # выброс — дороже минимума страны больше чем на 20 % (как в прежней ячейке)
+OUTLIER_PCT = 20          # по умолчанию для тестов; в джобе — reorder_params.parity_outlier_pct (как в прежней ячейке, 20)
 
 
 def norm_sku(s):
@@ -70,9 +70,30 @@ def in_pause(active_now, discount_end, now, recent_promo, pause_days):
     return bool(ended_recently or recent_promo)
 
 
-def parity_row(ns, d, paused):
+def pick_offers(rows, run_window_s):
+    """Офферы канала для паритета: только из последней загрузки (loaded_at не раньше максимума минус run_window_s) и по
+    одному на norm_sku — самый свежий. Загрузчики офферов делают upsert и не удаляют пропавшие из API офферы: такая
+    строка остаётся «активной» со старой ценой и старой скидкой (28.10.2026: LM «41500000» от 29.09 рядом с живым
+    «41500000_»), и без отбора она давала ложную паузу и случайную цену по порядку строк. rows — кортежи
+    (sku, price, origin_price, discount_price, discount_start, discount_end, loaded_at)."""
+    rows = [r for r in rows if _ts(r[6]) is not None]
+    if not rows:
+        return {}
+    last = max(_ts(r[6]) for r in rows)
+    best = {}
+    for r in rows:
+        la = _ts(r[6])
+        if (last - la).total_seconds() > run_window_s:
+            continue
+        ns = norm_sku(r[0])
+        if ns and (ns not in best or la > _ts(best[ns][6])):
+            best[ns] = r
+    return best
+
+
+def parity_row(ns, d, paused, outlier_pct=OUTLIER_PCT):
     """Строка price_parity из цен варианта d ({колонка: цена, 't': название}) и множества колонок в паузе. Разброс —
-    по странам, без цен в паузе; выбросы — каналы дороже минимума страны больше чем на OUTLIER_PCT %."""
+    по странам, без цен в паузе; выбросы — каналы дороже минимума страны больше чем на outlier_pct %."""
     p = {c: d.get(c) for c in PCOLS}
     eur = [p[c] for c in EUR if p.get(c)]
     allp = [p[c] for c in PCOLS if p.get(c)]
@@ -87,7 +108,7 @@ def parity_row(ns, d, paused):
         cdev = round((max(cp.values()) - cmn) / cmn * 100, 1)
         dev = cdev if dev is None else max(dev, cdev)
         for c, v in cp.items():
-            if (v - cmn) / cmn > OUTLIER_PCT / 100:
+            if (v - cmn) / cmn > outlier_pct / 100:
                 out.append(f"{c}:{v}€(+{round((v - cmn) / cmn * 100)}% к {country})")
     return {
         "norm_sku": ns, "product_name": d.get("t"),

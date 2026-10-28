@@ -72,3 +72,33 @@ def test_norm_sku():
     assert pp.norm_sku("amzn.gr.41324000-FBA-x1_") == "41324000"
     assert pp.norm_sku("S5_78626000") == "S5_78626000"
     assert pp.norm_sku("ABC") is None
+
+
+def test_pick_offers_freshest_from_last_load():
+    # 28.10.2026: LM «41500000» от 29.09 (пропал из API, остался «активным» со старой скидкой) рядом с живым «41500000_»
+    old = dt.datetime(2026, 9, 29, 5, 0, tzinfo=UTC)
+    load = dt.datetime(2026, 10, 28, 6, 1, tzinfo=UTC)
+    rows = [("41500000", 79.99, 79.99, 39.99, None, dt.datetime(2026, 10, 15, 21, tzinfo=UTC), old),
+            ("41500000_", 41.99, 79.99, 41.99, dt.datetime(2026, 10, 27, 7, 30, tzinfo=UTC),
+             dt.datetime(2026, 11, 16, 21, tzinfo=UTC), load),
+            ("99431000", 40.99, 89.0, 40.99, None, None, load + dt.timedelta(seconds=20))]
+    best = pp.pick_offers(rows, run_window_s=3600)
+    assert set(best) == {"41500000", "99431000"} and best["41500000"][0] == "41500000_"
+    sku, price, origin, disc, a, b, la = best["41500000"]
+    p, on = pp.mirakl_price(price, origin, disc, a, b, T28)
+    assert (p, on) == (41.99, True)
+    assert pp.in_pause(on, b, T28, recent_promo=True, pause_days=7) is False
+
+
+def test_pick_offers_two_fresh_rows_takes_latest():
+    t1 = dt.datetime(2026, 10, 28, 6, 1, tzinfo=UTC)
+    rows = [("1234567", 10.0, None, None, None, None, t1),
+            ("1234567-FBA", 12.0, None, None, None, None, t1 + dt.timedelta(seconds=5))]
+    assert pp.pick_offers(rows, 3600)["1234567"][1] == 12.0
+    assert pp.pick_offers([], 3600) == {}
+
+
+def test_outlier_pct_parameter():
+    d = {"mm_es": 100.0, "lm_es": 115.0}
+    assert pp.parity_row("1", d, set(), outlier_pct=20)["outlier_channels"] is None
+    assert "lm_es" in pp.parity_row("1", d, set(), outlier_pct=10)["outlier_channels"]
