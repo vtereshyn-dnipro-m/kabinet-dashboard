@@ -1432,6 +1432,10 @@ TRANSLATIONS = {
         "ru": "Продажи Amazon по заказам", "uk": "Продажі Amazon за замовленнями", "en": "Amazon ordered sales"},
     # Продажи с НДС по всем каналам — то, что в Power BI Дарины «Revenue VAT Incl» (07.10.2026)
     "home.kpi.sales_all": {"ru": "Продажи с НДС, все каналы", "uk": "Продажі з ПДВ, усі канали", "en": "Sales incl. VAT, all channels"},
+    "home.kpi.sales_all_no_tts": {"ru": "Продажи с НДС, без TikTok", "uk": "Продажі з ПДВ, без TikTok", "en": "Sales incl. VAT, excl. TikTok"},
+    "home.kpi.no_tts_help": {"ru": "TikTok Shop сюда не входит: его нет в Power BI, он показан отдельной строкой в блоке каналов.",
+                             "uk": "TikTok Shop сюди не входить: його немає в Power BI, він показаний окремим рядком у блоці каналів.",
+                             "en": "TikTok Shop is not included: it is not in Power BI and is shown as a separate row in the channel block."},
     "home.kpi.sales_all_extra": {"ru": "до возвратов", "uk": "до повернень", "en": "before returns"},
     # оговорка о каналах, которых ещё нет; уходит сама, когда их строки появятся в продажах (home.py)
     "home.kpi.sales_all_missing": {"ru": "без {what} — подключаем", "uk": "без {what} — підключаємо", "en": "without {what} — being connected"},

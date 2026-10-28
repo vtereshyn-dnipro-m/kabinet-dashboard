@@ -86,6 +86,13 @@ class Period:
         return t("period.title_days", d=self.days)
 
 
+def _swap_if_reversed(k_from: str, k_to: str) -> None:
+    """«С» позже «По» — меняем поля местами, чтобы на экране был тот же период, по которому считает страница."""
+    a, b = st.session_state.get(k_from), st.session_state.get(k_to)
+    if a is not None and b is not None and a > b:
+        st.session_state[k_from], st.session_state[k_to] = b, a
+
+
 def control(*, key: str = WIDGET, columns=None) -> Period:
     """Селектор периода. Возвращает окно, а не строку выбора."""
     opts = options()
@@ -113,13 +120,22 @@ def control(*, key: str = WIDGET, columns=None) -> Period:
         # в поле «01.10.2026 – дд.мм.гггг», а страница молча считала по прошлому
         # периоду, пока не выберут вторую дату или не нажмут Enter. Одиночная дата
         # применяется сразу при выборе, и полувыбора нет
+        k_from, k_to = f"{key}_from", f"{key}_to"
+        # значение — через session_state, а не value=: иначе обмен местами в колбэке спорил бы с value=, и Streamlit
+        # предупреждал бы о двух источниках значения. Состояние виджета Streamlit чистит при уходе со страницы — тогда
+        # поля снова заполняются из памяти периода
+        if k_from not in st.session_state:
+            st.session_state[k_from] = saved_r[0]
+        if k_to not in st.session_state:
+            st.session_state[k_to] = saved_r[1]
         with c2:
             fa, fb = st.columns(2)
-            p_from = fa.date_input(t("period.from"), value=saved_r[0], max_value=today,
-                                   format="DD.MM.YYYY", key=f"{key}_from")
-            p_to = fb.date_input(t("period.to"), value=saved_r[1], max_value=today,
-                                 format="DD.MM.YYYY", key=f"{key}_to")
-        # поле очистили — держим прошлую границу; перепутали местами — меняем
+            p_from = fa.date_input(t("period.from"), max_value=today, format="DD.MM.YYYY",
+                                   key=k_from, on_change=_swap_if_reversed, args=(k_from, k_to))
+            p_to = fb.date_input(t("period.to"), max_value=today, format="DD.MM.YYYY",
+                                 key=k_to, on_change=_swap_if_reversed, args=(k_from, k_to))
+        # поле очистили — держим прошлую границу; «С» позже «По» — поля меняет местами колбэк до перерисовки, а
+        # здесь порядок ещё раз на случай, если колбэк не сработал (значение пришло адресом или памятью)
         p_from = p_from or saved_r[0]
         p_to = p_to or saved_r[1]
         d_from, d_to = sorted((pd.Timestamp(p_from), pd.Timestamp(p_to)))

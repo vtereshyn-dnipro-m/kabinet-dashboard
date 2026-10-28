@@ -831,6 +831,9 @@ else:
     _tts = (load_tiktok_sales(_w.cur_from.date(), _w.cur_to.date(),
                               data_version("raw_tiktok_orders", "loaded_at"), _tts_admin) if _pbi else pd.DataFrame())
     _ch_all = "all_no_tts" if (not _tts.empty and "_error" not in _tts.columns) else "all"
+    # заголовок и подсказка ⓘ говорят то же, что подпись: «все каналы» в них при показанном TikTok было бы неправдой
+    _no_tts = _ch_all == "all_no_tts"
+    _tip = lambda k, h: passport.tip("home", k, f"{h} {t('home.kpi.no_tts_help')}" if _no_tts else h)
     _as = (lambda x: " · ".join(p for p in (x, t("mn.x.as_pbi")) if p)) if _pbi else (lambda x: x)
     mn.money_metric(s0, t("home.kpi.ordered"), fmt_money(ord_cur) if ord_cur else "—", delta=_ord_delta,
                     vat=mn.VAT_INCL, channels="amazon", basis="order", extra=_as(t("mn.x.before_cancel")),
@@ -839,13 +842,13 @@ else:
                            of=_o_from.strftime("%d.%m"), ot=_o_to.strftime("%d.%m"),
                            mf=_m_from.strftime("%d.%m"), mt=_m_to.strftime("%d.%m"))
                          if _spans_differ else t("home.kpi.ordered_help"))))
-    mn.money_metric(s0b, t("home.kpi.sales_all"), fmt_money(all_cur) if all_cur else "—", delta=_all_delta,
+    mn.money_metric(s0b, t("home.kpi.sales_all_no_tts") if _no_tts else t("home.kpi.sales_all"), fmt_money(all_cur) if all_cur else "—", delta=_all_delta,
                     vat=mn.VAT_INCL, channels=_ch_all, basis="order", extra=_as(sales_all_extra(sales_all)),
-                    help=passport.tip("home", "ordered_all", t("home.kpi.sales_all_help")))
+                    help=_tip("ordered_all", t("home.kpi.sales_all_help")))
     mn.money_metric(s1, t("home.kpi.revenue_pbi") if _pbi else t("home.kpi.revenue"), fmt_money(rev_cur),
                     delta=_rev_delta, vat=mn.VAT_EXCL, channels=_ch_all, basis="order",
                     extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns")),
-                    help=passport.tip("home", "revenue",
+                    help=_tip("revenue",
                         t("home.kpi.revenue_help_pbi", f=_w.cur_from.strftime("%d.%m"), to=_w.cur_to.strftime("%d.%m"),
                           pf=_w.prev_from.strftime("%d.%m"), pt=_w.prev_to.strftime("%d.%m")) if _pbi else
                         t("home.kpi.revenue_help_r",
@@ -859,7 +862,7 @@ else:
     mn.money_metric(s2, t("home.kpi.margin_pbi") if _pbi else t("home.kpi.margin"), f"{cm_cur:,.0f} € · {cm_pct:.0f}%",
                     vat=mn.VAT_EXCL, channels=_ch_all, basis="order",
                     extra=_as(t("mn.x.share_of_sales_excl") if _pbi else t("mn.x.after_costs")),
-                    help=passport.tip("home", "margin", (t("home.kpi.margin_help_pbi") if _pbi
+                    help=_tip("margin", (t("home.kpi.margin_help_pbi") if _pbi
                                                          else t("home.kpi.margin_help") + " " + t("mn.margin_no_delta"))))
     _ref = int(cur.get("units_refunded", pd.Series(dtype=float)).sum() or 0)
     mn.money_metric(s3, t("home.kpi.units"), f"{units_cur:,}",
@@ -868,7 +871,7 @@ else:
                     # «возврат» — не изменение к прошлому периоду: стрелка «↑ −62» читалась как рост
                     delta_arrow="off",
                     vat=mn.VAT_NONE, channels=_ch_all, basis="order", extra=_as(None),
-                    help=passport.tip("home", "units", t("home.kpi.units_help_pbi") if _pbi else t("home.kpi.units_help")))
+                    help=_tip("units", t("home.kpi.units_help_pbi") if _pbi else t("home.kpi.units_help")))
     # площадка с продажами — где были штуки: строка одного возврата и «рекламный день» без продаж (05.10.2026) не в счёт
     _n_markets = cur.loc[pd.to_numeric(cur['units'], errors='coerce').fillna(0) > 0, 'marketplace'].nunique()
     # «По какое число» — подписью, а не только в подсказке ⓘ. Еженедельная сверка с внешним
@@ -903,10 +906,10 @@ else:
         _a3.metric(t("home.kpi.markets"), f"{_n_markets}", help=passport.tip("home", "channels"))
         mn.money_metric(_a1, "ACOS", f"{_ar['acos']:.1f} %" if _ar.get("acos") is not None else "—",
                         vat=mn.VAT_NONE, channels=_ch_all, basis=None, extra=_as(t("mn.x.acos_pbi") if _pbi else t("mn.x.acos")),
-                        help=passport.tip("home", "acos", mn.help_with_vat(mn.VAT_INCL, t("home.kpi.acos_help"))))
+                        help=_tip("acos", mn.help_with_vat(mn.VAT_INCL, t("home.kpi.acos_help"))))
         mn.money_metric(_a2, "TACOS", f"{_ar['tacos']:.1f} %" if _ar.get("tacos") is not None else "—",
                         vat=mn.VAT_NONE, channels=_ch_all, basis="order", extra=_as(t("mn.x.tacos")),
-                        help=passport.tip("home", "tacos", mn.help_with_vat(mn.VAT_INCL, t("home.kpi.tacos_help"))))
+                        help=_tip("tacos", mn.help_with_vat(mn.VAT_INCL, t("home.kpi.tacos_help"))))
     if rev_cur and _no_cogs_rev > 0.5:
         st.caption(t("home.kpi.margin_partial", rev=f"{_no_cogs_rev:,.0f}", pct=f"{_no_cogs_rev / rev_cur * 100:.0f}",
                      known=f"{_rev_known / rev_cur * 100:.0f}"))
