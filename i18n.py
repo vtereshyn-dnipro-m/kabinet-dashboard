@@ -1224,6 +1224,71 @@ TRANSLATIONS = {
         "en": "Excl. VAT. Sales of all channels before returns — Revenue VAT Excl in the Power BI report. For Amazon it is "
               "sales incl. VAT divided by the country VAT rate (ES 21 %, IT 22 %, FR 20 %, DE 19 %…); for Leroy Merlin, "
               "ManoMano, Carrefour, Wallapop and the website — order totals excl. VAT. Period {f}–{to}, compared with {pf}–{pt}."},
+    "home.kpi.returns_pbi": {"ru": "Возвраты без НДС", "uk": "Повернення без ПДВ", "en": "Returns excl. VAT"},
+    "home.kpi.returns_help_pbi": {
+        "ru": "Без НДС. Возвраты всех каналов Power BI — Refund Total VAT Excl его витрины, за тот же период, что «Продажи без "
+              "НДС». Дата — как в витрине: у Amazon — дата расчёта settlement, поэтому возвраты приходят в прошлые недели "
+              "задним числом и процента изменения нет. TikTok Shop сюда не входит, как и в «Продажи без НДС»: его возвраты — в "
+              "блоке каналов, по дате выписки возврата.",
+        "uk": "Без ПДВ. Повернення всіх каналів Power BI — Refund Total VAT Excl його вітрини, за той самий період, що «Продажі "
+              "без ПДВ». Дата — як у вітрині: в Amazon — дата розрахунку settlement, тому повернення приходять у минулі тижні "
+              "заднім числом і відсотка зміни немає. TikTok Shop сюди не входить, як і в «Продажі без ПДВ»: його повернення — "
+              "у блоці каналів, за датою виписки повернення.",
+        "en": "Excl. VAT. Returns of all Power BI channels — Refund Total VAT Excl of its data mart, for the same period as "
+              "“Sales excl. VAT”. The date is the data mart's: for Amazon, the settlement date, so returns land in past weeks "
+              "retroactively and there is no change percentage. TikTok Shop is not included, as in “Sales excl. VAT”: its "
+              "returns are in the channel block, by refund statement date."},
+    "home.kpi.after_returns_pbi": {"ru": "После возвратов без НДС", "uk": "Після повернень без ПДВ", "en": "After returns excl. VAT"},
+    "home.kpi.after_returns_help_pbi": {
+        "ru": "Без НДС. «Продажи без НДС» минус «Возвраты без НДС» — обе цифры из витрины Power BI, за один период. Продажи — "
+              "по дате заказа, возвраты — по дате витрины (у Amazon — расчёта), поэтому возврат заказа прошлого месяца "
+              "уменьшает этот период.",
+        "uk": "Без ПДВ. «Продажі без ПДВ» мінус «Повернення без ПДВ» — обидві цифри з вітрини Power BI, за один період. "
+              "Продажі — за датою замовлення, повернення — за датою вітрини (в Amazon — розрахунку), тому повернення "
+              "замовлення минулого місяця зменшує цей період.",
+        "en": "Excl. VAT. “Sales excl. VAT” minus “Returns excl. VAT” — both from the Power BI data mart, for one period. Sales "
+              "are by order date, returns by the data mart's date (Amazon: settlement), so a return of last month's order "
+              "reduces this period."},
+    "mn.x.sales_minus_returns": {"ru": "продажи минус возвраты", "uk": "продажі мінус повернення", "en": "sales minus returns"},
+    "mn.x.not_in_pbi": {"ru": "в Power BI этого нет", "uk": "у Power BI цього немає", "en": "not in Power BI"},
+    "home.returns.toggle": {"ru": "Показать возвраты · в Power BI этого нет", "uk": "Показати повернення · у Power BI цього немає",
+                            "en": "Show returns · not in Power BI"},
+    "mn.x.returns_not_in_pbi": {"ru": "возвраты рядом — в Power BI этого нет", "uk": "повернення поруч — у Power BI цього немає",
+                                "en": "returns alongside — not in Power BI"},
+    "home.sales.total_with_tts": {"ru": "вместе с TikTok Shop (в карточках его нет)", "uk": "разом із TikTok Shop (у картках його немає)",
+                                  "en": "including TikTok Shop (not in the cards)"},
+    "home.returns.toggle_help": {
+        "ru": "Рядом с продажами — возвраты с минусом и «после возвратов»: в карточках, по каналам, странам и рынкам. В Power "
+              "BI этого нет: его продажи — до возвратов, и цифры без переключателя сходятся с ним 1:1. Возвраты каналов Power "
+              "BI — колонка Refund Total его витрины по дате витрины (у Amazon — дата расчёта), TikTok Shop — деньги по "
+              "выпискам, по дате выписки возврата; заявки на возврат не вычитаются.",
+        "uk": "Поруч із продажами — повернення з мінусом і «після повернень»: у картках, за каналами, країнами й ринками. У "
+              "Power BI цього немає: його продажі — до повернень, і цифри без перемикача сходяться з ним 1:1. Повернення "
+              "каналів Power BI — колонка Refund Total його вітрини за датою вітрини (в Amazon — дата розрахунку), TikTok "
+              "Shop — гроші за виписками, за датою виписки повернення; заявки на повернення не віднімаються.",
+        "en": "Shows returns (negative) and “after returns” next to sales: in the cards, by channel, country and marketplace. "
+              "This is not in Power BI: its sales are before returns, and without the switch the figures match it 1:1. "
+              "Returns of Power BI channels are the Refund Total column of its data mart by the data mart's date (Amazon: "
+              "settlement date); TikTok Shop — money in statements, by refund statement date; return requests are not "
+              "deducted."},
+    "home.sales.returns_line": {"ru": "возвраты −{r} € · после возвратов {n} €", "uk": "повернення −{r} € · після повернень {n} €",
+                                "en": "returns −{r} € · after returns {n} €"},
+    "home.sales.returns_total_excl": {"ru": "Итого без НДС: продажи {s} € · возвраты −{r} € · после возвратов {n} €",
+                                      "uk": "Разом без ПДВ: продажі {s} € · повернення −{r} € · після повернень {n} €",
+                                      "en": "Total excl. VAT: sales {s} € · returns −{r} € · after returns {n} €"},
+    "home.sales.returns_total_incl": {"ru": "Итого с НДС: продажи {s} € · возвраты −{r} € · после возвратов {n} €",
+                                      "uk": "Разом з ПДВ: продажі {s} € · повернення −{r} € · після повернень {n} €",
+                                      "en": "Total incl. VAT: sales {s} € · returns −{r} € · after returns {n} €"},
+    "home.tts_refunds_note": {"ru": "Возвраты TikTok — только деньги по выпискам, по дате выписки возврата (Мадрид).",
+                              "uk": "Повернення TikTok — лише гроші за виписками, за датою виписки повернення (Мадрид).",
+                              "en": "TikTok returns — only money in statements, by refund statement date (Madrid)."},
+    "home.tts_refunds_pending": {"ru": "Возвраты TikTok Shop пока не учтены: их подключение ещё не завершено.",
+                                 "uk": "Повернення TikTok Shop поки не враховано: їх підключення ще не завершено.",
+                                 "en": "TikTok Shop returns are not included yet: their connection is not finished."},
+    "home.sales.chip_returns_hint": {"ru": "возвраты за период", "uk": "повернення за період", "en": "returns in the period"},
+    "home.tts_refunds_error": {"ru": "Возвраты TikTok Shop не учтены: ошибка чтения — {e}",
+                               "uk": "Повернення TikTok Shop не враховано: помилка читання — {e}",
+                               "en": "TikTok Shop returns not included: read error — {e}"},
     "home.kpi.margin_pbi": {"ru": "Contribution Profit и доля", "uk": "Contribution Profit і частка", "en": "Contribution Profit and share"},
     "home.kpi.margin_help_pbi": {
         "ru": "Без НДС. Contribution Profit отчёта Power BI: продажи без НДС минус расходы (комиссии, себестоимость, доставка, "

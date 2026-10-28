@@ -12,6 +12,8 @@ Power BI — Import, DAX в ней почти нет: каждая карточ�
     % Contribution Margin          Contribution Profit / Revenue VAT Incl (или Excl)
     Expenses                       sum(expenses)                     = комиссии + себестоимость + доставка + упаковка
     Quantity Refund                sum(quantity_refund)
+    Refund Total VAT Incl / Excl   sum(refund_total_vat_incl) / sum(refund_total_vat_excl) — по дате строки витрины
+                                   (у Amazon — дата расчёта); «После возвратов» на «Обзоре» = продажи − возвраты
     Expenses Refund                sum(cogs_refund − shipping_cost_refund − expenses_refund)
     Spend / Paid Sales / Paid Units  sum(spend) / sum(paid_sales) / sum(paid_units)
     ACOS / TACOS                   Spend / Paid Sales, Spend / Revenue VAT Incl
@@ -49,6 +51,7 @@ DAILY_SQL = f"""
            SUM(cogs_refund - shipping_cost_refund - expenses_refund) AS expenses_refund,
            SUM(reimbursment)                                 AS reimbursment,
            SUM(refund_total_vat_excl)                        AS refund_vat_excl,
+           SUM(refund_total_vat_incl)                        AS refund_vat_incl,
            SUM(spend)                                        AS spend,
            SUM(paid_sales)                                   AS paid_sales,
            SUM(paid_units)                                   AS paid_units,
@@ -82,7 +85,7 @@ def totals(df: pd.DataFrame) -> dict:
     """Карточки отчёта Power BI из сумм дня × рынка: те же формулы, что у его карточек (см. шапку модуля)."""
     s = {c: float(pd.to_numeric(df[c], errors="coerce").fillna(0).sum()) if c in df else 0.0
          for c in ("units", "units_refunded", "sales_vat_incl", "sales_vat_excl", "commission", "cogs", "logistics",
-                   "expenses", "expenses_refund", "reimbursment", "refund_vat_excl", "spend", "paid_sales",
+                   "expenses", "expenses_refund", "reimbursment", "refund_vat_excl", "refund_vat_incl", "spend", "paid_sales",
                    "paid_units", "tax", "profit", "cp")}
     s["cm_pct_incl"] = s["cp"] / s["sales_vat_incl"] * 100 if s["sales_vat_incl"] else None
     s["cm_pct_excl"] = s["cp"] / s["sales_vat_excl"] * 100 if s["sales_vat_excl"] else None
