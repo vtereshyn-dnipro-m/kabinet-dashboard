@@ -3895,6 +3895,25 @@ TRANSLATIONS = {
     "ads.ref.overlap_line": {"ru": "**{n}** человек видели и {a}, и {b}.", "uk": "**{n}** людей бачили і {a}, і {b}.", "en": "**{n}** people saw both {a} and {b}."},
     "ads.ref.overlap_note": {"ru": "Пересечение показывает, сколько раз мы платили дважды за одного человека. Отдельная метрика на одну-две строки — повод посмотреть, а не считать каждый день.", "uk": "Перетин показує, скільки разів ми платили двічі за одну людину. Окрема метрика на один-два рядки — привід подивитися, а не рахувати щодня.", "en": "The overlap shows how often we paid twice for the same person. A single-figure metric like this is worth a look, not a daily calculation."},
     "cm.tab.parity": {"ru": "Паритет цен", "uk": "Паритет цін", "en": "Price parity"},
+    "cm.par.promo_note": {
+        "ru": "Цена Leroy Merlin и Carrefour — на момент сборки паритета и по сроку скидки: закончившаяся скидка не берётся. "
+              "Паритет пересобирается после каждой загрузки офферов. Если между акциями пауза, канал стоит в колонке «Пауза "
+              "акции»: его цена показана как есть, но выбросом строку не делает. Строк с паузой сейчас: {n}.",
+        "uk": "Ціна Leroy Merlin і Carrefour — на момент збирання паритету і за терміном знижки: знижка, що закінчилася, не "
+              "береться. Паритет перезбирається після кожного завантаження офферів. Якщо між акціями пауза, канал стоїть у "
+              "колонці «Пауза акції»: його ціна показана як є, але викидом рядок не робить. Рядків із паузою зараз: {n}.",
+        "en": "Leroy Merlin and Carrefour prices are as of the parity build and respect the discount end date: an expired "
+              "discount is not used. Parity is rebuilt after every offer load. If there is a pause between promotions, the "
+              "channel is listed under “Promo pause”: its price is shown as is but does not make the row an outlier. Rows "
+              "with a pause now: {n}."},
+    "cm.par.col_pause": {"ru": "Пауза акции", "uk": "Пауза акції", "en": "Promo pause"},
+    "cm.par.col_pause_help": {
+        "ru": "Каналы, у которых сейчас нет скидки, хотя недавно была (пауза между акциями). Их цена — обычная, для "
+              "покупателя она настоящая, но в разброс и выбросы не идёт.",
+        "uk": "Канали, у яких зараз немає знижки, хоча нещодавно була (пауза між акціями). Їхня ціна — звичайна, для покупця "
+              "вона справжня, але в розкид і викиди не йде.",
+        "en": "Channels with no discount now although they had one recently (a pause between promotions). Their price is the "
+              "regular one, real for the buyer, but it is left out of the spread and outliers."},
     "cm.par.no_data": {"ru": "Данные о паритете цен не загрузились. Что ответила база: {e}. Если таблицы нет в схеме kabinet_data — её не создали или не досинхронизировали из Unity Catalog.", "uk": "Дані про паритет цін не завантажилися. Що відповіла база: {e}. Якщо таблиці немає у схемі kabinet_data — її не створили або не досинхронізували з Unity Catalog.", "en": "Price parity data did not load. What the database answered: {e}. If the table is absent from the kabinet_data schema, it was never created or never synced from Unity Catalog."},
     "cm.par.no_columns": {
         "ru": "В таблице price_parity нет колонок: {miss}. Страница ждёт их по договорённости со сборщиком и не угадывает имена. Что в таблице есть: {have}.",

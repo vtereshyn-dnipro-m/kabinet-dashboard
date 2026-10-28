@@ -1,0 +1,40 @@
+{
+  "name": "Kabinet - Price Parity",
+  "description": "Паритет цен Amazon / ManoMano / Leroy Merlin / Carrefour → kabinet_data.price_parity. После каждой загрузки офферов (08:20, 10:20, 16:20 Kyiv). Цена LM и CF — по сроку скидки; пауза между акциями не выброс (T-37).",
+  "schedule": {
+    "quartz_cron_expression": "0 20 8,10,16 * * ?",
+    "timezone_id": "Europe/Kyiv",
+    "pause_status": "PAUSED"
+  },
+  "max_concurrent_runs": 1,
+  "timeout_seconds": 1200,
+  "queue": {
+    "enabled": true
+  },
+  "email_notifications": {},
+  "environments": [
+    {
+      "environment_key": "default",
+      "spec": {
+        "client": "2"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "parity",
+      "environment_key": "default",
+      "notebook_task": {
+        "notebook_path": "<OWNER_HOME>/Kabinet - Price Parity",
+        "source": "WORKSPACE",
+        "base_parameters": {
+          "dry_run": "0"
+        }
+      },
+      "timeout_seconds": 1200,
+      "max_retries": 1,
+      "min_retry_interval_millis": 300000,
+      "retry_on_timeout": false
+    }
+  ]
+}
