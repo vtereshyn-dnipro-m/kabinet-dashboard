@@ -58,7 +58,7 @@ PAGES = {
     "home": ((
         # с 08.10.2026 все денежные карточки «Обзора» — цифры Power BI из реплики его витрины (pbi.py)
         Source("pbi", "pbi_spiderweb_report", "date", "Kabinet - Power BI Replica", 72,
-               ("ordered", "ordered_all", "revenue", "returns", "margin", "units", "channels", "acos", "tacos")),
+               ("ordered", "ordered_all", "revenue", "margin", "units", "channels", "acos", "tacos")),
     ) if not pbi.OWN_METHOD else (
         Source("economics", "economics_summary", "sales_date", "Kabinet - Economics Loader", 96,
                ("revenue", "margin", "units", "channels")),

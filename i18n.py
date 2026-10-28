@@ -1251,7 +1251,12 @@ TRANSLATIONS = {
               "reduces this period."},
     "mn.x.sales_minus_returns": {"ru": "продажи минус возвраты", "uk": "продажі мінус повернення", "en": "sales minus returns"},
     "mn.x.not_in_pbi": {"ru": "в Power BI этого нет", "uk": "у Power BI цього немає", "en": "not in Power BI"},
-    "home.returns.toggle": {"ru": "Показать возвраты", "uk": "Показати повернення", "en": "Show returns"},
+    "home.returns.toggle": {"ru": "Показать возвраты · в Power BI этого нет", "uk": "Показати повернення · у Power BI цього немає",
+                            "en": "Show returns · not in Power BI"},
+    "mn.x.returns_not_in_pbi": {"ru": "возвраты рядом — в Power BI этого нет", "uk": "повернення поруч — у Power BI цього немає",
+                                "en": "returns alongside — not in Power BI"},
+    "home.sales.total_with_tts": {"ru": "вместе с TikTok Shop (в карточках его нет)", "uk": "разом із TikTok Shop (у картках його немає)",
+                                  "en": "including TikTok Shop (not in the cards)"},
     "home.returns.toggle_help": {
         "ru": "Рядом с продажами — возвраты с минусом и «после возвратов»: в карточках, по каналам, странам и рынкам. В Power "
               "BI этого нет: его продажи — до возвратов, и цифры без переключателя сходятся с ним 1:1. Возвраты каналов Power "

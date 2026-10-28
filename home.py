@@ -847,12 +847,6 @@ else:
     # те же, что в Power BI, и подпись говорит это словами «как в Power BI»
     _pbi = not pbi.OWN_METHOD
     _as = (lambda x: " · ".join(p for p in (x, t("mn.x.as_pbi")) if p)) if _pbi else (lambda x: x)
-    # Возвраты и «после возвратов» (решение владельца 28.10.2026) — только по переключателю, выключен по умолчанию:
-    # основной вид «Обзора» — «до возвратов, как в Power BI», цифры которого сходятся с Power BI 1:1. Всё, что включает
-    # переключатель, подписано «в Power BI этого нет»; выключенный — страница та же, что без него
-    _show_ret = _pbi and bool(st.toggle(t("home.returns.toggle"), key="home_show_returns",
-                                        help=t("home.returns.toggle_help")))
-    _nopbi = lambda x: " · ".join(p for p in (x, t("mn.x.not_in_pbi")) if p)
     mn.money_metric(s0, t("home.kpi.ordered"), fmt_money(ord_cur) if ord_cur else "—", delta=_ord_delta,
                     vat=mn.VAT_INCL, channels="amazon", basis="order", extra=_as(t("mn.x.before_cancel")),
                     help=passport.tip("home", "ordered",
@@ -914,6 +908,13 @@ else:
     # на какую сборку витрины опираются цифры и когда её подтянет экран Power BI (14.10.2026)
     if pbi.freshness_line():
         st.caption(pbi.freshness_line())
+    # Возвраты и «после возвратов» (решение владельца 28.10.2026) — только по переключателю, выключен по умолчанию:
+    # основной вид «Обзора» — «до возвратов, как в Power BI», цифры которого сходятся с Power BI 1:1. Всё, что включает
+    # переключатель, подписано «в Power BI этого нет» (и сама надпись переключателя); выключенный — страница та же,
+    # что без него. Стоит под строками периода, над вторым рядом карточек
+    _show_ret = _pbi and bool(st.toggle(t("home.returns.toggle"), key="home_show_returns",
+                                        help=t("home.returns.toggle_help")))
+    _nopbi = lambda x: " · ".join(p for p in (x, t("mn.x.not_in_pbi")) if p)
     # ACOS и TACOS — формулы Power BI (05.10.2026): весь расход на рекламу к продажам с рекламы и ко всем продажам
     # с НДС; с 08.10.2026 и числа те же — из реплики его витрины (ad_ratios). Окно — то же, что у выручки и маржи
     if pd.notna(_m_from) and pd.notna(_m_to):
@@ -930,10 +931,10 @@ else:
             ret_cur = _s("refund_vat_excl")
             mn.money_metric(_r1, t("home.kpi.returns_pbi"), f"−{fmt_money(ret_cur)}" if ret_cur > 0.5 else fmt_money(0),
                             vat=mn.VAT_EXCL, channels="all", basis=None, extra=_nopbi(t("mn.x.by_settlement")),
-                            help=passport.tip("home", "returns", t("home.kpi.returns_help_pbi")))
+                            help=passport.tip("home", "revenue", t("home.kpi.returns_help_pbi")))
             mn.money_metric(_r2, t("home.kpi.after_returns_pbi"), fmt_money(rev_cur - ret_cur),
                             vat=mn.VAT_EXCL, channels="all", basis=None, extra=_nopbi(t("mn.x.sales_minus_returns")),
-                            help=passport.tip("home", "returns", t("home.kpi.after_returns_help_pbi")))
+                            help=passport.tip("home", "revenue", t("home.kpi.after_returns_help_pbi")))
         _a3.metric(t("home.kpi.markets"), f"{_n_markets}", help=passport.tip("home", "channels"))
         mn.money_metric(_a1, "ACOS", f"{_ar['acos']:.1f} %" if _ar.get("acos") is not None else "—",
                         vat=mn.VAT_NONE, channels="all", basis=None, extra=_as(t("mn.x.acos_pbi") if _pbi else t("mn.x.acos")),
@@ -1028,7 +1029,8 @@ else:
             if _tts.empty:
                 _tts = pd.DataFrame()
         # после очистки от строки-пометки: иначе подпись «только администратору» стояла бы в периоде без строки TikTok
-        _tts_preview = _tts_admin and not _tts.empty and not tiktok_overview_on()
+        # как на main: строка TikTok есть или чтение упало (тогда main тоже показывал эту подпись рядом с ошибкой)
+        _tts_preview = _tts_admin and (bool(_tts_err) or not _tts.empty) and not tiktok_overview_on()
         cur_ch = pd.concat([cur, _tts], ignore_index=True) if not _tts.empty else cur
         rev_ch = float(cur_ch["revenue"].sum())   # база долей каналов — вместе с TikTok, если он показан
         # Канал — это площадка (Amazon, Leroy Merlin, ManoMano, Carrefour),
@@ -1087,7 +1089,8 @@ else:
         # то же число, что в карточке, и разница в 12 тыс. € выглядела ошибкой (20.09.2026)
         mn.chart_note(t("mn.what.revenue_by_channel"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
                       extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns"))
-                      + (" · " + t("home.tts_short") if not _tts.empty else ""))
+                      + (" · " + t("home.tts_short") if not _tts.empty else "")
+                      + (" · " + t("mn.x.returns_not_in_pbi") if _show_ret else ""))
         for _, r in by_ch.iterrows():
             share = r["revenue"] / rev_ch * 100 if rev_ch else 0
             codes = sorted(sold_mp.loc[sold_mp["channel"] == r["channel"],
@@ -1124,7 +1127,8 @@ else:
         _rev_rows = float(by_ch["revenue"].sum())   # сумма строк выше — тот же итог, что rev_ch
         if _show_ret and _ret_ch > 0.5:
             st.caption(_nopbi(t("home.sales.returns_total_excl", s=f"{_rev_rows:,.0f}", r=f"{_ret_ch:,.0f}",
-                                n=f"{_rev_rows - _ret_ch:,.0f}")))
+                                n=f"{_rev_rows - _ret_ch:,.0f}")
+                              + (" · " + t("home.sales.total_with_tts") if not _tts.empty else "")))
 
         # у Amazon страна в коде рынка, у остальных площадок — сам код
         # площадки: подписываем плашки кодом как есть, а группируем цветом
@@ -1175,7 +1179,8 @@ else:
         _geo_tot = (float(sold_mp["revenue"].sum()), float(sold_mp["refund_vat_excl"].sum()))   # итог плашек рынков
         if _geo == "country":
             mn.chart_note(t("mn.what.sales_by_country"), mn.VAT_INCL, "all", "order", _w.cur_from, _w.cur_to,
-                          extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else ""))
+                          extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else "")
+                          + (" · " + t("mn.x.returns_not_in_pbi") if _show_ret else ""))
             _names, _lang = load_country_names(), get_lang()
             by_cn = (cur_ch.groupby("country", as_index=False)[["sales_vat_incl", "refund_vat_incl"]].sum()
                         .sort_values("sales_vat_incl", ascending=False))
@@ -1192,7 +1197,8 @@ else:
         else:
             if _pbi:
                 mn.chart_note(t("mn.what.sales_by_market"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
-                              extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else ""))
+                              extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else "")
+                              + (" · " + t("mn.x.returns_not_in_pbi") if _show_ret else ""))
             # плашки идут в том же порядке, что и строки каналов выше
             for _, r in by_ch.iterrows():
                 col = color_of[r["channel"]]
@@ -1210,13 +1216,14 @@ else:
         # второй раз его не пишем
         if _show_ret and _geo == "country" and _geo_tot[1] > 0.5:
             st.caption(_nopbi(t("home.sales.returns_total_incl", s=f"{_geo_tot[0]:,.0f}", r=f"{_geo_tot[1]:,.0f}",
-                                n=f"{_geo_tot[0] - _geo_tot[1]:,.0f}")))
+                                n=f"{_geo_tot[0] - _geo_tot[1]:,.0f}")
+                              + (" · " + t("home.sales.total_with_tts") if not _tts.empty else "")))
         if _show_ret and _tts_ref_err == "—":
             st.caption(t("home.tts_refunds_pending"))
         elif _show_ret and _tts_ref_err:
             st.caption(t("home.tts_refunds_error", e=_tts_ref_err))
         if not _tts.empty:
-            st.caption(t("home.tts_note") + (" " + t("home.tts_refunds_note") if _show_ret else "") + " " + t("home.tts_as_of",
+            st.caption(t("home.tts_note") + (" " + t("home.tts_refunds_note") if _show_ret and not _tts_ref_err else "") + " " + t("home.tts_as_of",
                                                     d=tiktok_as_of(data_version("raw_tiktok_orders", "loaded_at"))))
         if _tts_preview:
             st.caption(t("home.tts_admin_only"))
