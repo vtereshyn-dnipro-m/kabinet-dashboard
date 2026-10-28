@@ -872,6 +872,13 @@ with tab_par:
         k4.metric(t("cm.par.kpi_avg"),
                   "—" if P["spread"].isna().all()
                   else f"{P['spread'].mean():.0f} %")
+        # Цена Leroy Merlin и Carrefour — по сроку скидки на момент сборки; пауза между акциями — отдельной колонкой и
+        # не выброс (T-37, вариант 3, решение владельца 28.10.2026; собирает Kabinet - Price Parity после каждой загрузки
+        # офферов). Колонки ещё нет (SQL не применён) — подпись про паузы не показываем: её нечем подтвердить
+        _has_pause = "promo_pause_channels" in P.columns
+        if _has_pause:
+            _n_pause = int(P["promo_pause_channels"].map(as_text).ne("").sum())
+            st.caption(t("cm.par.promo_note", n=_n_pause))
 
         _q = st.text_input(t("cm.summary.search"),
                            placeholder=t("cm.summary.search_ph"),
@@ -897,7 +904,8 @@ with tab_par:
             P["photo"] = catalog.image_series(skus=P["norm_sku"])
             P["asin_url"] = catalog.url_series(skus=P["norm_sku"])
             show = (["flag", "photo", "norm_sku", "asin_url", "product_name"]
-                    + _eur + ["spread", "outlier_channels"])
+                    + _eur + ["spread", "outlier_channels"]
+                    + (["promo_pause_channels"] if _has_pause else []))
             if PARITY_GBP in P.columns:
                 show.append(PARITY_GBP)
             conf = {
@@ -913,6 +921,9 @@ with tab_par:
                 "outlier_channels": st.column_config.TextColumn(
                     t("cm.par.col_outliers"), width="large",
                     help=t("cm.par.col_outliers_help")),
+                "promo_pause_channels": st.column_config.TextColumn(
+                    t("cm.par.col_pause"), width="small",
+                    help=t("cm.par.col_pause_help")),
                 PARITY_GBP: st.column_config.NumberColumn(
                     "AMZ · GB", format="%.2f £",
                     help=t("cm.par.col_gbp_help")),
