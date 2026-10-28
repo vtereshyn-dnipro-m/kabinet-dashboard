@@ -17,8 +17,8 @@ COMMENT 'Worten: офферы магазина (GET /api/offers, OF21). Ключ
 
 CREATE TABLE IF NOT EXISTS dnipro_m.worten.raw_orders (
   shop_id STRING NOT NULL, order_id STRING NOT NULL, commercial_id STRING, order_state STRING, channel_code STRING,
-  created_at TIMESTAMP COMMENT 'часы Мадрида, записанные как UTC (правило сырья Mirakl, docs/madrid-time.md): DATE() — день Мадрида',
-  updated_at TIMESTAMP COMMENT 'часы Мадрида как UTC', created_at_utc TIMESTAMP COMMENT 'исходный момент; длительности — по нему',
+  created_at TIMESTAMP COMMENT 'часы Лиссабона, записанные как UTC (приём сырья Mirakl, день — по Лиссабону, docs/worten.md): DATE() — день Лиссабона',
+  updated_at TIMESTAMP COMMENT 'часы Лиссабона как UTC', created_at_utc TIMESTAMP COMMENT 'исходный момент; длительности — по нему',
   updated_at_utc TIMESTAMP COMMENT 'исходный момент', currency STRING, price DECIMAL(18,2), shipping_price DECIMAL(18,2),
   total_price DECIMAL(18,2), total_commission DECIMAL(18,2), order_tax_mode STRING, fully_refunded BOOLEAN,
   has_incident BOOLEAN, postal_code STRING, country STRING, lines_count INT, raw_json STRING, loaded_at TIMESTAMP)
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS dnipro_m.worten.raw_order_lines (
   shop_id STRING NOT NULL, order_id STRING NOT NULL, order_line_id STRING NOT NULL, order_line_state STRING,
   offer_id STRING, shop_sku STRING, product_title STRING, quantity INT, price_unit DECIMAL(18,2), price DECIMAL(18,2),
   shipping_price DECIMAL(18,2), total_price DECIMAL(18,2), commission_fee DECIMAL(18,2), commission_vat DECIMAL(18,2),
-  tax_amount DECIMAL(18,2), shipped_at TIMESTAMP COMMENT 'часы Мадрида как UTC', received_at TIMESTAMP COMMENT 'часы Мадрида как UTC',
+  tax_amount DECIMAL(18,2), shipped_at TIMESTAMP COMMENT 'часы Лиссабона как UTC', received_at TIMESTAMP COMMENT 'часы Лиссабона как UTC',
   shipped_at_utc TIMESTAMP COMMENT 'исходный момент; длительности — по нему', received_at_utc TIMESTAMP COMMENT 'исходный момент', raw_json STRING, loaded_at TIMESTAMP)
 COMMENT 'Worten: строки заказов. Ключ shop_id + order_line_id.';
 

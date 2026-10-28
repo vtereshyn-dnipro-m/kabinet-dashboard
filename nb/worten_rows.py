@@ -11,10 +11,11 @@
 # доставки — только индекс и страна (география продаж), как у TikTok.
 #
 # Деньги у Mirakl — числа, время — ISO-строки UTC («2026-10-21T19:17:24Z»). Пусто — NULL, не ноль.
-# Время заказов — по правилу сырья Mirakl (docs/madrid-time.md, решение владельца 14.10.2026): рабочая колонка
-# (created_at, updated_at, shipped_at, received_at) — часы Мадрида, ЗАПИСАННЫЕ КАК UTC, чтобы DATE(x) сразу давал день,
-# как у Leroy Merlin и Carrefour; `<колонка>_utc` — исходный момент, длительности — только по ней. Сроки скидок
-# офферов — настоящий UTC: их сравнивают с текущим моментом (как в паритете, T-37).
+# Время заказов — приём сырья Mirakl (docs/madrid-time.md): рабочая колонка (created_at, updated_at, shipped_at,
+# received_at) — местные часы, ЗАПИСАННЫЕ КАК UTC, чтобы DATE(x) сразу давал день; `<колонка>_utc` — исходный момент,
+# длительности — только по ней. Но местные часы — Лиссабона, а не Мадрида: Worten — Португалия, и день заказа считаем
+# по Лиссабону (решение владельца 28.10.2026; Лиссабон на час позади Мадрида — заказ в 23:30 по Лиссабону остаётся в
+# своём дне). Сроки скидок офферов — настоящий UTC: их сравнивают с текущим моментом (как в паритете, T-37).
 # Источник кода — nb/worten_rows.py в kabinet-dashboard.
 import datetime as dt
 import json
@@ -22,7 +23,7 @@ from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 
 CHANNEL = "WRT_PT_ONLINE"
-MADRID = ZoneInfo("Europe/Madrid")
+LISBON = ZoneInfo("Europe/Lisbon")
 OFFER_KEEP = frozenset((
     "offer_id", "shop_sku", "product_sku", "product_title", "product_brand", "category_code", "category_label",
     "active", "state_code", "quantity", "price", "all_prices", "channels", "currency_iso_code", "leadtime_to_ship",
@@ -66,9 +67,9 @@ def ts(v):
     return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
 
 
-def madrid(d):
-    """Момент UTC → часы Мадрида с меткой UTC (сдвиг по дате: летом +2, зимой +1); None — None."""
-    return d.astimezone(MADRID).replace(tzinfo=dt.timezone.utc) if d is not None else None
+def lisbon(d):
+    """Момент UTC → часы Лиссабона с меткой UTC (сдвиг по дате: летом +1, зимой 0); None — None."""
+    return d.astimezone(LISBON).replace(tzinfo=dt.timezone.utc) if d is not None else None
 
 
 def _j(x):
@@ -150,7 +151,7 @@ def order_rows(shop_id, order, loaded_at):
     head = {
         "shop_id": str(shop_id), "order_id": o.get("order_id"), "commercial_id": o.get("commercial_id"),
         "order_state": o.get("order_state"), "channel_code": (o.get("channel") or {}).get("code"),
-        "created_at": madrid(created), "updated_at": madrid(updated), "created_at_utc": created,
+        "created_at": lisbon(created), "updated_at": lisbon(updated), "created_at_utc": created,
         "updated_at_utc": updated,
         "currency": o.get("currency_iso_code"), "price": money(o.get("price")),
         "shipping_price": money(o.get("shipping_price")), "total_price": money(o.get("total_price")),
@@ -169,7 +170,7 @@ def order_rows(shop_id, order, loaded_at):
             "quantity": li.get("quantity"), "price_unit": money(li.get("price_unit")), "price": money(li.get("price")),
             "shipping_price": money(li.get("shipping_price")), "total_price": money(li.get("total_price")),
             "commission_fee": money(li.get("commission_fee")), "commission_vat": money(li.get("commission_vat")),
-            "tax_amount": _tax_sum(li.get("taxes")), "shipped_at": madrid(shipped), "received_at": madrid(received),
+            "tax_amount": _tax_sum(li.get("taxes")), "shipped_at": lisbon(shipped), "received_at": lisbon(received),
             "shipped_at_utc": shipped, "received_at_utc": received, "raw_json": _j(li), "loaded_at": loaded_at,
         })
     return head, out

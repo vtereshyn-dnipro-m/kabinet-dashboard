@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS kabinet_data.raw_worten_orders (
   created_at timestamptz, updated_at timestamptz, created_at_utc timestamptz, updated_at_utc timestamptz, currency text, price numeric(18,2), shipping_price numeric(18,2), total_price numeric(18,2),
   total_commission numeric(18,2), country text, loaded_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (shop_id, order_id));
-COMMENT ON TABLE kabinet_data.raw_worten_orders IS 'Реплика dnipro_m.worten.raw_orders для страниц, без данных покупателя. created_at, updated_at — часы Мадрида как UTC (правило сырья Mirakl), *_utc — исходный момент.';
+COMMENT ON TABLE kabinet_data.raw_worten_orders IS 'Реплика dnipro_m.worten.raw_orders для страниц, без данных покупателя. created_at, updated_at — часы Лиссабона как UTC (день заказа — по Лиссабону, решение владельца 28.10.2026), *_utc — исходный момент.';
 
 CREATE TABLE IF NOT EXISTS kabinet_data.raw_worten_order_lines (
   shop_id text NOT NULL, order_line_id text NOT NULL, order_id text NOT NULL, order_line_state text, shop_sku text,
