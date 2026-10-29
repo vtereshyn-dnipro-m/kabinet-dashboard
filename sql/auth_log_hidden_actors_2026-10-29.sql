@@ -11,6 +11,14 @@
 
 BEGIN;
 
+-- под ролью, а не под человеком строка легла бы чужим именем и молча не скрыла бы ничего
+DO $$
+BEGIN
+  IF position('@' IN current_user) = 0 THEN
+    RAISE EXCEPTION 'применять под учёткой владельца (почтой), а не под ролью %', current_user;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS kabinet_data.auth_log_hidden_actors (
   email     text PRIMARY KEY,
   note      text,

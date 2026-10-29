@@ -5428,6 +5428,10 @@ TRANSLATIONS = {
     "auth.action.admin.delete_user": {"ru": "Доступ: удаление записи", "uk": "Доступ: видалення запису", "en": "Access: delete record"},
     "auth.action.auth_mode": {"ru": "Режим входа изменён", "uk": "Режим входу змінено", "en": "Sign-in mode changed"},
     "auth.action.notify_new_user": {"ru": "Уведомление о новом человеке", "uk": "Сповіщення про нову людину", "en": "New person notification"},
+    "auth.action.ls.admin": {"ru": "Listing Suite: управление доступом", "uk": "Listing Suite: керування доступом", "en": "Listing Suite: access management"},
+    "auth.action.auto_admit": {"ru": "Автоматический допуск", "uk": "Автоматичний допуск", "en": "Automatic admission"},
+    "auth.action.notify_unknown": {"ru": "Уведомление о незнакомом входе", "uk": "Сповіщення про незнайомий вхід", "en": "Unknown sign-in notification"},
+    "auth.action.qa.new_token": {"ru": "Тестовый вход: новый токен", "uk": "Тестовий вхід: новий токен", "en": "QA access: new token"},
     "auth.action.notify_new_user_wd": {"ru": "Уведомление дослано сторожем", "uk": "Сповіщення дослано сторожем", "en": "Notification sent by watchdog"},
     "auth.action.auth_mode_notify": {"ru": "Уведомление о смене режима", "uk": "Сповіщення про зміну режиму", "en": "Mode change notification"},
 

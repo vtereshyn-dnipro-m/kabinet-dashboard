@@ -1,4 +1,4 @@
-# ОТПЕЧАТОК ИСТОЧНИКА: d77c9fa9a4a7cc3423e41d4b2d310f697cdbdad6153a178528f5bff4e7a34493
+# ОТПЕЧАТОК ИСТОЧНИКА: f6feec07b1978e2e019ac8ad3046250388112efbab004421ae07556e56ae1bc3
 # access_screen.py — экран «Доступ»: один на два приложения.
 """Админка доступа (ТЗ 010): люди, роли, матрица прав, тестовый вход, журналы.
 
@@ -303,9 +303,9 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
             conn.close()
 
 
-    def служебная(действие, почта) -> bool:
+    def служебная(действие, почта, разраб: frozenset) -> bool:
         п = as_text(почта).strip().lower()
-        return действие in СЛУЖЕБНЫЕ or п.startswith(АГЕНТ) or п in разработчики()
+        return действие in СЛУЖЕБНЫЕ or п.startswith(АГЕНТ) or п in разраб
 
 
     def имя_объекта(тип, ид) -> str:
@@ -770,7 +770,8 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
             период = f4.date_input(t("auth.admin.f_period"),
                                    value=(acts["ts"].min().date(), acts["ts"].max().date()),
                                    key=f"acts_period_{продукт}")
-            _служ = pd.Series([служебная(a, e) for a, e in zip(acts["action"], acts["email"])], index=acts.index)
+            _разраб = разработчики()   # один раз на журнал, а не на каждую строку
+            _служ = pd.Series([служебная(a, e, _разраб) for a, e in zip(acts["action"], acts["email"])], index=acts.index)
             служебных = int(_служ.sum())
             показать_служебные = st.checkbox(
                 t("auth.log.show_service", n=служебных), value=False, key=f"acts_service_{продукт}")
@@ -838,6 +839,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.ads.act": "Реклама: пауза и ставки",
         "auth.action.auth_mode": "Режим входа изменён",
         "auth.action.auth_mode_notify": "Уведомление о смене режима",
+        "auth.action.auto_admit": "Автоматический допуск",
         "auth.action.dict.edit": "Справочники: правка",
         "auth.action.forecast.approve": "Прогноз: утверждение",
         "auth.action.forecast.edit": "Прогноз: правка черновика",
@@ -845,6 +847,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.forecast.replace": "Прогноз: замена после изменения пула",
         "auth.action.forecast.upload": "Прогноз: загрузка из файла",
         "auth.action.incident.act": "Инциденты: принять и закрыть",
+        "auth.action.ls.admin": "Listing Suite: управление доступом",
         "auth.action.ls.amazon.push": "Listing Suite: отправка в Amazon",
         "auth.action.ls.content.edit": "Listing Suite: правка контента",
         "auth.action.ls.method.edit": "Listing Suite: правка методики",
@@ -862,6 +865,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.ls.textgen.accept": "Генератор текстов: принять, выгрузить, загрузить паспорт",
         "auth.action.notify_new_user": "Уведомление о новом человеке",
         "auth.action.notify_new_user_wd": "Уведомление дослано сторожем",
+        "auth.action.notify_unknown": "Уведомление о незнакомом входе",
         "auth.action.page.ads": "Страница: видеть «Реклама»",
         "auth.action.page.cm": "Страница: видеть «Площадки»",
         "auth.action.page.dictionaries": "Страница: видеть «Справочники»",
@@ -872,6 +876,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.page.reorder": "Страница: видеть «Автозаказ»",
         "auth.action.page.reviews": "Страница: видеть «Отзывы»",
         "auth.action.page.stock": "Страница: видеть «Остатки»",
+        "auth.action.qa.new_token": "Тестовый вход: новый токен",
         "auth.action.reorder.act": "Автозаказ: заказ и переброска",
         "auth.admin.actions": "Журнал действий",
         "auth.admin.bad_country": "Не код страны: {v} (у {email}). Нужны двухбуквенные коды из справочника.",
@@ -1043,6 +1048,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.ads.act": "Реклама: пауза і ставки",
         "auth.action.auth_mode": "Режим входу змінено",
         "auth.action.auth_mode_notify": "Сповіщення про зміну режиму",
+        "auth.action.auto_admit": "Автоматичний допуск",
         "auth.action.dict.edit": "Довідники: правка",
         "auth.action.forecast.approve": "Прогноз: затвердження",
         "auth.action.forecast.edit": "Прогноз: правка чернетки",
@@ -1050,6 +1056,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.forecast.replace": "Прогноз: заміна після зміни пулу",
         "auth.action.forecast.upload": "Прогноз: завантаження з файлу",
         "auth.action.incident.act": "Інциденти: прийняти і закрити",
+        "auth.action.ls.admin": "Listing Suite: керування доступом",
         "auth.action.ls.amazon.push": "Listing Suite: надсилання в Amazon",
         "auth.action.ls.content.edit": "Listing Suite: правка контенту",
         "auth.action.ls.method.edit": "Listing Suite: правка методики",
@@ -1067,6 +1074,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.ls.textgen.accept": "Генератор текстів: прийняти, вивантажити, завантажити паспорт",
         "auth.action.notify_new_user": "Сповіщення про нову людину",
         "auth.action.notify_new_user_wd": "Сповіщення дослано сторожем",
+        "auth.action.notify_unknown": "Сповіщення про незнайомий вхід",
         "auth.action.page.ads": "Сторінка: бачити «Реклама»",
         "auth.action.page.cm": "Сторінка: бачити «Майданчики»",
         "auth.action.page.dictionaries": "Сторінка: бачити «Довідники»",
@@ -1077,6 +1085,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.page.reorder": "Сторінка: бачити «Автозамовлення»",
         "auth.action.page.reviews": "Сторінка: бачити «Відгуки»",
         "auth.action.page.stock": "Сторінка: бачити «Залишки»",
+        "auth.action.qa.new_token": "Тестовий вхід: новий токен",
         "auth.action.reorder.act": "Автозамовлення: замовлення і перекидання",
         "auth.admin.actions": "Журнал дій",
         "auth.admin.bad_country": "Не код країни: {v} (у {email}). Потрібні дволітерні коди з довідника.",
@@ -1248,6 +1257,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.ads.act": "Ads: pause and bids",
         "auth.action.auth_mode": "Sign-in mode changed",
         "auth.action.auth_mode_notify": "Mode change notification",
+        "auth.action.auto_admit": "Automatic admission",
         "auth.action.dict.edit": "Directories: edit",
         "auth.action.forecast.approve": "Forecast: approve",
         "auth.action.forecast.edit": "Forecast: edit draft",
@@ -1255,6 +1265,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.forecast.replace": "Forecast: replace after pool change",
         "auth.action.forecast.upload": "Forecast: upload from file",
         "auth.action.incident.act": "Incidents: acknowledge and resolve",
+        "auth.action.ls.admin": "Listing Suite: access management",
         "auth.action.ls.amazon.push": "Listing Suite: push to Amazon",
         "auth.action.ls.content.edit": "Listing Suite: edit content",
         "auth.action.ls.method.edit": "Listing Suite: edit methodology",
@@ -1272,6 +1283,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.ls.textgen.accept": "Text Generator: accept, export, upload passport",
         "auth.action.notify_new_user": "New person notification",
         "auth.action.notify_new_user_wd": "Notification sent by watchdog",
+        "auth.action.notify_unknown": "Unknown sign-in notification",
         "auth.action.page.ads": "Page: see Ads",
         "auth.action.page.cm": "Page: see Channels",
         "auth.action.page.dictionaries": "Page: see Directories",
@@ -1282,6 +1294,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.action.page.reorder": "Page: see Reorder",
         "auth.action.page.reviews": "Page: see Reviews",
         "auth.action.page.stock": "Page: see Stock",
+        "auth.action.qa.new_token": "QA access: new token",
         "auth.action.reorder.act": "Reorder: order and transfer",
         "auth.admin.actions": "Action log",
         "auth.admin.bad_country": "Not a country code: {v} (for {email}). Two-letter codes from the directory.",
