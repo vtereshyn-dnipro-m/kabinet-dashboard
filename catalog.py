@@ -60,6 +60,17 @@ def asin_by_sku() -> dict:
     return dict(zip(df["sku_group"].astype(str), df["asin"].astype(str)))
 
 
+def _asin_of(m: dict, sku) -> str:
+    """ASIN артикула: сначала по артикулу целиком, затем по числу внутри (base_sku). Набор S5_41473000 — свой листинг
+    на Amazon (B0HJHNHYJH), а base_sku отрезал приставку и вёл на одиночный 41473000 (B0DG616BXX): у 81 набора из 310
+    строк паритета ссылка и фото были от другого товара (29.10.2026). Целиком в sku_asin_map лежат и наборы, и
+    одиночные; «41473000-FBA» и «DM-41473000-ES» целиком не находятся и, как раньше, идут по числу."""
+    s = as_text(sku).strip()
+    # «S2_08455000_» — так набор записан в sku_asin_map, а паритет (norm_sku) хвост «_» снимает: без этого шага 8 наборов
+    # из 81 шли бы на одиночный товар. Срезать «_» у ключей карты нельзя: «41500000_» — свой листинг рядом с «41500000»
+    return m.get(s) or m.get(s + "_") or m.get(base_sku(s), "")
+
+
 # Серая рамка вместо пустой ячейки. Картинка инлайновая: внешняя
 # заглушка означала бы сетевой запрос ради того, чтобы показать «ничего»,
 # и ломалась бы ровно тогда, когда сеть и так подводит
@@ -240,7 +251,7 @@ def image_series(asins=None, skus=None, markets=None) -> list:
     out = []
     for a, s_, mk in zip(asins, skus, markets):
         if a is None or str(a) in ("None", "nan", ""):
-            a = m.get(base_sku(s_), "")
+            a = _asin_of(m, s_)
         a = str(a)
         out.append(any_img.get((a, _mk(mk))) or any_img.get(a) or NO_PHOTO)
     return out
@@ -290,6 +301,6 @@ def url_series(skus=None, asins=None, markets=None) -> list:
     out = []
     for a, s, mk in zip(asins, skus, markets):
         if a is None or str(a) in ("None", "nan", ""):
-            a = m.get(base_sku(s), "")
+            a = _asin_of(m, s)
         out.append(amazon_url(_first_market(mk) or FALLBACK_MARKET, a))
     return out
