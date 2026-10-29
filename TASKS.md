@@ -268,7 +268,7 @@
   строка Worten видна только администратору (флаг `worten_overview_enabled` = 0), подписи «кроме TikTok Shop и
   Worten»; в `v_marketplace_data_status` у WRT-PT статус ok, тревоги `marketplace_no_data` по нему нет.
 - Статус: в работе — PR открыт, запуск после демо 29.10
-- PR: (этот PR)
+- PR: #402
 - Заметки: решение владельца 28.10.2026 (вечер) и задача 29.10: Worten — источник по API, как TikTok, Power BI не
   ждём; в табы аналитика витрины в Plan Matrix не писать; docs/worten.md, «Показ в Кабинете».
 
