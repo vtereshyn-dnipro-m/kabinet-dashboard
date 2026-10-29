@@ -66,6 +66,9 @@ def render(P) -> None:
     # сегодняшний день — не день с данными (AGENTS.md): конец периода — не позже вчера по Лиссабону
     _yday = (pd.Timestamp.now(tz=TZ).normalize() - pd.Timedelta(days=1)).date()
     d_from, d_to = P.start.date(), min(P.end.date(), _yday)
+    if d_to < d_from:   # период — только сегодня: полного дня ещё нет
+        st.info(t("wt.today_only"))
+        return
     try:
         data = load(d_from, d_to, data_version("raw_worten_offers", "loaded_at"))
     except Exception as e:
@@ -76,7 +79,8 @@ def render(P) -> None:
     ln = data["lines"].copy()
     for c in ("price", "commission_fee", "tax_amount", "quantity"):
         ln[c] = pd.to_numeric(ln[c], errors="coerce").fillna(0.0)
-    ln["sale"] = ~ln["order_line_state"].astype(str).str.upper().isin(NOT_SALE)
+    # строка без статуса — не продажа, как у Leroy Merlin (NULL <> ALL(...) там тоже не проходит)
+    ln["sale"] = ln["order_line_state"].notna() & ~ln["order_line_state"].astype(str).str.upper().isin(NOT_SALE)
     sale = ln[ln["sale"]]
     st.caption(t("wt.slice", a=d_from.strftime("%d.%m.%Y"), b=d_to.strftime("%d.%m.%Y"),
                  n=sale["order_id"].nunique(), c=int((~ln["sale"]).sum())))
@@ -102,14 +106,15 @@ def render(P) -> None:
     # офферы — снимок на время загрузки, а не за период: цена для покупателя (цена канала WRT_PT_ONLINE по сроку скидки)
     of = data["offers"].copy()
     st.subheader(t("wt.offers"))
-    st.caption(t("period.snapshot", d=as_of(data["loaded_at"])))
+    st.caption(t("wt.offers_snapshot", d=as_of(data["loaded_at"])))
     if of.empty:
         st.caption(t("wt.none"))
     else:
         live = of[of["in_last_load"].fillna(False).astype(bool)]
         k = st.columns(3)
         k[0].metric(t("wt.k.offers_active"), f"{int(live['active'].fillna(False).astype(bool).sum())} / {len(live)}")
-        k[1].metric(t("wt.k.offers_promo"), f"{int(live['promo_active'].fillna(False).astype(bool).sum())}")
+        _act = live["active"].fillna(False).astype(bool)
+        k[1].metric(t("wt.k.offers_promo"), f"{int((live['promo_active'].fillna(False).astype(bool) & _act).sum())}")
         k[2].metric(t("wt.k.offers_stock"), f"{int((pd.to_numeric(live['quantity'], errors='coerce') > 0).sum())}")
         st.dataframe(pd.DataFrame({
             t("wt.c.sku"): live["shop_sku"], t("wt.c.title"): live["product_title"],

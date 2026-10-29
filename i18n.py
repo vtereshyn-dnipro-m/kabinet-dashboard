@@ -1433,9 +1433,12 @@ TRANSLATIONS = {
     # Продажи с НДС по всем каналам — то, что в Power BI Дарины «Revenue VAT Incl» (07.10.2026)
     "home.kpi.sales_all": {"ru": "Продажи с НДС, все каналы", "uk": "Продажі з ПДВ, усі канали", "en": "Sales incl. VAT, all channels"},
     "home.kpi.sales_all_no_api": {"ru": "Продажи с НДС, без {n}", "uk": "Продажі з ПДВ, без {n}", "en": "Sales incl. VAT, excl. {n}"},
-    "home.kpi.no_api_help": {"ru": "Сюда не входит {n}: этих каналов нет в Power BI, они показаны отдельными строками в блоке каналов.",
-                             "uk": "Сюди не входить {n}: цих каналів немає в Power BI, вони показані окремими рядками в блоці каналів.",
-                             "en": "{n} not included: these channels are not in Power BI and are shown as separate rows in the channel block."},
+    "home.kpi.no_api_help_one": {"ru": "Сюда не входит {n}: этого канала нет в Power BI, он показан отдельной строкой в блоке каналов.",
+                                 "uk": "Сюди не входить {n}: цього каналу немає в Power BI, він показаний окремим рядком у блоці каналів.",
+                                 "en": "{n} is not included: this channel is not in Power BI and is shown as a separate row in the channel block."},
+    "home.kpi.no_api_help_many": {"ru": "Сюда не входят {n}: этих каналов нет в Power BI, они показаны отдельными строками в блоке каналов.",
+                                  "uk": "Сюди не входять {n}: цих каналів немає в Power BI, вони показані окремими рядками в блоці каналів.",
+                                  "en": "{n} are not included: these channels are not in Power BI and are shown as separate rows in the channel block."},
     "home.kpi.sales_all_extra": {"ru": "до возвратов", "uk": "до повернень", "en": "before returns"},
     # оговорка о каналах, которых ещё нет; уходит сама, когда их строки появятся в продажах (home.py)
     "home.kpi.sales_all_missing": {"ru": "без {what} — подключаем", "uk": "без {what} — підключаємо", "en": "without {what} — being connected"},
@@ -3719,6 +3722,11 @@ TRANSLATIONS = {
                     "en": "Money as in Worten: incl. VAT (Portugal standard rate 23 %), in euro. Sales are order-line prices without shipping; commission is what Worten charged on those lines."},
     "wt.orders": {"ru": "Заказы периода", "uk": "Замовлення періоду", "en": "Orders in the period"},
     "wt.empty": {"ru": "За период заказов Worten нет.", "uk": "За період замовлень Worten немає.", "en": "No Worten orders in this period."},
+    "wt.offers_snapshot": {"ru": "Офферы — снимок на {d}: выбранный период на этот блок не влияет.", "uk": "Офери — знімок на {d}: обраний період на цей блок не впливає.",
+                           "en": "Offers are a snapshot as of {d}: the selected period does not affect this block."},
+    "wt.today_only": {"ru": "Выбран только сегодняшний день — полного дня с данными ещё нет. Выберите период по вчера.",
+                      "uk": "Обрано лише сьогоднішній день — повного дня з даними ще немає. Оберіть період по вчора.",
+                      "en": "Only today is selected — there is no complete day of data yet. Choose a period up to yesterday."},
     "wt.offers": {"ru": "Офферы", "uk": "Офери", "en": "Offers"},
     "wt.none": {"ru": "Нет.", "uk": "Немає.", "en": "None."},
     "wt.k.offers_active": {"ru": "Активных офферов", "uk": "Активних оферів", "en": "Active offers"},
@@ -3817,7 +3825,15 @@ TRANSLATIONS = {
     "tt.as_of": {"ru": "Данные на {d} (Киев) — время последней загрузки из TikTok Shop.",
                  "uk": "Дані на {d} (Київ) — час останнього завантаження з TikTok Shop.",
                  "en": "Data as of {d} (Kyiv) — last load from TikTok Shop."},
-    "home.api_not_in_cards": {
+    "home.api_not_in_cards_one": {
+        "ru": "Строки каналов вместе с {n} ({x} €) больше «Продаж без НДС» сверху: {n} — из API площадки, в Power BI его "
+              "нет, поэтому в карточки и график по дням он не входит.",
+        "uk": "Рядки каналів разом із {n} ({x} €) більші за «Продажі без ПДВ» угорі: {n} — з API майданчика, у Power BI "
+              "його немає, тому до карток і графіка по днях він не входить.",
+        "en": "The channel rows including {n} ({x} €) add up to more than “Sales excl. VAT” above: {n} comes from the "
+              "platform's API, not Power BI, so it is not in the cards or the daily chart.",
+    },
+    "home.api_not_in_cards_many": {
         "ru": "Строки каналов вместе с {n} ({x} €) больше «Продаж без НДС» сверху: {n} — из API площадок, в Power BI их "
               "нет, поэтому в карточки и график по дням они не входят.",
         "uk": "Рядки каналів разом із {n} ({x} €) більші за «Продажі без ПДВ» угорі: {n} — з API майданчиків, у Power BI "

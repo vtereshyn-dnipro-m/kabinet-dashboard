@@ -896,7 +896,8 @@ else:
     _ch_all = ("=" + t("mn.ch.all_except", n=_api_list)) if _api_names else "all"
     # заголовок и подсказка ⓘ говорят то же, что подпись: «все каналы» в них при показанном API-канале было бы неправдой
     _no_tts = bool(_api_names)
-    _tip = lambda k, h: passport.tip("home", k, f"{h} {t('home.kpi.no_api_help', n=_api_list)}" if _no_tts else h)
+    _n_api = "one" if len(_api_names) == 1 else "many"   # «не входит TikTok Shop» / «не входят TikTok Shop и Worten»
+    _tip = lambda k, h: passport.tip("home", k, f"{h} {t('home.kpi.no_api_help_' + _n_api, n=_api_list)}" if _no_tts else h)
     _as = (lambda x: " · ".join(p for p in (x, t("mn.x.as_pbi")) if p)) if _pbi else (lambda x: x)
     mn.money_metric(s0, t("home.kpi.ordered"), fmt_money(ord_cur) if ord_cur else "—", delta=_ord_delta,
                     vat=mn.VAT_INCL, channels="amazon", basis="order", extra=_as(t("mn.x.before_cancel")),
@@ -1128,9 +1129,9 @@ else:
                 unsafe_allow_html=True)
         # сумма строк больше «Продаж без НДС» ровно на TikTok — говорим это прямо под строками (28.10.2026)
         if _api:
-            st.caption(t("home.api_not_in_cards",
-                         n=t("home.api.and").join(n for n, f in (("TikTok Shop", _tts), ("Worten", _wrt)) if not f.empty),
-                         x=f"{sum(float(f['revenue'].sum()) for f in _api):,.0f}"))
+            _shown = [n for n, f in (("TikTok Shop", _tts), ("Worten", _wrt)) if not f.empty]
+            st.caption(t("home.api_not_in_cards_" + ("one" if len(_shown) == 1 else "many"),
+                         n=t("home.api.and").join(_shown), x=f"{sum(float(f['revenue'].sum()) for f in _api):,.0f}"))
 
         # у Amazon страна в коде рынка, у остальных площадок — сам код
         # площадки: подписываем плашки кодом как есть, а группируем цветом
@@ -1214,7 +1215,7 @@ else:
         if not _wrt.empty:
             st.caption(t("home.wrt_note") + " " + t("home.tts_as_of",
                                                     d=worten_as_of(data_version("raw_worten_offers", "loaded_at"))))
-        if _wrt_preview:
+        if _wrt_preview and not _wrt_err:
             st.caption(t("home.wrt_admin_only"))
         if _wrt_err:
             st.caption(t("home.wrt_error", e=_wrt_err))
