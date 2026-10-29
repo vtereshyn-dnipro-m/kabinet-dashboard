@@ -515,13 +515,16 @@ PARITY_NEED = ("norm_sku", "product_name", "max_deviation_pct",
                "channels_count", "outlier_channels")
 
 
+_PAR_OUTLIER = re.compile(r"\s*([a-z]+)_([a-z]{2}):([0-9.]+)€\(\+(\d+)% к ([A-Z]{2})\)\s*$")
+
+
 def _par_outlier_label(x: str) -> str:
     """Один выброс из строки загрузчика «amz_es:345.0€(+118% к ES)» — подписью, как заголовок колонки цены."""
-    import re as _re
-    m = _re.match(r"\s*([a-z]+)_([a-z]{2}):([0-9.]+)€\(\+(\d+)% к ([A-Z]{2})\)\s*$", x)
+    m = _PAR_OUTLIER.match(x)
     if not m:
         return x.strip()
-    return f"{m.group(1).upper()} · {m.group(2).upper()} {float(m.group(3)):.2f} € (+{m.group(4)} % к {m.group(5)})"
+    return t("cm.par.outlier_label", ch=f"{m.group(1).upper()} · {m.group(2).upper()}", p=f"{float(m.group(3)):.2f}",
+             pct=m.group(4), c=m.group(5))
 
 
 @st.cache_data(ttl=600)
@@ -896,8 +899,12 @@ with tab_par:
         _built = pd.to_datetime(par["updated_at"], utc=True, errors="coerce").max() if "updated_at" in par.columns else pd.NaT
         st.caption(t("cm.par.source_note", d=_built.tz_convert("Europe/Kyiv").strftime("%d.%m %H:%M") if pd.notna(_built) else "—"))
         # что такое разброс и как читать таблицу — наверху, до таблицы (29.10.2026: «что это и как рассчитано» — так
-        # смотрит руководство); раньше объяснение стояло под таблицей из 300 строк
-        st.caption(t("cm.par.note"))
+        # смотрит руководство); раньше объяснение стояло под таблицей из 300 строк. Про Amazon UK — только пока его
+        # колонка пуста: решения добавить GB в снимок ещё нет (docs/facts/economics.md)
+        _gb_empty = PARITY_GBP not in par.columns or pd.to_numeric(par[PARITY_GBP], errors="coerce").isna().all()
+        st.caption(t("cm.par.note") + (" " + t("cm.par.no_gb") if _gb_empty else ""))
+        # колонки цен, где нет ни одной цены, — по всей таблице, до поиска: иначе поиск одного SKU прятал бы колонки
+        _eur_shown = [c for c in _eur if pd.to_numeric(P[c], errors="coerce").notna().any()]
         if _has_pause:
             _n_pause = int(P["promo_pause_channels"].map(as_text).ne("").sum())
             st.caption(t("cm.par.promo_note", n=_n_pause))
@@ -934,11 +941,10 @@ with tab_par:
             show = (["flag", "photo", "norm_sku", "asin_url", "product_name"]
                     + _eur + ["spread", "outlier_channels"]
                     + (["promo_pause_channels"] if _has_pause else []))
-            # Amazon UK в снимке SP-API нет (с 28.10.2026): пустую колонку не показываем — «None» во всех строках
-            if PARITY_GBP in P.columns and pd.to_numeric(P[PARITY_GBP], errors="coerce").notna().any():
+            # колонка канала, где нет ни одной цены (сейчас — Amazon UK: в снимке SP-API Британии нет), не показывается:
+            # «—» во всех строках; считается по всей таблице до поиска (_eur_shown выше)
+            if not _gb_empty:
                 show.append(PARITY_GBP)
-            # канал без цены у товара — пусто, а не «None»
-            _eur_shown = [c for c in _eur if pd.to_numeric(P[c], errors="coerce").notna().any()]
             show = [c for c in show if c not in _eur or c in _eur_shown]
             conf = {
                 "flag": st.column_config.TextColumn("", width="small"),
@@ -968,13 +974,17 @@ with tab_par:
             # сделало бы колонку текстовой (show_df, na_text), и сортировка по разбросу пошла бы по тексту
             _nc = P["spread"].isna()
             P_cmp, P_nc = P[~_nc], P[_nc]
+            # na_text: пустая цена — «—», а не «None» (NumberColumn в Streamlit 1.64 иначе не умеет, util.show_df). Цена —
+            # колонка с пропусками, поэтому она становится текстовой и сортируется как текст; «Разброс» без пропусков
+            # остаётся числом — по нему и сортировка по умолчанию (компромисс назван в PR #403)
             show_df(P_cmp[show], use_container_width=True, height=grid_height(len(P_cmp)),
                          hide_index=True, column_config=conf, na_text="—")
-            st.caption(t("cm.summary.shown", n=len(P_cmp), total=_total))
+            st.caption(t("cm.par.shown", n=len(P_cmp), total=_total, k=len(P_nc)) if len(P_nc)
+                       else t("cm.summary.shown", n=len(P_cmp), total=_total))
             if len(P_nc):
                 with st.expander(t("cm.par.no_compare", n=len(P_nc))):
                     st.caption(t("cm.par.no_compare_note"))
-                    _sh_nc = [c for c in show if c not in ("spread", "outlier_channels", "promo_pause_channels")]
+                    _sh_nc = [c for c in show if c not in ("spread", "outlier_channels")]
                     show_df(P_nc[_sh_nc], use_container_width=True, height=grid_height(len(P_nc)),
                             hide_index=True, column_config=conf, na_text="—")
             st.download_button(

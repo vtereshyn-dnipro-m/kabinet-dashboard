@@ -3972,30 +3972,42 @@ TRANSLATIONS = {
     "cm.par.note": {
         "ru": "Разброс — насколько самая высокая цена выше самой низкой в одной стране (Испания — Amazon ES, ManoMano ES, "
               "Leroy Merlin, Carrefour; Франция — Amazon FR, ManoMano FR). Каналы в паузе между акциями в разброс не идут. "
-              "Пустая ячейка — товар на этом рынке не продаётся. Amazon UK в паритете сейчас нет: в снимке SP-API Британии нет.",
+              "Цены Amazon DE и IT показаны для справки и в разброс не входят: второго канала в Германии и Италии нет. "
+              "Пустая ячейка — товар на этом рынке не продаётся.",
         "uk": "Розкид — наскільки найвища ціна вища за найнижчу в одній країні (Іспанія — Amazon ES, ManoMano ES, "
               "Leroy Merlin, Carrefour; Франція — Amazon FR, ManoMano FR). Канали в паузі між акціями до розкиду не йдуть. "
-              "Порожня клітинка — товар на цьому ринку не продається. Amazon UK у паритеті зараз немає: у знімку SP-API Британії немає.",
+              "Ціни Amazon DE та IT показано для довідки, до розкиду вони не входять: другого каналу в Німеччині та Італії немає. "
+              "Порожня клітинка — товар на цьому ринку не продається.",
         "en": "Spread is how much the highest price exceeds the lowest within one country (Spain: Amazon ES, ManoMano ES, "
               "Leroy Merlin, Carrefour; France: Amazon FR, ManoMano FR). Channels paused between promotions are left out. "
-              "An empty cell means the product is not sold in that market. Amazon UK is not in parity for now: the SP-API snapshot has no UK.",
+              "Amazon DE and IT prices are shown for reference and are not in the spread: Germany and Italy have no second channel. "
+              "An empty cell means the product is not sold in that market.",
     },
     "cm.par.source_note": {
         "ru": "Собрано {d} (Киев). Цены Amazon — наши цены продажи из SP-API (только листинги в продаже; действующая скидка, "
-              "если есть): утренние сборки берут вчерашний снимок, сборка 16:50 — сегодняшний. Цены Leroy Merlin, Carrefour и "
+              "если есть): утренние сборки берут вчерашний снимок, дневная после него — сегодняшний. Цены Leroy Merlin, Carrefour и "
               "ManoMano — из офферов площадок на момент сборки.",
         "uk": "Зібрано {d} (Київ). Ціни Amazon — наші ціни продажу з SP-API (лише лістинги в продажу; чинна знижка, якщо є): "
-              "ранкові збірки беруть учорашній знімок, збірка 16:50 — сьогоднішній. Ціни Leroy Merlin, Carrefour і ManoMano — з "
+              "ранкові збірки беруть учорашній знімок, денна після нього — сьогоднішній. Ціни Leroy Merlin, Carrefour і ManoMano — з "
               "оферів майданчиків на момент збірки.",
         "en": "Built {d} (Kyiv). Amazon prices are our selling prices from SP-API (buyable listings only; an active discount if "
-              "any): morning builds use yesterday's snapshot, the 16:50 build today's. Leroy Merlin, Carrefour and ManoMano prices "
+              "any): morning builds use yesterday's snapshot, the afternoon build after it uses today's. Leroy Merlin, Carrefour and ManoMano prices "
               "are the platforms' offers at build time.",
     },
-    "cm.par.no_compare": {"ru": "Цены только в разных странах — сравнивать нечего: {n}", "uk": "Ціни лише в різних країнах — порівнювати нічого: {n}",
-                          "en": "Prices only in different countries — nothing to compare: {n}"},
-    "cm.par.no_compare_note": {"ru": "У этих товаров нет двух цен в одной стране, поэтому разброса нет. Цены показаны как есть.",
-                               "uk": "У цих товарів немає двох цін в одній країні, тому розкиду немає. Ціни показано як є.",
-                               "en": "These products have no two prices in the same country, so there is no spread. Prices are shown as is."},
+    "cm.par.no_compare": {"ru": "Разброс не посчитать — нет двух цен в одной стране: {n}", "uk": "Розкид не порахувати — немає двох цін в одній країні: {n}",
+                          "en": "No spread — no two prices in the same country: {n}"},
+    "cm.par.no_compare_note": {"ru": "У этих товаров в каждой стране не больше одной цены для сравнения: цены только в разных странах "
+                                     "или вторая цена в стране — в паузе между акциями (колонка «Пауза акции»). Цены показаны как есть.",
+                               "uk": "У цих товарів у кожній країні не більше однієї ціни для порівняння: ціни лише в різних країнах "
+                                     "або друга ціна в країні — у паузі між акціями (колонка «Пауза акції»). Ціни показано як є.",
+                               "en": "These products have at most one comparable price per country: prices only in different countries, "
+                                     "or the second price in the country is paused between promotions (the “Promo pause” column). Prices are shown as is."},
+    "cm.par.no_gb": {"ru": "Amazon UK в паритете сейчас нет: в снимке SP-API Британии нет.", "uk": "Amazon UK у паритеті зараз немає: у знімку SP-API Британії немає.",
+                     "en": "Amazon UK is not in parity for now: the SP-API snapshot has no UK."},
+    "cm.par.outlier_label": {"ru": "{ch} {p} € (+{pct} % к {c})", "uk": "{ch} {p} € (+{pct} % до {c})", "en": "{ch} {p} € (+{pct} % vs {c})"},
+    "cm.par.shown": {"ru": "Показано {n} из {total}; ещё {k} — в блоке «Разброс не посчитать» ниже.",
+                     "uk": "Показано {n} з {total}; ще {k} — у блоці «Розкид не порахувати» нижче.",
+                     "en": "Showing {n} of {total}; {k} more in the “No spread” block below."},
     "cm.par.col_outliers": {"ru": "Кто выбивается", "uk": "Хто вибивається", "en": "Outliers"},
     "cm.par.col_outliers_help": {"ru": "Каналы с отклонением больше 20 % и на сколько именно. Готовый ответ на вопрос «где именно чинить цену»: канал, его цена и насколько он дороже самого дешёвого в той же стране.", "uk": "Канали з відхиленням більшим за 20 % і на скільки саме. Готова відповідь на питання «де саме лагодити ціну»: канал, його ціна і наскільки він дорожчий за найдешевший у тій самій країні.", "en": "Channels deviating by more than 20 % and by how much. A ready answer to “where exactly to fix the price”: the channel, its price and how much dearer it is than the cheapest in the same country."},
     "cm.par.col_gbp_help": {"ru": "Цена в фунтах, поэтому в разброс она не входит: сравнивать её с евро без курса нельзя. Показана рядом, чтобы британский рынок не пропадал из виду.", "uk": "Ціна у фунтах, тому в розкид вона не входить: порівнювати її з євро без курсу не можна. Показана поруч, щоб британський ринок не зникав з очей.", "en": "A price in pounds, so it is not part of the spread: comparing it with euros without a rate is meaningless. Shown alongside so the British marketplace does not drop out of sight."},
