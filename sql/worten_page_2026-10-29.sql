@@ -1,11 +1,11 @@
--- Worten в Кабинете: справочники, отметка статуса данных, вью продаж для «Обзора», флаг строки (29.10.2026, PR3
+-- Worten в Кабинете: справочники, вью продаж для «Обзора», флаг строки (29.10.2026, PR3
 -- из трёх; решение владельца: Worten — новый источник по API, как TikTok Shop, а не реплика Power BI; Power BI Кабинет
 -- не ждёт; docs/worten.md). Применяет владелец или агент по прямому «применяй», ПОД УЧЁТКОЙ ВЛАДЕЛЬЦА (не через
 -- claude_code_ro — правило AGENTS.md), в Lakebase Кабинета, одной транзакцией:
 --   psql "<строка владельца>" -v ON_ERROR_STOP=1 -f sql/worten_page_2026-10-29.sql   (BEGIN/COMMIT — в самом файле)
--- Таблицы platforms и marketplaces_new — владельца; в platform_attributes и marketplace_attributes (принадлежат
--- claude_code_ro) у владельца есть INSERT. Вью статуса не меняется (раздел 2). Только добавляет: ничего не удаляет, ни у
--- кого не отнимает. Маркетплейс и его отметка — в одной транзакции: WRT-PT без отметки сторож увидел бы как no_data.
+-- Таблицы platforms и marketplaces_new — владельца; в platform_attributes (принадлежит claude_code_ro) у владельца есть
+-- INSERT. Применяется ВТОРЫМ — после sql/worten_status_view_RO_2026-10-29.sql (раздел 0 проверяет). Только добавляет:
+-- ничего не удаляет, ни у кого не отнимает.
 --
 -- Порядок: SQL — ПЕРЕД выкладкой (мержем) кода. Код без SQL безопасен: вью нет — строки Worten на «Обзоре» нет, вкладка
 -- «Площадок» читает реплики, которые уже есть. SQL без кода тоже безопасен: флаг 0, страниц, читающих вью, ещё нет.
@@ -13,6 +13,14 @@
 -- и в табы аналитика витрины ничего не пишется.
 
 BEGIN;
+
+-- ── 0. Порядок: вью статуса уже с источниками Worten ──
+DO $$
+BEGIN
+  IF position('raw_worten_offers' IN pg_get_viewdef('kabinet_data.v_marketplace_data_status'::regclass)) = 0 THEN
+    RAISE EXCEPTION 'сначала sql/worten_status_view_RO_2026-10-29.sql (под claude_code_ro): иначе WRT-PT станет no_data';
+  END IF;
+END $$;
 
 -- ── 1. Справочники ──
 -- Площадка: короткое имя WRT (как у Mirakl-кодов LM, CF), полное — Worten. Маркетплейс WRT-PT: Португалия, евро, НДС 23 %
@@ -31,20 +39,10 @@ INSERT INTO kabinet_data.marketplaces_new (code, platform_short, country_alpha2,
 VALUES ('WRT-PT', 'WRT', 'PT', 'Worten Portugal', 'EUR', 0.23, true, 'wrt_pt')
 ON CONFLICT (code) DO NOTHING;
 
--- ── 2. Статус данных маркетплейса: отметка «загрузчика во вью статуса нет» — как у TTS-ES ──
--- v_marketplace_data_status смотрит данные только по своему списку источников, Worten в нём нет: без отметки WRT-PT сразу
--- стал бы no_data, и сторож завёл бы marketplace_no_data ([MPDATA:WRT-PT]) в 13:00. Добавить источники Worten в вью
--- владелец не может: вью принадлежит claude_code_ro, а учётка владельца состоит в этой роли без INHERIT и SET (то же, что
--- в sql/kabinet_jobs_sp_2026-10-22_ro.sql), писать через claude_code_ro нельзя (решение владельца 26.10.2026). Поэтому —
--- как у TTS-ES (sql/watchdog_weekly_digest_2026-10-11.sql): no_loader_since, статус no_loader, сторож не тревожит. Живость
--- загрузчика Worten и свежесть его данных проверяют правило сторожа «Kabinet - Worten Loader» (18 ч) и правило свежести
--- raw_worten_offers (26 ч) — sql/worten_rules_2026-10-28.sql. INSERT в marketplace_attributes у владельца есть.
-INSERT INTO kabinet_data.marketplace_attributes (marketplace_id, no_loader_since, no_loader_note, updated_at, updated_by)
-SELECT id, DATE '2026-10-29',
-       'Данные Worten — Worten API (Kabinet - Worten Loader); во вью статуса источников Worten нет, живость загрузчика и '
-       'свежесть данных проверяют его правило сторожа и правило свежести.', now(), 'migration:worten_page'
-  FROM kabinet_data.marketplaces_new WHERE code = 'WRT-PT'
-ON CONFLICT (marketplace_id) DO NOTHING;
+-- ── 2. Статус данных маркетплейса ──
+-- Источники Worten добавлены во вью v_marketplace_data_status файлом sql/worten_status_view_RO_2026-10-29.sql (под
+-- claude_code_ro, ПЕРВЫМ). С ними у WRT-PT обычный статус по данным (ok), отметка no_loader не нужна. Проверка ниже — в
+-- начале транзакции: ветки Worten во вью есть, иначе файл откатывается целиком.
 
 -- ── 3. Продажи Worten по дням для «Обзора» ──
 -- Как у Leroy Merlin в v_sales_vat_incl_daily: сумма строк заказа (цена без доставки), без строк REFUNDED, CANCELED,
@@ -84,7 +82,7 @@ ON CONFLICT (key) DO NOTHING;
 COMMIT;
 
 -- Проверка чтением (после применения):
--- SELECT code, status, no_loader_note FROM kabinet_data.v_marketplace_data_status WHERE code IN ('WRT-PT', 'TTS-ES');
---   оба no_loader; у остальных маркетплейсов статус как до применения
+-- SELECT code, status, last_source FROM kabinet_data.v_marketplace_data_status WHERE code = 'WRT-PT';   -- ok, offers
+--   у остальных маркетплейсов статус как до применения
 -- SELECT * FROM kabinet_data.v_worten_sales_daily ORDER BY date DESC LIMIT 5;   -- 21.10.2026 · WRT-PT · 65,99 с НДС
 -- SELECT key, value FROM kabinet_data.reorder_params WHERE key = 'worten_overview_enabled';   -- 0
