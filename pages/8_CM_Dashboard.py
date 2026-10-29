@@ -17,6 +17,7 @@ from util import as_text, day_axis, eur, grid_height, show_df
 import catalog
 import auth
 import tiktok_tab
+import worten_tab
 
 init_lang()
 
@@ -494,9 +495,11 @@ st.divider()
 # роль, а не auth.can: в режиме раскатки can() отвечает «да» всем, и вкладку увидели бы коллеги
 _me = auth.current()
 _show_tiktok = tiktok_tab.tab_visible_to_all() or (_me.logged_in and _me.role == auth.ADMIN)
+# Worten (29.10.2026) — вкладкой здесь же, без флага: «Продажи пока только на „Площадках“» (ответ владельца на аудит
+# 28.10.2026); на «Обзоре» его строка — за флагом worten_overview_enabled до сверки с кабинетом Worten
 _tabs = st.tabs([t("cm.tab.summary"), t("cm.tab.parity"), t("cm.tab.lm_health"),
                  t("cm.tab.amazon_health"), t("cm.tab.all_countries")]
-                + ([t("cm.tab.tiktok")] if _show_tiktok else []))
+                + ([t("cm.tab.tiktok")] if _show_tiktok else []) + [t("cm.tab.worten")])
 tab_sum, tab_par, tab_lm, tab_amz, tab_all = _tabs[:5]
 
 
@@ -1416,3 +1419,5 @@ passport.footer("cm")
 if _show_tiktok:
     with _tabs[5]:
         tiktok_tab.render(PERIOD)
+with _tabs[-1]:
+    worten_tab.render(PERIOD)
