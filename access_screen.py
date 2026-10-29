@@ -1,4 +1,4 @@
-# ОТПЕЧАТОК ИСТОЧНИКА: 68452d1d6b3e8555b25f1aefd84cfc76e91268cf2750283f81a87bc4819b4a05
+# ОТПЕЧАТОК ИСТОЧНИКА: d77c9fa9a4a7cc3423e41d4b2d310f697cdbdad6153a178528f5bff4e7a34493
 # access_screen.py — экран «Доступ»: один на два приложения.
 """Админка доступа (ТЗ 010): люди, роли, матрица прав, тестовый вход, журналы.
 
@@ -279,6 +279,33 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
                  "notify_card_archived",
                  "auth_mode_notify",
                  "notify_unknown"}
+
+    # Записи разработки — тоже служебные (решение владельца 29.10.2026: «шум Claude не нужен… разработчик я… надо и
+    # меня убрать»): правки агента напрямую в базе (актор «claude-code по указанию …») и действия разработчиков из
+    # kabinet_data.auth_log_hidden_actors. Список — в базе, а не в коде: в коде не должно быть почт людей. Прячутся, а
+    # не выбрасываются: та же галочка «Показать служебные записи». Нет таблицы (SQL не применён) — только агент.
+    АГЕНТ = "claude-code"
+
+
+    @st.cache_data(ttl=300)
+    def разработчики() -> frozenset:
+        conn = get_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT to_regclass('kabinet_data.auth_log_hidden_actors') IS NOT NULL")
+            if not cur.fetchone()[0]:
+                return frozenset()
+            cur.execute("SELECT lower(email) FROM kabinet_data.auth_log_hidden_actors")
+            return frozenset(r[0] for r in cur.fetchall() if r[0])
+        except Exception:
+            return frozenset()
+        finally:
+            conn.close()
+
+
+    def служебная(действие, почта) -> bool:
+        п = as_text(почта).strip().lower()
+        return действие in СЛУЖЕБНЫЕ or п.startswith(АГЕНТ) or п in разработчики()
 
 
     def имя_объекта(тип, ид) -> str:
@@ -743,10 +770,11 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
             период = f4.date_input(t("auth.admin.f_period"),
                                    value=(acts["ts"].min().date(), acts["ts"].max().date()),
                                    key=f"acts_period_{продукт}")
-            служебных = int(acts["action"].isin(СЛУЖЕБНЫЕ).sum())
+            _служ = pd.Series([служебная(a, e) for a, e in zip(acts["action"], acts["email"])], index=acts.index)
+            служебных = int(_служ.sum())
             показать_служебные = st.checkbox(
                 t("auth.log.show_service", n=служебных), value=False, key=f"acts_service_{продукт}")
-            сито = acts if показать_служебные else acts[~acts["action"].isin(СЛУЖЕБНЫЕ)]
+            сито = acts if показать_служебные else acts[~_служ]
             if люди:
                 сито = сито[сито["email"].isin(люди)]
             if разделы:
@@ -945,10 +973,12 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.log.act.forecast.replace": "Заменял прогнозы после изменения пула",
         "auth.log.act.forecast.upload": "Загружал прогноз из файла",
         "auth.log.act.incident.act": "Принимал или закрывал инцидент",
+        "auth.log.act.ls.admin": "Управлял доступом Listing Suite",
         "auth.log.act.ls.amazon.push": "Отправлял листинг в Amazon",
         "auth.log.act.ls.content.edit": "Правил контент",
         "auth.log.act.ls.method.edit": "Менял методику",
         "auth.log.act.ls.settings.edit": "Менял настройки",
+        "auth.log.act.ls.textgen.accept": "Принимал текст в генераторе",
         "auth.log.act.notify_admit": "Уведомление об автодоступе",
         "auth.log.act.notify_admit_wd": "Уведомление об автодоступе дослано сторожем",
         "auth.log.act.notify_card_archived": "Уведомление об архиве карточки",
@@ -973,7 +1003,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.log.col_who": "Кто",
         "auth.log.col_with": "С чем",
         "auth.log.denied": "отказано",
-        "auth.log.show_service": "Показать служебные записи ({n})",
+        "auth.log.show_service": "Показать служебные записи и записи разработки ({n})",
         "auth.log.via_db": "напрямую в базе",
         "auth.log.who.kabinet-app": "Кабинет, автоматически",
         "auth.log.who.qa-агент": "QA-агент",
@@ -1148,10 +1178,12 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.log.act.forecast.replace": "Замінював прогнози після зміни пулу",
         "auth.log.act.forecast.upload": "Завантажував прогноз із файлу",
         "auth.log.act.incident.act": "Приймав або закривав інцидент",
+        "auth.log.act.ls.admin": "Керував доступом Listing Suite",
         "auth.log.act.ls.amazon.push": "Надсилав лістинг в Amazon",
         "auth.log.act.ls.content.edit": "Правив контент",
         "auth.log.act.ls.method.edit": "Змінював методику",
         "auth.log.act.ls.settings.edit": "Змінював налаштування",
+        "auth.log.act.ls.textgen.accept": "Приймав текст у генераторі",
         "auth.log.act.notify_admit": "Сповіщення про автодоступ",
         "auth.log.act.notify_admit_wd": "Сповіщення про автодоступ дослано сторожем",
         "auth.log.act.notify_card_archived": "Сповіщення про архів картки",
@@ -1176,7 +1208,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.log.col_who": "Хто",
         "auth.log.col_with": "З чим",
         "auth.log.denied": "відмовлено",
-        "auth.log.show_service": "Показати службові записи ({n})",
+        "auth.log.show_service": "Показати службові записи й записи розробки ({n})",
         "auth.log.via_db": "напряму в базі",
         "auth.log.who.kabinet-app": "Кабінет, автоматично",
         "auth.log.who.qa-агент": "QA-агент",
@@ -1351,10 +1383,12 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.log.act.forecast.replace": "Replaced forecasts after a pool change",
         "auth.log.act.forecast.upload": "Uploaded a forecast from a file",
         "auth.log.act.incident.act": "Acknowledged or resolved an incident",
+        "auth.log.act.ls.admin": "Managed Listing Suite access",
         "auth.log.act.ls.amazon.push": "Pushed a listing to Amazon",
         "auth.log.act.ls.content.edit": "Edited content",
         "auth.log.act.ls.method.edit": "Changed methodology",
         "auth.log.act.ls.settings.edit": "Changed settings",
+        "auth.log.act.ls.textgen.accept": "Accepted a text in the generator",
         "auth.log.act.notify_admit": "Auto-access notification",
         "auth.log.act.notify_admit_wd": "Auto-access notification sent by the watchdog",
         "auth.log.act.notify_card_archived": "Card archive notification",
@@ -1379,7 +1413,7 @@ def render(*, product: str, auth, get_connection, t, lang: str = "ru") -> None:
         "auth.log.col_who": "Who",
         "auth.log.col_with": "With what",
         "auth.log.denied": "denied",
-        "auth.log.show_service": "Show service entries ({n})",
+        "auth.log.show_service": "Show service and development entries ({n})",
         "auth.log.via_db": "directly in the database",
         "auth.log.who.kabinet-app": "Kabinet, automatically",
         "auth.log.who.qa-агент": "QA agent",
