@@ -277,7 +277,7 @@ def _bind_sub(email: str, sub: str) -> str:
 
 def _read_user(email: str):
     """Строка человека и его страны. None — если строки нет."""
-    conn = _connect()
+    conn = get_connection()   # не _connect(): повтор — в _load_user, один круг на подключение и запрос
     try:
         with conn.cursor() as cur:
             cur.execute("""
@@ -305,8 +305,8 @@ def _read_user(email: str):
 def _load_user(email: str):
     """Строка человека и его страны. None — если строки нет.
 
-    Обрыв связи во время запроса (OperationalError, InterfaceError) повторяется с паузами `_RETRY_PAUSES`, само
-    подключение повторяет `_connect`. Не ответила и
+    Неудачное подключение и обрыв во время запроса (OperationalError, InterfaceError) повторяются вместе, одним
+    кругом с паузами `_RETRY_PAUSES` — всего 4 попытки. Не ответила и
     после них — `DbUnavailable`: «строки нет» и «база молчит» — разные ответы, и путать их нельзя. «Строки нет» у
     рабочей почты — это первый вход с ролью «Просмотр», и guard завёл бы человеку новую карточку поверх
     существующей. Исключение Streamlit не кеширует — следующий прогон спросит базу заново.
@@ -318,9 +318,7 @@ def _load_user(email: str):
             time.sleep(pause)
         try:
             return _read_user(email)
-        except DbUnavailable:
-            raise                   # подключение уже повторено в _connect — второй круг не нужен
-        except _DB_ERRORS as e:     # обрыв во время самого запроса
+        except _DB_ERRORS as e:     # не подключились или запрос оборвался
             last = e
     # в журнал Streamlit: в базу записать нечего — она и не отвечает
     print(f"auth._load_user: база не ответила после {len(_RETRY_PAUSES) + 1} попыток: "

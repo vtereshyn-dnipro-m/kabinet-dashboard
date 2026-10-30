@@ -133,3 +133,16 @@ def test_guard_shows_screen_when_mode_cannot_connect(monkeypatch):
         auth.guard()
     assert shown == [auth._db_down_screen]
     auth.mode.clear()
+
+
+def test_load_user_single_retry_round(monkeypatch):
+    """Подключение и запрос карточки — один круг из 4 попыток, а не 4 × 4."""
+    calls = []
+
+    def dead():
+        calls.append(1)
+        raise psycopg2.OperationalError("could not connect")
+    monkeypatch.setattr(auth, "get_connection", dead)
+    with pytest.raises(auth.DbUnavailable):
+        auth._load_user("a@dniprom.com")
+    assert len(calls) == len(auth._RETRY_PAUSES) + 1
