@@ -22,6 +22,10 @@
 Средний режим нужен именно потому, что деплой и включение входа — разные моменты:
 без него кнопки пропали бы у всех ещё до того, как вход вообще включили.
 """
+import sys
+import time
+
+import psycopg2
 import streamlit as st
 
 from db.connection import get_connection
@@ -123,7 +127,7 @@ class User:
     """Кто сейчас на экране. Без входа — аноним с ролью по режиму."""
 
     def __init__(self, email="", name="", role=VIEWER, countries=(), logged_in=False,
-                 known=False, is_qa=False):
+                 known=False, is_qa=False, db_down=False):
         self.email = email
         self.name = name or email
         self.role = role
@@ -134,6 +138,9 @@ class User:
         # «просто роль Просмотр», потому что ему запрещено ВСЁ жёстко, в обход матрицы:
         # матрицу правят галочками, и случайная галочка не должна дать роботу права
         self.is_qa = is_qa
+        # карточку прочитать не удалось — база не ответила и после повторов (см. `_load_user`). Такой человек
+        # не запоминается на сеанс и дальше экрана «база недоступна» не идёт: см. `current()` и `guard()`
+        self.db_down = db_down
 
     @property
     def actor(self) -> str:
@@ -238,8 +245,18 @@ def _bind_sub(email: str, sub: str) -> str:
         conn.close()
 
 
-@st.cache_data(ttl=60)
-def _load_user(email: str):
+class DbUnavailable(Exception):
+    """База не ответила на чтение карточки и после повторов."""
+
+
+# Паузы между повторами чтения карточки, секунды. Lakebase засыпает после 5 минут простоя (suspend_timeout 300 с)
+# и просыпается от первого подключения: оно или соседнее может получить OperationalError («server closed the
+# connection unexpectedly», «could not connect»), пока вычислитель поднимается. Так же рвутся соединения пула, когда
+# вычислитель меняет размер (0,5–1 CU). Чтение карточки — только SELECT, повторять его безопасно.
+_RETRY_PAUSES = (1.0, 2.0, 4.0)
+
+
+def _read_user(email: str):
     """Строка человека и его страны. None — если строки нет."""
     conn = get_connection()
     try:
@@ -263,6 +280,30 @@ def _load_user(email: str):
                 "access_until": row[2], "expired": bool(row[3]), "countries": countries}
     finally:
         conn.close()
+
+
+@st.cache_data(ttl=60)
+def _load_user(email: str):
+    """Строка человека и его страны. None — если строки нет.
+
+    Обрыв связи с базой (OperationalError, InterfaceError) повторяется с паузами `_RETRY_PAUSES`. Не ответила и
+    после них — `DbUnavailable`: «строки нет» и «база молчит» — разные ответы, и путать их нельзя. «Строки нет» у
+    рабочей почты — это первый вход с ролью «Просмотр», и guard завёл бы человеку новую карточку поверх
+    существующей. Исключение Streamlit не кеширует — следующий прогон спросит базу заново.
+
+    Прочие ошибки (нет таблицы, нет прав) не повторяются и не маскируются: это поломка, а не сон базы."""
+    last = None
+    for pause in (0.0,) + _RETRY_PAUSES:
+        if pause:
+            time.sleep(pause)
+        try:
+            return _read_user(email)
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            last = e
+    # в журнал Streamlit: в базу записать нечего — она и не отвечает
+    print(f"auth._load_user: база не ответила после {len(_RETRY_PAUSES) + 1} попыток: "
+          f"{type(last).__name__}: {str(last).strip()[:300]}", file=sys.stderr)
+    raise DbUnavailable(str(last)) from last
 
 
 def _log_login(email, result, reason=""):
@@ -356,7 +397,10 @@ def current() -> User:
         u = User(role=VIEWER)
     else:
         u = _from_login()
-    st.session_state["_auth_user"] = u
+    # без карточки (база не ответила) не запоминаем: иначе человек до конца сеанса ходил бы «Просмотром»
+    # без стран, даже когда база уже проснулась
+    if not u.db_down:
+        st.session_state["_auth_user"] = u
     return u
 
 
@@ -377,7 +421,12 @@ def _from_login() -> User:
         return User(role=VIEWER, logged_in=False)
     email = as_text(getattr(st.user, "email", "")).strip().lower()
     name = as_text(getattr(st.user, "name", "")).strip()
-    row = _load_user(email)
+    try:
+        row = _load_user(email)
+    except DbUnavailable:
+        # прав не угадываем: «Просмотр» и НИ ОДНОЙ страны — безопасное умолчание, оно ничего не разрешает
+        # (страновые действия требуют стран объекта в списке человека). Дальше guard покажет экран «база недоступна»
+        return User(email=email, name=name, role=VIEWER, countries=(), logged_in=True, known=False, db_down=True)
     if row is None:
         return User(email=email, name=name, role=VIEWER, logged_in=True, known=False)
     return User(email=email, name=name, role=row["role"], countries=row["countries"],
@@ -619,6 +668,18 @@ def _login_screen():
             st.login()
 
 
+def _db_down_screen():
+    """База не ответила на чтение карточки и после повторов: понятная ошибка вместо трассы на всю страницу.
+    Ни входа, ни прав, ни записи в журнал — проверить человека нечем."""
+    left, mid, right = st.columns([1, 2, 1])
+    with mid:
+        st.markdown("<div style='height:10vh'></div>", unsafe_allow_html=True)
+        st.title("Kabinet Sales, Demand & Supply")
+        st.warning(t("auth.db_down"))
+        if st.button(t("auth.db_retry"), type="primary", width="stretch"):
+            st.rerun()
+
+
 def _denied_screen(email):
     lang = st.session_state.get("auth_lang", "en")
     texts = _LOGIN_TEXTS[lang]
@@ -669,7 +730,10 @@ def guard():
     # замечаем смену режима в ЛЮБОМ режиме, до всякого ветвления: переход в аварийный
     # ноль надо увидеть ровно так же, как включение входа
     _note_mode(m)
-    if current().is_qa:
+    # «кто сейчас» — один раз за проход ворот: без прочитанной карточки он не запоминается на сеанс (см. current()),
+    # и второй вызов ниже снова ждал бы базу все повторы
+    u = current()
+    if u.is_qa:
         return   # вошёл по тестовой ссылке — экран входа ему не показываем
     if m != MODE_ON:
         return
@@ -694,6 +758,10 @@ def guard():
         _log_login(email, "relogin", f"вход старше {_max_h:g} ч — повторный вход через Google")
         st.logout()
         return
+    if u.db_down:
+        # карточку не прочитали и после повторов — дальше идти не с чем (см. _load_user)
+        _screen(_db_down_screen, "Kabinet")
+        return
     # Карточка ↔ Google ID — раз за сеанс (см. _bind_sub)
     if not st.session_state.get("_auth_sub_checked"):
         _sub = as_text(getattr(st.user, "sub", "")).strip()
@@ -716,7 +784,11 @@ def guard():
                 log_action("notify_card_archived", False, "user", email,
                            f"приложение не отправило: {type(e).__name__}: {str(e)[:120]}")
         st.session_state["_auth_sub_checked"] = True
-    row = _load_user(email)
+    try:
+        row = _load_user(email)
+    except DbUnavailable:
+        _screen(_db_down_screen, "Kabinet")
+        return
     if not _allowed_to_enter(email, row):
         if row is None:
             _log_login(email, "denied_domain", "домен вне списка")
