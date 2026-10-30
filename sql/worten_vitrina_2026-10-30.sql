@@ -9,7 +9,10 @@
 --   * День заказа — по Лиссабону: created_at в сырье — часы Лиссабона, записанные как UTC, DATE() сразу даёт день.
 --   * Деньги — в евро, с НДС (order_tax_mode = TAX_INCLUDED). НДС — готовый tax_amount строки (23 %), а не деление на
 --     1,23: пониженные ставки 6 и 13 % на наших товарах не проверены.
---   * Продажа — строка не в CANCELED / REFUSED. Строка REFUNDED остаётся продажей в дне заказа, её возврат идёт
+--   * Продажа — с отгрузки (решение владельца 30.10.2026): строка в SHIPPING и дальше (SHIPPED, TO_COLLECT, RECEIVED,
+--     CLOSED, INCIDENT_*, WAITING_REFUND*, REFUNDED). Не продажа — до приёма заказа и оплаты (STAGING,
+--     WAITING_ACCEPTANCE, WAITING_DEBIT, WAITING_DEBIT_PAYMENT) и отменённые (CANCELED, REFUSED); список — WRT_NOT_SALE
+--     ниже, один на обе вью. Строка REFUNDED остаётся продажей в дне заказа, её возврат идёт
 --     отдельно, в день возврата, как у Amazon (t_spiderweb_refunds). Это отступление от Leroy Merlin / Carrefour /
 --     ManoMano: у них REFUNDED — в дне заказа и вне продаж.
 --   * Комиссия — факт из API (commission_fee строки, начислен при приёме заказа). commission_vat у Worten 0.
@@ -22,7 +25,7 @@
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 CREATE VIEW dnipro_m.dnipro_m.v_wrt_sales_fees_cogs_pt
-COMMENT 'Worten PT (Mirakl, магазин 18499, канал WRT_PT_ONLINE): день × SKU — продажи по дню заказа (Лиссабон), возвраты по дню возврата, себестоимость, доставка, прибыль. Форма v_lm_sales_fees_cogs_es. Источник — dnipro_m.worten.*'
+COMMENT 'Worten PT (Mirakl, магазин 18499, канал WRT_PT_ONLINE): день × SKU — продажи с отгрузки по дню заказа (Лиссабон), возвраты по дню возврата, себестоимость, доставка, прибыль. Форма v_lm_sales_fees_cogs_es. Источник — dnipro_m.worten.*'
 AS
 WITH
 params AS (
@@ -85,7 +88,8 @@ sales_agg AS (
         SUM(tax_amount)                                                  AS tax_amount,
         SUM(commission_fee)                                              AS commission_fee
     FROM lines_sku
-    WHERE order_line_state NOT IN ('CANCELED', 'REFUSED')
+    -- WRT_NOT_SALE: до приёма заказа и оплаты — не продажа, продажа с отгрузки (SHIPPING и дальше)
+    WHERE order_line_state NOT IN ('STAGING', 'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'WAITING_DEBIT_PAYMENT', 'CANCELED', 'REFUSED')
     GROUP BY order_date, clean_sku
 ),
 
@@ -390,7 +394,7 @@ ORDER BY date, country, sku;
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 CREATE VIEW dnipro_m.dnipro_m.v_wrt_orders_enriched
-COMMENT 'Worten PT: строка на заказ (день заказа — Лиссабон), без строк CANCELED / REFUSED. Форма v_lm_orders_enriched; сумма — SUM(price): price строки Mirakl уже за все единицы.'
+COMMENT 'Worten PT: строка на заказ (день заказа — Лиссабон), продажа с отгрузки: без строк до приёма заказа и отменённых. Форма v_lm_orders_enriched; сумма — SUM(price): price строки Mirakl уже за все единицы.'
 AS
 WITH
 lines AS (
@@ -414,7 +418,8 @@ lines AS (
         ON o.shop_id = l.shop_id AND o.order_id = l.order_id
     WHERE o.shop_id = '18499'
       AND o.channel_code = 'WRT_PT_ONLINE'
-      AND l.order_line_state NOT IN ('CANCELED', 'REFUSED')
+      -- WRT_NOT_SALE — тот же список, что в v_wrt_sales_fees_cogs_pt
+      AND l.order_line_state NOT IN ('STAGING', 'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'WAITING_DEBIT_PAYMENT', 'CANCELED', 'REFUSED')
 ),
 lines_padded AS (
     SELECT
