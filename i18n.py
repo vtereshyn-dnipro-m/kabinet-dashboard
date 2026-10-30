@@ -5190,6 +5190,20 @@ TRANSLATIONS = {
         "uk": "Вхід увімкнено, але Google OAuth не налаштовано — зверніться до адміністратора.",
         "en": "Sign-in is on, but Google OAuth is not configured — contact an administrator.",
     },
+    "auth.db_down": {
+        "ru": "База Кабинета не ответила — скорее всего, просыпается после простоя. Права проверить нечем, поэтому "
+              "страницы не открываем. Нажмите «Повторить» через полминуты; если не пройдёт — напишите администратору.",
+        "uk": "База Кабінету не відповіла — найімовірніше, прокидається після простою. Права перевірити нічим, тому "
+              "сторінки не відкриваємо. Натисніть «Повторити» за пів хвилини; якщо не вийде — напишіть адміністратору.",
+        "en": "The Kabinet database did not respond — most likely it is waking up after being idle. Your access cannot "
+              "be checked, so pages stay closed. Press “Retry” in half a minute; if it still fails, contact an "
+              "administrator.",
+    },
+    "auth.db_retry": {
+        "ru": "Повторить",
+        "uk": "Повторити",
+        "en": "Retry",
+    },
     "auth.mode_rollout": {
         "ru": "Вход ещё не включён — режим раскатки",
         "uk": "Вхід ще не увімкнено — режим розкатки",
