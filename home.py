@@ -575,16 +575,14 @@ def tiktok_overview_on() -> bool:
 
 
 @st.cache_data(ttl=600)
-def load_worten_sales(d_from, d_to, ver: str = "", admin_preview: bool = False, pbi_ver: str = "",
-                      flag: bool = False) -> pd.DataFrame:
+def load_worten_sales(d_from, d_to, ver: str = "", admin_preview: bool = False, flag: bool = False) -> pd.DataFrame:
     """Worten для «Обзора» (29.10.2026, решение владельца: новый источник по API, как TikTok Shop, Power BI не ждём):
     продажи по дням из v_worten_sales_daily — Worten API, не Power BI. Пусто, если в reorder_params
     worten_overview_enabled не 1 (до сверки заказов с кабинетом Worten — выключено) или вью ещё нет; admin_preview —
     администратор видит строку и при выключенном флаге, как у TikTok. Колонки — как у load_tiktok_sales.
 
-    Третий случай пустого кадра (30.10.2026): флаг = 1 и Worten уже в реплике Power BI (витрина, PR #407) — тогда его
-    показывает реплика (pbi.py, GATED), и строка API отступает, чтобы не посчитать Worten дважды. `flag` и `pbi_ver`
-    — только ключ кеша: переключили флаг или пришла реплика — пересчёт сразу."""
+    `flag` — только ключ кеша: переключили флаг — пересчёт сразу. Отступает ли строка, когда Worten уже в витрине
+    Power BI (PR #407), решает вызывающий код по показанному кадру реплики — см. «Обзор» ниже."""
     if not table_exists("v_worten_sales_daily"):
         return pd.DataFrame()
     conn = get_connection()
@@ -594,14 +592,6 @@ def load_worten_sales(d_from, d_to, ver: str = "", admin_preview: bool = False, 
         _on = _flag is not None and not pd.isna(_flag) and int(_flag) == 1
         if not _on and not admin_preview:
             return pd.DataFrame()
-        # Worten уже в витрине Power BI (PR #407, 30.10.2026): при флаге = 1 его строки показывает сама реплика
-        # (pbi.py, GATED) — в карточках, каналах и странах. Строка из API тогда отступает, иначе Worten посчитался бы
-        # дважды. При выключенном флаге строки реплики скрыты, и администратор по-прежнему видит строку API.
-        if _on:
-            _in_pbi = pd.read_sql("""SELECT 1 FROM kabinet_data.pbi_spiderweb_report
-                                     WHERE pbi_marketplace = 'Worten' LIMIT 1""", conn)
-            if not _in_pbi.empty:
-                return pd.DataFrame()
         df = pd.read_sql("""SELECT date AS sales_date, marketplace, channel, country, sales_vat_incl,
                                    sales_vat_excl AS revenue
                             FROM kabinet_data.v_worten_sales_daily WHERE date BETWEEN %(a)s AND %(b)s""",
@@ -901,11 +891,16 @@ else:
     _tts = (load_tiktok_sales(_w.cur_from.date(), _w.cur_to.date(),
                               data_version("raw_tiktok_orders", "loaded_at"), _tts_admin) if _pbi else pd.DataFrame())
     # Worten (29.10.2026) — так же, как TikTok: из Worten API, не из Power BI, строкой в каналах и в таблице стран
-    # версия реплики Power BI — в ключе кеша: появился Worten в реплике — строка API отступает сразу, без TTL
     _wrt = (load_worten_sales(_w.cur_from.date(), _w.cur_to.date(),
-                              data_version("raw_worten_orders", "loaded_at"), _tts_admin,
-                              data_version("pbi_spiderweb_report", "loaded_at"), worten_overview_on())
+                              data_version("raw_worten_orders", "loaded_at"), _tts_admin, worten_overview_on())
             if _pbi else pd.DataFrame())
+    # Worten уже в витрине Power BI (PR #407, 30.10.2026): если строки Worten есть в ПОКАЗАННОМ кадре реплики (при флаге
+    # = 1 их пропускает pbi.py, GATED), они уже в карточках, каналах и странах — строка API отступает, иначе Worten
+    # посчитался бы дважды. Решаем по тому же кадру, что на экране, а не отдельным запросом: тогда кеш кадра и кеш
+    # флага не расходятся, и в минуты переключения флага нет ни двойного счёта, ни пропажи Worten.
+    if (not _wrt.empty and "_error" not in _wrt.columns and not money.empty and "platform" in money.columns
+            and (money["platform"].astype(str) == "Worten").any()):
+        _wrt = pd.DataFrame()
     # каналы из API площадок, чья строка показана: подпись карточек называет их — «все каналы, кроме TikTok Shop и Worten»
     _api_names = [n for n, f in (("TikTok Shop", _tts), ("Worten", _wrt)) if not f.empty and "_error" not in f.columns]
     _api_list = t("home.api.and").join(_api_names)
@@ -1088,8 +1083,11 @@ else:
 
         # рынок реплики Power BI без строки в v_marketplaces (Worten в витрине — WRT_PT, а его строки в
         # marketplaces_legacy нет) — канал по площадке витрины, а не «Прочее»
-        if "platform" in cur.columns:
-            for _code, _plat in cur[["marketplace", "platform"]].drop_duplicates().itertuples(index=False):
+        # из 90-дневного кадра тоже: площадка, молчащая в периоде, нужна для серой плашки «нет продаж»
+        _plat_frames = [f[["marketplace", "platform"]] for f in (cur, money_wide)
+                        if not f.empty and {"marketplace", "platform"} <= set(f.columns)]
+        if _plat_frames:
+            for _code, _plat in pd.concat(_plat_frames).drop_duplicates().itertuples(index=False):
                 if as_text(_plat).strip():
                     _ch_lookup.setdefault(as_text(_code).strip().upper(), as_text(_plat).strip())
 
