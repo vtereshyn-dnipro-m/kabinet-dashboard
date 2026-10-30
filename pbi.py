@@ -53,6 +53,26 @@ def _gate() -> str:
         f" WHERE key = '{flag}'), 0) = 1)" for mk, flag in GATED.items())
 
 
+def gate_version() -> str:
+    """Значения флагов GATED строкой — в ключ кеша загрузчиков страниц рядом с версией реплики. Без этого переключение
+    флага ждало бы срока кеша загрузчика (5–10 минут), и в эти минуты Worten был бы виден не по флагу. Сам этот ответ
+    живёт 30 секунд. Нет строки флага — пусто: так же скрыто, как «0»."""
+    import streamlit as st
+
+    @st.cache_data(ttl=30, show_spinner=False)
+    def _load(keys: tuple) -> str:
+        conn = get_connection()
+        try:
+            df = pd.read_sql("SELECT key, value FROM kabinet_data.reorder_params WHERE key = ANY(%(k)s) ORDER BY key",
+                             conn, params={"k": list(keys)})
+            return ";".join(f"{k}={v}" for k, v in df.itertuples(index=False))
+        except Exception:
+            return ""
+        finally:
+            conn.close()
+    return _load(tuple(sorted(GATED.values())))
+
+
 # суммы по дню × рынку: всё, что нужно карточкам и графикам
 DAILY_SQL = f"""
     SELECT date AS sales_date, marketplace, pbi_marketplace AS platform, pbi_country AS country,
