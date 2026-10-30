@@ -154,11 +154,41 @@ class User:
 
 
 # ---------- чтение настроек и людей ----------
+class DbUnavailable(psycopg2.OperationalError):
+    """База не ответила и после повторов. Наследник OperationalError — кто ловил обрыв связи раньше, ловит и это."""
+
+
+# Паузы между повторами, секунды. Lakebase засыпает после 5 минут простоя (suspend_timeout 300 с) и просыпается от
+# первого подключения: оно или соседнее может получить OperationalError («server closed the connection
+# unexpectedly», «could not connect»), пока вычислитель поднимается. Так же рвутся соединения пула, когда вычислитель
+# меняет размер (0,5–1 CU). `get_connection()` сам повторяет только протухший пароль и соединение пула, пролежавшее
+# дольше минуты.
+_RETRY_PAUSES = (1.0, 2.0, 4.0)
+_DB_ERRORS = (psycopg2.OperationalError, psycopg2.InterfaceError)
+
+
+def _connect():
+    """`get_connection()` с повтором обрыва связи. Не подключились и после повторов — `DbUnavailable`: его ловит
+    `guard()` и показывает экран «база недоступна» вместо трассы на всю страницу."""
+    last = None
+    for pause in (0.0,) + _RETRY_PAUSES:
+        if pause:
+            time.sleep(pause)
+        try:
+            return get_connection()
+        except _DB_ERRORS as e:
+            last = e
+    # в журнал Streamlit: в базу записать нечего — она и не отвечает
+    print(f"auth: подключение к базе не удалось после {len(_RETRY_PAUSES) + 1} попыток: "
+          f"{type(last).__name__}: {str(last).strip()[:300]}", file=sys.stderr)
+    raise DbUnavailable(str(last)) from last
+
+
 @st.cache_data(ttl=30)
 def mode() -> int:
     """Режим входа из базы. Кеш короткий: аварийный переключатель обязан срабатывать
     быстро, а не через десять минут."""
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'auth_enabled'")
@@ -187,7 +217,7 @@ def _matrix():
     Действие, которого в таблице нет, а в коде есть, запрещается всем: новая кнопка
     не должна начать работать раньше, чем кто-то решил, кому она доступна. На экране
     «Доступ» такие действия показываются отдельной строкой, а не молчат."""
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT action, role FROM kabinet_data.app_permissions WHERE allowed")
@@ -212,7 +242,7 @@ def _max_login_hours() -> float:
     с открытым браузером входил бы до месяца. Вход старше этого срока отправляем на повторный вход через Google —
     удалённый аккаунт его не пройдёт. Нет строки или база недоступна — 168: нехватка настройки не должна ни
     выкидывать людей каждый час, ни возвращать месяц."""
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT value FROM kabinet_data.reorder_params WHERE key = 'auth_max_login_hours'")
@@ -232,7 +262,7 @@ def _bind_sub(email: str, sub: str) -> str:
     прежнего человека с его ролями ушла в архив, и дальше этот вход — обычный первый: «Просмотр» в обоих продуктах
     для рабочей почты. Без привязки новый человек вошёл бы в карточку прежнего. Ошибка базы — 'error': вход не
     ломаем, проверка повторится в следующем сеансе."""
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT kabinet_data.app_user_bind_sub(%s, %s)", (email, sub))
@@ -245,20 +275,9 @@ def _bind_sub(email: str, sub: str) -> str:
         conn.close()
 
 
-class DbUnavailable(Exception):
-    """База не ответила на чтение карточки и после повторов."""
-
-
-# Паузы между повторами чтения карточки, секунды. Lakebase засыпает после 5 минут простоя (suspend_timeout 300 с)
-# и просыпается от первого подключения: оно или соседнее может получить OperationalError («server closed the
-# connection unexpectedly», «could not connect»), пока вычислитель поднимается. Так же рвутся соединения пула, когда
-# вычислитель меняет размер (0,5–1 CU). Чтение карточки — только SELECT, повторять его безопасно.
-_RETRY_PAUSES = (1.0, 2.0, 4.0)
-
-
 def _read_user(email: str):
     """Строка человека и его страны. None — если строки нет."""
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("""
@@ -286,7 +305,8 @@ def _read_user(email: str):
 def _load_user(email: str):
     """Строка человека и его страны. None — если строки нет.
 
-    Обрыв связи с базой (OperationalError, InterfaceError) повторяется с паузами `_RETRY_PAUSES`. Не ответила и
+    Обрыв связи во время запроса (OperationalError, InterfaceError) повторяется с паузами `_RETRY_PAUSES`, само
+    подключение повторяет `_connect`. Не ответила и
     после них — `DbUnavailable`: «строки нет» и «база молчит» — разные ответы, и путать их нельзя. «Строки нет» у
     рабочей почты — это первый вход с ролью «Просмотр», и guard завёл бы человеку новую карточку поверх
     существующей. Исключение Streamlit не кеширует — следующий прогон спросит базу заново.
@@ -298,7 +318,9 @@ def _load_user(email: str):
             time.sleep(pause)
         try:
             return _read_user(email)
-        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+        except DbUnavailable:
+            raise                   # подключение уже повторено в _connect — второй круг не нужен
+        except _DB_ERRORS as e:     # обрыв во время самого запроса
             last = e
     # в журнал Streamlit: в базу записать нечего — она и не отвечает
     print(f"auth._load_user: база не ответила после {len(_RETRY_PAUSES) + 1} попыток: "
@@ -307,7 +329,7 @@ def _load_user(email: str):
 
 
 def _log_login(email, result, reason=""):
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("""
@@ -329,7 +351,7 @@ def log_action(action, allowed, object_type=None, object_id=None, details=""):
     Отклонённое писать важнее: попытка сделать то, на что права нет, — это ровно то,
     ради чего проверка стоит в обработчике, а не на кнопке."""
     u = current()
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("""
@@ -349,7 +371,7 @@ def log_action(action, allowed, object_type=None, object_id=None, details=""):
 
 
 def _touch_login(email, name, first: bool, sub: str = ""):
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             if first:
@@ -437,7 +459,7 @@ QA_ACTOR = "qa-агент"
 
 
 def _qa_enabled() -> bool:
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("""SELECT value FROM kabinet_data.reorder_params
@@ -488,7 +510,7 @@ def _qa_user_from_url():
     if not токен or not _qa_enabled():
         return None
     цель = qa_hash(токен)
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("""SELECT id, token_hash FROM kabinet_data.qa_tokens
@@ -722,6 +744,16 @@ _LOGIN_TEXTS = {
 
 
 def guard():
+    """Ворота: `_guard()` и экран «база недоступна», если база не ответила и после повторов. Перехват один на всё
+    тело, а не у каждого чтения: в воротах их пять (режим, журнал режима, срок входа, привязка Google ID, карточка),
+    и пропущенное место снова роняло бы страницу трассой. Ворота при этом закрываются — ни входа, ни прав."""
+    try:
+        _guard()
+    except DbUnavailable:
+        _screen(_db_down_screen, "Kabinet")
+
+
+def _guard():
     """Ворота. Зовётся в `app.py` раньше, чем читается хоть одна бизнес-таблица.
 
     В режимах 2 и 0 не спрашивает ничего: на раскатке всё как было, в аварии все
@@ -784,11 +816,7 @@ def guard():
                 log_action("notify_card_archived", False, "user", email,
                            f"приложение не отправило: {type(e).__name__}: {str(e)[:120]}")
         st.session_state["_auth_sub_checked"] = True
-    try:
-        row = _load_user(email)
-    except DbUnavailable:
-        _screen(_db_down_screen, "Kabinet")
-        return
+    row = _load_user(email)    # DbUnavailable — экран в guard()
     if not _allowed_to_enter(email, row):
         if row is None:
             _log_login(email, "denied_domain", "домен вне списка")
@@ -863,7 +891,7 @@ def _journaled_mode():
     Порядок по `ts DESC, id DESC`, а не по одному `ts`: `now()` в Postgres — время
     НАЧАЛА транзакции, у строк одной транзакции оно совпадает до микросекунды, и
     «последняя» выбиралась бы произвольно."""
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("""SELECT details FROM kabinet_data.app_action_log
@@ -891,7 +919,7 @@ def _note_mode(m: int):
     last = _journaled_mode()
     if last == m:
         return
-    conn = get_connection()
+    conn = _connect()
     try:
         with conn.cursor() as cur:
             # подписываемся приложением: смену заметил не человек, а код, и приписывать

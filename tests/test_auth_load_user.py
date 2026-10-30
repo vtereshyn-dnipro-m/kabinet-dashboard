@@ -1,6 +1,6 @@
-"""auth._load_user: обрыв связи с базой повторяется, после повторов — DbUnavailable, а не «строки нет»; прочие ошибки
-не повторяются; человек без прочитанной карточки — «Просмотр» без стран и не запоминается на сеанс. Без базы:
-чтение карточки подменено."""
+"""auth: обрыв связи с базой повторяется (подключение — _connect, запрос карточки — _load_user), после повторов —
+DbUnavailable, а не «строки нет»; прочие ошибки не повторяются; человек без прочитанной карточки — «Просмотр» без
+стран и не запоминается на сеанс; ворота при молчащей базе показывают экран, а не трассу. Без базы: всё подменено."""
 import types
 
 import psycopg2
@@ -13,7 +13,7 @@ import auth
 def _fresh(monkeypatch):
     cached = auth._load_user          # тест может подменить саму функцию — чистим кеш настоящей
     cached.clear()
-    monkeypatch.setattr(auth.time, "sleep", lambda s: None)
+    monkeypatch.setattr(auth, "_RETRY_PAUSES", (0.0, 0.0, 0.0))   # пауза 0 — без sleep
     yield
     cached.clear()
 
@@ -85,3 +85,51 @@ def test_db_down_user_not_kept_for_session(monkeypatch):
     assert "_auth_user" not in state
     monkeypatch.setattr(auth, "_from_login", lambda: auth.User(email="a@dniprom.com", role=auth.ADMIN, logged_in=True))
     assert auth.current().role == auth.ADMIN and state["_auth_user"].role == auth.ADMIN
+
+
+class _Conn:
+    def close(self):
+        pass
+
+
+def test_connect_retries_then_gives_up(monkeypatch):
+    calls = []
+
+    def flaky():
+        calls.append(1)
+        if len(calls) < 3:
+            raise psycopg2.OperationalError("could not connect")
+        return _Conn()
+    monkeypatch.setattr(auth, "get_connection", flaky)
+    assert isinstance(auth._connect(), _Conn) and len(calls) == 3
+
+    calls.clear()
+
+    def dead():
+        calls.append(1)
+        raise psycopg2.OperationalError("could not connect")
+    monkeypatch.setattr(auth, "get_connection", dead)
+    with pytest.raises(auth.DbUnavailable):
+        auth._connect()
+    assert len(calls) == len(auth._RETRY_PAUSES) + 1
+
+
+def test_guard_shows_screen_when_mode_cannot_connect(monkeypatch):
+    """Холодный кеш: первым базу спрашивает mode(), и падает подключение — экран, а не трасса и не раскатка."""
+    def dead():
+        raise psycopg2.OperationalError("could not connect")
+    monkeypatch.setattr(auth, "get_connection", dead)
+    auth.mode.clear()
+    shown = []
+
+    class _Stop(Exception):
+        pass
+
+    def screen(fn, title):
+        shown.append(fn)
+        raise _Stop
+    monkeypatch.setattr(auth, "_screen", screen)
+    with pytest.raises(_Stop):
+        auth.guard()
+    assert shown == [auth._db_down_screen]
+    auth.mode.clear()
