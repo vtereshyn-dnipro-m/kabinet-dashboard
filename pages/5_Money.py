@@ -175,7 +175,7 @@ def load_sku_ad_ratios(d_from: str, d_to: str, markets: tuple = ()) -> pd.DataFr
 
 
 @st.cache_data(ttl=600)
-def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
+def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), ver: str = ""):
     conn = get_connection()
     if d_from and d_to:
         where = f"e.sales_date BETWEEN '{d_from}' AND '{d_to}'"
@@ -238,7 +238,7 @@ def load_pnl(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = "
 
 
 @st.cache_data(ttl=600)
-def load_pnl_pbi(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
+def load_pnl_pbi(days: int, d_from=None, d_to=None, markets: tuple = (), ver: str = ""):
     """Цифры как в Power BI (08.10.2026): SKU × рынок × день из реплики его витрины (pbi.py). Колонки — те же, что
     у load_pnl, чтобы таблицы, графики и фильтры страницы работали без второй копии кода:
 
@@ -301,13 +301,13 @@ def load_pnl_pbi(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str
 
 
 @st.cache_data(ttl=600)
-def load_pbi_orders(d_from, d_to, markets: tuple = (), _v: str = "") -> pd.DataFrame:
+def load_pbi_orders(d_from, d_to, markets: tuple = (), ver: str = "") -> pd.DataFrame:
     """Заказы Power BI за период — день × рынок (pbi.load_orders)."""
     return pbi.load_orders(d_from, d_to, markets)
 
 
 @st.cache_data(ttl=600)
-def load_pbi_totals(d_from, d_to, markets: tuple = (), _v: str = "") -> dict:
+def load_pbi_totals(d_from, d_to, markets: tuple = (), ver: str = "") -> dict:
     """Карточки Power BI за период (pbi.totals) — для сравнения с прошлым периодом."""
     df = pbi.load_daily(d_from, d_to, markets)
     out = pbi.totals(df)
@@ -351,7 +351,7 @@ def load_bsr(days: int) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_ordered_sales(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
+def load_ordered_sales(days: int, d_from=None, d_to=None, markets: tuple = (), ver: str = ""):
     """Витринная выручка — то же число, что в Seller Central.
     Рынки передаём кортежем: он хешируется и попадает в ключ кеша."""
     if d_from and d_to:
@@ -404,7 +404,7 @@ def load_amazon_codes() -> tuple:
 
 
 @st.cache_data(ttl=600)
-def load_plan_fact(d0, d1, _v: str = "") -> tuple:   # (свод, текст ошибки или None)
+def load_plan_fact(d0, d1, ver: str = "") -> tuple:   # (свод, текст ошибки или None)
     """Факт / план по объектам реестра прогноза за период (общий расчёт с Обзором)."""
     if not d0 or not d1:
         return pd.DataFrame(), None
@@ -418,7 +418,7 @@ def load_plan_fact(d0, d1, _v: str = "") -> tuple:   # (свод, текст о�
 
 
 @st.cache_data(ttl=600)
-def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = (), _v: str = ""):
+def load_control_total(days: int, d_from=None, d_to=None, markets: tuple = (), ver: str = ""):
     """Контрольная выручка прямо из таблицы, без соединений.
     Если основной запрос разойдётся с ней — значит строки размножились
     при JOIN, и цифры на странице завышены. Такое уже случалось."""
@@ -504,19 +504,20 @@ MK = tuple(sorted(mp_filter))
 WINDOW = PERIOD.days
 # «Этот месяц» и свой период приходят готовыми границами, остальные —
 # отступом от сегодня: у диапазона конец может быть в прошлом
-# _v — отметка последней записи в ключе кеша: страницы обновляются вместе
+# ver — отметка последней записи в ключе кеша (без «_»: такие параметры Streamlit в ключ
+# не берёт): страницы обновляются вместе
 _ver_econ = data_version("economics_summary", "updated_at")
 _ver_std = data_version("sales_traffic_daily", "loaded_at")
 # у пресета грузим с запасом в неделю: окно режется ниже по границе ПОЛНЫХ дней (money_notes.day_status), и без
 # запаса оно вышло бы короче выбранного, как только последний день Amazon ещё догружается
 if pbi.OWN_METHOD:
     df = (load_pnl(0, d_from, d_to, MK, _ver_econ) if PERIOD.is_range
-          else load_pnl(WINDOW + 7, markets=MK, _v=_ver_econ))
+          else load_pnl(WINDOW + 7, markets=MK, ver=_ver_econ))
 else:
     # цифры как в Power BI (08.10.2026): одна реплика его витрины на все карточки и таблицы страницы
     _ver_pbi = data_version("pbi_spiderweb_report", "loaded_at")
     df = (load_pnl_pbi(0, d_from, d_to, MK, _ver_pbi) if PERIOD.is_range
-          else load_pnl_pbi(WINDOW + 7, markets=MK, _v=_ver_pbi))
+          else load_pnl_pbi(WINDOW + 7, markets=MK, ver=_ver_pbi))
 
 if df.empty:
     # выбраны только рынки без продаж за период (ManoMano Pro в пробный период) — это «нет продаж», а не «экономика не
@@ -533,7 +534,7 @@ if df.empty:
 # Бельгии. Правило и объяснение — в util.data_boundary, оно же работает
 # на Обзоре. Держать здесь отдельную копию нельзя: копии расходятся
 @st.cache_data(ttl=300)
-def load_day_status(_v: str = "", source: str = "economics"):
+def load_day_status(ver: str = "", source: str = "economics"):
     """Граница полных дней по последней загрузке каждой площадки — тот же расчёт, что на «Обзоре» (источник —
     реплика Power BI, когда цифры из неё, иначе наша экономика)."""
     conn = get_connection()
@@ -729,7 +730,7 @@ if pbi.OWN_METHOD:
         _econ_first = pd.Timestamp(df["sales_date"].min()).date() if len(df) else None
         _b0c = max(_b0, _econ_first) if (_b0 and _econ_first) else _b0
         _ordered = (load_ordered_sales(0, _b0c, _b1, _amz, _ver_std) if (_b0c and _b1)
-                    else load_ordered_sales(WINDOW, markets=_amz, _v=_ver_std))
+                    else load_ordered_sales(WINDOW, markets=_amz, ver=_ver_std))
         if _b0 and _econ_first and _b0 < _econ_first:
             st.caption(t("home.sales.ordered_clipped", d=_econ_first.strftime("%d.%m.%Y")))
         # процент — к тем же датам прошлого окна, что у «Выручки»; урезанное окно не сравниваем
