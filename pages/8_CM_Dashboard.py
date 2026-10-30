@@ -198,7 +198,7 @@ def load_sales(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=600)
-def load_countries(days: int, d_from: str = "", d_to: str = "") -> pd.DataFrame:
+def load_countries(days: int, d_from: str = "", d_to: str = "", gate: str = "") -> pd.DataFrame:
     """Страна × площадка за период — таблица стран Power BI (pbi.load_countries)."""
     _to = pd.Timestamp(d_to).date() if d_to else pd.Timestamp.now().date()
     _from = pd.Timestamp(d_from).date() if d_from else _to - pd.Timedelta(days=days).to_pytimedelta()
@@ -1294,7 +1294,7 @@ with tab_amz:
 def _countries_view() -> None:
     """Таблица стран как в Power BI (09.10.2026, решение владельца): страна — все каналы в ней, продажи с НДС."""
     try:
-        cn = load_countries(DAYS, D_FROM, D_TO)
+        cn = load_countries(DAYS, D_FROM, D_TO, pbi.gate_version())   # флаг площадок за флагом — в ключе кеша
     except Exception as e:
         st.error(f"{t('common.no_data')}: {e}")
         return

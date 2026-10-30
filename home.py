@@ -649,7 +649,8 @@ try:
     else:
         # цифры как в Power BI (08.10.2026): все карточки — из одной реплики его витрины. «Продажи Amazon» и
         # «все каналы» — та же колонка sales_vat_incl, что у карточки Revenue VAT Incl в Power BI
-        _vp = data_version("pbi_spiderweb_report", "loaded_at")
+        # флаги площадок за флагом (pbi.GATED) — в ключе кеша: переключили флаг — цифры пересчитаны сразу
+        _vp = data_version("pbi_spiderweb_report", "loaded_at") + "|" + pbi.gate_version()
         money = load_money_pbi(_load_days, _vp)
         _amz_rows = (money["platform"].astype(str) == "Amazon") if not money.empty else pd.Series(dtype=bool)
         ordered = (money.loc[_amz_rows, ["sales_date", "marketplace", "sales_vat_incl", "units"]]

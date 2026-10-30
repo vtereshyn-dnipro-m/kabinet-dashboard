@@ -514,7 +514,8 @@ if pbi.OWN_METHOD:
           else load_pnl(WINDOW + 7, markets=MK, _v=_ver_econ))
 else:
     # цифры как в Power BI (08.10.2026): одна реплика его витрины на все карточки и таблицы страницы
-    _ver_pbi = data_version("pbi_spiderweb_report", "loaded_at")
+    # флаги площадок за флагом (pbi.GATED) — в ключе кеша: переключили флаг — цифры пересчитаны сразу
+    _ver_pbi = data_version("pbi_spiderweb_report", "loaded_at") + "|" + pbi.gate_version()
     df = (load_pnl_pbi(0, d_from, d_to, MK, _ver_pbi) if PERIOD.is_range
           else load_pnl_pbi(WINDOW + 7, markets=MK, _v=_ver_pbi))
 

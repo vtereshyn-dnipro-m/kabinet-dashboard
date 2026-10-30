@@ -80,7 +80,10 @@ AMAZON = {"Spain": "ES", "Italy": "IT", "France": "FR", "Germany": "DE", "Belgiu
           "United Kingdom": "GB", "Sweden": "SE", "Poland": "PL", "Ireland": "IE"}
 OTHER = {("Leroy Merlin", "Spain"): "LM", ("ManoMano", "Spain"): "MM_ES", ("ManoMano", "France"): "MM_FR",
          ("ManoMano", "ES_B2B"): "MMB_ES", ("ManoMano Pro", "Spain"): "MMB_ES", ("ManoMano Pro", "ES_B2B"): "MMB_ES",
-         ("Carrefour", "Spain"): "CF_ES", ("Wallapop", "Spain"): "WP_ES", ("Website", "Spain"): "WEB_ES"}
+         ("Carrefour", "Spain"): "CF_ES", ("Wallapop", "Spain"): "WP_ES", ("Website", "Spain"): "WEB_ES",
+         # Worten (30.10.2026, PR #407 витрины): код в форме экономики, как у остальных — upper(legacy_code) = WRT_PT
+         # Страницы показывают его строки только при worten_overview_enabled = 1 (pbi.py, GATED)
+         ("Worten", "Portugal"): "WRT_PT"}
 # колонки витрины в порядке таблицы; paidUnits / paidSales — в Postgres без кавычек регистр имени теряется
 NUM = ["units_sold", "sales_vat_incl", "sales_vat_excl", "tax_amount", "commission_fee_vat_excl",
        "cancel_commission_vat_excl", "cogs_total", "shipping_cost_total", "packing_cost_total", "expenses",
@@ -277,7 +280,10 @@ AMAZON = {"Spain": "ES", "Italy": "IT", "France": "FR", "Germany": "DE", "Belgiu
           "United Kingdom": "GB", "Sweden": "SE", "Poland": "PL", "Ireland": "IE"}
 OTHER = {("Leroy Merlin", "Spain"): "LM", ("ManoMano", "Spain"): "MM_ES", ("ManoMano", "France"): "MM_FR",
          ("ManoMano", "ES_B2B"): "MMB_ES", ("ManoMano Pro", "Spain"): "MMB_ES", ("ManoMano Pro", "ES_B2B"): "MMB_ES",
-         ("Carrefour", "Spain"): "CF_ES", ("Wallapop", "Spain"): "WP_ES", ("Website", "Spain"): "WEB_ES"}
+         ("Carrefour", "Spain"): "CF_ES", ("Wallapop", "Spain"): "WP_ES", ("Website", "Spain"): "WEB_ES",
+         # Worten (30.10.2026, PR #407 витрины): код в форме экономики, как у остальных — upper(legacy_code) = WRT_PT
+         # Страницы показывают его строки только при worten_overview_enabled = 1 (pbi.py, GATED)
+         ("Worten", "Portugal"): "WRT_PT"}
 
 
 def code_of(mk, country):

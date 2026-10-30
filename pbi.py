@@ -35,6 +35,44 @@ from util import as_text
 OWN_METHOD = False          # True — страницы показывают прежнюю методику Кабинета вместо цифр Power BI
 SOURCE = "kabinet_data.pbi_spiderweb_report"
 
+# Площадки витрины, чьи строки страницы показывают только при включённом флаге (30.10.2026, вариант (а) владельца).
+# Worten вошёл в витрину Power BI (PR #407), а на «Обзор» он — только после сверки заказов с кабинетом Worten, за флагом
+# worten_overview_enabled (решение владельца 28.10.2026). Без этого первый же прогон реплики добавил бы Worten в итоги
+# «Обзора» и «Денег» мимо флага. Отбор — по площадке витрины (pbi_marketplace), а не по коду рынка: так же работает и
+# с кодом «?Worten/Portugal», который давала реплика до своего кода Worten. Нет строки флага — строки скрыты. Реплика
+# и сверка (Kabinet - Reconciliation) по-прежнему держат все строки витрины: скрываем только на страницах.
+GATED = {"Worten": "worten_overview_enabled"}
+
+
+def _gate() -> str:
+    """Условие WHERE: строки площадок из GATED — только при флаге = 1. Флаг читает сам запрос — без отдельного
+    обращения к базе и без кеша, который пережил бы переключение."""
+    # IS DISTINCT FROM, а не «NOT (… = …)»: строка с пустой площадкой иначе дала бы NULL и пропала со страниц
+    return "".join(
+        f" AND (pbi_marketplace IS DISTINCT FROM '{mk}' OR COALESCE((SELECT value FROM kabinet_data.reorder_params"
+        f" WHERE key = '{flag}'), 0) = 1)" for mk, flag in GATED.items())
+
+
+def gate_version() -> str:
+    """Значения флагов GATED строкой — в ключ кеша загрузчиков страниц рядом с версией реплики. Без этого переключение
+    флага ждало бы срока кеша загрузчика (5–10 минут), и в эти минуты Worten был бы виден не по флагу. Сам этот ответ
+    живёт 30 секунд. Нет строки флага — пусто: так же скрыто, как «0»."""
+    import streamlit as st
+
+    @st.cache_data(ttl=30, show_spinner=False)
+    def _load(keys: tuple) -> str:
+        conn = get_connection()
+        try:
+            df = pd.read_sql("SELECT key, value FROM kabinet_data.reorder_params WHERE key = ANY(%(k)s) ORDER BY key",
+                             conn, params={"k": list(keys)})
+            return ";".join(f"{k}={v}" for k, v in df.itertuples(index=False))
+        except Exception:
+            return ""
+        finally:
+            conn.close()
+    return _load(tuple(sorted(GATED.values())))
+
+
 # суммы по дню × рынку: всё, что нужно карточкам и графикам
 DAILY_SQL = f"""
     SELECT date AS sales_date, marketplace, pbi_marketplace AS platform, pbi_country AS country,
@@ -56,7 +94,7 @@ DAILY_SQL = f"""
            SUM(profit)                                       AS profit,
            SUM(contribution_profit)                          AS cp
     FROM {SOURCE}
-    WHERE date BETWEEN %(a)s AND %(b)s {{mk}}
+    WHERE date BETWEEN %(a)s AND %(b)s {{mk}}{_gate()}
     GROUP BY 1, 2, 3, 4
 """
 
@@ -107,7 +145,7 @@ SKU_SQL = f"""
            SUM(spend) AS spend, SUM(paid_sales) AS paid_sales, SUM(paid_units) AS paid_units,
            SUM(profit) AS profit, SUM(contribution_profit) AS cp
     FROM {SOURCE}
-    WHERE date BETWEEN %(a)s AND %(b)s {{mk}}
+    WHERE date BETWEEN %(a)s AND %(b)s {{mk}}{_gate()}
     GROUP BY 1, 2, 3, 4, 5
 """
 
@@ -125,13 +163,13 @@ def load_sku(d_from: date, d_to: date, markets: tuple = ()) -> pd.DataFrame:
     return df
 
 
-ORDERS_SQL = """
+ORDERS_SQL = f"""
     SELECT purchase_date AS sales_date, marketplace, pbi_marketplace AS platform, pbi_country AS country,
            COUNT(*)                     AS orders,
            SUM(order_total_amount_eur)  AS order_total,
            SUM(unique_sku_ordered)      AS unique_skus
     FROM kabinet_data.pbi_orders_report
-    WHERE purchase_date BETWEEN %(a)s AND %(b)s {mk}
+    WHERE purchase_date BETWEEN %(a)s AND %(b)s {{mk}}{_gate()}
     GROUP BY 1, 2, 3, 4
 """
 
@@ -177,7 +215,7 @@ COUNTRY_SQL = f"""
            SUM(spend) AS spend, SUM(packing_cost_total) AS packing, SUM(shipping_cost_total) AS shipping,
            SUM(cancel_commission_vat_excl) AS cancel_commission, SUM(expenses) AS expenses
     FROM {SOURCE}
-    WHERE date BETWEEN %(a)s AND %(b)s
+    WHERE date BETWEEN %(a)s AND %(b)s{_gate()}
     GROUP BY 1, 2
 """
 
