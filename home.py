@@ -575,7 +575,7 @@ def tiktok_overview_on() -> bool:
 
 
 @st.cache_data(ttl=600)
-def load_worten_sales(d_from, d_to, ver: str = "", admin_preview: bool = False) -> pd.DataFrame:
+def load_worten_sales(d_from, d_to, ver: str = "", admin_preview: bool = False, pbi_ver: str = "") -> pd.DataFrame:
     """Worten для «Обзора» (29.10.2026, решение владельца: новый источник по API, как TikTok Shop, Power BI не ждём):
     продажи по дням из v_worten_sales_daily — Worten API, не Power BI. Пусто, если в reorder_params
     worten_overview_enabled не 1 (до сверки заказов с кабинетом Worten — выключено) или вью ещё нет; admin_preview —
@@ -589,6 +589,14 @@ def load_worten_sales(d_from, d_to, ver: str = "", admin_preview: bool = False) 
         _on = _flag is not None and not pd.isna(_flag) and int(_flag) == 1
         if not _on and not admin_preview:
             return pd.DataFrame()
+        # Worten уже в витрине Power BI (PR #407, 30.10.2026): при флаге = 1 его строки показывает сама реплика
+        # (pbi.py, GATED) — в карточках, каналах и странах. Строка из API тогда отступает, иначе Worten посчитался бы
+        # дважды. При выключенном флаге строки реплики скрыты, и администратор по-прежнему видит строку API.
+        if _on:
+            _in_pbi = pd.read_sql("""SELECT 1 FROM kabinet_data.pbi_spiderweb_report
+                                     WHERE pbi_marketplace = 'Worten' LIMIT 1""", conn)
+            if not _in_pbi.empty:
+                return pd.DataFrame()
         df = pd.read_sql("""SELECT date AS sales_date, marketplace, channel, country, sales_vat_incl,
                                    sales_vat_excl AS revenue
                             FROM kabinet_data.v_worten_sales_daily WHERE date BETWEEN %(a)s AND %(b)s""",
@@ -888,8 +896,10 @@ else:
     _tts = (load_tiktok_sales(_w.cur_from.date(), _w.cur_to.date(),
                               data_version("raw_tiktok_orders", "loaded_at"), _tts_admin) if _pbi else pd.DataFrame())
     # Worten (29.10.2026) — так же, как TikTok: из Worten API, не из Power BI, строкой в каналах и в таблице стран
+    # версия реплики Power BI — в ключе кеша: появился Worten в реплике — строка API отступает сразу, без TTL
     _wrt = (load_worten_sales(_w.cur_from.date(), _w.cur_to.date(),
-                              data_version("raw_worten_orders", "loaded_at"), _tts_admin) if _pbi else pd.DataFrame())
+                              data_version("raw_worten_orders", "loaded_at"), _tts_admin,
+                              data_version("pbi_spiderweb_report", "loaded_at")) if _pbi else pd.DataFrame())
     # каналы из API площадок, чья строка показана: подпись карточек называет их — «все каналы, кроме TikTok Shop и Worten»
     _api_names = [n for n, f in (("TikTok Shop", _tts), ("Worten", _wrt)) if not f.empty and "_error" not in f.columns]
     _api_list = t("home.api.and").join(_api_names)
