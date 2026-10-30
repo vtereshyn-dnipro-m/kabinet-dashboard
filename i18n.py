@@ -4012,13 +4012,13 @@ TRANSLATIONS = {
         "en": "Table price_parity is missing columns: {miss}. The page expects them by agreement with the loader and does not guess names. What the table does have: {have}.",
     },
     "cm.par.kpi_alert": {"ru": "Разброс больше {n} %", "uk": "Розкид більший за {n} %", "en": "Spread over {n} %"},
-    "cm.par.kpi_alert_help": {"ru": "Товары, где самая высокая цена отличается от самой низкой больше чем на порог. Считается только по каналам, где цена известна; товар с ценой на одном канале в счёт не идёт.", "uk": "Товари, де найвища ціна відрізняється від найнижчої більше ніж на поріг. Рахується лише за каналами, де ціна відома; товар із ціною на одному каналі не враховується.", "en": "Products where the highest price differs from the lowest by more than the threshold. Counted only across channels with a known price; a product priced on one channel is not counted."},
+    "cm.par.kpi_alert_help": {"ru": "Товары, где в одной стране самая высокая цена выше самой низкой больше чем на порог. Считается только по каналам, где цена известна; товар с ценой на одном канале в счёт не идёт.", "uk": "Товари, де в одній країні найвища ціна вища за найнижчу більше ніж на поріг. Рахується лише за каналами, де ціна відома; товар із ціною на одному каналі не враховується.", "en": "Products where, within one country, the highest price exceeds the lowest by more than the threshold. Counted only across channels with a known price; a product priced on one channel is not counted."},
     "cm.par.kpi_bad": {"ru": "Больше {n} %", "uk": "Більше за {n} %", "en": "Over {n} %"},
     "cm.par.kpi_double": {"ru": "Дороже вдвое и более", "uk": "Дорожче вдвічі й більше", "en": "Twice the price or more"},
     "cm.par.kpi_double_help": {"ru": "Разброс больше 100 % значит, что где-то товар стоит как минимум вдвое дороже, чем на самом дешёвом канале. Это уже не разница в комиссиях.", "uk": "Розкид більший за 100 % означає, що десь товар коштує щонайменше вдвічі дорожче, ніж на найдешевшому каналі. Це вже не різниця в комісіях.", "en": "A spread above 100 % means the product costs at least twice as much somewhere as on the cheapest channel. That is no longer a difference in fees."},
     "cm.par.kpi_avg": {"ru": "Средний разброс", "uk": "Середній розкид", "en": "Average spread"},
     "cm.par.col_spread": {"ru": "Разброс", "uk": "Розкид", "en": "Spread"},
-    "cm.par.col_spread_help": {"ru": "На сколько процентов самая высокая цена выше самой низкой среди каналов, где она известна. Считается от минимума, а не от среднего: вопрос в том, насколько дороже там, где дороже всего.", "uk": "На скільки відсотків найвища ціна вища за найнижчу серед каналів, де вона відома. Рахується від мінімуму, а не від середнього: питання в тому, наскільки дорожче там, де найдорожче.", "en": "How many percent the highest price exceeds the lowest across the channels where it is known. Measured from the minimum, not the average: the question is how much dearer it is where it is dearest."},
+    "cm.par.col_spread_help": {"ru": "На сколько процентов самая высокая цена выше самой низкой в одной стране — берётся страна с наибольшим разбросом. Считается от минимума, а не от среднего: вопрос в том, насколько дороже там, где дороже всего.", "uk": "На скільки відсотків найвища ціна вища за найнижчу в одній країні — береться країна з найбільшим розкидом. Рахується від мінімуму, а не від середнього: питання в тому, наскільки дорожче там, де найдорожче.", "en": "How many percent the highest price exceeds the lowest within one country — the country with the largest spread is taken. Measured from the minimum, not the average: the question is how much dearer it is where it is dearest."},
     # ManoMano Pro (B2B) против ManoMano (B2C) на вкладке паритета (08.10.2026)
     "cm.mmb.title": {"ru": "ManoMano Pro (B2B) и ManoMano (B2C): цены офферов", "uk": "ManoMano Pro (B2B) і ManoMano (B2C): ціни оферів", "en": "ManoMano Pro (B2B) vs ManoMano (B2C): offer prices"},
     "cm.mmb.no_data": {"ru": "Офферы ManoMano не прочитались: {e}", "uk": "Офери ManoMano не прочиталися: {e}", "en": "ManoMano offers could not be read: {e}"},
@@ -4041,12 +4041,46 @@ TRANSLATIONS = {
         "uk": "Показано {n} з {total}. Ціни оферів з ПДВ, Іспанія; різниця — B2B мінус B2C. Вивантаження ManoMano Pro {at}. До розкиду паритету вище ManoMano Pro не входить: це інший договір зі своїми цінами.",
         "en": "Showing {n} of {total}. Offer prices incl. VAT, Spain; difference is B2B minus B2C. ManoMano Pro export {at}. ManoMano Pro is not part of the parity spread above: it is a separate contract with its own prices."},
     "cm.par.note": {
-        "ru": "Отклонение считает загрузчик, страница берёт готовое и не пересчитывает: свой расчёт рядом с чужим однажды разойдётся. В сравнение входят восемь каналов в евро; британская цена в фунтах стоит последней колонкой и в разброс не попадает — рядом с евро она задрала бы его на ровном месте.",
-        "uk": "Відхилення рахує завантажувач, сторінка бере готове і не перераховує: власний розрахунок поряд із чужим колись розійдеться. У порівняння входять вісім каналів у євро; британська ціна у фунтах стоїть останньою колонкою і в розкид не потрапляє — поряд з євро вона задерла б його на рівному місці.",
-        "en": "The deviation is computed by the loader; the page takes it as given and does not recompute it — an in-page calculation alongside someone else's will drift apart eventually. Eight euro channels take part in the comparison; the British price in pounds sits in the last column and stays out of the spread, since next to euros it would inflate it for no reason.",
+        "ru": "Разброс — насколько самая высокая цена выше самой низкой в одной стране (Испания — Amazon ES, ManoMano ES, "
+              "Leroy Merlin, Carrefour; Франция — Amazon FR, ManoMano FR). Каналы в паузе между акциями в разброс не идут. "
+              "Цены Amazon DE и IT показаны для справки и в разброс не входят: второго канала в Германии и Италии нет. "
+              "Пустая ячейка — товар на этом рынке не продаётся.",
+        "uk": "Розкид — наскільки найвища ціна вища за найнижчу в одній країні (Іспанія — Amazon ES, ManoMano ES, "
+              "Leroy Merlin, Carrefour; Франція — Amazon FR, ManoMano FR). Канали в паузі між акціями до розкиду не йдуть. "
+              "Ціни Amazon DE та IT показано для довідки, до розкиду вони не входять: другого каналу в Німеччині та Італії немає. "
+              "Порожня клітинка — товар на цьому ринку не продається.",
+        "en": "Spread is how much the highest price exceeds the lowest within one country (Spain: Amazon ES, ManoMano ES, "
+              "Leroy Merlin, Carrefour; France: Amazon FR, ManoMano FR). Channels paused between promotions are left out. "
+              "Amazon DE and IT prices are shown for reference and are not in the spread: Germany and Italy have no second channel. "
+              "An empty cell means the product is not sold in that market.",
     },
+    "cm.par.source_note": {
+        "ru": "Собрано {d} (Киев). Цены Amazon — наши цены продажи из SP-API (только листинги в продаже; действующая скидка, "
+              "если есть): утренние сборки берут вчерашний снимок, дневная после него — сегодняшний. Цены Leroy Merlin, Carrefour и "
+              "ManoMano — из офферов площадок на момент сборки.",
+        "uk": "Зібрано {d} (Київ). Ціни Amazon — наші ціни продажу з SP-API (лише лістинги в продажу; чинна знижка, якщо є): "
+              "ранкові збірки беруть учорашній знімок, денна після нього — сьогоднішній. Ціни Leroy Merlin, Carrefour і ManoMano — з "
+              "оферів майданчиків на момент збірки.",
+        "en": "Built {d} (Kyiv). Amazon prices are our selling prices from SP-API (buyable listings only; an active discount if "
+              "any): morning builds use yesterday's snapshot, the afternoon build after it uses today's. Leroy Merlin, Carrefour and ManoMano prices "
+              "are the platforms' offers at build time.",
+    },
+    "cm.par.no_compare": {"ru": "Разброс не посчитать — нет двух цен в одной стране: {n}", "uk": "Розкид не порахувати — немає двох цін в одній країні: {n}",
+                          "en": "No spread — no two prices in the same country: {n}"},
+    "cm.par.no_compare_note": {"ru": "У этих товаров в каждой стране не больше одной цены для сравнения: цены только в разных странах "
+                                     "или вторая цена в стране — в паузе между акциями (колонка «Пауза акции»). Цены показаны как есть.",
+                               "uk": "У цих товарів у кожній країні не більше однієї ціни для порівняння: ціни лише в різних країнах "
+                                     "або друга ціна в країні — у паузі між акціями (колонка «Пауза акції»). Ціни показано як є.",
+                               "en": "These products have at most one comparable price per country: prices only in different countries, "
+                                     "or the second price in the country is paused between promotions (the “Promo pause” column). Prices are shown as is."},
+    "cm.par.no_gb": {"ru": "Amazon UK в паритете сейчас нет: в снимке SP-API Британии нет.", "uk": "Amazon UK у паритеті зараз немає: у знімку SP-API Британії немає.",
+                     "en": "Amazon UK is not in parity for now: the SP-API snapshot has no UK."},
+    "cm.par.outlier_label": {"ru": "{ch} {p} € (+{pct} % к {c})", "uk": "{ch} {p} € (+{pct} % до {c})", "en": "{ch} {p} € (+{pct} % vs {c})"},
+    "cm.par.shown": {"ru": "Показано {n} из {total}; ещё {k} — в блоке «Разброс не посчитать» ниже.",
+                     "uk": "Показано {n} з {total}; ще {k} — у блоці «Розкид не порахувати» нижче.",
+                     "en": "Showing {n} of {total}; {k} more in the “No spread” block below."},
     "cm.par.col_outliers": {"ru": "Кто выбивается", "uk": "Хто вибивається", "en": "Outliers"},
-    "cm.par.col_outliers_help": {"ru": "Каналы с отклонением больше 20 % и на сколько именно. Строку собирает загрузчик — это готовый ответ на вопрос «где именно чинить цену», а не подсказка искать глазами по восьми колонкам.", "uk": "Канали з відхиленням більшим за 20 % і на скільки саме. Рядок збирає завантажувач — це готова відповідь на питання «де саме лагодити ціну», а не підказка шукати очима по восьми колонках.", "en": "Channels deviating by more than 20 % and by how much. The loader builds this string — it is a ready answer to “where exactly to fix the price”, not a hint to scan eight columns by eye."},
+    "cm.par.col_outliers_help": {"ru": "Каналы с отклонением больше 20 % и на сколько именно. Готовый ответ на вопрос «где именно чинить цену»: канал, его цена и насколько он дороже самого дешёвого в той же стране.", "uk": "Канали з відхиленням більшим за 20 % і на скільки саме. Готова відповідь на питання «де саме лагодити ціну»: канал, його ціна і наскільки він дорожчий за найдешевший у тій самій країні.", "en": "Channels deviating by more than 20 % and by how much. A ready answer to “where exactly to fix the price”: the channel, its price and how much dearer it is than the cheapest in the same country."},
     "cm.par.col_gbp_help": {"ru": "Цена в фунтах, поэтому в разброс она не входит: сравнивать её с евро без курса нельзя. Показана рядом, чтобы британский рынок не пропадал из виду.", "uk": "Ціна у фунтах, тому в розкид вона не входить: порівнювати її з євро без курсу не можна. Показана поруч, щоб британський ринок не зникав з очей.", "en": "A price in pounds, so it is not part of the spread: comparing it with euros without a rate is meaningless. Shown alongside so the British marketplace does not drop out of sight."},
     "ads.card.acos_no_threshold": {"ru": "порога нет: у товаров не загружена себестоимость", "uk": "порога немає: у товарів не завантажено собівартість", "en": "no target: product costs are not loaded"},
     "ads.camp.col_threshold": {"ru": "Порог", "uk": "Поріг", "en": "Target"},
