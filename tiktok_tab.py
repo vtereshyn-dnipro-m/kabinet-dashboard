@@ -62,6 +62,48 @@ def fee_split_exists() -> bool:
 
 
 @st.cache_data(ttl=600)
+def load_requests(d_from, d_to, ver: str = "") -> dict:
+    """Заявки на возврат и отмены за период — по дате создания заявки (Мадрид), из реплик raw_tiktok_returns и
+    raw_tiktok_cancellations (27.10.2026). Операционная картина: деньги по заявкам в выручку и «К выплате» не входят
+    (там — возвраты по выпискам). Реплики ещё нет — None, а не пустой кадр: «заявок нет» и «не загружены» — разное."""
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT to_regclass('kabinet_data.raw_tiktok_returns') IS NOT NULL "
+                    "AND to_regclass('kabinet_data.raw_tiktok_cancellations') IS NOT NULL")
+        if not cur.fetchone()[0]:
+            return {"returns": None, "cancels": None}
+        q = {"a": d_from, "b": d_to}
+        # заглушка позиции «#…» — только у возврата без настоящих позиций (docs/tiktok-shop.md): upsert реплики ничего не
+        # удаляет, и заглушка могла остаться рядом с позициями, пришедшими позже. У возврата без позиций («#0») суммы по
+        # позиции нет — берём сумму возврата целиком
+        returns = pd.read_sql("""
+            SELECT r.return_id, r.order_id, (r.create_time AT TIME ZONE 'Europe/Madrid')::date AS day, r.return_type,
+                   r.return_status, r.return_reason_text, r.seller_sku, r.product_name,
+                   CASE WHEN r.return_line_item_id = '#0' THEN coalesce(r.refund_total, r.return_refund_total)
+                        ELSE r.refund_total END AS refund_total,
+                   r.seller_paid_return_shipping_fee
+            FROM kabinet_data.raw_tiktok_returns r
+            WHERE (r.create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s
+              AND NOT (left(r.return_line_item_id, 1) = '#' AND EXISTS (
+                  SELECT 1 FROM kabinet_data.raw_tiktok_returns x
+                  WHERE x.shop_id = r.shop_id AND x.return_id = r.return_id AND left(x.return_line_item_id, 1) <> '#'))
+            ORDER BY r.create_time, r.return_id, r.return_line_item_id""", conn, params=q)
+        cancels = pd.read_sql("""
+            SELECT c.cancel_id, c.order_id, (c.create_time AT TIME ZONE 'Europe/Madrid')::date AS day, c.cancel_status,
+                   c.cancel_reason_text, c.role, c.seller_sku
+            FROM kabinet_data.raw_tiktok_cancellations c
+            WHERE (c.create_time AT TIME ZONE 'Europe/Madrid')::date BETWEEN %(a)s AND %(b)s
+              AND NOT (left(c.cancel_line_item_id, 1) = '#' AND EXISTS (
+                  SELECT 1 FROM kabinet_data.raw_tiktok_cancellations x
+                  WHERE x.shop_id = c.shop_id AND x.cancel_id = c.cancel_id AND left(x.cancel_line_item_id, 1) <> '#'))""",
+                              conn, params=q)
+    finally:
+        conn.close()
+    return {"returns": returns, "cancels": cancels}
+
+
+@st.cache_data(ttl=600)
 def load(d_from, d_to, ver: str = "", split: bool = False) -> dict:
     """Заказы, строки и операции выписок за период (дата создания заказа по Мадриду) и возвраты периода — по дате
     выписки возврата; возврат без даты выписки (statement_time пуст) — по дате заказа в периоде, refund_day у него пуст."""
@@ -147,6 +189,7 @@ def render(P) -> None:
             k[-1].metric(t("tt.k.payout"), eur0(rf["settlement_amount"].sum()), help=t("tt.k.payout_help"))
             st.caption(t("tt.refunds_line"))
             refunds_block(rf, has_other)
+        requests_block(d_from, d_to)
         source_line(data["loaded_at"])
         return
 
@@ -300,7 +343,47 @@ def render(P) -> None:
                                    t("tt.c.orders"): smp["status"].value_counts().values}), hide_index=True)
 
     refunds_block(rf, has_other)
+    requests_block(d_from, d_to)
     source_line(data["loaded_at"])
+
+
+def requests_block(d_from, d_to) -> None:
+    """Заявки на возврат (по позициям) и отмены за период — по дате заявки. Деньги здесь — сумма заявки, а не выплата:
+    в плитки, недели и «К выплате» они не входят (возврат учитывается по выписке, решение владельца 27.10.2026)."""
+    st.subheader(t("tt.requests"))
+    try:
+        req = load_requests(d_from, d_to, data_version("raw_tiktok_returns", "loaded_at"))
+    except Exception as e:
+        st.error(t("tt.requests_error", e=f"{type(e).__name__}: {str(e)[:150]}"))
+        return
+    rq, cn = req["returns"], req["cancels"]
+    if rq is None:
+        st.caption(t("tt.requests_no_replica"))
+        return
+    st.caption(t("tt.requests_note"))
+    if rq.empty:
+        st.caption(t("tt.requests_none"))
+    else:
+        for c in ("refund_total", "seller_paid_return_shipping_fee"):
+            rq[c] = pd.to_numeric(rq[c], errors="coerce")
+        # обратная доставка — на возврат целиком, а не на позицию: показываем один раз, в первой строке возврата
+        rq.loc[rq["return_id"].duplicated(), "seller_paid_return_shipping_fee"] = float("nan")
+        st.dataframe(pd.DataFrame({
+            t("tt.c.order"): rq["order_id"], t("tt.c.created"): pd.to_datetime(rq["day"]).dt.strftime("%d.%m.%Y"),
+            t("tt.c.status"): rq["return_status"], t("tt.c.return_type"): rq["return_type"],
+            t("tt.c.reason"): rq["return_reason_text"], t("tt.c.sku"): rq["seller_sku"], t("tt.c.name"): rq["product_name"],
+            t("tt.c.requested"): rq["refund_total"].round(2),
+            t("tt.c.seller_shipping"): rq["seller_paid_return_shipping_fee"].round(2)}), hide_index=True,
+            use_container_width=True)
+    if cn.empty:
+        st.caption(t("tt.cancels_none"))
+    else:
+        by = (cn.groupby(["cancel_reason_text", "role"], dropna=False)["cancel_id"].nunique()
+                .rename("n").reset_index().sort_values("n", ascending=False))
+        st.caption(t("tt.cancels_n", n=int(cn["cancel_id"].nunique())))
+        st.dataframe(pd.DataFrame({t("tt.c.reason"): by["cancel_reason_text"].fillna("—"),
+                                   t("tt.c.role"): by["role"].fillna("—"), t("tt.c.orders"): by["n"].astype(int)}),
+                     hide_index=True)
 
 
 def eur0(v) -> str:
