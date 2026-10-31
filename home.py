@@ -575,6 +575,66 @@ def tiktok_overview_on() -> bool:
 
 
 @st.cache_data(ttl=600)
+def load_worten_sales(d_from, d_to, ver: str = "", admin_preview: bool = False, flag: bool = False) -> pd.DataFrame:
+    """Worten для «Обзора» (29.10.2026, решение владельца: новый источник по API, как TikTok Shop, Power BI не ждём):
+    продажи по дням из v_worten_sales_daily — Worten API, не Power BI. Пусто, если в reorder_params
+    worten_overview_enabled не 1 (до сверки заказов с кабинетом Worten — выключено) или вью ещё нет; admin_preview —
+    администратор видит строку и при выключенном флаге, как у TikTok. Колонки — как у load_tiktok_sales.
+
+    `flag` — только ключ кеша: переключили флаг — пересчёт сразу. Отступает ли строка, когда Worten уже в витрине
+    Power BI (PR #407), решает вызывающий код по показанному кадру реплики — см. «Обзор» ниже."""
+    if not table_exists("v_worten_sales_daily"):
+        return pd.DataFrame()
+    conn = get_connection()
+    try:
+        on = pd.read_sql("SELECT value FROM kabinet_data.reorder_params WHERE key = 'worten_overview_enabled'", conn)
+        _flag = pd.to_numeric(on["value"], errors="coerce").iloc[0] if not on.empty else None
+        _on = _flag is not None and not pd.isna(_flag) and int(_flag) == 1
+        if not _on and not admin_preview:
+            return pd.DataFrame()
+        df = pd.read_sql("""SELECT date AS sales_date, marketplace, channel, country, sales_vat_incl,
+                                   sales_vat_excl AS revenue
+                            FROM kabinet_data.v_worten_sales_daily WHERE date BETWEEN %(a)s AND %(b)s""",
+                         conn, params={"a": d_from, "b": d_to})
+    except Exception as e:
+        # строка Worten не должна исчезать молча — как у TikTok
+        return pd.DataFrame({"_error": [f"{type(e).__name__}: {str(e)[:150]}"]})
+    finally:
+        conn.close()
+    if not df.empty:
+        df["sales_date"] = pd.to_datetime(df["sales_date"])
+    return df
+
+
+@st.cache_data(ttl=300)
+def worten_as_of(ver: str = "") -> str:
+    """«ДД.ММ ЧЧ:ММ» (Киев) последней загрузки офферов Worten — их загрузчик пишет на каждом прогоне; «—», если нет."""
+    conn = get_connection()
+    try:
+        v = pd.read_sql("SELECT max(loaded_at) AS la FROM kabinet_data.raw_worten_offers", conn)
+        la = v["la"].iloc[0] if not v.empty else None
+        return "—" if la is None or pd.isna(la) else pd.Timestamp(la).tz_convert("Europe/Kyiv").strftime("%d.%m %H:%M")
+    except Exception:
+        return "—"
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=30)
+def worten_overview_on() -> bool:
+    """Флаг worten_overview_enabled = 1 — строку Worten видят все, кто видит «Обзор»."""
+    conn = get_connection()
+    try:
+        v = pd.read_sql("SELECT value FROM kabinet_data.reorder_params WHERE key = 'worten_overview_enabled'", conn)
+        f = pd.to_numeric(v["value"], errors="coerce").iloc[0] if not v.empty else None
+        return f is not None and not pd.isna(f) and int(f) == 1
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
+@st.cache_data(ttl=600)
 def load_channels() -> pd.DataFrame:
     """Справочник рынков: код рынка и канал, к которому он относится.
 
@@ -831,10 +891,25 @@ else:
     _tts_admin = bool(_me.logged_in and _me.role == auth.ADMIN)
     _tts = (load_tiktok_sales(_w.cur_from.date(), _w.cur_to.date(),
                               data_version("raw_tiktok_orders", "loaded_at"), _tts_admin) if _pbi else pd.DataFrame())
-    _ch_all = "all_no_tts" if (not _tts.empty and "_error" not in _tts.columns) else "all"
-    # заголовок и подсказка ⓘ говорят то же, что подпись: «все каналы» в них при показанном TikTok было бы неправдой
-    _no_tts = _ch_all == "all_no_tts"
-    _tip = lambda k, h: passport.tip("home", k, f"{h} {t('home.kpi.no_tts_help')}" if _no_tts else h)
+    # Worten (29.10.2026) — так же, как TikTok: из Worten API, не из Power BI, строкой в каналах и в таблице стран
+    _wrt = (load_worten_sales(_w.cur_from.date(), _w.cur_to.date(),
+                              data_version("raw_worten_orders", "loaded_at"), _tts_admin, worten_overview_on())
+            if _pbi else pd.DataFrame())
+    # Worten уже в витрине Power BI (PR #407, 30.10.2026): если строки Worten есть в ПОКАЗАННОМ кадре реплики (при флаге
+    # = 1 их пропускает pbi.py, GATED), они уже в карточках, каналах и странах — строка API отступает, иначе Worten
+    # посчитался бы дважды. Решаем по тому же кадру, что на экране, а не отдельным запросом: тогда кеш кадра и кеш
+    # флага не расходятся, и в минуты переключения флага нет ни двойного счёта, ни пропажи Worten.
+    if (not _wrt.empty and "_error" not in _wrt.columns and not money.empty and "platform" in money.columns
+            and (money["platform"].astype(str) == "Worten").any()):
+        _wrt = pd.DataFrame()
+    # каналы из API площадок, чья строка показана: подпись карточек называет их — «все каналы, кроме TikTok Shop и Worten»
+    _api_names = [n for n, f in (("TikTok Shop", _tts), ("Worten", _wrt)) if not f.empty and "_error" not in f.columns]
+    _api_list = t("home.api.and").join(_api_names)
+    _ch_all = ("=" + t("mn.ch.all_except", n=_api_list)) if _api_names else "all"
+    # заголовок и подсказка ⓘ говорят то же, что подпись: «все каналы» в них при показанном API-канале было бы неправдой
+    _no_tts = bool(_api_names)
+    _n_api = "one" if len(_api_names) == 1 else "many"   # «не входит TikTok Shop» / «не входят TikTok Shop и Worten»
+    _tip = lambda k, h: passport.tip("home", k, f"{h} {t('home.kpi.no_api_help_' + _n_api, n=_api_list)}" if _no_tts else h)
     _as = (lambda x: " · ".join(p for p in (x, t("mn.x.as_pbi")) if p)) if _pbi else (lambda x: x)
     mn.money_metric(s0, t("home.kpi.ordered"), fmt_money(ord_cur) if ord_cur else "—", delta=_ord_delta,
                     vat=mn.VAT_INCL, channels="amazon", basis="order", extra=_as(t("mn.x.before_cancel")),
@@ -843,7 +918,8 @@ else:
                            of=_o_from.strftime("%d.%m"), ot=_o_to.strftime("%d.%m"),
                            mf=_m_from.strftime("%d.%m"), mt=_m_to.strftime("%d.%m"))
                          if _spans_differ else t("home.kpi.ordered_help"))))
-    mn.money_metric(s0b, t("home.kpi.sales_all_no_tts") if _no_tts else t("home.kpi.sales_all"), fmt_money(all_cur) if all_cur else "—", delta=_all_delta,
+    mn.money_metric(s0b, (t("home.kpi.sales_all_no_api", n=t("home.api.and").join(
+                        {"TikTok Shop": "TikTok"}.get(n, n) for n in _api_names)) if _no_tts else t("home.kpi.sales_all")), fmt_money(all_cur) if all_cur else "—", delta=_all_delta,
                     vat=mn.VAT_INCL, channels=_ch_all, basis="order", extra=_as(sales_all_extra(sales_all)),
                     help=_tip("ordered_all", t("home.kpi.sales_all_help")))
     mn.money_metric(s1, t("home.kpi.revenue_pbi") if _pbi else t("home.kpi.revenue"), fmt_money(rev_cur),
@@ -981,7 +1057,14 @@ else:
         _tts_err = as_text(_tts["_error"].iloc[0]) if "_error" in _tts.columns else ""
         if _tts_err:
             _tts = pd.DataFrame()
-        cur_ch = pd.concat([cur, _tts], ignore_index=True) if not _tts.empty else cur
+        _wrt_preview = _tts_admin and not _wrt.empty and not worten_overview_on()
+        _wrt_err = as_text(_wrt["_error"].iloc[0]) if "_error" in _wrt.columns else ""
+        if _wrt_err:
+            _wrt = pd.DataFrame()
+        _api = [f for f in (_tts, _wrt) if not f.empty]
+        # подпись источника у графиков блока: «TikTok Shop — API, не Power BI · Worten API, не Power BI»
+        _api_extra = " · ".join(t(k) for k, f in (("home.tts_short", _tts), ("home.wrt_short", _wrt)) if not f.empty)
+        cur_ch = pd.concat([cur, *_api], ignore_index=True) if _api else cur
         rev_ch = float(cur_ch["revenue"].sum())   # база долей каналов — вместе с TikTok, если он показан
         # Канал — это площадка (Amazon, Leroy Merlin, ManoMano, Carrefour),
         # а не страна. Раньше он выводился сравнением с литералом "LM", и
@@ -994,10 +1077,20 @@ else:
             c = as_text(code).strip().upper()
             return _label_of.get(c, c)
 
-        if not _tts.empty:   # TikTok нет в v_marketplaces — канал и подпись берём из его вью
-            for _code, _chn in _tts[["marketplace", "channel"]].drop_duplicates().itertuples(index=False):
+        for _f in _api:   # TikTok и Worten нет в v_marketplaces — канал и подпись берём из их вью
+            for _code, _chn in _f[["marketplace", "channel"]].drop_duplicates().itertuples(index=False):
                 _ch_lookup.setdefault(as_text(_code).strip().upper(), _chn)
                 _label_of.setdefault(as_text(_code).strip().upper(), as_text(_code))
+
+        # рынок реплики Power BI без строки в v_marketplaces (Worten в витрине — WRT_PT, а его строки в
+        # marketplaces_legacy нет) — канал по площадке витрины, а не «Прочее»
+        # из 90-дневного кадра тоже: площадка, молчащая в периоде, нужна для серой плашки «нет продаж»
+        _plat_frames = [f[["marketplace", "platform"]] for f in (cur, money_wide)
+                        if not f.empty and {"marketplace", "platform"} <= set(f.columns)]
+        if _plat_frames:
+            for _code, _plat in pd.concat(_plat_frames).drop_duplicates().itertuples(index=False):
+                if as_text(_plat).strip():
+                    _ch_lookup.setdefault(as_text(_code).strip().upper(), as_text(_plat).strip())
 
         def _channel_of(code) -> str:
             return _ch_lookup.get(as_text(code).strip().upper(),
@@ -1031,7 +1124,7 @@ else:
         # то же число, что в карточке, и разница в 12 тыс. € выглядела ошибкой (20.09.2026)
         mn.chart_note(t("mn.what.revenue_by_channel"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
                       extra=_as(t("mn.x.before_returns") if _pbi else t("mn.x.after_returns"))
-                      + (" · " + t("home.tts_short") if not _tts.empty else ""))
+                      + (" · " + _api_extra if _api_extra else ""))
         for _, r in by_ch.iterrows():
             share = r["revenue"] / rev_ch * 100 if rev_ch else 0
             codes = sorted(sold_mp.loc[sold_mp["channel"] == r["channel"],
@@ -1057,8 +1150,10 @@ else:
                 f"background:{color_of[r['channel']]}'></div></div></div>",
                 unsafe_allow_html=True)
         # сумма строк больше «Продаж без НДС» ровно на TikTok — говорим это прямо под строками (28.10.2026)
-        if not _tts.empty:
-            st.caption(t("home.tts_not_in_cards", x=f"{float(_tts['revenue'].sum()):,.0f}"))
+        if _api:
+            _shown = [n for n, f in (("TikTok Shop", _tts), ("Worten", _wrt)) if not f.empty]
+            st.caption(t("home.api_not_in_cards_" + ("one" if len(_shown) == 1 else "many"),
+                         n=t("home.api.and").join(_shown), x=f"{sum(float(f['revenue'].sum()) for f in _api):,.0f}"))
 
         # у Amazon страна в коде рынка, у остальных площадок — сам код
         # площадки: подписываем плашки кодом как есть, а группируем цветом
@@ -1105,7 +1200,7 @@ else:
         chips = ""
         if _geo == "country":
             mn.chart_note(t("mn.what.sales_by_country"), mn.VAT_INCL, "all", "order", _w.cur_from, _w.cur_to,
-                          extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else ""))
+                          extra=t("mn.x.as_pbi") + (" · " + _api_extra if _api_extra else ""))
             _names, _lang = load_country_names(), get_lang()
             by_cn = (cur_ch.groupby("country", as_index=False)["sales_vat_incl"].sum()
                         .sort_values("sales_vat_incl", ascending=False))
@@ -1119,7 +1214,7 @@ else:
         else:
             if _pbi:
                 mn.chart_note(t("mn.what.sales_by_market"), mn.VAT_EXCL, "all", "order", _w.cur_from, _w.cur_to,
-                              extra=t("mn.x.as_pbi") + (" · " + t("home.tts_short") if not _tts.empty else ""))
+                              extra=t("mn.x.as_pbi") + (" · " + _api_extra if _api_extra else ""))
             # плашки идут в том же порядке, что и строки каналов выше
             for _, r in by_ch.iterrows():
                 col = color_of[r["channel"]]
@@ -1139,6 +1234,13 @@ else:
             st.caption(t("home.tts_admin_only"))
         if _tts_err:
             st.caption(t("home.tts_error", e=_tts_err))
+        if not _wrt.empty:
+            st.caption(t("home.wrt_note") + " " + t("home.tts_as_of",
+                                                    d=worten_as_of(data_version("raw_worten_offers", "loaded_at"))))
+        if _wrt_preview and not _wrt_err:
+            st.caption(t("home.wrt_admin_only"))
+        if _wrt_err:
+            st.caption(t("home.wrt_error", e=_wrt_err))
 
     if ord_cur and rev_cur and _o_clipped:
         st.caption(t("home.sales.ordered_clipped", d=_econ_first.strftime("%d.%m.%Y")))
