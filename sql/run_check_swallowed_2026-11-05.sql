@@ -24,12 +24,20 @@ FROM (VALUES
 ) AS v(old_id, new_id, new_name)
 WHERE j.job_id = v.old_id;
 
+-- Экран «Amazon API» связывает отчёт с джобой по имени: без этого отчёты джоб витрины стали бы «не опознан».
+UPDATE kabinet_data.amazon_report_types
+SET jobs = replace(replace(replace(jobs,
+        'darina:FBA Fees + Listings data for Tableau', 'darina:Amazon Fees + Listings Data Job'),
+        'darina:FBA Inventory Ledger Summary for Tableau', 'darina:Amazon FBA Inventory Ledger Summary Job'),
+        'darina:Sales & Traffic Report for Tableau', 'darina:Amazon Sales & Traffic Report Job')
+WHERE jobs LIKE '%darina:%for Tableau%';
+
 -- Как у silent_success: тот же список и исполнители, что у job_health. ClickUp Sync сейчас на паузе, поэтому до его
 -- включения задачи не создаются; сообщение в бот отправляет сам Run Check.
-INSERT INTO kabinet_data.incident_types (incident_type, mode, risk, due_days, watch_close, telegram_digest,
+INSERT INTO kabinet_data.incident_types (incident_type, area, mode, risk, due_days, watch_close, telegram_digest,
                                          clickup_list_id, clickup_list_name, assignee_group_id, assignee_group_name,
                                          enabled_since, title, description, note, updated_by)
-SELECT 'swallowed_errors', 'task', 'High', 1, true, 'daily', clickup_list_id, clickup_list_name,
+SELECT 'swallowed_errors', area, 'task', 'High', 1, true, 'daily', clickup_list_id, clickup_list_name,
        assignee_group_id, assignee_group_name, DATE '2026-11-05',
        'Джоба Amazon успешна, но пропустила ошибки',
        'Прогон зелёный, но в его выводе есть строки об ошибках: часть отчётов или заказов не получена, данные могут быть неполными.',

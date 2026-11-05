@@ -22,8 +22,10 @@
 # записи — только у джоб с check_write: Auth Guard (писать нечего), паузы и доборы — без неё, только состояние и 429.
 # Для джоб Дарины — только чтение и тревога, никаких перезапусков (перезапуск её Amazon-джоб делает Power BI Self-Heal).
 #
-# «Зелёная, но с проглоченной ошибкой» (с 05.11.2026, решение владельца): у последнего успешного прогона в выводе есть
-# строка «❌ …» (итог «❌ Ошибок: 0» не считается) — тревога [SWALLOWED:<джоба>] (high) и сообщение в бот при открытии.
+# «Зелёная, но с проглоченной ошибкой» (с 05.11.2026, решение владельца), только джобы Дарины (owner = darina): у наших
+# джоб такие строки значат другое (Review Requests всегда печатает «❌ Ошибка: 0», Sync Catalog Items — «❌ 404» по
+# отдельному ASIN), и тревога high никогда бы не закрылась. У последнего успешного прогона в выводе есть строка «❌ …»
+# (нулевые итоги не считаются) — тревога [SWALLOWED:<джоба>] (high) и сообщение в бот при открытии.
 # Запись при этом может быть: 03–05.11 Ads Reports (First) не создал 1–2 отчёта SB из 8, 02.11 Orders + Sendcloud получил
 # 403 на 21 заказе из 82, и обе джобы были зелёными с записью — правило «без записи» такого не видит. Закрывается сама,
 # когда следующий успешный прогон чистый. В бот шлём отсюда: сторож в такой сбой не посмотрит раньше дневной сводки.
@@ -96,7 +98,7 @@ C429 = re.compile(r"попытка \d+: QuotaExceeded|\[429\]|создания �
 # переводе строки или кавычке: run_output_text отдаёт вывод как JSON, где перевод строки записан как \\n.
 SWALLOWED = re.compile(r"❌[^\n\"\\\\]{0,200}")
 # Итоговые строки — не отдельные ошибки: «❌ Ошибок: 0» значит, что их нет, «❌ Ошибки (21):» — заголовок перед списком.
-SW_ZERO = re.compile(r"Ошибок\s*:?\s*0\b|Ошибки\s*\(\d+\)")
+SW_ZERO = re.compile(r"(?:Ошибок|Ошибки|Ошибка|Failed|Errors?)\s*:?\s*0\b|Ошибки\s*\(\d+\)", re.I)
 
 
 def swallowed_lines(txt):
@@ -145,8 +147,11 @@ def tg_to_subscribers(text):
             _tg_c.close()
     except Exception as e:
         return [f"подписчики не прочитались: {type(e).__name__}: {str(e)[:120]}"]
-    _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
-    _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
+    try:   # лучшим усилием — и секреты тоже: исключение отсюда оборвало бы ячейку до пульса (T-8)
+        _tg_main = str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip()
+        _tg_tok = dbutils.secrets.get("kabinet-alerts", "telegram-bot-token")
+    except Exception as e:
+        return [f"секреты бота не прочитались: {type(e).__name__}"]
     _tg_errs = []
     for _tg_chat in _tg_subs:
         if _tg_chat == _tg_main:
@@ -288,20 +293,24 @@ for J, r in todo:
         # история хоть одной таблицы не прочиталась и записей не нашли — «не знаем», а не «не писал»
         wrote = True if hits else (None if unknown else False)
         tables = ", ".join(hits)[:1000] or None
-    n429, kinds, sw = 0, set(), []
+    n429, kinds, sw = 0, set(), ([] if J["owner"] == "darina" else None)
     try:
         for t in r.tasks or []:
             txt = run_output_text(t.run_id, failed)
             for m in C429.finditer(txt):
                 n429 += 1
                 kinds.add(kind_of(txt[max(0, m.start() - 160): m.end() + 160]))
-            if not failed:               # у красного прогона в txt только текст ошибки, он и так виден
-                sw += swallowed_lines(txt)
+            if sw is not None and not failed:   # у красного прогона в txt только текст ошибки, он и так виден
+                if txt:
+                    sw += swallowed_lines(txt)
+                else:
+                    sw = None            # вывода нет: «не знаем», а не «чисто» — тревогу не закрываем
     except Exception as e:
         if "permission" in (type(e).__name__ + str(e)).lower():
             UNREAD[0] += 1               # вывод временного ноутбука прогона без прав на просмотр — 429 не посчитать
             n429, sw = None, None
         else:
+            sw = None
             _errors.append(f"вывод {J['job_name']} {kyiv(r.start_time)}: {type(e).__name__}: {clean(e)}")
     rows.append((r.run_id, J["job_id"], J["job_name"], J["owner"], st, en, state, wrote, tables, n429,
                  ", ".join(sorted(kinds)) or None,
@@ -417,7 +426,7 @@ _last_ok = {}
 for x in sorted(rows, key=lambda x: x[4]):
     if x[6] == "SUCCESS" and x[11] is not None:
         _last_ok[x[2]] = x
-new_swallowed = []
+new_swallowed, _sub_err = [], []
 try:
     with pg() as c, c.cursor() as cur:
         for name, x in _last_ok.items():
@@ -440,7 +449,17 @@ try:
                 cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
                                       resolved_by = 'watchdog-autoclose: прогон прошёл без ошибок'
                                WHERE id = %s""", (_row[0],))
+        # джоба выпала из реестра (Дарина пересоздала её под новым именем, строку убрали) — сама тревога не закроется
+        _sw_names = {J["job_name"] for J in JOBS if J["owner"] == "darina"}
+        cur.execute("""SELECT id, substring(message from '^\\[SWALLOWED:([^\\]]+)\\]') FROM kabinet_data.incidents
+                       WHERE incident_type = 'swallowed_errors' AND source = 'amazon_run_check' AND resolved_at IS NULL""")
+        for _iid, _nm in cur.fetchall():
+            if _nm not in _sw_names:
+                cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
+                                      resolved_by = 'watchdog-autoclose: джоба больше не проверяется'
+                               WHERE id = %s""", (_iid,))
 except Exception as e:
+    new_swallowed = []          # транзакция откатилась: инцидента нет, сообщать не о чем — иначе в боте тревога без инцидента
     _errors.append(f"тревоги об ошибках: {type(e).__name__}: {clean(e)}")
 
 # ── в бот — только при открытии; не ушло — прогон падает после пульса: молчание канала должно быть красным ──
@@ -457,12 +476,10 @@ if new_swallowed:
     except Exception as e:
         _errors.append(f"бот: {type(e).__name__}: {clean(e)}")   # clean вырезает токен бота из текста исключения
     _sub_err = tg_to_subscribers(_tg_text)
-    if _sub_err:
-        print("подписчики:", _sub_err[:3])
 
 # ── пульс — последним и безусловно; сбои — после него ──
 note = (f"прогонов {len(rows)}, без записи {sum(1 for x in rows if x[7] is False)}, с 429 {sum(1 for x in rows if x[9])}; "
-        f"тревог silent {len(silent)}, с проглоченной ошибкой {sum(1 for x in rows if x[11])}" + (f"; вывод не прочитан у {UNREAD[0]}" if UNREAD[0] else "") + (f"; сбои: {' | '.join(_errors)[:400]}" if _errors else ""))
+        f"тревог silent {len(silent)}, с проглоченной ошибкой {sum(1 for x in rows if x[11])}" + (f"; вывод не прочитан у {UNREAD[0]}" if UNREAD[0] else "") + (f"; подписчики: {' | '.join(_sub_err)[:200]}" if _sub_err else "") + (f"; сбои: {' | '.join(_errors)[:400]}" if _errors else ""))
 with pg() as c, c.cursor() as cur:
     cur.execute("""INSERT INTO kabinet_data.system_pulse (job_name, last_success_at, note, expected_interval_hours)
                    VALUES (%s, now(), %s, 2)
