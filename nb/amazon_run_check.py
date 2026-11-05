@@ -432,12 +432,16 @@ except Exception as e:
 new_swallowed, _sub_err = [], []
 try:
     with pg() as c, c.cursor() as cur:
-        cur.execute("""SELECT DISTINCT ON (job_id) job_name, started_at, n_swallowed, swallowed_sample
+        # Отбор по job_id из реестра и имя оттуда же: иначе у пересозданной или переименованной джобы блок закрытия ниже
+        # закрывал бы тревогу, а этот цикл заводил её снова — новое сообщение в бот каждый час
+        _sw_jobs = {int(J["job_id"]): J["job_name"] for J in JOBS if J["owner"] == "darina"}
+        cur.execute("""SELECT DISTINCT ON (job_id) job_id, started_at, n_swallowed, swallowed_sample
                        FROM kabinet_data.amazon_run_checks
-                       WHERE owner = 'darina' AND state = 'SUCCESS' AND n_swallowed IS NOT NULL
+                       WHERE job_id = ANY(%s::bigint[]) AND state = 'SUCCESS' AND n_swallowed IS NOT NULL
                          AND started_at >= now() - interval '15 days'
-                       ORDER BY job_id, started_at DESC""")
-        for name, started, n_sw, sample in cur.fetchall():
+                       ORDER BY job_id, started_at DESC""", (list(_sw_jobs),))
+        for _jid, started, n_sw, sample in cur.fetchall():
+            name = _sw_jobs[int(_jid)]
             tok = f"[SWALLOWED:{name}]"
             cur.execute("""SELECT id FROM kabinet_data.incidents WHERE incident_type = 'swallowed_errors'
                            AND source = 'amazon_run_check' AND message LIKE %s AND resolved_at IS NULL LIMIT 1""", (tok + "%",))
@@ -456,7 +460,7 @@ try:
                                       resolved_by = 'watchdog-autoclose: в выводе прогона нет строк с ошибками'
                                WHERE id = %s""", (_row[0],))
         # джоба выпала из реестра (Дарина пересоздала её под новым именем, строку убрали) — сама тревога не закроется
-        _sw_names = {J["job_name"] for J in JOBS if J["owner"] == "darina"}
+        _sw_names = set(_sw_jobs.values())
         cur.execute("""SELECT id, substring(message from '^\\[SWALLOWED:([^\\]]+)\\]') FROM kabinet_data.incidents
                        WHERE incident_type = 'swallowed_errors' AND source = 'amazon_run_check' AND resolved_at IS NULL""")
         for _iid, _nm in cur.fetchall():
