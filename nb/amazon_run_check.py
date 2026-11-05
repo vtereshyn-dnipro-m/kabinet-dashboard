@@ -25,7 +25,7 @@
 # «Зелёная, но с проглоченной ошибкой» (с 05.11.2026, решение владельца), только джобы Дарины (owner = darina): у наших
 # джоб такие строки значат другое (Review Requests всегда печатает «❌ Ошибка: 0», Sync Catalog Items — «❌ 404» по
 # отдельному ASIN), и тревога high никогда бы не закрылась. У последнего успешного прогона в выводе есть строка «❌ …»
-# (нулевые итоги не считаются) — тревога [SWALLOWED:<джоба>] (high) и сообщение в бот при открытии.
+# (нулевые итоги не считаются) — тревога [SWALLOWED:<job_id>] (high) и сообщение в бот при открытии.
 # Запись при этом может быть: 03–05.11 Ads Reports (First) не создал 1–2 отчёта SB из 8, 02.11 Orders + Sendcloud получил
 # 403 на 21 заказе из 82, и обе джобы были зелёными с записью — правило «без записи» такого не видит. Закрывается сама,
 # когда следующий успешный прогон чистый. В бот шлём отсюда: сторож в такой сбой не посмотрит раньше дневной сводки.
@@ -441,13 +441,15 @@ try:
                          AND started_at >= now() - interval '15 days'
                        ORDER BY job_id, started_at DESC""", (list(_sw_jobs),))
         for _jid, started, n_sw, sample in cur.fetchall():
+            # Ключ тревоги — job_id, а не имя: имя в реестре не уникально и может содержать «_» и «]», и с именем в ключе
+            # чистая джоба закрывала бы чужую тревогу, а тревога открывалась снова — новое сообщение каждый час
             name = _sw_jobs[int(_jid)]
-            tok = f"[SWALLOWED:{name}]"
+            tok = f"[SWALLOWED:{_jid}]"
             cur.execute("""SELECT id FROM kabinet_data.incidents WHERE incident_type = 'swallowed_errors'
                            AND source = 'amazon_run_check' AND message LIKE %s AND resolved_at IS NULL LIMIT 1""", (tok + "%",))
             _row = cur.fetchone()
             if n_sw:
-                msg = (f"{tok} успешный прогон {kyiv(started)} пропустил ошибки: {n_sw} шт. Например: {sample}. "
+                msg = (f"{tok} {name}: успешный прогон {kyiv(started)} пропустил ошибки: {n_sw} шт. Например: {sample}. "
                        f"Данные могут быть неполными. Джоба витрины Power BI — только сообщаем, не перезапускаем.")
                 if _row:
                     cur.execute("UPDATE kabinet_data.incidents SET message = %s WHERE id = %s", (msg, _row[0]))
@@ -460,11 +462,11 @@ try:
                                       resolved_by = 'watchdog-autoclose: в выводе прогона нет строк с ошибками'
                                WHERE id = %s""", (_row[0],))
         # джоба выпала из реестра (Дарина пересоздала её под новым именем, строку убрали) — сама тревога не закроется
-        _sw_names = set(_sw_jobs.values())
-        cur.execute("""SELECT id, substring(message from '^\\[SWALLOWED:([^\\]]+)\\]') FROM kabinet_data.incidents
+        _sw_ids = {str(i) for i in _sw_jobs}
+        cur.execute("""SELECT id, substring(message from '^\\[SWALLOWED:(\\d+)\\]') FROM kabinet_data.incidents
                        WHERE incident_type = 'swallowed_errors' AND source = 'amazon_run_check' AND resolved_at IS NULL""")
         for _iid, _nm in cur.fetchall():
-            if _nm not in _sw_names:
+            if _nm not in _sw_ids:
                 cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
                                       resolved_by = 'watchdog-autoclose: джоба больше не проверяется'
                                WHERE id = %s""", (_iid,))
