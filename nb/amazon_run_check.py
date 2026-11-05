@@ -297,6 +297,12 @@ for J, r in todo:
     try:
         for t in r.tasks or []:
             txt = run_output_text(t.run_id, failed)
+            # Прогон читается один раз, а вывод изредка приходит обрезанным (05.11: 10 тыс. знаков вместо 217 тыс., 1 случай из
+            # 67). Чистый результат — повод закрыть тревогу, поэтому перед таким выводом читаем ещё раз и берём более длинный.
+            if sw is not None and not failed and not swallowed_lines(txt):
+                _txt2 = run_output_text(t.run_id, failed)
+                if len(_txt2) > len(txt):
+                    txt = _txt2
             for m in C429.finditer(txt):
                 n429 += 1
                 kinds.add(kind_of(txt[max(0, m.start() - 160): m.end() + 160]))
@@ -421,24 +427,24 @@ try:
 except Exception as e:
     _errors.append(f"тревоги: {type(e).__name__}: {clean(e)}")
 
-# ── тревоги «зелёная, но с проглоченной ошибкой»: смотрим последний успешный прогон джобы среди новых ──
-_last_ok = {}
-for x in sorted(rows, key=lambda x: x[4]):
-    if x[6] == "SUCCESS" and x[11] is not None:
-        _last_ok[x[2]] = x
+# ── тревоги «зелёная, но с проглоченной ошибкой»: последний успешный прогон джобы Дарины берём из amazon_run_checks, а не
+# из новых строк этого прогона: прочитанные прогоны второй раз не читаются, и после отката транзакции тревога иначе пропала бы ──
 new_swallowed, _sub_err = [], []
 try:
     with pg() as c, c.cursor() as cur:
-        for name, x in _last_ok.items():
+        cur.execute("""SELECT DISTINCT ON (job_id) job_name, started_at, n_swallowed, swallowed_sample
+                       FROM kabinet_data.amazon_run_checks
+                       WHERE owner = 'darina' AND state = 'SUCCESS' AND n_swallowed IS NOT NULL
+                         AND started_at >= now() - interval '15 days'
+                       ORDER BY job_id, started_at DESC""")
+        for name, started, n_sw, sample in cur.fetchall():
             tok = f"[SWALLOWED:{name}]"
             cur.execute("""SELECT id FROM kabinet_data.incidents WHERE incident_type = 'swallowed_errors'
                            AND source = 'amazon_run_check' AND message LIKE %s AND resolved_at IS NULL LIMIT 1""", (tok + "%",))
             _row = cur.fetchone()
-            if x[11]:
-                whose = {"darina": " Джоба витрины Power BI — только сообщаем, не перезапускаем.",
-                         "listing_suite": " Джоба Listing Suite."}.get(x[3], "")
-                msg = (f"{tok} успешный прогон {kyiv(x[4])} пропустил ошибки: {x[11]} шт. Например: {x[12]}. "
-                       f"Данные могут быть неполными.{whose}")
+            if n_sw:
+                msg = (f"{tok} успешный прогон {kyiv(started)} пропустил ошибки: {n_sw} шт. Например: {sample}. "
+                       f"Данные могут быть неполными. Джоба витрины Power BI — только сообщаем, не перезапускаем.")
                 if _row:
                     cur.execute("UPDATE kabinet_data.incidents SET message = %s WHERE id = %s", (msg, _row[0]))
                 else:
@@ -447,7 +453,7 @@ try:
                     new_swallowed.append(msg)
             elif _row:
                 cur.execute("""UPDATE kabinet_data.incidents SET status = 'resolved', resolved_at = now(),
-                                      resolved_by = 'watchdog-autoclose: прогон прошёл без ошибок'
+                                      resolved_by = 'watchdog-autoclose: в выводе прогона нет строк с ошибками'
                                WHERE id = %s""", (_row[0],))
         # джоба выпала из реестра (Дарина пересоздала её под новым именем, строку убрали) — сама тревога не закроется
         _sw_names = {J["job_name"] for J in JOBS if J["owner"] == "darina"}
@@ -466,7 +472,7 @@ except Exception as e:
 if new_swallowed:
     import html
     import requests
-    _tg_text = ("🟠 <b>Джоба зелёная, но с ошибками</b>\n\n" + "\n\n".join("• " + html.escape(m) for m in new_swallowed))[:4000]
+    _tg_text = "🟠 <b>Джоба зелёная, но с ошибками</b>\n\n" + html.escape("\n\n".join("• " + m for m in new_swallowed)[:3500])
     try:
         _rr = requests.post(f"https://api.telegram.org/bot{dbutils.secrets.get('kabinet-alerts', 'telegram-bot-token')}/sendMessage",  # noqa: F821
                             json={"chat_id": str(dbutils.secrets.get("kabinet-alerts", "telegram-chat-id")).strip(),  # noqa: F821
